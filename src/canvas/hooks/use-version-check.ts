@@ -55,7 +55,7 @@ export function useVersionCheck() {
         open,
         setOpen,
         openReleaseModal,
-        latestVersion: latest?.version || status?.currentVersion || APP_VERSION,
+        latestVersion: latest?.version || APP_VERSION,
         releases,
         checking,
         hasNewVersion: status?.hasNewVersion || false,

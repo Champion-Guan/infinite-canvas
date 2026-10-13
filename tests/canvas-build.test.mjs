@@ -11,6 +11,8 @@ async function fixture(t) {
   const dist = path.join(root, 'src/canvas/dist');
   await mkdir(path.join(dist, 'assets'), { recursive: true });
   await mkdir(path.join(root, 'scripts/lib'), { recursive: true });
+  await mkdir(path.join(root, 'docs'), { recursive: true });
+  await writeFile(path.join(root, 'docs/RELEASE-NOTES.md'), '## 1.0.3 — 2026-10-13\n- fixture notes');
   await writeFile(path.join(root, 'package.json'), JSON.stringify({ version: '1.0.3' }));
   await writeFile(path.join(root, 'src/canvas/main.ts'), 'const fixture = true;');
   await writeFile(path.join(root, 'scripts/lib/canvas-build.mjs'), '// fixture builder');
@@ -32,13 +34,14 @@ test('current source build exact inventory verifies and isolated copy preserves 
   await assert.rejects(copyVerifiedCanvasBuild(root, dist, target));
 });
 
-for (const mutation of ['source', 'version', 'builder', 'tamper', 'extra', 'missing', 'symlink', 'bridge']) {
+for (const mutation of ['source', 'version', 'notes', 'builder', 'tamper', 'extra', 'missing', 'symlink', 'bridge']) {
   test(`build rejects ${mutation} without changing or publishing the live web root`, async t => {
     const { root, dist } = await fixture(t);
     await mkdir(path.join(root, 'public'), { recursive: true });
     await writeFile(path.join(root, 'public/kept.txt'), 'production-kept');
     if (mutation === 'source') await writeFile(path.join(root, 'src/canvas/main.ts'), '// changed');
     if (mutation === 'version') await writeFile(path.join(root, 'package.json'), '{"version":"1.0.4"}');
+    if (mutation === 'notes') await writeFile(path.join(root, 'docs/RELEASE-NOTES.md'), '// changed notes');
     if (mutation === 'builder') await writeFile(path.join(root, 'scripts/lib/canvas-build.mjs'), '// changed builder');
     if (mutation === 'tamper') await writeFile(path.join(dist, 'assets/app.js'), '// tampered');
     if (mutation === 'extra') await writeFile(path.join(dist, 'assets/old.js'), '// stale');

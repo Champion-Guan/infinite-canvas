@@ -10,14 +10,14 @@ export function parseChangelog(content: string): ReleaseInfo[] {
         .slice(1)
         .map((block) => {
             const [title = "", ...lines] = block.trim().split("\n");
-            const [, version = title.trim(), date = ""] = title.match(/^(.+?)(?:\s+-\s+(.+))?$/) || [];
+            const [, version = title.trim(), date = ""] = title.match(/^(.+?)(?:\s+[-—–]\s+(.+))?$/) || [];
             return {
                 version: version.trim(),
                 date: date.trim(),
                 items: lines
-                    .map((line) => line.trim().match(/^\+\s+\[(.+?)\]\s+(.+)$/))
+                    .map((line) => line.trim().match(/^[+-]\s+\[(.+?)\]\s+(.+)$/) || line.trim().match(/^[-+]\s+()(.+)$/))
                     .filter((match): match is RegExpMatchArray => Boolean(match))
-                    .map((match) => ({ type: match[1], content: match[2] })),
+                    .map((match) => ({ type: match[1] || "更新", content: match[2] })),
             };
         })
         .filter((release) => release.items.length);

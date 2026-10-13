@@ -3,6 +3,7 @@ import tailwindcss from "@tailwindcss/postcss";
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 import { readFileSync } from "node:fs";
+import { parseChangelog } from "./lib/release";
 
 const projectRoot = fileURLToPath(new URL("../../", import.meta.url));
 const { version } = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
@@ -29,7 +30,7 @@ export default defineConfig({
     },
     define: {
         __APP_VERSION__: JSON.stringify(version),
-        __APP_RELEASES__: "[]",
+        __APP_RELEASES__: JSON.stringify(parseChangelog(readFileSync(new URL("../../docs/RELEASE-NOTES.md", import.meta.url), "utf8")).slice(0, 20)),
     },
     resolve: {
         alias: {

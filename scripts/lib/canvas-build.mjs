@@ -19,6 +19,7 @@ export async function canvasSourceFingerprint(projectRoot) {
   const hash = createHash('sha256');
   const files = await filesUnder(path.join(projectRoot, 'src/canvas'), new Set(['node_modules', 'dist']));
   files.set('../../package.json', await readFile(path.join(projectRoot, 'package.json')));
+  files.set('../../docs/RELEASE-NOTES.md', await readFile(path.join(projectRoot, 'docs/RELEASE-NOTES.md')));
   files.set('../../scripts/lib/canvas-build.mjs', await readFile(path.join(projectRoot, 'scripts/lib/canvas-build.mjs')));
   for (const [name, content] of [...files].sort(([a], [b]) => a.localeCompare(b))) {
     hash.update(name).update('\0').update(createHash('sha256').update(content).digest()).update('\0');

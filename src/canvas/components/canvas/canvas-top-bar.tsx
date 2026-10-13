@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, Download, Grid2x2, Keyboard, Menu, PanelLeftClose, PanelLeftOpen, Redo2, Settings2, Undo2, Upload } from "lucide-react";
+import { VersionReleaseModal } from "@/components/layout/version-release-modal";
 import { Button, Dropdown, Modal, Tooltip } from "antd";
 import { useTranslation } from "react-i18next";
 
@@ -138,6 +139,7 @@ export function CanvasTopBar({
                     >
                         <Settings2 className="size-4" />
                     </button>
+                    <VersionReleaseModal className="inline-flex h-7 shrink-0 cursor-pointer items-center rounded-md px-2 text-xs font-medium transition-colors hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} />
                     <button
                         type="button"
                         className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-stone-600 transition-colors hover:bg-black/5 hover:text-stone-950 dark:text-stone-300 dark:hover:bg-white/10 dark:hover:text-white"
@@ -148,6 +150,7 @@ export function CanvasTopBar({
                     >
                         <Keyboard className="size-4" />
                     </button>
+                    <span aria-hidden="true" data-guan-shortcuts-agent-divider className="mx-1 h-4 w-px shrink-0" style={{ background: theme.node.stroke }} />
                     <Button
                         type="text"
                         className="!h-10 !rounded-xl !px-3 !font-medium"
