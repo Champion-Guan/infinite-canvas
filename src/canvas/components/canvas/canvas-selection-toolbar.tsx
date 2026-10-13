@@ -59,7 +59,7 @@ export function CanvasSelectionToolbar({
             {showActions ? (
                 <div
                     className="absolute z-[70] flex h-12 -translate-x-1/2 -translate-y-full items-center overflow-visible rounded-[18px] border border-black/10 bg-white text-[15px] text-[#242529] shadow-[0_8px_28px_rgba(15,23,42,.12)]"
-                    style={{ left: left + width / 2, top: top - 8 }}
+                    style={{ left: left + width / 2, top: top - 8, pointerEvents: "auto" }}
                     onMouseDown={(event) => event.stopPropagation()}
                     onPointerDown={(event) => event.stopPropagation()}
                 >

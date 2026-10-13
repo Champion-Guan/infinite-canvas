@@ -499,6 +499,25 @@ function InfiniteCanvasPage() {
     const saveStatus = useCanvasSaveStore((state) => state.status);
     const [expandedBatchNodeIds, setExpandedBatchNodeIds] = useState<Set<string>>(new Set());
     const [isNodeDragging, setIsNodeDragging] = useState(false);
+    const [isCanvasPanning, setIsCanvasPanning] = useState(false);
+    const canvasPanningRef = useRef(false);
+    const panOverlayRef = useRef<HTMLDivElement>(null);
+    const renderedViewportRef = useRef(viewport);
+    renderedViewportRef.current = viewport;
+    const previewCanvasViewport = useCallback((next: ViewportTransform) => {
+        viewportRef.current = next;
+        const rendered = renderedViewportRef.current;
+        if (panOverlayRef.current) panOverlayRef.current.style.transform = `translate(${next.x - rendered.x}px, ${next.y - rendered.y}px)`;
+    }, []);
+    const changeCanvasPanning = useCallback((panning: boolean) => {
+        canvasPanningRef.current = panning;
+        setIsCanvasPanning(panning);
+    }, []);
+    const changeCanvasViewport = useCallback((next: ViewportTransform) => {
+        viewportRef.current = next;
+        setViewport(next);
+        setContextMenu(null);
+    }, []);
     const [isNodeResizing, setIsNodeResizing] = useState(false);
     const [dropTargetGroupId, setDropTargetGroupId] = useState<string | null>(null);
     const [referencePickerNodeId, setReferencePickerNodeId] = useState<string | null>(null);
@@ -929,7 +948,7 @@ function InfiniteCanvasPage() {
         if (nodes === nodeTransactionRef.current) nodesRef.current = nodes;
         connectionsRef.current = connections;
         selectedNodeIdsRef.current = selectedNodeIds;
-        viewportRef.current = viewport;
+        if (!canvasPanningRef.current) viewportRef.current = viewport;
         connectingParamsRef.current = connectingParams;
         connectionTargetNodeIdRef.current = connectionTargetNodeId;
         pendingConnectionCreateRef.current = pendingConnectionCreate;
@@ -4344,10 +4363,9 @@ function InfiniteCanvasPage() {
                     viewport={viewport}
                     tool={canvasTool}
                     backgroundMode={backgroundMode}
-                    onViewportChange={(next) => {
-                        setViewport(next);
-                        setContextMenu(null);
-                    }}
+                    onViewportChange={changeCanvasViewport}
+                    onViewportPreview={previewCanvasViewport}
+                    onPanningChange={changeCanvasPanning}
                     onCanvasMouseDown={(event) => {
                         if (!referencePickerNodeId) handleCanvasMouseDown(event);
                     }}
@@ -4368,7 +4386,7 @@ function InfiniteCanvasPage() {
                                 from={from}
                                 to={to}
                                 active={selectedConnectionId === connection.id || relatedHighlight.connectionIds.has(connection.id)}
-                                dragging={isNodeDragging}
+                                dragging={isNodeDragging || isCanvasPanning}
                                 onSelect={selectConnection}
                                 onContextMenu={openConnectionMenu}
                             />
@@ -4472,6 +4490,7 @@ function InfiniteCanvasPage() {
                     </div>
                 </div>
 
+                <div ref={panOverlayRef} className="pointer-events-none absolute inset-0 z-[70]" style={{ willChange: isCanvasPanning ? "transform" : undefined }}>
                 <CanvasNodeHoverToolbar
                     node={isNodeDragging || isNodeResizing || nodeImageSettingsOpen || Boolean(referencePickerNodeId) || expandedBatchNodeIds.has(toolbarNode?.id || "") ? null : toolbarNode}
                     viewport={viewport}
@@ -4513,6 +4532,7 @@ function InfiniteCanvasPage() {
                         onUngroup={ungroupSelection}
                     />
                 ) : null}
+                </div>
 
                 <CanvasToolbar
                     selectedCount={selectedNodeIds.size}

@@ -1,11 +1,11 @@
 {
   "app": "guan-ai-workbench",
   "format": 1,
-  "version": "1.0.19",
-  "sourceHash": "a2e7f19118d3a8affa812b552d766297422c8d158ae40acbab96040212b7d30c",
+  "version": "1.0.20",
+  "sourceHash": "7cc89c47867ec67edad4fa5f6624decbbf93aa23f5cb4cd50e377bc56bf4e4b9",
   "files": {
-    "assets/highlighted-body-KQOG7T2V-DCbrRdZs.js": "e1b899cd8b12bd704f6f5d1828c5b52dc5a72edddd80818c3f7c23fa92234c89",
-    "assets/index-V4SAA-OK.js": "46e4aee9f0296af93c03fc953db1482cd7a184c1a3091cc4983154fb1b653376",
+    "assets/highlighted-body-KQOG7T2V-D6tb0iNo.js": "035c2eec27f7f0b1f10ff849a1187692a0d9b0cfda4bdd2e496b0fe87e773d3e",
+    "assets/index-R7wpA-99.js": "449d636d9501dcf8979e3f756b130b0fe3b5992a31b7e9d77e835bb6ac83fa79",
     "assets/index-YYt5k0oE.css": "11d514755a17f4df4d1b216f9cfafa1e6e7fce32bb32348294c43b297f65ad8e",
     "excel-prompts-bridge.js": "3bee43457c505123a51010c7e7fe8b7d080aa18ee9045976e26557ce75d36744",
     "icons/claude.svg": "a3101f3047a119aa11825ad9369510f0c472428c8c52d420e31bc62db44a8364",
@@ -15,6 +15,6 @@
     "icons/grok.svg": "9175fc90c22655160231976c849f25a03b888d7cc0e04c5f1b987b659bb07c95",
     "icons/linuxdo.svg": "7864fbfc8a4b9c865fa2b543c408b4bf02e3b4d3dfe6ccc947c0810201e3e458",
     "icons/openai.svg": "a595df6b423920c67a7f8f73c063e4bfb72d415948097b6cac063a2366bb5186",
-    "index.html": "7acab5f2b4939523f1171a644a8338a81ef3f4be5ed94482a6b15bcb046271a6"
+    "index.html": "877492981da8fd00af7bb050f5743be84e9d4604b26a5ef80c8a8c91c5c5f922"
   }
 }

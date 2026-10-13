@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createCanvasPanScheduler } from "@/lib/canvas/canvas-pan-scheduler";
 
 import { canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
@@ -10,6 +11,8 @@ type InfiniteCanvasProps = {
     tool: "select" | "pan";
     backgroundMode?: CanvasBackgroundMode;
     onViewportChange: (viewport: ViewportTransform) => void;
+    onViewportPreview?: (viewport: ViewportTransform) => void;
+    onPanningChange?: (panning: boolean) => void;
     onCanvasMouseDown?: (event: React.PointerEvent<HTMLDivElement>) => void;
     onCanvasDeselect?: () => void;
     onCanvasDoubleClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
@@ -18,7 +21,7 @@ type InfiniteCanvasProps = {
     children: React.ReactNode;
 };
 
-export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = "lines", onViewportChange, onCanvasMouseDown, onCanvasDeselect, onCanvasDoubleClick, onContextMenu, onDrop, children }: InfiniteCanvasProps) {
+export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = "lines", onViewportChange, onViewportPreview, onPanningChange, onCanvasMouseDown, onCanvasDeselect, onCanvasDoubleClick, onContextMenu, onDrop, children }: InfiniteCanvasProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const panState = useRef({
         isPanning: false,
@@ -30,8 +33,20 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
         startedOnBackground: false,
     });
     const scaleRef = useRef(viewport.k);
-    const frameRef = useRef<number | null>(null);
-    const nextViewportRef = useRef<ViewportTransform | null>(null);
+    const layerRef = useRef<HTMLDivElement>(null);
+    const gridRef = useRef<HTMLDivElement>(null);
+    const callbacksRef = useRef({ onViewportChange, onViewportPreview, onPanningChange, onCanvasDeselect });
+    callbacksRef.current = { onViewportChange, onViewportPreview, onPanningChange, onCanvasDeselect };
+    const schedulerRef = useRef<ReturnType<typeof createCanvasPanScheduler> | null>(null);
+    if (!schedulerRef.current) schedulerRef.current = createCanvasPanScheduler({
+        paint: next => {
+            if (layerRef.current) layerRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.k})`;
+            if (gridRef.current) gridRef.current.style.backgroundPosition = `${next.x % (48 * next.k)}px ${next.y % (48 * next.k)}px`;
+            callbacksRef.current.onViewportPreview?.(next);
+        },
+        commit: next => callbacksRef.current.onViewportChange(next),
+        frame: callback => requestAnimationFrame(callback), cancel: id => cancelAnimationFrame(id), now: () => performance.now(),
+    });
     const [isSpacePressed, setIsSpacePressed] = useState(false);
     const [isControlPressed, setIsControlPressed] = useState(false);
     const [isPanning, setIsPanning] = useState(false);
@@ -42,7 +57,7 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
 
     useEffect(
         () => () => {
-            if (frameRef.current) cancelAnimationFrame(frameRef.current);
+            schedulerRef.current?.dispose();
         },
         [],
     );
@@ -69,7 +84,9 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
         const handleBlur = () => {
             setIsSpacePressed(false);
             setIsControlPressed(false);
+            if (panState.current.isPanning) schedulerRef.current?.flush();
             panState.current.isPanning = false;
+            callbacksRef.current.onPanningChange?.(false);
             setIsPanning(false);
             document.body.style.cursor = "";
         };
@@ -88,16 +105,23 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
         const target = event.target instanceof Element ? event.target : null;
         if (target?.closest("[data-canvas-no-zoom],.ant-modal,.ant-popover,.ant-dropdown,.ant-select-dropdown,.ant-picker-dropdown")) return;
 
+        const current = panState.current.isPanning ? schedulerRef.current?.flush() || viewport : viewport;
+        if (panState.current.isPanning) {
+            panState.current.isPanning = false;
+            setIsPanning(false);
+            callbacksRef.current.onPanningChange?.(false);
+            document.body.style.cursor = "";
+        }
         const delta = -event.deltaY;
         const factor = Math.pow(1.1, delta / 100);
-        const newScale = Math.min(Math.max(viewport.k * factor, 0.05), 5);
+        const newScale = Math.min(Math.max(current.k * factor, 0.05), 5);
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
 
         const mouseX = event.clientX - rect.left;
         const mouseY = event.clientY - rect.top;
-        const worldX = (mouseX - viewport.x) / viewport.k;
-        const worldY = (mouseY - viewport.y) / viewport.k;
+        const worldX = (mouseX - current.x) / current.k;
+        const worldY = (mouseY - current.y) / current.k;
 
         onViewportChange({
             x: mouseX - worldX * newScale,
@@ -128,6 +152,8 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
                 startedOnBackground: isBackgroundClick,
             };
             setIsPanning(true);
+            schedulerRef.current?.begin(viewport);
+            callbacksRef.current.onPanningChange?.(true);
             document.body.style.cursor = "grabbing";
             return;
         }
@@ -155,15 +181,10 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
                 panState.current.hasMoved = true;
             }
 
-            nextViewportRef.current = {
+            schedulerRef.current?.move({
                 x: panState.current.initialX + dx,
                 y: panState.current.initialY + dy,
                 k: scaleRef.current,
-            };
-            if (frameRef.current) return;
-            frameRef.current = requestAnimationFrame(() => {
-                frameRef.current = null;
-                if (nextViewportRef.current) onViewportChange(nextViewportRef.current);
             });
         };
 
@@ -171,9 +192,11 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
             if (!panState.current.isPanning) return;
 
             if (!panState.current.hasMoved && panState.current.startedOnBackground) {
-                onCanvasDeselect?.();
+                callbacksRef.current.onCanvasDeselect?.();
             }
+            schedulerRef.current?.flush();
             panState.current.isPanning = false;
+            callbacksRef.current.onPanningChange?.(false);
             setIsPanning(false);
             document.body.style.cursor = "";
         };
@@ -187,7 +210,18 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
             window.removeEventListener("pointercancel", handlePointerUp);
             document.body.style.cursor = "";
         };
-    }, [onCanvasDeselect, onViewportChange]);
+    }, []);
+
+    useLayoutEffect(() => {
+        // A React checkpoint must not overwrite a newer frame painted while
+        // that checkpoint was rendering. Rebase selection overlays as well.
+        const live = panState.current.isPanning ? schedulerRef.current?.latest : null;
+        if (live && layerRef.current) {
+            layerRef.current.style.transform = `translate(${live.x}px, ${live.y}px) scale(${live.k})`;
+            if (gridRef.current) gridRef.current.style.backgroundPosition = `${live.x % (48 * live.k)}px ${live.y % (48 * live.k)}px`;
+        }
+        callbacksRef.current.onViewportPreview?.(live || viewport);
+    }, [viewport]);
 
     useEffect(() => {
         const container = containerRef.current;
@@ -219,11 +253,13 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
             onDragOver={(event) => event.preventDefault()}
             onDrop={onDrop}
         >
-            <CanvasGrid viewport={viewport} mode={backgroundMode} />
+            <CanvasGrid viewport={viewport} mode={backgroundMode} gridRef={gridRef} />
             <div
+                ref={layerRef}
                 className="absolute origin-top-left"
                 style={{
                     transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.k})`,
+                    willChange: isPanning ? "transform" : undefined,
                 }}
             >
                 {children}
@@ -232,7 +268,7 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
     );
 }
 
-function CanvasGrid({ viewport, mode }: { viewport: ViewportTransform; mode: CanvasBackgroundMode }) {
+function CanvasGrid({ viewport, mode, gridRef }: { viewport: ViewportTransform; mode: CanvasBackgroundMode; gridRef: React.RefObject<HTMLDivElement | null> }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     if (mode === "blank") return null;
 
@@ -245,6 +281,7 @@ function CanvasGrid({ viewport, mode }: { viewport: ViewportTransform; mode: Can
 
     return (
         <div
+            ref={gridRef}
             className="pointer-events-none absolute inset-0 opacity-40"
             style={{
                 backgroundImage,
