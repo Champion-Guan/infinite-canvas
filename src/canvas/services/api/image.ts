@@ -110,28 +110,15 @@ export type GeneratedImage = {
     transport?: "direct" | "proxy";
 };
 
-const QUALITY_BASE: Record<string, number> = {
-    low: 1024,
-    medium: 2048,
-    high: 2880,
-    xhigh: 2880,
-    max: 2880,
-    standard: 1024,
-    hd: 2048,
-};
-const QUALITY_ALIASES: Record<string, string> = {
-    "1k": "low",
-    "2k": "medium",
-    "4k": "high",
-};
+const IMAGE_QUALITY_VALUES = ["low", "medium", "high", "xhigh", "max"];
 const DEFAULT_IMAGE_SHORT_SIDE = 1024;
+const IMAGE_SIZE_STEP = 16;
 const IMAGE_MIN_PIXELS = 655360;
 const IMAGE_OUTPUT_FORMAT = "png";
 // 与 image-storage 的下载超时保持一致，避免接口挂起时节点一直停在生成中。
 const IMAGE_REQUEST_TIMEOUT_MS = 10 * 60_000;
 
 const GEMINI_SUPPORTED_RATIOS = ["1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9"];
-const GEMINI_IMAGE_SIZE_BY_QUALITY: Record<string, string> = { low: "1K", medium: "2K", high: "4K", standard: "1K", hd: "2K" };
 
 function supportsAdvancedImageQuality(model: string) {
     const value = model.trim().toLowerCase();
@@ -140,9 +127,8 @@ function supportsAdvancedImageQuality(model: string) {
 
 function normalizeQuality(quality: string, model = "") {
     const value = quality.trim().toLowerCase();
-    const normalized = QUALITY_ALIASES[value] || value;
-    if ((normalized === "xhigh" || normalized === "max") && !supportsAdvancedImageQuality(model)) return undefined;
-    return QUALITY_BASE[normalized] ? normalized : undefined;
+    if ((value === "xhigh" || value === "max") && !supportsAdvancedImageQuality(model)) return undefined;
+    return IMAGE_QUALITY_VALUES.includes(value) ? value : undefined;
 }
 
 /** Only "transparent" is forwarded; any other value (incl. empty) means keep the default opaque background. */
@@ -154,29 +140,15 @@ function normalizeModeration(moderation: string | undefined) {
     return moderation?.trim().toLowerCase() === "low" ? "low" : "auto";
 }
 
-/** Map "quality + ratio" to an explicit pixel dimension like "3840x2160". */
-function resolveSize(quality: string | undefined, ratio: string): string {
+/** Map a bare ratio such as "1:1" to an explicit pixel dimension like "1024x1024". */
+function resolveSize(ratio: string): string {
     const parsedRatio = parseImageRatio(ratio);
-    const scale = quality === "high" || quality === "xhigh" || quality === "max" ? "4k" : quality === "medium" || quality === "hd" ? "2k" : "1k";
-    const preset = imageSizePresets[scale][ratio];
+    const preset = imageSizePresets["1k"][ratio];
     if (preset) return preset;
-    const basePixels = quality ? QUALITY_BASE[quality] : undefined;
     const isLandscape = parsedRatio.width >= parsedRatio.height;
     const longRatio = isLandscape ? parsedRatio.width / parsedRatio.height : parsedRatio.height / parsedRatio.width;
-    let longSide: number;
-    let shortSide: number;
-
-    if (basePixels) {
-        const targetPixels = basePixels * basePixels;
-        const longSideRaw = Math.sqrt(targetPixels * longRatio);
-        longSide = Math.round(longSideRaw);
-        shortSide = Math.round(longSide / longRatio);
-    } else {
-        shortSide = DEFAULT_IMAGE_SHORT_SIDE;
-        longSide = Math.round(shortSide * longRatio);
-        shortSide = Math.round(longSide / longRatio);
-    }
-
+    const shortSide = DEFAULT_IMAGE_SHORT_SIDE;
+    const longSide = Math.round((shortSide * longRatio) / IMAGE_SIZE_STEP) * IMAGE_SIZE_STEP;
     const width = isLandscape ? longSide : shortSide;
     const height = isLandscape ? shortSide : longSide;
     validateImageSize(width, height);
@@ -224,7 +196,7 @@ function ensureMinimumImagePixels(size: string) {
     return `${widthUnit * multiplier}x${heightUnit * multiplier}`;
 }
 
-function resolveRequestSize(quality: string | undefined, size: string) {
+function resolveRequestSize(_quality: string | undefined, size: string) {
     const value = size.trim();
     if (!value || value.toLowerCase() === "auto") return undefined;
     const dimensions = parseImageDimensions(value);
@@ -232,7 +204,7 @@ function resolveRequestSize(quality: string | undefined, size: string) {
         validateImageSize(dimensions.width, dimensions.height);
         return ensureMinimumImagePixels(`${dimensions.width}x${dimensions.height}`);
     }
-    if (value.includes(":")) return ensureMinimumImagePixels(resolveSize(quality, value));
+    if (value.includes(":")) return ensureMinimumImagePixels(resolveSize(value));
     throw new Error(apiText("invalidImageSizeFormat"));
 }
 
@@ -241,7 +213,7 @@ function resolveGeminiImageConfig(config: AiConfig) {
     const dimensions = parseImageDimensions(value);
     const ratio = dimensions ? `${dimensions.width}:${dimensions.height}` : value;
     const aspectRatio = value && value.toLowerCase() !== "auto" ? closestGeminiAspectRatio(ratio) : undefined;
-    const imageSize = supportsGeminiImageSize(config.model) ? resolveGeminiImageSize(config.quality, dimensions) : undefined;
+    const imageSize = resolveGeminiImageSize(dimensions);
     const image = { ...(aspectRatio ? { aspectRatio } : {}), ...(imageSize ? { imageSize } : {}) };
     return Object.keys(image).length ? { imageConfig: image } : {};
 }
@@ -256,23 +228,17 @@ function closestGeminiAspectRatio(value: string) {
     });
 }
 
-function resolveGeminiImageSize(quality: string, dimensions: { width: number; height: number } | null) {
-    const normalizedQuality = normalizeQuality(quality);
-    if (normalizedQuality) return GEMINI_IMAGE_SIZE_BY_QUALITY[normalizedQuality];
+/** Gemini takes the resolution tier and the ratio separately; the tier comes from the size presets. */
+function resolveGeminiImageSize(dimensions: { width: number; height: number } | null) {
     if (!dimensions) return undefined;
     const size = `${dimensions.width}x${dimensions.height}`;
-    const scale = inferMediaScale(size);
-    if (Object.values(imageSizePresets[scale]).includes(size)) return scale.toUpperCase();
+    const scale = Object.keys(imageSizePresets).find((key) => Object.values(imageSizePresets[key]).includes(size));
+    if (scale) return scale.toUpperCase();
     const edge = Math.max(dimensions.width, dimensions.height);
     if (edge <= 768) return "512";
     if (edge <= 1536) return "1K";
     if (edge <= 3072) return "2K";
     return "4K";
-}
-
-function supportsGeminiImageSize(model: string) {
-    const value = model.toLowerCase();
-    return value.includes("gemini-3") || value.includes("3.1") || value.includes("3-pro");
 }
 
 function resolveImageSource(item: Record<string, unknown>) {
@@ -845,7 +811,7 @@ async function requestGenerationImpl(config: AiConfig, prompt: string, options?:
                 config: requestConfig,
                 prompt: withSystemPrompt(requestConfig, prompt),
                 images: [],
-                params: { size: requestSize, quality, moderation: normalizeModeration(config.moderation), count: n, ...(background ? { background } : {}) },
+                params: { size: requestSize, resolution: inferMediaScale(config.size), quality, moderation: normalizeModeration(config.moderation), count: n, ...(background ? { background } : {}) },
                 signal: options?.signal,
             });
             return attachRequestMetadata(normalizePluginImages(result).map((dataUrl) => ({ id: nanoid(), dataUrl })), config, requestConfig, "direct");
@@ -916,7 +882,7 @@ async function requestEditImpl(config: AiConfig, prompt: string, references: Ref
                 config: requestConfig,
                 prompt: withSystemPrompt(requestConfig, requestPrompt),
                 images: refs,
-                params: { size: requestSize, quality, moderation: normalizeModeration(config.moderation), count: n, ...(background ? { background } : {}) },
+                params: { size: requestSize, resolution: inferMediaScale(config.size), quality, moderation: normalizeModeration(config.moderation), count: n, ...(background ? { background } : {}) },
                 signal: options?.signal,
             });
             return attachRequestMetadata(normalizePluginImages(result).map((dataUrl) => ({ id: nanoid(), dataUrl })), config, requestConfig, "direct");

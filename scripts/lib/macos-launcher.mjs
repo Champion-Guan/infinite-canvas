@@ -43,15 +43,31 @@ export async function startPortableJob({ descriptor, jobs, label = 'com.guanaiwo
   if (!await jobs.inspect(label, descriptor)) await jobs.start(label, descriptor);
   else await jobs.resume(label, descriptor);
 }
-export async function desktopShortcut({ desktop, node, root }) {
+export async function desktopShortcut({ desktop, node, root, port = 8888 }) {
+  if (![desktop, node, root].every(value => typeof value === 'string' && path.isAbsolute(value) && !/[\x00-\x1f]/.test(value))
+    || !Number.isSafeInteger(port) || port < 1024 || port > 65535) throw Error('desktop_shortcut_paths_invalid');
   const destination = path.join(desktop, 'AI-Workbench.app');
-  // Existing unrelated desktop entries are never replaced. An existing app
-  // from this project remains usable and opens an already-running workbench.
+  const url = `http://127.0.0.1:${port}`;
+  const probe = `ObjC.import('Foundation');\nfunction run() {\n  try {\n    const data = $.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile;\n    const text = ObjC.unwrap($.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding));\n    const value = JSON.parse(text);\n    return value.app === 'guan-ai-workbench' && value.ready === true && value.maintenance === false && value.origin === ${JSON.stringify(url)} ? 'ready' : '';\n  } catch (_) { return ''; }\n}\n`;
+  const launch = `#!/bin/sh\nlauncher_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"\nif [ "$(/usr/bin/curl --noproxy '*' --fail --silent --max-time 2 --max-filesize 16384 ${shell(url + '/local-app/health')} | /usr/bin/osascript -l JavaScript "$launcher_dir/probe.js" 2>/dev/null)" = ready ]; then\n  exec /usr/bin/open ${shell(url)}\nfi\nif ${shell(node)} ${shell(path.join(root, 'scripts/start-macos.mjs'))} >/dev/null 2>&1; then\n  exit 0\nfi\n/usr/bin/osascript -e 'display alert "AI-Workbench 启动未完成" message "请从最新安装包运行启动工作台入口以修复桌面快捷方式。原有画布和配置不会被清空。若仍失败，请检查软件更新服务。" as warning' >/dev/null 2>&1\nexit 1\n`;
+  const refresh = async bundle => {
+    for (const directory of ['Contents', 'Contents/MacOS']) {
+      const info = await lstat(path.join(bundle, directory));
+      if (!info.isDirectory() || info.isSymbolicLink()) throw Error('desktop_shortcut_conflict');
+    }
+    const entry = path.join(bundle, 'Contents/MacOS/launch');
+    await writePrivateFile(path.join(bundle, 'Contents/MacOS/probe.js'), probe);
+    await writePrivateFile(entry, launch);
+    await chmod(entry, 0o700);
+  };
+  // Refresh only an explicitly marked project launcher. Old extracted paths
+  // must not survive an upgrade; unrelated desktop entries are never replaced.
   try {
     const info = await lstat(destination);
     if (!info.isDirectory() || info.isSymbolicLink()
       || await readFile(path.join(destination, 'Contents/guan-workbench-shortcut'), 'utf8') !== 'AI-Workbench desktop launcher\n') throw Error('desktop_shortcut_conflict');
-    return { path: destination, created: false };
+    await refresh(destination);
+    return { path: destination, created: false, refreshed: true };
   } catch (error) { if (error.code !== 'ENOENT') throw error;
     // ENOENT inside an existing unrelated bundle must not permit a merge.
     try { await lstat(destination); throw Error('desktop_shortcut_conflict'); } catch (check) { if (check.code !== 'ENOENT') throw check; }
@@ -60,8 +76,7 @@ export async function desktopShortcut({ desktop, node, root }) {
   await mkdir(path.join(temporary, 'Contents/MacOS'), { recursive: true, mode: 0o700 });
   await writePrivateFile(path.join(temporary, 'Contents/Info.plist'), `<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.guanaiworkbench.desktop</string><key>CFBundleName</key><string>AI-Workbench</string><key>CFBundleExecutable</key><string>launch</string><key>CFBundlePackageType</key><string>APPL</string><key>LSUIElement</key><true/></dict></plist>\n`);
   await writePrivateFile(path.join(temporary, 'Contents/guan-workbench-shortcut'), 'AI-Workbench desktop launcher\n');
-  await writePrivateFile(path.join(temporary, 'Contents/MacOS/launch'), `#!/bin/sh\nexec ${shell(node)} ${shell(path.join(root, 'scripts/start-macos.mjs'))}\n`);
-  await chmod(path.join(temporary, 'Contents/MacOS/launch'), 0o700);
+  await refresh(temporary);
   // Do not rename over an existing entry.
   try { await lstat(destination); throw Error('desktop_shortcut_conflict'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
   await rename(temporary, destination);

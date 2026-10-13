@@ -1,12 +1,12 @@
 {
   "app": "guan-ai-workbench",
   "format": 1,
-  "version": "1.0.14",
-  "sourceHash": "1e2e7801789dba0ab7e2fa8856416c3daa938bee2f48f1d99cb48c5b88a01fd5",
+  "version": "1.0.15",
+  "sourceHash": "80d969ea28a12a10f31b2d7a30b35c2bdab5c9c8150c8d9106eca88de834f7be",
   "files": {
-    "assets/highlighted-body-KQOG7T2V-DaqXkhe_.js": "5ef9d2c5a6ae3ff0311ab535f9c670e508428d61e011fa689a71f0e047df017e",
-    "assets/index-BmTSskix.css": "bb4f2c03f2587755b41cc7ecf3bfbc400d12d19b87c561c53fda5e3e98b1eb0e",
-    "assets/index-DoIHWCey.js": "49813aa6bc52bcd7d71ee08d38feac3ef9f1c9c5d654cb177b3a0d831bd98acb",
+    "assets/highlighted-body-KQOG7T2V-DE83buH_.js": "02075c0147c876b9620129d6a4798970bce12847d70e4dc734e563ed7c8a42be",
+    "assets/index-90bU7KHy.js": "9abcc8306d57098ff8c38b62d51d6e8e2de9011bb9c6d678befcaf06b803259d",
+    "assets/index-BaGRft7H.css": "5985674e8eaf72ec7c309fb27eebb9219394681f1b693a4aa526e4fe799d58e1",
     "excel-prompts-bridge.js": "3bee43457c505123a51010c7e7fe8b7d080aa18ee9045976e26557ce75d36744",
     "icons/claude.svg": "a3101f3047a119aa11825ad9369510f0c472428c8c52d420e31bc62db44a8364",
     "icons/deepseek.svg": "deba5f98a5c1796e20fcac3149bcd7eb8a32f0bdd04d048819400b1f28bd1439",
@@ -15,6 +15,6 @@
     "icons/grok.svg": "9175fc90c22655160231976c849f25a03b888d7cc0e04c5f1b987b659bb07c95",
     "icons/linuxdo.svg": "7864fbfc8a4b9c865fa2b543c408b4bf02e3b4d3dfe6ccc947c0810201e3e458",
     "icons/openai.svg": "a595df6b423920c67a7f8f73c063e4bfb72d415948097b6cac063a2366bb5186",
-    "index.html": "294edb2e28b85abf6233716e9d18bf85be30361519db88db2f029dbff8f769fc"
+    "index.html": "9537ab3ea6ab20b3afde1dedc916cc7f7c83e81ef7fdcdc597e977b21cee182f"
   }
 }

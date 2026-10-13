@@ -22,9 +22,12 @@ test('desktop bundle is executable without Terminal and unrelated desktop files 
   const desktop = await fixture(t), node = '/fixture with spaces/node', root = '/fixture with spaces/workbench';
   const result = await desktopShortcut({ desktop, node, root });
   assert.equal(result.created, true);
-  assert.match(await readFile(path.join(result.path, 'Contents/MacOS/launch'), 'utf8'), /exec '\/fixture with spaces\/node'/);
+  assert.match(await readFile(path.join(result.path, 'Contents/MacOS/launch'), 'utf8'), /if '\/fixture with spaces\/node'/);
   assert.ok((await stat(path.join(result.path, 'Contents/MacOS/launch'))).mode & 0o100);
-  assert.equal((await desktopShortcut({ desktop, node, root })).created, false);
+  assert.equal((await desktopShortcut({ desktop, node, root: '/new extracted/workbench' })).refreshed, true);
+  const updated = await readFile(path.join(result.path, 'Contents/MacOS/launch'), 'utf8');
+  assert.ok(updated.includes('/new extracted/workbench/scripts/start-macos.mjs'));
+  assert.ok(!updated.includes('/fixture with spaces/workbench/scripts/start-macos.mjs'));
   const other = await fixture(t); await writeFile(path.join(other, 'AI-Workbench.app'), 'customer file');
   await assert.rejects(desktopShortcut({ desktop: other, node, root }), /conflict/);
   assert.equal(await readFile(path.join(other, 'AI-Workbench.app'), 'utf8'), 'customer file');
@@ -34,7 +37,9 @@ test('macOS opens the isolated desktop app and executes its launcher without Ter
   await mkdir(path.join(root, 'scripts'));
   const marker = path.join(root, 'launched.txt');
   await writeFile(path.join(root, 'scripts/start-macos.mjs'), `import {writeFileSync} from 'node:fs'; writeFileSync(${JSON.stringify(marker)}, 'desktop-opened');\n`);
-  const result = await desktopShortcut({ desktop: root, node: process.execPath, root });
+  const socket = createServer(); socket.listen(0, '127.0.0.1'); await once(socket, 'listening');
+  const port = socket.address().port; await new Promise(resolve => socket.close(resolve));
+  const result = await desktopShortcut({ desktop: root, node: process.execPath, root, port });
   await promisify(execFile)('/usr/bin/open', ['-n', '-W', result.path], { timeout: 30000, maxBuffer: 65536 });
   assert.equal(await readFile(marker, 'utf8'), 'desktop-opened');
 });
@@ -45,6 +50,21 @@ test('proxy discovery permits only credential-free loopback and discovers system
     read: async file => file.endsWith('runtime.env') ? 'IMAGE_RELAY_PROXY_URL=http://127.0.0.1:23210' : null,
     execute: async () => ({ stdout: 'HTTPEnable : 1\nHTTPProxy : 127.0.0.1\nHTTPPort : 7890\n' }) });
   assert.deepEqual(networks, [undefined, 'http://127.0.0.1:7890', 'http://127.0.0.1:23210']);
+});
+
+test('desktop health probe accepts only a ready matching workbench and rejects maintenance or foreign services', { skip: process.platform !== 'darwin' }, async t => {
+  const root = await fixture(t), port = 45678;
+  const bundle = await desktopShortcut({ desktop: root, node: '/missing/node', root: '/old/extracted', port });
+  const probe = path.join(bundle.path, 'Contents/MacOS/probe.js');
+  const health = { app: 'guan-ai-workbench', ready: true, maintenance: false, origin: `http://127.0.0.1:${port}` };
+  async function check(value) {
+    const child = execFile('/usr/bin/osascript', ['-l', 'JavaScript', probe]);
+    const result = new Promise((resolve, reject) => { let text = ''; child.stdout.on('data', chunk => { text += chunk; }); child.once('error', reject); child.once('exit', code => code === 0 ? resolve(text.trim()) : reject(Error('probe failed'))); });
+    child.stdin.end(JSON.stringify(value));
+    return result;
+  }
+  assert.equal(await check(health), 'ready');
+  for (const value of [{ ...health, app: 'other' }, { ...health, ready: false }, { ...health, maintenance: true }, { ...health, origin: 'http://127.0.0.1:5174' }, null]) assert.equal(await check(value), '');
 });
 test('migration retries network errors using local proxy but never retries signature refusal', async () => {
   const calls = [], networks = [undefined, 'http://127.0.0.1:7890'];

@@ -16,6 +16,7 @@ const context = vm.createContext({
     imageSizePresets: { '1k': {}, '2k': {}, '4k': {} },
     QUALITY_BASE: { low: 1024, medium: 2048, high: 2880 },
     DEFAULT_IMAGE_SHORT_SIDE: 1024,
+    IMAGE_SIZE_STEP: 16,
 });
 vm.runInContext(ts.transpileModule(functions, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context);
 
@@ -67,4 +68,11 @@ test('all generation and edit paths share the minimum-size resolver', () => {
     assert.equal(source.match(/resolveRequestSize\(quality, config\.size\)/g)?.length, 4);
     assert.ok(source.includes('resolveRequestSize(normalizeQuality(config.quality, config.model), config.size)'));
     assert.equal(context.resolveRequestSize('low', '1x1'), '816x816');
+});
+
+test('quality no longer changes resolution when only a ratio is supplied', () => {
+    for (const ratio of ['1:1', '8:5', '5:8', '16:9']) {
+        const size = context.resolveRequestSize('low', ratio);
+        for (const quality of ['medium', 'high', 'xhigh', 'max', undefined]) assert.equal(context.resolveRequestSize(quality, ratio), size);
+    }
 });

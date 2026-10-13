@@ -9,6 +9,9 @@ export const CANVAS_SIDE_PANEL_DEFAULT_WIDTH = 280;
 const WIDTH_KEY = "canvas-side-panel-width";
 const OPEN_KEY = "canvas-side-panel-open";
 const HISTORY_SORTED_KEY = "canvas-generation-history-sorted";
+const NODE_VIEW_KEY = "canvas-side-panel-node-view";
+
+export type CanvasNodeViewMode = "list" | "grid";
 
 function initialWidth() {
     if (typeof window === "undefined") return CANVAS_SIDE_PANEL_DEFAULT_WIDTH;
@@ -27,6 +30,11 @@ function initialHistorySorted() {
     return localStorage.getItem(HISTORY_SORTED_KEY) === "1";
 }
 
+function initialNodeView(): CanvasNodeViewMode {
+    if (typeof window === "undefined") return "list";
+    return localStorage.getItem(NODE_VIEW_KEY) === "grid" ? "grid" : "list";
+}
+
 type CanvasSidePanelStore = {
     width: number;
     panelOpen: boolean;
@@ -35,6 +43,8 @@ type CanvasSidePanelStore = {
     historySorted: boolean;
     setWidth: (width: number) => void;
     toggleHistorySorted: () => void;
+    nodeViewMode: CanvasNodeViewMode;
+    setNodeViewMode: (mode: CanvasNodeViewMode) => void;
     openPanel: () => void;
     closePanel: () => void;
     togglePanel: () => void;
@@ -51,6 +61,11 @@ export const useCanvasSidePanelStore = create<CanvasSidePanelStore>((set, get) =
         const historySorted = !get().historySorted;
         if (typeof window !== "undefined") checkpointLocalStorageWrite(HISTORY_SORTED_KEY, historySorted ? "1" : "0");
         set({ historySorted });
+    },
+    nodeViewMode: initialNodeView(),
+    setNodeViewMode: (mode) => {
+        if (typeof window !== "undefined") checkpointLocalStorageWrite(NODE_VIEW_KEY, mode);
+        set({ nodeViewMode: mode });
     },
     openPanel: () => {
         if (typeof window !== "undefined") checkpointLocalStorageWrite(OPEN_KEY, "1");

@@ -19,6 +19,8 @@ npm run dev
 详见 [LICENSE](LICENSE)。
 
 当前源码仓库为 https://github.com/Champion-Guan/infinite-canvas，属于原作者仓库的 fork。
+已合入原项目 v0.20.0 的 Web 源码更新，工作台自身版本独立编号。升级保留产品画布、提示词、尺寸处理、生成历史和密钥代理等定制功能，详见 [上游 v0.20.0 合并记录](docs/上游v0.20.0合并记录.md)。
+
 原工作台历史与完整上游历史均保留。旧仓库 https://github.com/Champion-Guan/AI-Workbench
 保留既有签名 Stable Release。自 v1.0.14 起，新版本软件更新锁定到
 `Champion-Guan/infinite-canvas`。旧仓库也发布了 v1.0.14 过渡包：兼容的旧更新客户端
