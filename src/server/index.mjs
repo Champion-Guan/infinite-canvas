@@ -22,6 +22,7 @@ import { StableDownload } from "./stable-download.mjs";
 import { createUpdateStartup } from "./update-startup.mjs";
 import { createUpdateHttpHandler } from "./update-http.mjs";
 import { UpdateManagerClient } from "./update-manager-client.mjs";
+import { UpdateProgressLauncher } from "./update-progress.mjs";
 import { UpdateTaskLedger } from "./update-task-ledger.mjs";
 import { createUpdateTaskHttpHandler } from "./update-task-http.mjs";
 import { createBackendControl } from "./update-backend-control.mjs";
@@ -55,6 +56,7 @@ const credentialRegistry = new CredentialRegistry({ directory: join(privatePaths
 const credentialHttp = createCredentialHttpHandler({ registry: credentialRegistry, origin: `http://127.0.0.1:${port}`, activityGate,
   dispatcherForProfile: profile => profile.kind === "agent" ? undefined : (getImageRelayProxyUrl() ? getImageRelayProxyAgent(getImageRelayProxyUrl()) : undefined) });
 const softwareUpdates = new SoftwareUpdates({ directory: privatePaths.updates, currentVersion: applicationVersion,
+  progress: new UpdateProgressLauncher({ projectRoot, privateRoot: privatePaths.root }),
   manager: sourceDevelopment ? null : new UpdateManagerClient({ socketPath: join(privatePaths.updates, "u.sock") }),
   downloader: new StableDownload({ directory: join(privatePaths.updates, "packages") }),
   auth: new UpdateAuth({ directory: privatePaths.updates, vault: new MacKeychainVault({ executable: join(privatePaths.runtime, "guan-keychain") }) }),

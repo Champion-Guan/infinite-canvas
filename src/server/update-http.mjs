@@ -9,7 +9,7 @@ export function createUpdateHttpHandler({ updates, origin, activityGate }) {
     let release;
     try {
       if (req.url === '/local-app/updates/status' && req.method === 'GET') reply(res, 200, await updates.status());
-      else if (req.method === 'POST' && ['/local-app/updates/check', '/local-app/updates/download', '/local-app/updates/stage', '/local-app/updates/preferences', '/local-app/updates/approve', '/local-app/updates/defer'].includes(req.url)) {
+      else if (req.method === 'POST' && ['/local-app/updates/check', '/local-app/updates/download', '/local-app/updates/stage', '/local-app/updates/preferences', '/local-app/updates/approve', '/local-app/updates/defer', '/local-app/updates/progress-window'].includes(req.url)) {
         release = activityGate.acquire('storage');
         if (req.headers['content-type']?.split(';')[0].trim() !== 'application/json') throw new UpdateError('invalid_request');
         let bytes = 0; const chunks = [];
@@ -25,7 +25,7 @@ export function createUpdateHttpHandler({ updates, origin, activityGate }) {
           reply(res, 200, await updates.approve(input.acknowledgement)); return true;
         }
         if (!req.url.endsWith('/preferences') && (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).length)) throw new UpdateError('invalid_request');
-        reply(res, 200, req.url.endsWith('/check') ? await updates.check() : req.url.endsWith('/download') ? await updates.download()
+        reply(res, 200, req.url.endsWith('/progress-window') ? await updates.progressWindow() : req.url.endsWith('/check') ? await updates.check() : req.url.endsWith('/download') ? await updates.download()
           : req.url.endsWith('/stage') ? await updates.stage() : req.url.endsWith('/defer') ? await updates.defer() : await updates.configure(input));
       } else reply(res, 405, { error: 'operation_not_allowed' });
     } catch (e) { if (!res.headersSent) reply(res, 409, { error: e instanceof UpdateError ? e.code : 'update_operation_failed' }); }

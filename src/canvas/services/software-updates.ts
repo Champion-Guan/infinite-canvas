@@ -53,10 +53,24 @@ export const installationMessages: Record<string, string> = {
 };
 export async function updateRequest(operation: "status" | "check" | "download" | "stage" | "preferences" | "approve" | "defer", input?: Partial<UpdatePreferences> | { acknowledgement: "saved-and-all-tasks-ended" }): Promise<SoftwareUpdateStatus> {
     const response = await fetch(`/local-app/updates/${operation}`, {
-        method: operation === "status" ? "GET" : "POST", cache: "no-store", signal: AbortSignal.timeout(40000),
+        method: operation === "status" ? "GET" : "POST", cache: "no-store", signal: AbortSignal.timeout(operation === "approve" ? 130000 : 40000),
         ...(operation === "status" ? {} : { headers: { "content-type": "application/json" }, body: JSON.stringify(input || {}) }),
     });
     const data = await response.json();
     if (!response.ok) throw Error(updateMessages[data.error] || "软件更新操作未完成，原配置保留");
     return data;
+}
+
+export async function openUpdateProgressWindow(popup: Window): Promise<void> {
+    const response = await fetch("/local-app/updates/progress-window", {
+        method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+        cache: "no-store", signal: AbortSignal.timeout(15000),
+    });
+    const data = await response.json();
+    if (!response.ok || typeof data.url !== "string" || !/^http:\/\/127\.0\.0\.1:\d{1,5}\/[a-f0-9]{48}\/$/.test(data.url)) {
+        throw Error("独立更新进度窗口未能启动，尚未确认安装，请重试");
+    }
+    if (popup.closed) throw Error("进度窗口已关闭，尚未确认安装，请重试");
+    popup.opener = null;
+    popup.location.replace(data.url);
 }

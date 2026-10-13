@@ -8,7 +8,8 @@ import { STABLE_REPOSITORY, isWorkbenchRepository, isPublicUpdateRepository, sam
 export const UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const defaults = () => ({ version: 1, repository: STABLE_REPOSITORY, autoCheck: true, autoDownload: true, autoInstall: false, network: 'auto' });
 export class SoftwareUpdates {
-  constructor({ directory, auth, currentVersion, downloader = null, manager = null, proxyUrl = () => null, readRelease = readGitHubStable, now = Date.now, lockRepository = true }) {
+  constructor({ directory, auth, currentVersion, downloader = null, manager = null, progress = null, proxyUrl = () => null, readRelease = readGitHubStable, now = Date.now, lockRepository = true }) {
+    this.progress = progress;
     this.lockRepository = lockRepository;
     this.downloader = downloader;
     this.manager = manager; this.staging = null; this.stageResult = null;
@@ -159,7 +160,15 @@ export class SoftwareUpdates {
     if (acknowledgement !== 'saved-and-all-tasks-ended') throw new UpdateError('install_operator_confirmation_required');
     const identity = this.downloader.stageIdentity(p.repository);
     if (compareVersions(identity.version, this.currentVersion) <= 0) throw new UpdateError('version_not_newer');
-    await this.manager.approve(identity, acknowledgement); return this.status();
+    try { await this.manager.approve(identity, acknowledgement); }
+    catch (e) { this.progress?.failed(); throw e; }
+    return this.status();
+  }
+  async progressWindow() {
+    if (this.stopped || !this.manager || !this.progress || !this.downloader?.stageIdentity) throw new UpdateError('update_progress_unavailable');
+    const p = await this.preferences(), identity = this.downloader.stageIdentity(p.repository);
+    if (compareVersions(identity.version, this.currentVersion) <= 0) throw new UpdateError('version_not_newer');
+    return this.progress.open(identity.version);
   }
   async defer() {
     if (!this.manager?.defer) throw new UpdateError('update_manager_unavailable');
