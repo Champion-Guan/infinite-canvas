@@ -33,6 +33,16 @@
   background: var(--canvas-bg);
 }
 
+/* Cached product surfaces keep their viewport and tasks while not painted. */
+.guan-canvas-root > .guan-native-canvas-frame {
+  position: absolute;
+  inset: 0;
+}
+.guan-canvas-root > .guan-native-canvas-frame[data-active="false"] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* No workbook: retain the original template preview beside product actions. */
 /* Also hide the retired hint from an already-running backend until restart. */
 .local-upload-step-hint { display: none !important; }

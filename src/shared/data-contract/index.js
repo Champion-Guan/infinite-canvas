@@ -468,6 +468,23 @@ function readState() {
   return normalized;
 }
 
+// Navigation reads must not repeatedly decompress/validate every task, image
+// and prompt in the workbook. Never expose this cached snapshot to mutators.
+let navigationCache = null;
+function readNavigationState() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (navigationCache?.raw === raw) return navigationCache.value;
+  const state = readState();
+  const value = {
+    workspace: { ...state.workspace },
+    productSets: state.productSets.map(set => ({ id: set.id, createdAt: set.createdAt, source: { fileName: set.source?.fileName, sheetName: set.source?.sheetName } })),
+    products: state.products.map(product => ({ id: product.id, productSetId: product.productSetId, order: product.order, createdAt: product.createdAt, identity: { ...product.identity } })),
+    tasks: state.tasks.map(task => ({ productId: task.productId, status: task.status })),
+  };
+  navigationCache = { raw: localStorage.getItem(STORAGE_KEY), value };
+  return value;
+}
+
 function publish(state) {
   validateState(state);
   state.workspace.updatedAt = timestamp();
@@ -854,21 +871,31 @@ function createRunInternal(state, taskId, input = {}) {
 const api = {
   schema: CONTRACT_SCHEMA,
   storageKey: STORAGE_KEY,
-  getState: () => clone(readState()),
-  getCanvasProducts: () => {
+  getState: () => {
     const state = readState();
+    const selected = activeCanvasProduct(state, readCanvasProducts(localStorage, activeWorkbookId(state)), localStorage);
+    // Capsule selection has its own small, per-workbook persistence key. Keep
+    // legacy readers of workspace.activeProductId consistent without rewriting
+    // the whole compressed workbook just to visit a canvas.
+    if (selected && !selected.standalone) state.workspace.activeProductId = selected.id;
+    return clone(state);
+  },
+  getCanvasProducts: () => {
+    const state = readNavigationState();
     return clone(workbookCanvasProducts(readCanvasProducts(localStorage, activeWorkbookId(state)), activeWorkbookId(state)));
   },
   getActiveCanvasProduct: () => {
-    const state = readState();
+    const state = readNavigationState();
     return clone(activeCanvasProduct(state, readCanvasProducts(localStorage, activeWorkbookId(state)), localStorage));
   },
   selectCanvasProduct: (productId) => {
-    const state = readState();
+    const state = readNavigationState();
     const owner = activeWorkbookId(state);
     const extras = workbookCanvasProducts(readCanvasProducts(localStorage, owner), owner);
     if (!state.products.some(product => product.id === productId && product.productSetId === owner) && !extras.some(product => product.id === productId)) throw new Error('该产品不属于当前工作表。');
     rememberCanvasSelection(localStorage, owner, productId);
+    const product = state.products.find(product => product.id === productId && product.productSetId === owner);
+    return clone(product || { ...extras.find(product => product.id === productId), standalone: true });
   },
   reset: () => {
     const state = createEmptyState();
@@ -1498,9 +1525,9 @@ function readProductTrash() {
 }
 function writeProductTrash(entries) { localStorage.setItem(PRODUCT_TRASH_KEY, encodeStoredState(entries)); }
 
-function productIsRunning(id) {
+function productIsRunning(id, state = readNavigationState()) {
   try { if (JSON.parse(localStorage.getItem(`guan-canvas-status:${id}`) || 'null')?.status === 'loading') return true; } catch { /* Fall through to task records. */ }
-  return (readState().tasks || []).some(task => task.productId === id && ['running', 'queued', 'loading'].includes(task.status));
+  return (state.tasks || []).some(task => task.productId === id && ['running', 'queued', 'loading'].includes(task.status));
 }
 
 let productOperationBusy = false;
@@ -1642,7 +1669,7 @@ function renderHeaderControls(root) {
     else header.append(controls);
   }
 
-  const state = readState();
+  const state = readNavigationState();
   const productSets = [...state.productSets].sort((a, b) =>
     String(b.createdAt).localeCompare(String(a.createdAt))
   );
@@ -1669,7 +1696,7 @@ function renderHeaderControls(root) {
       product.id,
       canvasDisplayName(product, product.order - 1),
       canvasStatus(product.id),
-      productIsRunning(product.id),
+      productIsRunning(product.id, state),
     ]),
   });
   if (controls.dataset.stateKey === stateKey) return true;
@@ -1692,7 +1719,7 @@ function renderHeaderControls(root) {
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"></rect><circle cx="8.5" cy="9" r="1.5"></circle><path d="m5.5 17 4.4-4.4 3.2 3.2 2.2-2.2 3.2 3.4"></path></svg>
             <span>${escapeHtml(label)}</span>
           </button>
-          <button type="button" class="guan-product-delete" data-delete-product="${escapeHtml(product.id)}" data-product-name="${escapeHtml(label)}" aria-label="删除${escapeHtml(label)}及对应画布" title="${productIsRunning(product.id) ? '生成任务运行中，暂不能删除' : '删除产品及对应画布'}" ${productIsRunning(product.id) ? 'disabled' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6.5 7l.8 12h9.4l.8-12M9 7l1-3h4l1 3"></path></svg></button></div>
+          <button type="button" class="guan-product-delete" data-delete-product="${escapeHtml(product.id)}" data-product-name="${escapeHtml(label)}" aria-label="删除${escapeHtml(label)}及对应画布" title="${productIsRunning(product.id, state) ? '生成任务运行中，暂不能删除' : '删除产品及对应画布'}" ${productIsRunning(product.id, state) ? 'disabled' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6.5 7l.8 12h9.4l.8-12M9 7l1-3h4l1 3"></path></svg></button></div>
         `;
       }).join("")}
     </div>
@@ -1805,15 +1832,12 @@ function renderHeaderControls(root) {
       }
       if (productCapsule) {
         event.preventDefault();
-        controls.dataset.activeCanvasId = productCapsule.dataset.productId || "";
-        if (!readState().products.some((item) => item.id === productCapsule.dataset.productId)) {
-          api.selectCanvasProduct(productCapsule.dataset.productId);
-          window.dispatchEvent(new CustomEvent("guan-native-canvas-select", { detail: api.getCanvasProducts().find(product => product.id === productCapsule.dataset.productId) }));
-          renderHeaderControls(root);
-          return;
-        }
         try {
-          api.setActiveProduct(productCapsule.dataset.productId || "");
+          const product = api.selectCanvasProduct(productCapsule.dataset.productId || "");
+          controls.dataset.activeCanvasId = product.id;
+          window.dispatchEvent(new CustomEvent("guan-native-canvas-select", { detail: product }));
+          renderHeaderControls(root);
+          if (root?.dataset.open === "true") renderPanel(root);
         } catch (error) {
           alert(error instanceof Error ? error.message : String(error));
         }
@@ -2823,7 +2847,12 @@ function mount() {
     renderHeaderControls(root);
   };
   placeRoot();
-  const mountObserver = new MutationObserver(() => requestAnimationFrame(placeRoot));
+  let placementScheduled = false;
+  const mountObserver = new MutationObserver(records => {
+    if (placementScheduled || records.every(record => record.target instanceof Element && record.target.closest('.guan-dc-header-controls, #guan-data-contract-root'))) return;
+    placementScheduled = true;
+    requestAnimationFrame(() => { placementScheduled = false; placeRoot(); });
+  });
   mountObserver.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["role"] });
   const placementTimer = window.setInterval(() => {
     placeRoot();

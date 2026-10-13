@@ -15,6 +15,7 @@ import type { AppLocale } from "@/i18n";
 import { getAntThemeConfig } from "@/lib/app-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useConfigStore } from "@/stores/use-config-store";
+import { startCanvasVisibility } from "@/services/canvas-visibility";
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -32,6 +33,8 @@ export function AppProviders({ children }: { children: ReactNode }) {
     const setTheme = useThemeStore((state) => state.setTheme);
     const dark = theme === "dark";
     const locale = i18n.resolvedLanguage as AppLocale;
+
+    useEffect(startCanvasVisibility, []);
 
     useEffect(() => {
         let settingsOpenRequestId = 0;

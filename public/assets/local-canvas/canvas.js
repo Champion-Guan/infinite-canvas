@@ -203,11 +203,12 @@
     const frame = document.createElement("iframe");
     frame.className = "guan-native-canvas-frame";
     frame.dataset.canvasId = productId;
-    frame.dataset.active = "true";
+    frame.dataset.active = "false";
     frame.title = "产品无限画布";
     frame.src = canvasRouteForProduct(product, productDisplayName(product));
     frame.__guanReady = new Promise(resolve => frame.addEventListener('load', () => resolve(frame), { once: true }));
     frame.addEventListener("load", () => {
+      frame.contentWindow?.postMessage({ type: "guan-canvas-visibility", visible: frame.dataset.active === "true" }, location.origin);
       try {
         const doc = frame.contentDocument;
         const style = doc.createElement("style");
@@ -217,6 +218,16 @@
     });
     state.frameCache.set(productId, frame);
     return frame;
+  };
+
+  const setFrameVisible = (frame, visible) => {
+    if (!frame) return;
+    // Keep cached canvases at their real viewport size. display:none causes a
+    // zero-size ResizeObserver update and a full layout again on every visit.
+    frame.dataset.active = visible ? "true" : "false";
+    frame.setAttribute("aria-hidden", visible ? "false" : "true");
+    frame.inert = !visible;
+    frame.contentWindow?.postMessage({ type: "guan-canvas-visibility", visible }, location.origin);
   };
 
   const buildRoot = () => {
@@ -234,7 +245,7 @@
     // canvas and make two top-level product capsules appear identical.
     const product = getActiveProduct();
     const frame = product ? createNativeFrame(product) : null;
-    if (frame) root.append(frame);
+    if (frame) { root.append(frame); setFrameVisible(frame, true); }
     state.root = root;
     state.nativeFrame = frame;
     return root;
@@ -1159,7 +1170,7 @@
       if (state.root) {
         const previousFrame = state.nativeFrame;
         previousFrame?.contentWindow?.postMessage({ type: "guan-global-settings-close" }, location.origin);
-        if (previousFrame) { previousFrame.style.display = "none"; previousFrame.dataset.active = "false"; }
+        if (previousFrame) { setFrameVisible(previousFrame, false); }
         state.productId = activeProduct.id;
         state.root.querySelector('.guan-product-empty')?.remove();
         state.root.classList.remove('guan-product-landing');
@@ -1167,9 +1178,8 @@
         const nextFrame = createNativeFrame(activeProduct);
         // Cached canvases must resume with their settings panel closed.
         nextFrame.contentWindow?.postMessage({ type: "guan-global-settings-close" }, location.origin);
-        nextFrame.style.display = "block";
-        nextFrame.dataset.active = "true";
         if (nextFrame.parentElement !== state.root) state.root?.append(nextFrame);
+        setFrameVisible(nextFrame, true);
         state.nativeFrame = nextFrame;
         syncCanvasChrome();
         return true;
@@ -1256,7 +1266,12 @@
     refreshScheduled = true;
     window.requestAnimationFrame(() => { refreshScheduled = false; refreshMode(); });
   };
-  const observer = new MutationObserver(scheduleRefresh);
+  const observer = new MutationObserver(records => {
+    // Our own capsule/status/iframe mutations have explicit events. Observing
+    // them again creates layout/read feedback after each product switch.
+    if (state.root?.isConnected && records.every(record => record.target instanceof Element && record.target.closest('.guan-dc-header-controls, .guan-canvas-root'))) return;
+    scheduleRefresh();
+  });
   observer.observe(document.documentElement, { childList: true, subtree: true });
   window.setInterval(() => {
     if (!state.nativeFrame || !state.productId) return;
@@ -1269,7 +1284,7 @@
     const product = event.detail;
     if (!product?.id) return;
     try { window.GuanWorkbenchData?.selectCanvasProduct?.(product.id); } catch { return; }
-    state.standaloneProduct = { ...product, standalone: true };
+    state.standaloneProduct = product;
     refreshMode();
   });
   const selectWorkbookCanvas = () => {

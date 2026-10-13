@@ -34,6 +34,7 @@ test('header retains workbook controls, names new canvases and updates active ca
     localStorage: storage,
     api: { getCanvasProducts: () => readCanvasProducts(storage), getActiveCanvasProduct: () => activeCanvasProduct(state, readCanvasProducts(storage), storage) },
     readState: () => state, canvasDisplayName: product => product.title || product.identity.titleZh,
+    readNavigationState: () => state,
     readCanvasCapsuleStatus: () => 'idle', escapeHtml: value => value,
     productIsRunning: () => false,
   });
@@ -89,7 +90,7 @@ test('standalone canvas switching reuses independent frames without changing the
   assert.equal(fresh.src, '/canvas/new');
   assert.equal(imported.src, '/canvas/import');
   assert.match(shell, /if \(product\?\.standalone\) return `\/canvas\//);
-  assert.match(shell, /previousFrame\.dataset\.active = "false"/);
+  assert.match(shell, /setFrameVisible\(previousFrame, false\)/);
   assert.match(source, /new CustomEvent\("guan-native-canvas-select"/);
   assert.doesNotMatch(source, /type: "guan-canvas-open-project"/);
 });

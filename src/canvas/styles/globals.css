@@ -612,3 +612,9 @@
     border-radius: 0.6rem;
     font-size: 0.75rem;
 }
+/* Cached product frames keep saving and generating; only visual animation rests. */
+html[data-guan-canvas-visible="false"] *,
+html[data-guan-canvas-visible="false"] *::before,
+html[data-guan-canvas-visible="false"] *::after {
+    animation-play-state: paused !important;
+}

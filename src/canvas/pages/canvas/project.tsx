@@ -804,7 +804,7 @@ function InfiniteCanvasPage() {
         const sync = () => {
             const next = syncExcelPromptNodes(nodesRef.current, readExcelPromptContext(), (node) => {
                 const frame = window.frameElement;
-                if (document.visibilityState === "hidden" || (frame && (frame as HTMLElement).style.display === "none")) return undefined;
+                if (document.visibilityState === "hidden" || (frame && ((frame as HTMLElement).dataset.active === "false" || (frame as HTMLElement).style.display === "none"))) return undefined;
                 return window.confirm(`「${node.title || "提示词"}」已在画布中手动修改。是否使用新上传的 Excel 内容覆盖？取消将保留手动内容。`);
             });
             if (next !== nodesRef.current) { nodesRef.current = next; setNodes(next); }
