@@ -32,3 +32,11 @@ test('existing local configuration still refuses even with only extension sessio
   await assert.rejects(restoreBrowserStorage(snapshot), /已有数据/);
   assert.equal(localStorage.getItem('canvas'), 'existing');
 });
+
+test('same-port localhost alias copy preserves old values and refuses occupied targets and unrelated origins', async () => {
+  const snapshot = setup(); snapshot.origin = 'http://127.0.0.1:8888'; location.origin = 'http://localhost:8888';
+  await restoreBrowserStorage(snapshot); assert.equal(localStorage.getItem('canvas'), 'saved');
+  await assert.rejects(restoreBrowserStorage(snapshot), /已有数据/);
+  setup(); location.origin = 'http://localhost:8888'; snapshot.origin = 'http://other.example:8888';
+  await assert.rejects(restoreBrowserStorage(snapshot), /不匹配/); assert.equal(localStorage.length, 0);
+});

@@ -37,8 +37,12 @@ export async function exportBrowserStorage() {
 }
 // No clear/delete/put. Original source is retained; an occupied target is refused.
 export async function restoreBrowserStorage(snapshot) {
-  if (location.origin !== 'http://127.0.0.1:8888' || snapshot?.app !== 'guan-ai-workbench'
-    || snapshot.kind !== 'full-browser-backup' || snapshot.format !== 1 || snapshot.origin !== 'http://127.0.0.1:5174'
+  const target = new URL(location.origin);
+  const localAliasCopy = target.protocol === 'http:' && target.hostname === 'localhost'
+    && Number(target.port) >= 1024 && snapshot?.origin === `http://127.0.0.1:${target.port}`;
+  const legacyPortCopy = location.origin === 'http://127.0.0.1:8888' && snapshot?.origin === 'http://127.0.0.1:5174';
+  if ((!legacyPortCopy && !localAliasCopy) || snapshot?.app !== 'guan-ai-workbench'
+    || snapshot.kind !== 'full-browser-backup' || snapshot.format !== 1
     || !Array.isArray(snapshot.databases) || !snapshot.localStorage || !snapshot.sessionStorage) throw Error('迁移地址或备份格式不匹配');
   if (localStorage.length || Object.keys(storage(sessionStorage)).some(key => key !== transientSessionKey)
     || (await indexedDB.databases()).length) throw Error('新地址已有数据，已停止迁移，未覆盖任何数据');

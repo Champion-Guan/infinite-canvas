@@ -7,10 +7,10 @@ const context = vm.createContext({ exports: {} });
 vm.runInContext(ts.transpileModule(readFileSync(new URL('../src/canvas/lib/canvas/canvas-pan-scheduler.ts', import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText, context);
-function fixture(k = 1) {
+function fixture(k = 1, extent) {
   const pending = new Map(), painted = [], committed = []; let clock = 0, id = 0;
   const scheduler = context.exports.createCanvasPanScheduler({
-    paint: v => painted.push(v), commit: v => committed.push(v), now: () => clock,
+    paint: v => painted.push(v), commit: v => committed.push(v), now: () => clock, extent,
     frame: cb => { pending.set(++id, cb); return id; }, cancel: n => pending.delete(n),
   });
   scheduler.begin({ x: 0, y: 0, k });
@@ -50,4 +50,16 @@ test('new drag starts from committed coordinates, and unmount cancels pending wo
   assert.equal(f.committed[0].x, 55); assert.equal(f.committed[0].k, 2);
   f.scheduler.move({ x: 80, y: 90, k: 2 }); f.scheduler.dispose(); f.tick(150);
   assert.equal(f.committed.length, 1); assert.equal(f.scheduler.latest, null);
+});
+
+test('small anchored zoom bursts paint without committing each scale change, large zoom reculls before overscan', () => {
+  const f = fixture(1, () => ({ width: 1200, height: 800 }));
+  for (let i = 1; i <= 4; i++) {
+    const k = 1 + i * 0.01;
+    f.scheduler.move({ x: 600 - 600 * k, y: 400 - 400 * k, k }); f.tick(i * 16);
+  }
+  assert.equal(f.painted.length, 4); assert.equal(f.committed.length, 0);
+  f.scheduler.move({ x: 300, y: 200, k: 0.5 }); f.tick(70);
+  assert.equal(f.committed.length, 1); assert.equal(f.committed[0].k, 0.5);
+  f.scheduler.flush(); assert.equal(f.pending.size, 0);
 });

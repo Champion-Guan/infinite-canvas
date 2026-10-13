@@ -1,4 +1,5 @@
 import { runWithActivity } from './activity-gate.mjs';
+import { localBrowserOrigin } from './local-browser-origin.mjs';
 
 // Evidence only. No browser-accessible freeze/resume/delete/install route.
 export function createUpdateTaskHttpHandler({ ledger, origin, ready = true, activityGate }) {
@@ -12,7 +13,7 @@ export function createUpdateTaskHttpHandler({ ledger, origin, ready = true, acti
       response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       response.end(JSON.stringify(body));
     };
-    if (request.headers.host !== parsed.host || request.headers.origin !== origin
+    if (!localBrowserOrigin(request, origin)
       || !['127.0.0.1', '::ffff:127.0.0.1'].includes(request.socket.remoteAddress)) {
       answer(403, { error: 'task_request_forbidden' }); return true;
     }

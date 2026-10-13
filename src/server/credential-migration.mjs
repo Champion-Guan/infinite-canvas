@@ -9,7 +9,7 @@ export async function prepareCredentialMigration(registry, { configRecord, agent
   let record;
   try {
     const url = new URL(origin);
-    if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.pathname !== '/' || url.search || url.hash) throw Error();
+    if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(url.hostname) || url.pathname !== '/' || url.search || url.hash) throw Error();
     if (typeof configRecord !== 'string' || Buffer.byteLength(configRecord) > 4 * 1024 * 1024) throw Error();
     record = JSON.parse(configRecord);
     if (!record?.state?.config || !Array.isArray(record.state.config.channels) || record.state.config.channels.length > 256

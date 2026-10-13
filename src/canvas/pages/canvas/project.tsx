@@ -454,6 +454,12 @@ function InfiniteCanvasPage() {
         setRawNodes(placeNewCanvasNodes(previous, typeof update === "function" ? update(previous) : update));
     }, [setRawNodes]);
     const [connections, setConnections] = useState<CanvasConnection[]>([]);
+    const contentSnapshotRef = useRef<CanvasNodeData[]>([]);
+    const contentNodes = useMemo(() => {
+        const snapshot = canvasContentSnapshot(contentSnapshotRef.current, nodes);
+        contentSnapshotRef.current = snapshot;
+        return snapshot;
+    }, [nodes]);
     const [chatSessions, setChatSessions] = useState<CanvasAssistantSession[]>([]);
 
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -507,7 +513,8 @@ function InfiniteCanvasPage() {
     const previewCanvasViewport = useCallback((next: ViewportTransform) => {
         viewportRef.current = next;
         const rendered = renderedViewportRef.current;
-        if (panOverlayRef.current) panOverlayRef.current.style.transform = `translate(${next.x - rendered.x}px, ${next.y - rendered.y}px)`;
+        const ratio = next.k / rendered.k;
+        if (panOverlayRef.current) panOverlayRef.current.style.transform = `translate(${next.x - rendered.x * ratio}px, ${next.y - rendered.y * ratio}px) scale(${ratio})`;
     }, []);
     const changeCanvasPanning = useCallback((panning: boolean) => {
         canvasPanningRef.current = panning;
@@ -859,14 +866,14 @@ function InfiniteCanvasPage() {
             });
             return changed ? next : current;
         });
-    }, [nodes, projectLoaded]);
+    }, [contentNodes, projectLoaded]);
 
     // Publish a lightweight aggregate status for the host workspace capsule.
     // The host page is outside React, so localStorage plus a same-window event
     // keeps the indicator responsive without coupling the two applications.
     useEffect(() => {
         if (!projectLoaded || typeof window === "undefined" || !projectId) return;
-        const summary = canvasTaskSummary(nodes, connections);
+        const summary = canvasTaskSummary(contentNodes, connections);
         const { status } = summary;
         // The embedded canvas may redirect from the stable workbook product id
         // to its own persisted canvas project id. Keep the status keyed by the
@@ -881,7 +888,7 @@ function InfiniteCanvasPage() {
         } catch {
             // Storage can be unavailable in private or embedded contexts.
         }
-    }, [nodes, connections, projectId, projectLoaded]);
+    }, [contentNodes, connections, projectId, projectLoaded]);
 
     useEffect(() => {
         if (!projectLoaded || historyPausedRef.current || isNodeDragging || isNodeResizing) return;
@@ -958,7 +965,7 @@ function InfiniteCanvasPage() {
     // or replaced. This also removes duplicate edges left by interrupted
     // connection gestures, preventing stale SVG paths from accumulating.
     useEffect(() => {
-        const validIds = new Set(nodes.map((node) => node.id));
+        const validIds = new Set(contentNodes.map((node) => node.id));
         setConnections((current) => {
             const seen = new Set<string>();
             const next = current.filter((connection) => {
@@ -970,17 +977,17 @@ function InfiniteCanvasPage() {
             });
             return next.length === current.length ? current : next;
         });
-    }, [nodes]);
+    }, [contentNodes]);
 
     useEffect(() => {
         if (!projectLoaded) return;
-        const nodeIds = new Set(nodes.map((node) => node.id));
+        const nodeIds = new Set(contentNodes.map((node) => node.id));
         const validConnections = connections.filter((connection) => connection && connection.id && nodeIds.has(connection.fromNodeId) && nodeIds.has(connection.toNodeId));
         if (validConnections.length !== connections.length) {
             setConnections(validConnections);
             return;
         }
-        const missingPreviewConnections = nodes.flatMap((preview) => {
+        const missingPreviewConnections = contentNodes.flatMap((preview) => {
             const sourceId = preview.metadata?.promptVariableSourceNodeId;
             const adaptiveId = preview.metadata?.promptVariablePreviewOf;
             if (!sourceId || !adaptiveId || !nodeIds.has(sourceId) || !nodeIds.has(adaptiveId) || preview.type !== CanvasNodeType.Text) return [];
@@ -993,7 +1000,7 @@ function InfiniteCanvasPage() {
             if (!additions.length) return current;
             return [...current, ...additions];
         });
-    }, [connections, nodes, projectLoaded]);
+    }, [connections, contentNodes, projectLoaded]);
 
     useLayoutEffect(() => {
         selectionBoxRef.current = selectionBox;
@@ -1293,12 +1300,6 @@ function InfiniteCanvasPage() {
     );
 
     const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
-    const contentSnapshotRef = useRef<CanvasNodeData[]>([]);
-    const contentNodes = useMemo(() => {
-        const snapshot = canvasContentSnapshot(contentSnapshotRef.current, nodes);
-        contentSnapshotRef.current = snapshot;
-        return snapshot;
-    }, [nodes]);
     const contentNodeById = useMemo(() => new Map(contentNodes.map(node => [node.id, node])), [contentNodes]);
 
     // Connections are culled like nodes; a cubic curve stays inside its control-point hull, so endpoint bounds widened by the curvature is a safe test.
@@ -4378,10 +4379,16 @@ function InfiniteCanvasPage() {
                     onContextMenu={preventCanvasContextMenu}
                     onDrop={handleDrop}
                 >
-                    <svg className="absolute left-0 top-0 h-[10000px] w-[10000px] overflow-visible" style={{ pointerEvents: "none", zIndex: 0 }}>
+                    <svg
+                        className="absolute overflow-hidden"
+                        width={Math.max(1, viewBounds.right - viewBounds.left)}
+                        height={Math.max(1, viewBounds.bottom - viewBounds.top)}
+                        viewBox={`${viewBounds.left} ${viewBounds.top} ${Math.max(1, viewBounds.right - viewBounds.left)} ${Math.max(1, viewBounds.bottom - viewBounds.top)}`}
+                        style={{ left: viewBounds.left, top: viewBounds.top, pointerEvents: "none", zIndex: 0, contain: "paint" }}
+                    >
                         {visibleConnections.map(({ connection, from, to }) => (
                             <ConnectionPath
-                                key={connection.id}
+                                key={`${connection.id}:${connection.fromNodeId}:${connection.toNodeId}`}
                                 connection={connection}
                                 from={from}
                                 to={to}
@@ -4490,7 +4497,7 @@ function InfiniteCanvasPage() {
                     </div>
                 </div>
 
-                <div ref={panOverlayRef} className="pointer-events-none absolute inset-0 z-[70]" style={{ willChange: isCanvasPanning ? "transform" : undefined }}>
+                <div ref={panOverlayRef} className="pointer-events-none absolute inset-0 z-[70]" style={{ transformOrigin: "top left", willChange: isCanvasPanning ? "transform" : undefined }}>
                 <CanvasNodeHoverToolbar
                     node={isNodeDragging || isNodeResizing || nodeImageSettingsOpen || Boolean(referencePickerNodeId) || expandedBatchNodeIds.has(toolbarNode?.id || "") ? null : toolbarNode}
                     viewport={viewport}

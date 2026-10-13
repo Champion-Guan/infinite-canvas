@@ -606,9 +606,10 @@ export function withLocalProxy(url: string, force = false) {
     if (typeof window !== "undefined") {
         try {
             const parsed = new URL(url);
-            if (/^\/local-secure-api\/[a-f0-9-]{36}\//.test(parsed.pathname) && !parsed.username && !parsed.password) {
+            if (/^\/local-secure-api\/[a-f0-9-]{36}(?:\/|$)/.test(parsed.pathname) && !parsed.username && !parsed.password) {
                 if (parsed.origin === window.location.origin) return url;
-                if (window.location.origin === "http://127.0.0.1:8888" && parsed.origin === "http://127.0.0.1:5174")
+                if (["http://127.0.0.1:8888", "http://localhost:8888"].includes(window.location.origin)
+                    && ["http://127.0.0.1:5174", "http://127.0.0.1:8888", "http://localhost:8888"].includes(parsed.origin))
                     return window.location.origin + parsed.pathname + parsed.search;
             }
         }

@@ -1,9 +1,10 @@
 import { UpdateError } from './update-auth.mjs';
+import { localBrowserOrigin } from './local-browser-origin.mjs';
 export function createUpdateHttpHandler({ updates, origin, activityGate }) {
   const reply = (res, code, value) => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' }); res.end(JSON.stringify(value)); };
   return async (req, res) => {
     if (!req.url?.startsWith('/local-app/updates')) return false;
-    if (req.headers.host !== new URL(origin).host || req.headers.origin !== origin && !(req.method === 'GET' && req.headers['sec-fetch-site'] === 'same-origin')) {
+    if (!localBrowserOrigin(req, origin, req.method === 'GET')) {
       reply(res, 403, { error: 'local_origin_required' }); return true;
     }
     let release;

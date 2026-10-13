@@ -3,6 +3,7 @@
 // Browser-level inventory is observational until the independent coordinator
 // additionally proves every profile, task root and persistence checkpoint.
 const ORIGIN = 'http://127.0.0.1:8888';
+const WORKBENCH_ORIGINS = [ORIGIN, 'http://localhost:8888'];
 const HOST = 'com.guanaiworkbench.browser';
 let port = null, timer = null, scanning = false, dirty = true, revision = 0, sequence = 0;
 let session = crypto.randomUUID(), lastSnapshot = null;
@@ -14,7 +15,7 @@ const exact = (v, keys) => v && typeof v === 'object' && !Array.isArray(v)
 const uuid = v => typeof v === 'string' && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(v);
 const pageErrors = ['managed_page_already_paused', 'managed_page_flush_unconfirmed', 'managed_page_epoch_mismatch', 'managed_page_checkpoint_invalid'];
 const isWorkbench = value => {
-  try { return new URL(value).origin === ORIGIN; } catch { return false; }
+  try { return WORKBENCH_ORIGINS.includes(new URL(value).origin); } catch { return false; }
 };
 // Chrome serializes document UUIDs as 32 uppercase hexadecimal characters.
 // Keep one canonical opaque identity on the wire, not a URL or page value.
@@ -93,7 +94,7 @@ chrome.tabs.onReplaced.addListener(changed);
 // Ignore event contents (including unrelated titles/URLs). Conservatively
 // invalidate topology without reading or forwarding other websites' data.
 chrome.tabs.onUpdated.addListener(changed);
-const navigationFilter = { url: [{ schemes: ['http'], hostEquals: '127.0.0.1', ports: [8888, 5174] }] };
+const navigationFilter = { url: [{ schemes: ['http'], hostEquals: '127.0.0.1', ports: [8888, 5174] }, { schemes: ['http'], hostEquals: 'localhost', ports: [8888] }] };
 chrome.webNavigation.onCommitted.addListener(changed, navigationFilter);
 chrome.webNavigation.onHistoryStateUpdated.addListener(changed, navigationFilter);
 chrome.webNavigation.onErrorOccurred.addListener(changed, navigationFilter);
@@ -103,7 +104,7 @@ async function scan() {
   scanning = true;
   try {
     const start = revision;
-    const tabs = await chrome.tabs.query({ url: ORIGIN + '/*' });
+    const tabs = await chrome.tabs.query({ url: WORKBENCH_ORIGINS.map(origin => origin + '/*') });
     if (tabs.length > 128) throw Error();
     const windows = [];
     for (const tab of tabs) {
@@ -163,7 +164,7 @@ function connect() {
 }
 chrome.action.onClicked.addListener(async () => {
   connect();
-  await chrome.windows.create({ url: ORIGIN, type: 'normal', focused: true });
+  await chrome.windows.create({ url: 'http://localhost:8888', type: 'normal', focused: true });
   changed(); void scan();
 });
 chrome.runtime.onStartup.addListener(connect);
@@ -188,7 +189,7 @@ async function migrationTick() {
     if (info.protocol !== 1 || url.origin !== ORIGIN || !/^\/migration-[a-f0-9-]{36}$/.test(url.pathname)) return;
     const reportStatus = async state => {
       await fetch(url.href + '/status', { method: 'POST', body: JSON.stringify({
-        version: chrome.runtime.getManifest?.().version || '1.0.2', state,
+        version: chrome.runtime.getManifest?.().version || '1.0.3', state,
       }), signal: AbortSignal.timeout(1500) });
     };
     await reportStatus('ready');

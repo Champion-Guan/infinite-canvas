@@ -27,6 +27,7 @@ import { UpdateTaskLedger } from "./update-task-ledger.mjs";
 import { createUpdateTaskHttpHandler } from "./update-task-http.mjs";
 import { createBackendControl } from "./update-backend-control.mjs";
 import { portMigrationPage } from "./port-migration-page.mjs";
+import { createLocalhostMigration, localhostMigrationGuard } from "./localhost-migration.mjs";
 
 const projectRoot = fileURLToPath(new URL("../../", import.meta.url));
 
@@ -43,6 +44,7 @@ const applicationVersion = JSON.parse(readFileSync(join(projectRoot, "package.js
 const applicationBuildId = createHash("sha256").update(readFileSync(fileURLToPath(import.meta.url))).update(readFileSync(join(infiniteCanvasRoot, "index.html"))).digest("hex").slice(0, 24);
 const applicationInstanceId = randomUUID();
 const activityGate = new ActivityGate();
+const localhostMigration = createLocalhostMigration({ port, backupRoot: privatePaths.backups, gate: activityGate });
 const browserActivityReports = new BrowserActivityReports();
 const updateTaskLedger = new UpdateTaskLedger({ file: join(privatePaths.updates, "task-ledger.json"),
   version: applicationVersion, instance: applicationInstanceId });
@@ -3323,7 +3325,7 @@ async function send(response, path, method) {
   });
   if (method === "HEAD") return response.end();
   if (isHtml) {
-    const document = await readFile(path, "utf8");
+    const document = (await readFile(path, "utf8")).replace(/<head([^>]*)>/i, `<head$1>${localhostMigrationGuard}`);
     // Native canvas has its own React providers and styles. Injecting the
     // archived workbench scripts here would create duplicate settings/UI.
     if (path !== pageFile) return response.end(document);
@@ -4049,12 +4051,6 @@ const backendControl = createBackendControl({ gate: activityGate, ledger: update
 const updateStartup = createUpdateStartup({ onActivate: () => softwareUpdates.start(), backendControl, instance: applicationInstanceId });
 const server = createServer(async (request, response) => {
   const method = request.method || "GET";
-  // One canonical Origin shares browser storage and Keychain proxy bindings.
-  if (request.headers.host === `localhost:${port}` && (method === "GET" || method === "HEAD")) {
-    const target = new URL(request.url || "/", `http://127.0.0.1:${port}`);
-    if (target.origin !== `http://127.0.0.1:${port}`) { response.writeHead(400); response.end(); return; }
-    response.writeHead(307, { location: target.href, "cache-control": "no-store" }); response.end(); return;
-  }
   const pathname = new URL(request.url || "/", "http://127.0.0.1").pathname.replace(/\/$/, "") || "/";
   if (pathname === "/local-app/port-migration" && (method === "GET" || method === "HEAD")) {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store",
@@ -4062,6 +4058,7 @@ const server = createServer(async (request, response) => {
     response.end(method === "HEAD" ? undefined : portMigrationPage); return;
   }
   if (updateStartup.reject(request, response, pathname)) return;
+  if (await localhostMigration(request, response)) return;
   if (await updateTaskHttp(request, response)) return;
   if (await credentialHttp(request, response)) return;
   if (await updateHttp(request, response)) return;
@@ -4177,7 +4174,7 @@ const server = createServer(async (request, response) => {
     const canvasIndex = safeFile(infiniteCanvasRoot, "index.html");
     if (canvasIndex && await existingFile(canvasIndex)) {
       if (method === "HEAD") return send(response, canvasIndex, method);
-      const source = await readFile(canvasIndex, "utf8");
+      const source = (await readFile(canvasIndex, "utf8")).replace(/<head([^>]*)>/i, `<head$1>${localhostMigrationGuard}`);
       const patched = source.includes("</head>") ? source.replace("</head>", `${localCanvasImageRelayScript}${localCanvasSettingsBridgeScript}${localCanvasSettingsEntryBootstrapScript}</head>`) : source;
       response.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
       response.end(patched);

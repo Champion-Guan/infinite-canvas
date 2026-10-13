@@ -1,6 +1,7 @@
 import { CREDENTIAL_ACCOUNT, CredentialError } from './keychain-vault.mjs';
 import { prepareCredentialMigration } from './credential-migration.mjs';
 import { proxySecureProvider } from './secure-provider-proxy.mjs';
+import { localBrowserOrigin } from './local-browser-origin.mjs';
 
 async function readJson(request) {
   if (request.headers['content-type']?.split(';')[0].trim() !== 'application/json') throw new CredentialError('invalid_request');
@@ -16,7 +17,8 @@ export function createCredentialHttpHandler({ registry, origin, activityGate, di
     const raw = request.url || '/', isManagement = raw.startsWith('/local-app/credentials/'), isProxy = raw.startsWith('/local-secure-api/');
     if (!isManagement && !isProxy) return false;
     const browserRead = ['GET', 'HEAD'].includes(request.method);
-    if (request.headers.host !== new URL(origin).host || request.headers.origin !== origin && !(browserRead && request.headers['sec-fetch-site'] === 'same-origin')) {
+    const browserOrigin = localBrowserOrigin(request, origin, browserRead);
+    if (!browserOrigin) {
       reply(response, 403, { error: { code: 'local_origin_required' } }); return true;
     }
     let release;
@@ -29,7 +31,7 @@ export function createCredentialHttpHandler({ registry, origin, activityGate, di
           if (!data || Object.keys(data).some(key => !['kind', 'endpoint', 'secret', 'username'].includes(key))
             || !['openai', 'gemini', 'webdav', 'agent'].includes(data.kind)) throw new CredentialError('invalid_request');
           const reference = await registry.createProfile(data);
-          reply(response, 200, { ok: true, credentialRef: reference.credentialRef, baseUrl: origin + '/local-secure-api/' + reference.id });
+          reply(response, 200, { ok: true, credentialRef: reference.credentialRef, baseUrl: browserOrigin + '/local-secure-api/' + reference.id });
         }
         else if (raw === '/local-app/credentials/binding' && request.method === 'POST') {
           const data = await readJson(request);
@@ -37,12 +39,12 @@ export function createCredentialHttpHandler({ registry, origin, activityGate, di
             || !/^guan-vault:[a-f0-9-]{36}$/.test(data.credentialRef)) throw new CredentialError('invalid_request');
           const profile = await registry.resolve(data.credentialRef.slice('guan-vault:'.length));
           reply(response, 200, { ok: true, endpoint: profile.endpoint, kind: profile.kind, username: profile.username,
-            credentialRef: data.credentialRef, baseUrl: origin + '/local-secure-api/' + profile.id });
+            credentialRef: data.credentialRef, baseUrl: browserOrigin + '/local-secure-api/' + profile.id });
         }
         else if (raw === '/local-app/credentials/prepare' && request.method === 'POST') {
           const data = await readJson(request);
           if (!data || Object.keys(data).some(key => !['configRecord', 'agent'].includes(key))) throw new CredentialError('invalid_request');
-          reply(response, 200, { ok: true, ...await prepareCredentialMigration(registry, data, origin) });
+          reply(response, 200, { ok: true, ...await prepareCredentialMigration(registry, data, browserOrigin) });
         } else reply(response, 405, { error: { code: 'operation_not_allowed' } });
       } else {
         const match = /^\/local-secure-api\/([a-f0-9-]{36})(\/.*)$/.exec(raw);

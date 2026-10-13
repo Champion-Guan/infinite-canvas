@@ -33,6 +33,9 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
         startedOnBackground: false,
     });
     const scaleRef = useRef(viewport.k);
+    const liveViewportRef = useRef(viewport);
+    const zoomingRef = useRef(false);
+    const zoomTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const layerRef = useRef<HTMLDivElement>(null);
     const gridRef = useRef<HTMLDivElement>(null);
     const callbacksRef = useRef({ onViewportChange, onViewportPreview, onPanningChange, onCanvasDeselect });
@@ -40,24 +43,31 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
     const schedulerRef = useRef<ReturnType<typeof createCanvasPanScheduler> | null>(null);
     if (!schedulerRef.current) schedulerRef.current = createCanvasPanScheduler({
         paint: next => {
+            const scaleChanged = scaleRef.current !== next.k;
+            liveViewportRef.current = next;
+            scaleRef.current = next.k;
             if (layerRef.current) layerRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.k})`;
-            if (gridRef.current) gridRef.current.style.backgroundPosition = `${next.x % (48 * next.k)}px ${next.y % (48 * next.k)}px`;
+            if (gridRef.current) {
+                gridRef.current.style.backgroundPosition = `${next.x % (48 * next.k)}px ${next.y % (48 * next.k)}px`;
+                gridRef.current.style.backgroundSize = `${48 * next.k}px ${48 * next.k}px`;
+            }
+            if (scaleChanged) layerRef.current?.querySelectorAll<HTMLElement>("[data-node-panel]").forEach(panel => {
+                panel.style.transform = `translateX(-50%) scale(${1 / next.k})`;
+            });
             callbacksRef.current.onViewportPreview?.(next);
         },
         commit: next => callbacksRef.current.onViewportChange(next),
         frame: callback => requestAnimationFrame(callback), cancel: id => cancelAnimationFrame(id), now: () => performance.now(),
+        extent: () => ({ width: containerRef.current?.clientWidth || 0, height: containerRef.current?.clientHeight || 0 }),
     });
     const [isSpacePressed, setIsSpacePressed] = useState(false);
     const [isControlPressed, setIsControlPressed] = useState(false);
     const [isPanning, setIsPanning] = useState(false);
 
-    useEffect(() => {
-        scaleRef.current = viewport.k;
-    }, [viewport.k]);
-
     useEffect(
         () => () => {
             schedulerRef.current?.dispose();
+            if (zoomTimerRef.current) clearTimeout(zoomTimerRef.current);
         },
         [],
     );
@@ -84,7 +94,9 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
         const handleBlur = () => {
             setIsSpacePressed(false);
             setIsControlPressed(false);
-            if (panState.current.isPanning) schedulerRef.current?.flush();
+            if (panState.current.isPanning || zoomingRef.current) schedulerRef.current?.flush();
+            zoomingRef.current = false;
+            if (zoomTimerRef.current) clearTimeout(zoomTimerRef.current);
             panState.current.isPanning = false;
             callbacksRef.current.onPanningChange?.(false);
             setIsPanning(false);
@@ -105,11 +117,9 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
         const target = event.target instanceof Element ? event.target : null;
         if (target?.closest("[data-canvas-no-zoom],.ant-modal,.ant-popover,.ant-dropdown,.ant-select-dropdown,.ant-picker-dropdown")) return;
 
-        const current = panState.current.isPanning ? schedulerRef.current?.flush() || viewport : viewport;
+        const current = panState.current.isPanning || zoomingRef.current ? schedulerRef.current?.latest || liveViewportRef.current : viewport;
         if (panState.current.isPanning) {
             panState.current.isPanning = false;
-            setIsPanning(false);
-            callbacksRef.current.onPanningChange?.(false);
             document.body.style.cursor = "";
         }
         const delta = -event.deltaY;
@@ -123,11 +133,26 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
         const worldX = (mouseX - current.x) / current.k;
         const worldY = (mouseY - current.y) / current.k;
 
-        onViewportChange({
+        if (!zoomingRef.current) {
+            schedulerRef.current?.begin(current);
+            zoomingRef.current = true;
+            setIsPanning(true);
+            callbacksRef.current.onPanningChange?.(true);
+        }
+        const next = {
             x: mouseX - worldX * newScale,
             y: mouseY - worldY * newScale,
             k: newScale,
-        });
+        };
+        liveViewportRef.current = next;
+        schedulerRef.current?.move(next);
+        if (zoomTimerRef.current) clearTimeout(zoomTimerRef.current);
+        zoomTimerRef.current = setTimeout(() => {
+            schedulerRef.current?.flush();
+            zoomingRef.current = false;
+            callbacksRef.current.onPanningChange?.(false);
+            setIsPanning(false);
+        }, 120);
     };
 
     const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -140,19 +165,22 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
         const shouldPan = event.button === 1 || (event.button === 0 && activeTool === "pan" && isBackgroundClick);
 
         if (shouldPan) {
+            const start = zoomingRef.current ? schedulerRef.current?.flush() || viewport : viewport;
+            zoomingRef.current = false;
+            if (zoomTimerRef.current) clearTimeout(zoomTimerRef.current);
             event.preventDefault();
             event.currentTarget.setPointerCapture(event.pointerId);
             panState.current = {
                 isPanning: true,
                 startX: event.clientX,
                 startY: event.clientY,
-                initialX: viewport.x,
-                initialY: viewport.y,
+                initialX: start.x,
+                initialY: start.y,
                 hasMoved: false,
                 startedOnBackground: isBackgroundClick,
             };
             setIsPanning(true);
-            schedulerRef.current?.begin(viewport);
+            schedulerRef.current?.begin(start);
             callbacksRef.current.onPanningChange?.(true);
             document.body.style.cursor = "grabbing";
             return;
@@ -215,11 +243,17 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
     useLayoutEffect(() => {
         // A React checkpoint must not overwrite a newer frame painted while
         // that checkpoint was rendering. Rebase selection overlays as well.
-        const live = panState.current.isPanning ? schedulerRef.current?.latest : null;
+        const live = panState.current.isPanning || zoomingRef.current ? schedulerRef.current?.latest : null;
         if (live && layerRef.current) {
             layerRef.current.style.transform = `translate(${live.x}px, ${live.y}px) scale(${live.k})`;
             if (gridRef.current) gridRef.current.style.backgroundPosition = `${live.x % (48 * live.k)}px ${live.y % (48 * live.k)}px`;
+            if (gridRef.current) gridRef.current.style.backgroundSize = `${48 * live.k}px ${48 * live.k}px`;
+            layerRef.current.querySelectorAll<HTMLElement>("[data-node-panel]").forEach(panel => {
+                panel.style.transform = `translateX(-50%) scale(${1 / live.k})`;
+            });
         }
+        liveViewportRef.current = live || viewport;
+        scaleRef.current = (live || viewport).k;
         callbacksRef.current.onViewportPreview?.(live || viewport);
     }, [viewport]);
 

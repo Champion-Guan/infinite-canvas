@@ -64,7 +64,7 @@ test('actual extension uses existing-profile fixed Origin, filtered Chrome inven
   const context = vm.createContext({ chrome, crypto: webcrypto, URL, TextEncoder, setInterval: fn => { timer ??= fn; return 1; }, clearInterval() {} });
   vm.runInContext(readFileSync(new URL('../browser/managed-workbench/background.js', import.meta.url), 'utf8'), context);
   await new Promise(resolve => setImmediate(resolve));
-  assert.equal(sent.length, 1); assert.equal(queries[0].url, 'http://127.0.0.1:8888/*');
+  assert.equal(sent.length, 1); assert.deepEqual(Array.from(queries[0].url), ['http://127.0.0.1:8888/*', 'http://localhost:8888/*']);
   assert.equal(sent[0].windows[0].foreignFrames, 1); assert.equal(sent[0].windows[0].frames.length, 1);
   assert.equal(sent[0].windows[0].frames[0].documentId, documentId, 'actual Chrome hex UUID format is canonicalized before the native bridge');
   assert.doesNotMatch(JSON.stringify(sent), /private|example.invalid|title|not-a-real-key/);
@@ -79,7 +79,7 @@ test('actual extension uses existing-profile fixed Origin, filtered Chrome inven
     assert.equal(new ManagedBrowserObservation().accept(JSON.parse(JSON.stringify(sent.at(-1)))).unknown, true);
   }
   const manifest = JSON.parse(readFileSync(new URL('../browser/managed-workbench/manifest.json', import.meta.url)));
-  assert.deepEqual(manifest.host_permissions, ['http://127.0.0.1:8888/*', 'http://127.0.0.1:5174/*']); assert.ok(!manifest.permissions.includes('tabs'));
-  assert.deepEqual(manifest.content_scripts, [{ matches: ['http://127.0.0.1:8888/*', 'http://127.0.0.1:5174/*'], js: ['page-relay.js', 'migration-relay.js'], all_frames: true, run_at: 'document_start', world: 'ISOLATED' }]);
+  assert.deepEqual(manifest.host_permissions, ['http://localhost:8888/*', 'http://127.0.0.1:8888/*', 'http://127.0.0.1:5174/*']); assert.ok(!manifest.permissions.includes('tabs'));
+  assert.deepEqual(manifest.content_scripts, [{ matches: ['http://localhost:8888/*', 'http://127.0.0.1:8888/*', 'http://127.0.0.1:5174/*'], js: ['page-relay.js', 'migration-relay.js'], all_frames: true, run_at: 'document_start', world: 'ISOLATED' }]);
   assert.ok(!manifest.externally_connectable);
 });

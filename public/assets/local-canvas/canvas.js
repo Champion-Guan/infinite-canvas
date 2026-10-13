@@ -1140,8 +1140,8 @@
       state.productId = activeProduct.id;
       state.nodes = loadNodes();
       const root = buildRoot();
-      if (!activeProduct.id) showEmptyProducts(root);
       preview.replaceWith(root);
+      if (!activeProduct.id) showEmptyProducts(root);
       state.canvasSidePanel = canvasRow()?.children?.[1] || state.canvasSidePanel;
       // Use our own direct dialog child, not the React-owned carousel wrapper.
       // Status rerenders can replace that wrapper but cannot delete our host.

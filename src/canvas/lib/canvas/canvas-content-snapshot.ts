@@ -1,6 +1,6 @@
 import type { CanvasNodeData } from "@/types/canvas";
 
-const positionIndependentTypes = new Set(["text", "image", "video", "audio", "config", "group"]);
+const positionIndependentTypes = new Set(["text", "image", "video", "audio", "config", "group", "guan:prompt-variables"]);
 
 // Resource lists and prompt panels do not depend on card coordinates. Retain
 // their input identities during movement, but invalidate on every other field.

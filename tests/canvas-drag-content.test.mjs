@@ -39,6 +39,14 @@ test('custom plugin resource callbacks retain current positions', () => {
     assert.equal(snapshot(original, moved), moved);
 });
 
+test('owned parameter-card drag retains prompt/status inputs, while parameter changes invalidate them', () => {
+    const original = [{ ...node(), type: 'guan:prompt-variables', metadata: { promptVariableValues: { '[SIZE]': '900x1200' } } }];
+    const moved = [{ ...original[0], position: { x: 800, y: 300 } }];
+    assert.equal(snapshot(original, moved), original);
+    const edited = [{ ...moved[0], metadata: { promptVariableValues: { '[SIZE]': '800x500' } } }];
+    assert.equal(snapshot(original, edited), edited);
+});
+
 test('actual drag callback coalesces burst input to the newest scaled coordinates without placement', () => {
     const page = readFileSync(new URL('../src/canvas/pages/canvas/project.tsx', import.meta.url), 'utf8');
     const ast = ts.createSourceFile('project.tsx', page, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);

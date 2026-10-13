@@ -49,7 +49,7 @@ async function background(existing = []) {
       if (options?.method === 'POST' && target.endsWith('/status')) {
         assert.equal(target, url + '/status');
         const status = JSON.parse(options.body);
-        assert.equal(status.version, '1.0.2');
+        assert.equal(status.version, '1.0.3');
         actions.push(['status', status.state]);
       }
       return { ok: true, json: async () => { assert.equal(target, 'http://127.0.0.1:8888/local-migration/session'); return { protocol: 1, migrationUrl: url, phase }; } };

@@ -3,14 +3,14 @@ import { frontendActivity } from "@/lib/update-activity";
 import { frontendTaskBarrier } from "@/services/task-admission";
 import { APP_VERSION } from "@/constant/env";
 
-const ORIGIN = "http://127.0.0.1:8888";
 const HANDSHAKE = "guan-managed-page-v1";
 const uuid = (v: unknown): v is string => typeof v === "string" && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(v);
 
 export function startManagedPageRelay() {
-    // Production Origin stays fixed. Isolated tests exercise the controller
+    const ORIGIN = window.location.origin;
+    // Only the two exact production browser aliases. Isolated tests exercise the controller
     // directly; a test query parameter never enables control on another host.
-    if (window.location.origin !== ORIGIN) return () => {};
+    if (!["http://127.0.0.1:8888", "http://localhost:8888"].includes(ORIGIN)) return () => {};
     let port: MessagePort | null = null, controller: ManagedPageControl | null = null, pending = 0, stopped = false;
     const close = () => {
         controller?.dispose(); port?.close(); port = null;
