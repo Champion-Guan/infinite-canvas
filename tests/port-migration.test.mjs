@@ -40,3 +40,36 @@ test('same-port localhost alias copy preserves old values and refuses occupied t
   setup(); location.origin = 'http://localhost:8888'; snapshot.origin = 'http://other.example:8888';
   await assert.rejects(restoreBrowserStorage(snapshot), /不匹配/); assert.equal(localStorage.length, 0);
 });
+
+test('only obsolete empty-copy marker permits alias retry; business data still blocks', async () => {
+  const snapshot = setup(); snapshot.origin = 'http://127.0.0.1:8888'; location.origin = 'http://localhost:8888';
+  localStorage.setItem('guan-localhost-copy-v1', 'verified');
+  await restoreBrowserStorage(snapshot);
+  assert.equal(localStorage.getItem('canvas'), 'saved');
+  await assert.rejects(restoreBrowserStorage(snapshot), /已有数据/);
+});
+
+test('backed-up empty-copy recovery accepts exact defaults, never business keys or databases', async () => {
+  const snapshot = setup(); snapshot.origin = 'http://127.0.0.1:8888'; location.origin = 'http://localhost:8888';
+  localStorage.setItem('guan-localhost-copy-v1', 'verified');
+  localStorage.setItem('guan-workbench-theme', 'light');
+  localStorage.setItem('pixpix:session-sync', JSON.stringify({status:'anonymous',at:1}));
+  localStorage.setItem('infinite-canvas:theme_store', JSON.stringify({state:{theme:'light'}}));
+  localStorage.setItem('pixpix:first-external-source:v1', JSON.stringify({capturedAt:'2026-10-13T00:00:00Z',firstLandingPath:'/',firstLandingUrl:'http://localhost:8888/',firstSource:'direct',firstSourceType:'direct'}));
+  await assert.rejects(restoreBrowserStorage(snapshot), /已有数据/);
+  indexedDB.databases = async () => [{name:'existing'}];
+  await assert.rejects(restoreBrowserStorage(snapshot,{recoverEmptyAliasCopy:true}), /已有数据/);
+  indexedDB.databases = async () => [];
+  localStorage.setItem('canvas', 'existing');
+  await assert.rejects(restoreBrowserStorage(snapshot,{recoverEmptyAliasCopy:true}), /已有数据/);
+  assert.equal(localStorage.getItem('canvas'), 'existing');
+});
+
+test('backed-up automatic defaults can be recovered without deleting destination keys', async () => {
+  const snapshot = setup(); snapshot.origin = 'http://127.0.0.1:8888'; location.origin = 'http://localhost:8888';
+  localStorage.setItem('guan-localhost-copy-v1', 'verified');
+  localStorage.setItem('guan-workbench-theme', 'light');
+  await restoreBrowserStorage(snapshot,{recoverEmptyAliasCopy:true});
+  assert.equal(localStorage.getItem('canvas'), 'saved');
+  assert.equal(localStorage.getItem('guan-workbench-theme'), 'light');
+});

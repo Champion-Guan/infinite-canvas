@@ -1,5 +1,13 @@
 # localhost 地址迁移
 
+## v1.0.22 修正
+
+实际 Chrome 验证发现 v1.0.21 的跨站 iframe 读取会受到存储分区影响，可能返回空副本；之前的隔离演练没有覆盖此条件。v1.0.22 改为用户点击后打开旧地址的顶层导出页，经确切窗口身份、Origin 和随机会话校验传回数据；拒绝 iframe 导出，导出页不运行工作台应用。
+
+目标数据也先保存在 browser-localhost-before.json 并读回核验。若旧版空迁移留下自动主题、匿名会话和来源默认配置，只有本机历史空备份及哈希证明、旧标记、确切默认字段和无数据库同时满足，才允许恢复；禁止删除数据或放宽为任意覆盖。真正已有业务配置/画布/数据库的目标仍停止。空源不会静默当作成功，首次使用者需另行确认。
+
+新成功记录包含 exportMode=top-level，浏览器标记为 top-level-verified；旧的 verified 标记不再冒充真实迁移证明。所有旧副本和备份仍保留。
+
 v1.0.21 起浏览器直接使用 http://localhost:8888。localhost 与 127.0.0.1 是两个独立 Origin，因此仅取消重定向会表现为画布和配置丢失，不能直接这样切换。
 
 先保存画布、结束生成、关闭原 8888 工作台页面，再在原来使用工作台的同一 Chrome 配置中打开 localhost:8888。首次进入迁移页，点击“已保存并关闭，开始备份与迁移”。读取旧地址 localStorage、当前导出页面的 sessionStorage 和 IndexedDB（包括结构及 Blob/File 字节），先写入本机私人 backups/localhost-UUID/browser-127.json，再读回验证 SHA-256；然后复制到空目标并逐项读取比对。完成记录为 MIGRATION.json 的 browser-verified，浏览器才进入工作台。
