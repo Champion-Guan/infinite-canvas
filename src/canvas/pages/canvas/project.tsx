@@ -15,6 +15,7 @@ import { setMediaBlob } from "@/services/file-storage";
 import type { RootScope } from "@/lib/page-drain-barrier";
 import { settleActivityGroup } from "@/lib/settle-activity-group";
 import { arrangeOverlappingCanvasNodes, placeCanvasNode, placeNewCanvasNodes } from "@/lib/canvas/canvas-node-placement";
+import { canvasContentSnapshot } from "@/lib/canvas/canvas-content-snapshot";
 
 import { requestEdit, requestGeneration, requestImageQuestion } from "@/services/api/image";
 import { requestAudioGeneration, storeGeneratedAudio } from "@/services/api/audio";
@@ -386,6 +387,8 @@ function InfiniteCanvasPage() {
     const applyingHistoryRef = useRef(false);
     const historyPausedRef = useRef(false);
     const rafRef = useRef<number | null>(null);
+    const dragDropTargetRef = useRef<string | null>(null);
+    const dragPointerRef = useRef<{ x: number; y: number } | null>(null);
     const nodeDraggingRef = useRef(false);
     const dragRef = useRef<{
         isDraggingNode: boolean;
@@ -1263,8 +1266,7 @@ function InfiniteCanvasPage() {
         const left = -viewport.x / viewport.k - padding;
         const top = -viewport.y / viewport.k - padding;
         return { left, top, right: left + width / viewport.k + padding * 2, bottom: top + height / viewport.k + padding * 2 };
-        // `nodes` keeps the container rect re-read on node changes, matching the previous behaviour when the container resizes without a size update.
-    }, [nodes, size.height, size.width, viewport.k, viewport.x, viewport.y]);
+    }, [size.height, size.width, viewport.k, viewport.x, viewport.y]);
 
     const visibleNodes = useMemo(
         () => nodes.filter((node) => node.position.x + node.width > viewBounds.left && node.position.x < viewBounds.right && node.position.y + node.height > viewBounds.top && node.position.y < viewBounds.bottom),
@@ -1272,6 +1274,13 @@ function InfiniteCanvasPage() {
     );
 
     const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
+    const contentSnapshotRef = useRef<CanvasNodeData[]>([]);
+    const contentNodes = useMemo(() => {
+        const snapshot = canvasContentSnapshot(contentSnapshotRef.current, nodes);
+        contentSnapshotRef.current = snapshot;
+        return snapshot;
+    }, [nodes]);
+    const contentNodeById = useMemo(() => new Map(contentNodes.map(node => [node.id, node])), [contentNodes]);
 
     // Connections are culled like nodes; a cubic curve stays inside its control-point hull, so endpoint bounds widened by the curvature is a safe test.
     const visibleConnections = useMemo(
@@ -1390,29 +1399,29 @@ function InfiniteCanvasPage() {
 
     const configInputsById = useMemo(() => {
         const map = new Map<string, NodeGenerationInput[]>();
-        nodes.forEach((node) => {
+        contentNodes.forEach((node) => {
             if (node.type !== CanvasNodeType.Config) return;
-            map.set(node.id, buildNodeGenerationInputs(node.id, nodes, connections));
+            map.set(node.id, buildNodeGenerationInputs(node.id, contentNodes, connections));
         });
         return map;
-    }, [connections, nodes]);
+    }, [connections, contentNodes, nodeRegistryVersion]);
     const mentionReferencesByNodeId = useMemo(() => {
         const map = new Map<string, ReturnType<typeof buildNodeMentionReferences>>();
-        nodes.forEach((node) => map.set(node.id, buildNodeMentionReferences(node, nodes, connections)));
+        contentNodes.forEach((node) => map.set(node.id, buildNodeMentionReferences(node, contentNodes, connections)));
         return map;
-    }, [connections, nodes]);
+    }, [connections, contentNodes, nodeRegistryVersion]);
     const connectedNodesByNodeId = useMemo(() => {
         const map = new Map<string, CanvasNodeData[]>();
         connections.forEach((connection) => {
-            if (!connection?.id || !nodeById.has(connection.toNodeId)) return;
-            const source = nodeById.get(connection.fromNodeId);
+            if (!connection?.id || !contentNodeById.has(connection.toNodeId)) return;
+            const source = contentNodeById.get(connection.fromNodeId);
             if (!source) return;
             const connected = map.get(connection.toNodeId);
             if (connected) connected.push(source);
             else map.set(connection.toNodeId, [source]);
         });
         return map;
-    }, [connections, nodeById]);
+    }, [connections, contentNodeById]);
     const referenceConnectedNodeIds = useMemo(() => new Set([referencePickerNodeId, ...(referencePickerNodeId ? connectedNodesByNodeId.get(referencePickerNodeId)?.flatMap((node) => node.type === CanvasNodeType.Group ? [node.id, ...getGroupResourceNodes(node.id, nodes).map((child) => child.id)] : [node.id]) || [] : [])].filter((id): id is string => Boolean(id))), [connectedNodesByNodeId, nodes, referencePickerNodeId]);
     const { applyAgentOps } = useAgentBridge({
         projectId,
@@ -2103,6 +2112,7 @@ function InfiniteCanvasPage() {
         };
         historyPausedRef.current = true;
         nodeDraggingRef.current = true;
+        dragPointerRef.current = { x: event.clientX, y: event.clientY };
         setIsNodeDragging(true);
     }, []);
 
@@ -2116,8 +2126,10 @@ function InfiniteCanvasPage() {
         const wasClick = !dragRef.current.hasMoved && dragRef.current.initialSelectedNodes.size === 1;
         const clickedNodeId = dragRef.current.initialSelectedNodes.keys().next().value;
         const currentViewport = viewportRef.current;
-        const dx = clientX == null ? 0 : (clientX - dragRef.current.startX) / currentViewport.k;
-        const dy = clientY == null ? 0 : (clientY - dragRef.current.startY) / currentViewport.k;
+        const endX = clientX ?? dragPointerRef.current?.x;
+        const endY = clientY ?? dragPointerRef.current?.y;
+        const dx = endX == null ? 0 : (endX - dragRef.current.startX) / currentViewport.k;
+        const dy = endY == null ? 0 : (endY - dragRef.current.startY) / currentViewport.k;
         const initialPositions = dragRef.current.initialSelectedNodes;
         const movedIds = dragRef.current.movedIds;
 
@@ -2125,7 +2137,8 @@ function InfiniteCanvasPage() {
         nodeDraggingRef.current = false;
         setIsNodeDragging(false);
         setDropTargetGroupId(null);
-        if (dragRef.current.hasMoved && clientX != null && clientY != null) {
+        dragDropTargetRef.current = null;
+        if (dragRef.current.hasMoved && endX != null && endY != null) {
             setNodes((prev) => {
                 const moved = prev.map((node) => {
                     const initial = initialPositions.get(node.id);
@@ -2146,6 +2159,7 @@ function InfiniteCanvasPage() {
         dragRef.current.hasMoved = false;
         dragRef.current.initialSelectedNodes = new Map();
         dragRef.current.movedIds = new Set();
+        dragPointerRef.current = null;
         if (wasClick && clickedNodeId) {
             const clickedNode = nodesRef.current.find((node) => node.id === clickedNodeId);
             const clickedDefinition = clickedNode ? getNodeDefinition(clickedNode.type) : undefined;
@@ -2167,8 +2181,7 @@ function InfiniteCanvasPage() {
             const currentViewport = viewportRef.current;
 
             if (dragRef.current.isDraggingNode) {
-                const dx = (event.clientX - dragRef.current.startX) / currentViewport.k;
-                const dy = (event.clientY - dragRef.current.startY) / currentViewport.k;
+                dragPointerRef.current = { x: event.clientX, y: event.clientY };
                 const initialPositions = dragRef.current.initialSelectedNodes;
                 const movedIds = dragRef.current.movedIds;
                 if (Math.abs(event.clientX - dragRef.current.startX) > 3 || Math.abs(event.clientY - dragRef.current.startY) > 3) {
@@ -2176,19 +2189,26 @@ function InfiniteCanvasPage() {
                 }
 
                 // Drop-target detection and node updates both run once per frame; mousemove can fire far more often than the display refreshes.
-                if (rafRef.current) cancelAnimationFrame(rafRef.current);
+                if (rafRef.current) return;
                 rafRef.current = requestAnimationFrame(() => {
+                    const pointer = dragPointerRef.current;
+                    if (!pointer || !dragRef.current.isDraggingNode) { rafRef.current = null; return; }
+                    const dx = (pointer.x - dragRef.current.startX) / viewportRef.current.k;
+                    const dy = (pointer.y - dragRef.current.startY) / viewportRef.current.k;
                     const previewNodes = nodesRef.current.map((node) => {
                         const initial = initialPositions.get(node.id);
                         return initial ? { ...node, position: { x: initial.x + dx, y: initial.y + dy } } : node;
                     });
-                    setDropTargetGroupId(findGroupDropTarget(movedIds, previewNodes)?.id || null);
-                    setNodes((prev) =>
-                        prev.map((node) => {
-                            const initial = initialPositions.get(node.id);
-                            return initial ? { ...node, position: { x: initial.x + dx, y: initial.y + dy } } : node;
-                        }),
-                    );
+                    const targetId = findGroupDropTarget(movedIds, previewNodes)?.id || null;
+                    if (targetId !== dragDropTargetRef.current) {
+                        dragDropTargetRef.current = targetId;
+                        setDropTargetGroupId(targetId);
+                    }
+                    // Dragging only changes existing positions. Bypass the normal
+                    // placement transaction here: it builds maps and checks every
+                    // card on every frame, which becomes visible with many edges.
+                    // The normal transaction still runs once on mouseup.
+                    setRawNodes(previewNodes);
                     rafRef.current = null;
                 });
                 return;
@@ -4204,7 +4224,7 @@ function InfiniteCanvasPage() {
             ) : panelNode.type === CanvasNodeType.Config ? (
                 <CanvasConfigComposer
                     nodeId={panelNode.id}
-                    nodes={nodes}
+                    nodes={contentNodes}
                     value={panelNode.metadata?.composerContent ?? panelNode.metadata?.prompt ?? ""}
                     inputs={configInputsById.get(panelNode.id) || []}
                     connectedNodes={connectedNodesByNodeId.get(panelNode.id) || []}
@@ -4216,7 +4236,7 @@ function InfiniteCanvasPage() {
             ) : (
                 <CanvasNodePromptPanel
                     node={panelNode}
-                    nodes={nodes}
+                    nodes={contentNodes}
                     isRunning={runningNodeId === panelNode.id}
                     mentionReferences={mentionReferencesByNodeId.get(panelNode.id) || EMPTY_REFERENCES}
                     connectedNodes={connectedNodesByNodeId.get(panelNode.id) || []}
@@ -4233,7 +4253,7 @@ function InfiniteCanvasPage() {
                     }}
                 />
             ),
-        [configInputsById, confirmStopGeneration, connectedNodesByNodeId, disconnectNodeReference, handleConfigNodeChange, handleGenerateNode, handleNodePromptChange, mentionReferencesByNodeId, nodes, renderPluginPanel, runningNodeId, startNodeReferenceSelection],
+        [configInputsById, confirmStopGeneration, connectedNodesByNodeId, disconnectNodeReference, handleConfigNodeChange, handleGenerateNode, handleNodePromptChange, mentionReferencesByNodeId, contentNodes, renderPluginPanel, runningNodeId, startNodeReferenceSelection],
     );
 
     const renderNodeContentPanel = useCallback(
@@ -4343,13 +4363,12 @@ function InfiniteCanvasPage() {
                     <svg className="absolute left-0 top-0 h-[10000px] w-[10000px] overflow-visible" style={{ pointerEvents: "none", zIndex: 0 }}>
                         {visibleConnections.map(({ connection, from, to }) => (
                             <ConnectionPath
-                                // Keep the Chromium SVG repaint workaround for moved endpoints;
-                                // memoized unchanged edges still avoid redundant rendering.
-                                key={`${connection.id}:${from.position.x}:${from.position.y}:${to.position.x}:${to.position.y}`}
+                                key={connection.id}
                                 connection={connection}
                                 from={from}
                                 to={to}
                                 active={selectedConnectionId === connection.id || relatedHighlight.connectionIds.has(connection.id)}
+                                dragging={isNodeDragging}
                                 onSelect={selectConnection}
                                 onContextMenu={openConnectionMenu}
                             />
@@ -4375,8 +4394,8 @@ function InfiniteCanvasPage() {
                             showImageInfo={showImageInfo}
                             mentionReferences={mentionReferencesByNodeId.get(node.id) || EMPTY_REFERENCES}
                             pluginHost={pluginHost}
-                            promptHighlightSource={node.metadata?.promptVariableSourceNodeId ? nodeById.get(node.metadata.promptVariableSourceNodeId) : undefined}
-                            promptHighlightParameters={node.metadata?.promptVariablePreviewOf ? nodeById.get(node.metadata.promptVariablePreviewOf) : undefined}
+                            promptHighlightSource={node.metadata?.promptVariableSourceNodeId ? contentNodeById.get(node.metadata.promptVariableSourceNodeId) : undefined}
+                            promptHighlightParameters={node.metadata?.promptVariablePreviewOf ? contentNodeById.get(node.metadata.promptVariablePreviewOf) : undefined}
                             registryVersion={nodeRegistryVersion}
                             renderPanel={renderNodePanel}
                             renderNodeContent={renderNodeContentPanel}
