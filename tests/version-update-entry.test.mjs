@@ -14,10 +14,12 @@ test('release parser preserves upstream entries and bundles Chinese stable notes
   const { parseChangelog } = load('../src/canvas/lib/release.ts');
   const upstream = parseChangelog('## 0.20.0 - 2026-10-13\n+ [Fixed] Original author fix');
   assert.equal(upstream[0].version, '0.20.0');
+  assert.equal(upstream[0].date, '2026-10-13');
   assert.equal(upstream[0].items[0].type, 'Fixed');
-  const local = parseChangelog(readFileSync(new URL('../docs/RELEASE-NOTES.md', import.meta.url), 'utf8'));
+  const notes = readFileSync(new URL('../docs/RELEASE-NOTES.md', import.meta.url), 'utf8');
+  const local = parseChangelog(notes);
   assert.equal(local[0].version, JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version);
-  assert.equal(local[0].date, '2026-10-13');
+  assert.equal(local[0].date, notes.match(/^## \d+\.\d+\.\d+ — (\d{4}-\d{2}-\d{2})$/m)[1]);
   assert.ok(local.find(entry => entry.version === '1.0.18').items.some(item => item.content.includes('快捷键')));
 });
 

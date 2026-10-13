@@ -11,6 +11,26 @@ const storage = value => Object.fromEntries(Array.from({ length: value.length },
 // Immersive Translate creates a per-page handshake even on a blank Origin.
 // Keep the destination handshake; it is extension state, not workbench data.
 const transientSessionKey = '__imt_handshake_page_id';
+// Only automatic defaults created after the v1.0.21 empty iframe copy.
+// The caller must first save/read back the destination and prove that old copy
+// was empty. No canvas, configuration, workbook or database is admitted here.
+export function isEmptyAliasCopyDefaults(values) {
+  if (values['guan-localhost-copy-v1'] !== 'verified') return false;
+  try { return Object.entries(values).every(([key, value]) => {
+    if (key === 'guan-localhost-copy-v1') return value === 'verified';
+    if (key === 'guan-workbench-theme') return ['light', 'dark'].includes(value);
+    if (key === 'molili_device_id') return /^[a-f0-9-]{36}$/i.test(value);
+    const item = JSON.parse(value);
+    if (key === 'infinite-canvas:theme_store') return JSON.stringify(item) === JSON.stringify({state:{theme:'light'}})
+      || JSON.stringify(item) === JSON.stringify({state:{theme:'dark'}});
+    if (key === 'pixpix:session-sync') return Object.keys(item).sort().join(',') === 'at,status' && typeof item.at === 'number' && ['guest', 'anonymous', 'signed-out', 'unauthenticated'].includes(item.status);
+    if (key === 'pixpix:first-external-source:v1') return Object.keys(item).sort().join(',') === 'capturedAt,firstLandingPath,firstLandingUrl,firstSource,firstSourceType'
+      && item.firstLandingPath === '/' && item.firstLandingUrl === 'http://localhost:8888/'
+      && typeof item.capturedAt === 'string' && Number.isFinite(Date.parse(item.capturedAt))
+      && item.firstSource === 'direct' && item.firstSourceType === 'direct';
+    return false;
+  }); } catch { return false; }
+}
 // Read-only source export, including Blob bytes, schemas and indexes.
 export async function exportBrowserStorage() {
   const snapshot = { app: 'guan-ai-workbench', kind: 'full-browser-backup', format: 1,
@@ -36,7 +56,7 @@ export async function exportBrowserStorage() {
   return snapshot;
 }
 // No clear/delete/put. Original source is retained; an occupied target is refused.
-export async function restoreBrowserStorage(snapshot) {
+export async function restoreBrowserStorage(snapshot, { recoverEmptyAliasCopy = false } = {}) {
   const target = new URL(location.origin);
   const localAliasCopy = target.protocol === 'http:' && target.hostname === 'localhost'
     && Number(target.port) >= 1024 && snapshot?.origin === `http://127.0.0.1:${target.port}`;
@@ -44,7 +64,11 @@ export async function restoreBrowserStorage(snapshot) {
   if ((!legacyPortCopy && !localAliasCopy) || snapshot?.app !== 'guan-ai-workbench'
     || snapshot.kind !== 'full-browser-backup' || snapshot.format !== 1
     || !Array.isArray(snapshot.databases) || !snapshot.localStorage || !snapshot.sessionStorage) throw Error('迁移地址或备份格式不匹配');
-  if (localStorage.length || Object.keys(storage(sessionStorage)).some(key => key !== transientSessionKey)
+  const localValues = storage(localStorage);
+  const recoverDefaults = localAliasCopy && recoverEmptyAliasCopy && isEmptyAliasCopyDefaults(localValues);
+  const occupiedLocal = !recoverDefaults && Object.entries(localValues).some(([key, value]) =>
+    !(localAliasCopy && key === 'guan-localhost-copy-v1' && value === 'verified'));
+  if (occupiedLocal || Object.keys(storage(sessionStorage)).some(key => key !== transientSessionKey)
     || (await indexedDB.databases()).length) throw Error('新地址已有数据，已停止迁移，未覆盖任何数据');
   // Validate/decode before the first destination write.
   const decoded = snapshot.databases.map(spec => ({ ...spec, stores: spec.stores.map(store => ({ ...store,

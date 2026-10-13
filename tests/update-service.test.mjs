@@ -30,7 +30,7 @@ async function fixture(t, mode = 'normal', realBackend = false) {
     await copyFile(new URL('../src/server/update-startup.mjs', import.meta.url), path.join(directory, 'update-startup.mjs'));
     await writeFile(path.join(directory, 'fixture.json'), JSON.stringify({ mode, version: pointer.version, buildId: pointer.buildId }));
   } else {
-    for (const file of ['server.mjs', 'package.json', 'src/server', 'config/examples', 'node_modules/undici'])
+    for (const file of ['server.mjs', 'package.json', 'src/server', 'src/shared', 'config/examples', 'node_modules/undici'])
       await cp(new URL(file, project), path.join(directory, file), { recursive: true });
     await mkdir(path.join(directory, 'public/infinite-canvas'), { recursive: true });
     await writeFile(path.join(directory, 'public/index.html'), '<title>QA</title>');
