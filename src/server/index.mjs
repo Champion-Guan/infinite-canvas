@@ -28,6 +28,7 @@ import { createUpdateTaskHttpHandler } from "./update-task-http.mjs";
 import { createBackendControl } from "./update-backend-control.mjs";
 import { portMigrationPage } from "./port-migration-page.mjs";
 import { createLocalhostMigration, localhostMigrationGuard } from "./localhost-migration.mjs";
+import { createPort3000ReadonlyBridge } from "./port3000-readonly-bridge.mjs";
 
 const projectRoot = fileURLToPath(new URL("../../", import.meta.url));
 
@@ -38,13 +39,17 @@ const pageFile = join(publicRoot, "index.html");
 const assetRoot = join(publicRoot, "assets");
 const infiniteCanvasRoot = join(publicRoot, "infinite-canvas");
 const builtInProxyConfigFile = privatePaths.proxyConfigFile;
-const port = Number(process.env.PORT || 8888);
+const port = Number(process.env.PORT || 3000);
 const sourceDevelopment = process.env.GUAN_WORKBENCH_SOURCE_DEV === '1';
 const applicationVersion = JSON.parse(readFileSync(join(projectRoot, "package.json"), "utf8")).version;
 const applicationBuildId = createHash("sha256").update(readFileSync(fileURLToPath(import.meta.url))).update(readFileSync(join(infiniteCanvasRoot, "index.html"))).digest("hex").slice(0, 24);
 const applicationInstanceId = randomUUID();
 const activityGate = new ActivityGate();
-const localhostMigration = createLocalhostMigration({ port, backupRoot: privatePaths.backups, gate: activityGate });
+const port3000Migration = port === 3000 && sourceDevelopment && process.env.GUAN_WORKBENCH_PORT3000_MIGRATION === '1';
+const localhostMigration = createLocalhostMigration({ port, backupRoot: privatePaths.backups, gate: activityGate,
+  ...(port3000Migration ? { sourceOrigin: 'http://localhost:8888' } : {}) });
+const oldOriginBridge = port3000Migration ? createPort3000ReadonlyBridge({ migration: localhostMigration,
+  contractRoot: new URL('../shared/data-contract/', import.meta.url) }) : null;
 const browserActivityReports = new BrowserActivityReports();
 const updateTaskLedger = new UpdateTaskLedger({ file: join(privatePaths.updates, "task-ledger.json"),
   version: applicationVersion, instance: applicationInstanceId });
@@ -4059,6 +4064,11 @@ const server = createServer(async (request, response) => {
   }
   if (updateStartup.reject(request, response, pathname)) return;
   if (await localhostMigration(request, response)) return;
+  if (port === 3000 && (pathname === '/' || pathname.startsWith('/canvas/'))
+    && !(await localhostMigration.hasVerifiedLanding(request))) {
+    response.writeHead(302, { location: 'http://localhost:3000/local-app/localhost-migration', 'cache-control': 'no-store' });
+    response.end(); return;
+  }
   if (await updateTaskHttp(request, response)) return;
   if (await credentialHttp(request, response)) return;
   if (await updateHttp(request, response)) return;
@@ -4208,6 +4218,7 @@ let shutdownStarted = false;
 const shutdown = async (exitCode = 0) => {
   if (shutdownStarted) return;
   shutdownStarted = true;
+  oldOriginBridge?.close(); oldOriginBridge?.closeAllConnections();
   softwareUpdates.stop();
   await proxyMutationQueue.catch(() => undefined);
   await flushPrivateWrites().catch(() => console.error("私人运行状态未完成保存，已保留原文件"));
@@ -4248,3 +4259,7 @@ server.listen(port, "127.0.0.1", () => {
   if (!updateStartup.quarantined()) softwareUpdates.start();
   console.log("Guan AI 生图工作台运行在 http://127.0.0.1:" + port);
 });
+if (oldOriginBridge) {
+  oldOriginBridge.on('error', () => { console.error('旧地址只读迁移桥启动失败，未迁移浏览器数据'); void shutdown(1); });
+  oldOriginBridge.listen(8888, '127.0.0.1');
+}

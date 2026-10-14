@@ -3,13 +3,23 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import ts from '../src/canvas/node_modules/typescript/lib/typescript.js';
-function client(fetch) {
+function client(fetch, origin = 'http://127.0.0.1:5174') {
   const source = readFileSync(new URL('../src/canvas/services/secure-credentials.ts', import.meta.url), 'utf8').replace(/^import .*;\s*$/gm, '').replace(/\bexport /g, '');
-  const context = vm.createContext({ fetch, AbortSignal, location: { origin: 'http://127.0.0.1:5174' } });
+  const context = vm.createContext({ fetch, AbortSignal, location: { origin } });
   vm.runInContext(ts.transpileModule(source + '\nglobalThis.api = { secureCredential, secureChannel, secureConfig };', { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context);
   return context.api;
 }
 const id = '11111111-1111-4111-8111-111111111111', ref = 'guan-vault:' + id, route = 'http://127.0.0.1:5174/local-secure-api/' + id;
+test('port3000 rebinds only the same historical vault identity, never foreign endpoints or another profile', async () => {
+  const target = 'http://localhost:3000/local-secure-api/' + id;
+  const response = { ok: true, credentialRef: ref, baseUrl: target, endpoint: 'https://api.example.test', kind: 'openai', username: '' };
+  const api = client(async () => ({ ok: true, json: async () => response }), 'http://localhost:3000');
+  for (const origin of ['http://127.0.0.1:5174', 'http://127.0.0.1:8888', 'http://localhost:8888'])
+    assert.equal((await api.secureCredential('openai', origin + '/local-secure-api/' + id, ref)).baseUrl, target);
+  await assert.rejects(api.secureCredential('openai', 'http://localhost:8889/local-secure-api/' + id, ref));
+  await assert.rejects(api.secureCredential('gemini', 'http://localhost:8888/local-secure-api/' + id, ref));
+  await assert.rejects(api.secureCredential('openai', 'http://localhost:8888/local-secure-api/22222222-2222-4222-8222-222222222222', ref));
+});
 test('new channel credentials publish only verified references and never mutate the submitted draft', async () => {
   const channel = { apiFormat: 'openai', baseUrl: 'https://api.example.test', apiKey: 'fixture-new-key', models: [] };
   const calls = [];

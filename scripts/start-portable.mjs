@@ -10,7 +10,7 @@ if (process.platform === 'darwin') {
   const [code] = await once(launcher, 'exit'); process.exit(code ?? 1);
 }
 process.chdir(root);
-const port = Number(process.env.PORT || 8888);
+const port = Number(process.env.PORT || 3000);
 const url = `http://127.0.0.1:${port}/`;
 const [major, minor] = process.versions.node.split('.').map(Number);
 if (major < 18 || (major === 18 && minor < 17)) {

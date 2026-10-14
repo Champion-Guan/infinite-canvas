@@ -22,6 +22,17 @@ test('extension handshake does not prevent empty destination migration or get ov
   assert.equal(localStorage.getItem('canvas'), 'saved');
   await assert.rejects(restoreBrowserStorage(snapshot), /已有数据/);
 });
+
+test('8888 to localhost3000 copy retains source marker but requires a separate verified landing marker', async () => {
+  const snapshot = setup(); snapshot.origin = 'http://localhost:8888'; location.origin = 'http://localhost:3000';
+  snapshot.localStorage['guan-localhost-copy-v1'] = 'top-level-verified';
+  await restoreBrowserStorage(snapshot);
+  assert.equal(localStorage.getItem('canvas'), 'saved');
+  assert.equal(localStorage.getItem('guan-port3000-copy-v1'), null);
+  await assert.rejects(restoreBrowserStorage(snapshot), /已有数据/);
+  setup(); location.origin = 'http://localhost:3000'; snapshot.origin = 'http://localhost:8889';
+  await assert.rejects(restoreBrowserStorage(snapshot), /不匹配/);
+});
 test('any existing business session still refuses before writing', async () => {
   const snapshot = setup({ __imt_handshake_page_id: 'page', client: 'existing-client' });
   await assert.rejects(restoreBrowserStorage(snapshot), /已有数据/);

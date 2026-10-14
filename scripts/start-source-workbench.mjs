@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { realpath, cp } from 'node:fs/promises';
-import { runtimePaths, privateDirectory, readPrivateFile, writePrivateJson } from '../src/server/runtime-paths.mjs';
-import { PortableLaunchdJobs, portableDescriptor, startPortableJob } from './lib/macos-launcher.mjs';
+import { runtimePaths, privateDirectory, readPrivateFile, writePrivateJson, writePrivateFile } from '../src/server/runtime-paths.mjs';
+import { PortableLaunchdJobs, portableDescriptor, startPortableJob, desktopShortcut } from './lib/macos-launcher.mjs';
 import { workbenchPageCensus } from '../src/server/workbench-page-census.mjs';
 import { SupervisedUpdateService } from '../src/server/update-supervisor.mjs';
 
@@ -20,25 +20,67 @@ const mode = process.argv[2];
 const agents = path.join(homedir(), 'Library/LaunchAgents');
 const logs = path.join(paths.logs, 'development');
 const jobs = new PortableLaunchdJobs();
-const descriptor = portableDescriptor({ node, root, privateRoot: paths.root, agents, logs });
-descriptor.bytes = descriptor.bytes.replace('<key>PORT</key>', '<key>GUAN_WORKBENCH_SOURCE_DEV</key><string>1</string><key>PORT</key>');
+const sourceDescriptor = (port, migration = false) => {
+  const value = portableDescriptor({ node, root, privateRoot: paths.root, agents, logs, port });
+  value.bytes = value.bytes.replace('<key>PORT</key>', '<key>GUAN_WORKBENCH_SOURCE_DEV</key><string>1</string>'
+    + (migration ? '<key>GUAN_WORKBENCH_PORT3000_MIGRATION</key><string>1</string>' : '') + '<key>PORT</key>');
+  return value;
+};
+let activePort = 8888;
+let descriptor = sourceDescriptor(activePort);
 const ctl = (...args) => run('/bin/launchctl', args, { timeout: 40000, maxBuffer: 65536 });
-const probe = async () => {
-  try { const response = await fetch('http://127.0.0.1:8888/local-app/health', { signal: AbortSignal.timeout(1000) }); return await response.json(); }
+const probe = async (port = activePort) => {
+  try { const response = await fetch(`http://127.0.0.1:${port}/local-app/health`, { signal: AbortSignal.timeout(1000) }); return await response.json(); }
   catch (error) { if (error?.cause?.code === 'ECONNREFUSED') return null; throw error; }
 };
 const closed = async () => {
-  const census = await workbenchPageCensus({ ports: [8888] });
+  const census = await workbenchPageCensus({ ports: [8888, 3000] });
   if (!census.workbenchPagesClosed || census.blockers.length) throw Error('请保存并关闭工作台页面后再首次切换源码模式');
 };
 try {
-  if (process.platform !== 'darwin' || process.arch !== 'arm64' || process.argv.length !== 3 || !['--enable', '--open'].includes(mode)) throw Error('source_launcher_arguments_invalid');
+  if (process.platform !== 'darwin' || process.arch !== 'arm64' || process.argv.length !== 3 || !['--enable', '--open', '--migrate-port'].includes(mode)) throw Error('source_launcher_arguments_invalid');
   const existing = await readPrivateFile(marker, { maxBytes: 4096 });
   if (existing) {
     const value = JSON.parse(existing);
     if (value.root !== root || value.node !== node || value.version !== 1) throw Error('development_source_mismatch');
+    activePort = value.port ?? 8888;
+    if (![3000, 8888].includes(activePort)) throw Error('development_source_port_invalid');
+    descriptor = sourceDescriptor(activePort, value.portMigration === true);
   } else if (mode !== '--enable') throw Error('source_mode_not_enabled');
-  if (!existing) {
+  if (mode === '--migrate-port' && activePort !== 3000) {
+    await closed();
+    const health = await probe();
+    if (!health?.ready || !health.sourceDevelopment || health.maintenance || health.origin !== 'http://127.0.0.1:8888') throw Error('source_service_identity_mismatch');
+    if (await probe(3000)) throw Error('target_port_occupied');
+    if (await readPrivateFile(descriptor.plist, { maxBytes: 16384 }) !== descriptor.bytes
+      || !await jobs.inspect('com.guanaiworkbench.portable', descriptor)) throw Error('source_job_ownership_lost');
+    const backup = path.join(paths.backups, 'pre-port3000-' + Date.now());
+    await privateDirectory(backup);
+    await cp(paths.data, path.join(backup, 'data'), { recursive: true, force: false, errorOnExist: true });
+    await cp(descriptor.plist, path.join(backup, 'source.plist'), { force: false, errorOnExist: true });
+    await writePrivateFile(path.join(backup, 'source.json'), existing, { exclusive: true });
+    const oldDescriptor = descriptor;
+    await closed();
+    await jobs.stop('com.guanaiworkbench.portable', oldDescriptor);
+    try {
+      activePort = 3000; descriptor = sourceDescriptor(3000, true);
+      await writePrivateFile(descriptor.plist, descriptor.bytes);
+      await startPortableJob({ descriptor, jobs });
+      let ready = false;
+      for (let i = 0; i < 100; i++) {
+        const next = await probe();
+        if (next?.ready && next.sourceDevelopment && next.origin === 'http://127.0.0.1:3000') { ready = true; break; }
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+      if (!ready) throw Error('port3000_start_failed');
+      await writePrivateJson(marker, { ...JSON.parse(existing), port: 3000, portMigration: true, portBackup: backup });
+    } catch (error) {
+      if (await jobs.inspect('com.guanaiworkbench.portable', descriptor).catch(() => false)) await jobs.stop('com.guanaiworkbench.portable', descriptor);
+      await writePrivateFile(oldDescriptor.plist, oldDescriptor.bytes);
+      await startPortableJob({ descriptor: oldDescriptor, jobs });
+      throw error;
+    }
+  } else if (!existing) {
     await closed();
     const health = await probe();
     if (!health?.ready || health.maintenance || health.sourceDevelopment) throw Error('stable_service_not_ready');
@@ -96,7 +138,11 @@ try {
     await privateDirectory(logs);
     await startPortableJob({ descriptor, jobs });
   }
-  await run('/usr/bin/open', ['http://localhost:8888']);
+  if (activePort === 3000) {
+    try { await desktopShortcut({ desktop: path.join(homedir(), 'Desktop'), node, root, port: activePort }); }
+    catch { console.log('桌面入口未刷新，源码服务及旧数据仍保留。'); }
+  }
+  await run('/usr/bin/open', [`http://localhost:${activePort}`]);
   console.log('源码工作台已打开，前端构建发布后刷新页面即可看到修改；Stable 自动安装已隔离。');
 } catch (error) {
   console.error(error.message || 'source_mode_failed'); process.exitCode = 1;

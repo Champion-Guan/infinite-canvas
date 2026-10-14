@@ -21,7 +21,7 @@ export async function secureCredential(kind: CredentialKind, endpoint: string, s
         // Only this same profile's historical local URL may be rebound after a port migration.
         const historical = ["http://127.0.0.1:5174", "http://127.0.0.1:8888", "http://localhost:8888"]
             .some(origin => endpoint.replace(/\/+$/, "") === `${origin}/local-secure-api/${secret.slice(11)}`)
-            && ["http://127.0.0.1:8888", "http://localhost:8888"].includes(location.origin);
+            && ["http://127.0.0.1:3000", "http://localhost:3000", "http://127.0.0.1:8888", "http://localhost:8888"].includes(location.origin);
         if (binding.credentialRef !== secret || binding.baseUrl !== `${location.origin}/local-secure-api/${secret.slice(11)}` ||
             binding.kind !== kind || binding.username !== username ||
             !historical && endpoint.replace(/\/+$/, "") !== binding.baseUrl && endpoint.replace(/\/+$/, "") !== binding.endpoint) throw failure();

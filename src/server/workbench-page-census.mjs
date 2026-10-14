@@ -16,7 +16,7 @@ const browsers = [
 export function workbenchTabScript(bundleId, pid, ports = [8888]) {
   if (!browsers.some(([, id]) => id === bundleId) || !Number.isSafeInteger(pid) || pid < 1)
     throw Error('install_page_inventory_unavailable');
-  if (!Array.isArray(ports) || !ports.length || ports.some(port => ![5174, 8888].includes(port)))
+  if (!Array.isArray(ports) || !ports.length || ports.some(port => ![3000, 5174, 8888].includes(port)))
     throw Error('install_page_inventory_unavailable');
   const origins = ports.flatMap(port => [`http://127.0.0.1:${port}`, `http://localhost:${port}`]);
   // Direct PID Apple Events are essential. JXA Application(pid) can still

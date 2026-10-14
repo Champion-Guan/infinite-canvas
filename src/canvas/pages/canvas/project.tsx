@@ -16,6 +16,7 @@ import type { RootScope } from "@/lib/page-drain-barrier";
 import { settleActivityGroup } from "@/lib/settle-activity-group";
 import { arrangeOverlappingCanvasNodes, placeCanvasNode, placeNewCanvasNodes } from "@/lib/canvas/canvas-node-placement";
 import { canvasContentSnapshot } from "@/lib/canvas/canvas-content-snapshot";
+import { createVisibilityIndex } from "@/lib/canvas/visibility-index";
 
 import { requestEdit, requestGeneration, requestImageQuestion } from "@/services/api/image";
 import { requestAudioGeneration, storeGeneratedAudio } from "@/services/api/audio";
@@ -1295,16 +1296,16 @@ function InfiniteCanvasPage() {
         return { left, top, right: left + width / viewport.k + padding * 2, bottom: top + height / viewport.k + padding * 2 };
     }, [size.height, size.width, viewport.k, viewport.x, viewport.y]);
 
-    const visibleNodes = useMemo(
-        () => nodes.filter((node) => node.position.x + node.width > viewBounds.left && node.position.x < viewBounds.right && node.position.y + node.height > viewBounds.top && node.position.y < viewBounds.bottom),
-        [nodes, viewBounds],
-    );
+    const queryVisibleNodes = useMemo(() => createVisibilityIndex(nodes, node => ({
+        left: node.position.x, top: node.position.y, right: node.position.x + node.width, bottom: node.position.y + node.height,
+    })), [nodes]);
+    const visibleNodes = useMemo(() => queryVisibleNodes(viewBounds), [queryVisibleNodes, viewBounds]);
 
     const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
     const contentNodeById = useMemo(() => new Map(contentNodes.map(node => [node.id, node])), [contentNodes]);
 
     // Connections are culled like nodes; a cubic curve stays inside its control-point hull, so endpoint bounds widened by the curvature is a safe test.
-    const visibleConnections = useMemo(
+    const connectionGeometry = useMemo(
         () => {
             const seenPairs = new Set<string>();
             return connections.flatMap((connection) => {
@@ -1319,13 +1320,16 @@ function InfiniteCanvasPage() {
                 const endX = to.position.x;
                 const endY = to.position.y + to.height / 2;
                 const curvature = Math.max(Math.abs(endX - startX) * 0.5, 50);
-                const inView =
-                    Math.max(startX + curvature, endX) > viewBounds.left && Math.min(startX, endX - curvature) < viewBounds.right && Math.max(startY, endY) > viewBounds.top && Math.min(startY, endY) < viewBounds.bottom;
-                return inView ? [{ connection, from, to }] : [];
+                return [{ connection, from, to, bounds: {
+                    left: Math.min(startX, endX - curvature), right: Math.max(startX + curvature, endX),
+                    top: Math.min(startY, endY), bottom: Math.max(startY, endY),
+                } }];
             });
         },
-        [connections, nodeById, viewBounds],
+        [connections, nodeById],
     );
+    const queryVisibleConnections = useMemo(() => createVisibilityIndex(connectionGeometry, item => item.bounds), [connectionGeometry]);
+    const visibleConnections = useMemo(() => queryVisibleConnections(viewBounds), [queryVisibleConnections, viewBounds]);
     // The toolbar follows a single selected node selected by click, creation, marquee, or keyboard.
     // It stays hidden for multi-selection and while isNodeDragging is true.
     const singleSelectedNodeId = selectedNodeIds.size === 1 ? Array.from(selectedNodeIds)[0] : null;

@@ -17,7 +17,7 @@ async function main() {
     const record = JSON.parse(development);
     if (record.version !== 1 || record.root !== root || record.node !== node) throw Error('development_source_mismatch');
     await run(node, [path.join(root, 'scripts/start-source-workbench.mjs'), '--open'], { timeout: 90000, maxBuffer: 65536 });
-    try { await desktopShortcut({ desktop: path.join(homedir(), 'Desktop'), node, root }); }
+    try { await desktopShortcut({ desktop: path.join(homedir(), 'Desktop'), node, root, port: record.port ?? 8888 }); }
     catch { console.log('桌面入口未创建，源码工作台仍正常运行。'); }
     return;
   }
@@ -31,15 +31,15 @@ async function main() {
       || await readPrivateFile(path.join(paths.root, 'installation/bootstrap.json'), { maxBytes: 4096 }) !== null) throw Error('update_recovery_required');
     const probe = async () => {
       try {
-        const response = await fetch('http://127.0.0.1:8888/local-app/health', { signal: AbortSignal.timeout(1500), redirect: 'error' });
+        const response = await fetch('http://127.0.0.1:3000/local-app/health', { signal: AbortSignal.timeout(1500), redirect: 'error' });
         const health = await response.json();
-        if (!response.ok || health.app !== 'guan-ai-workbench' || !health.ready || health.maintenance || health.origin !== 'http://127.0.0.1:8888') throw Error('service_port_occupied');
+        if (!response.ok || health.app !== 'guan-ai-workbench' || !health.ready || health.maintenance || health.origin !== 'http://127.0.0.1:3000') throw Error('service_port_occupied');
         return true;
       } catch (error) { if (error?.cause?.code === 'ECONNREFUSED') return false; throw Error('service_port_occupied'); }
     };
     if (!await probe()) {
       await mkdir(agents, { recursive: true, mode: 0o700 }); await privateDirectory(logs);
-      const descriptor = portableDescriptor({ node, root, privateRoot: paths.root, agents, logs });
+      const descriptor = portableDescriptor({ node, root, privateRoot: paths.root, agents, logs, port: 3000 });
       await startPortableJob({ descriptor, jobs: new PortableLaunchdJobs() });
       let ready = false;
       for (let attempt = 0; attempt < 60; attempt++) {
@@ -48,12 +48,12 @@ async function main() {
       }
       if (!ready) throw Error('service_start_failed');
     }
-    await run('/usr/bin/open', ['http://localhost:8888']);
+    await run('/usr/bin/open', ['http://localhost:3000']);
   }
   try {
-    const shortcut = await desktopShortcut({ desktop: path.join(homedir(), 'Desktop'), node: process.execPath, root });
+    const shortcut = await desktopShortcut({ desktop: path.join(homedir(), 'Desktop'), node: process.execPath, root, port: current !== null ? 8888 : 3000 });
     console.log(shortcut.created ? '已创建桌面 AI-Workbench 入口。' : '桌面 AI-Workbench 入口已存在。');
   } catch { console.log('桌面入口未创建：已有同名文件或桌面权限不足，工作台仍正常运行。'); }
-  console.log('工作台已启动：http://localhost:8888。由后台服务管理，可以关闭此终端。');
+  console.log(`工作台已启动：http://localhost:${current !== null ? 8888 : 3000}。由后台服务管理，可以关闭此终端。`);
 }
 main().catch(error => { console.error(/^[a-z_]{1,80}$/.test(error?.message || '') ? error.message : 'macos_launcher_failed'); process.exitCode = 1; });

@@ -61,7 +61,8 @@ export async function restoreBrowserStorage(snapshot, { recoverEmptyAliasCopy = 
   const localAliasCopy = target.protocol === 'http:' && target.hostname === 'localhost'
     && Number(target.port) >= 1024 && snapshot?.origin === `http://127.0.0.1:${target.port}`;
   const legacyPortCopy = location.origin === 'http://127.0.0.1:8888' && snapshot?.origin === 'http://127.0.0.1:5174';
-  if ((!legacyPortCopy && !localAliasCopy) || snapshot?.app !== 'guan-ai-workbench'
+  const port3000Copy = location.origin === 'http://localhost:3000' && snapshot?.origin === 'http://localhost:8888';
+  if ((!legacyPortCopy && !localAliasCopy && !port3000Copy) || snapshot?.app !== 'guan-ai-workbench'
     || snapshot.kind !== 'full-browser-backup' || snapshot.format !== 1
     || !Array.isArray(snapshot.databases) || !snapshot.localStorage || !snapshot.sessionStorage) throw Error('迁移地址或备份格式不匹配');
   const localValues = storage(localStorage);
