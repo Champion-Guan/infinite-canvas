@@ -1,14 +1,16 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { getNodeDefinition } from "@/lib/canvas/node-registry";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { type CanvasNodeData, type ViewportTransform } from "@/types/canvas";
 
-export function Minimap({ nodes, viewport, viewportSize, onViewportChange }: { nodes: CanvasNodeData[]; viewport: ViewportTransform; viewportSize: { width: number; height: number }; onViewportChange: (viewport: ViewportTransform) => void }) {
+export function Minimap({ nodes, viewport, viewportSize, onViewportChange, onViewportStart, onViewportEnd }: { nodes: CanvasNodeData[]; viewport: ViewportTransform; viewportSize: { width: number; height: number }; onViewportChange: (viewport: ViewportTransform) => void; onViewportStart: () => ViewportTransform; onViewportEnd: () => void }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const containerRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const dragScaleRef = useRef(viewport.k);
+    useEffect(() => () => onViewportEnd(), [onViewportEnd]);
     const width = 240;
     const height = 160;
 
@@ -100,28 +102,31 @@ export function Minimap({ nodes, viewport, viewportSize, onViewportChange }: { n
         const world = toWorld(event.clientX - rect.left, event.clientY - rect.top);
         const liveSize = getLiveCanvasSize();
         onViewportChange({
-            x: liveSize.width / 2 - world.x * viewport.k,
-            y: liveSize.height / 2 - world.y * viewport.k,
-            k: viewport.k,
+            x: liveSize.width / 2 - world.x * dragScaleRef.current,
+            y: liveSize.height / 2 - world.y * dragScaleRef.current,
+            k: dragScaleRef.current,
         });
     };
 
     return (
-        <div className="absolute bottom-24 left-6 z-50 overflow-hidden rounded-lg border shadow-2xl backdrop-blur-sm" style={{ width, height, background: theme.toolbar.panel, borderColor: theme.toolbar.border }}>
+        <div data-canvas-no-zoom className="absolute bottom-24 left-6 z-50 overflow-hidden rounded-lg border shadow-2xl backdrop-blur-sm" style={{ width, height, background: theme.toolbar.panel, borderColor: theme.toolbar.border }}>
             <div
                 ref={containerRef}
                 className="relative h-full w-full cursor-crosshair"
                 onPointerDown={(event) => {
                     event.preventDefault();
+                    event.stopPropagation();
                     event.currentTarget.setPointerCapture(event.pointerId);
                     setIsDragging(true);
+                    dragScaleRef.current = onViewportStart().k;
                     updateViewportFromEvent(event);
                 }}
                 onPointerMove={(event) => {
                     if (isDragging) updateViewportFromEvent(event);
                 }}
-                onPointerUp={() => setIsDragging(false)}
-                onPointerLeave={() => setIsDragging(false)}
+                onPointerUp={() => { setIsDragging(false); onViewportEnd(); }}
+                onPointerCancel={() => { setIsDragging(false); onViewportEnd(); }}
+                onLostPointerCapture={() => { setIsDragging(false); onViewportEnd(); }}
             >
                 {nodes.map((node) => {
                     const pos = toMinimap(node.position.x, node.position.y);

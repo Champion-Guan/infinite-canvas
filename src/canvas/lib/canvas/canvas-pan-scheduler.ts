@@ -33,7 +33,9 @@ export function createCanvasPanScheduler({ paint, commit, frame, cancel, now, ex
                 pending = null;
                 if (!latest) return;
                 paint(latest);
-                const overscanStep = 140 * latest.k;
+                // Culling overscan is measured in screen pixels, not world
+                // pixels: zooming out must not make a few pixels trigger React.
+                const overscanStep = 140;
                 const size = extent?.();
                 const zoomTravel = checkpoint && size ? Math.max(
                     Math.abs((size.width - checkpoint.x) / checkpoint.k - (size.width - latest.x) / latest.k),
@@ -41,7 +43,7 @@ export function createCanvasPanScheduler({ paint, commit, frame, cancel, now, ex
                     Math.abs(checkpoint.x / checkpoint.k - latest.x / latest.k),
                     Math.abs(checkpoint.y / checkpoint.k - latest.y / latest.k),
                 ) : latest.k !== checkpoint?.k ? Infinity : 0;
-                if (!checkpoint || zoomTravel >= 140 || now() - checkpointAt >= 80
+                if (!checkpoint || zoomTravel * latest.k >= overscanStep || now() - checkpointAt >= 80
                     || Math.abs(latest.x - checkpoint.x) >= overscanStep || Math.abs(latest.y - checkpoint.y) >= overscanStep) publish();
             });
         },

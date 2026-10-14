@@ -47,7 +47,7 @@ import { CanvasNodeUpscaleDialog, type CanvasImageUpscaleParams } from "@/compon
 import { buildNodeGenerationContext, buildNodeGenerationInputs, buildNodeResponseMessages, hydrateNodeGenerationContext, type NodeGenerationInput } from "@/components/canvas/canvas-node-generation";
 import { CanvasNodeHoverToolbar, CanvasNodeInfoModal } from "@/components/canvas/canvas-node-hover-toolbar";
 import { CanvasSelectionToolbar } from "@/components/canvas/canvas-selection-toolbar";
-import { InfiniteCanvas } from "@/components/canvas/infinite-canvas";
+import { InfiniteCanvas, type CanvasViewportController } from "@/components/canvas/infinite-canvas";
 import { Minimap } from "@/components/canvas/canvas-mini-map";
 import { CanvasNode } from "@/components/canvas/canvas-node";
 import { CanvasNodePromptPanel, type CanvasNodeGenerationMode } from "@/components/canvas/canvas-node-prompt-panel";
@@ -509,6 +509,7 @@ function InfiniteCanvasPage() {
     const canvasPanningRef = useRef(false);
     const panOverlayRef = useRef<HTMLDivElement>(null);
     const renderedViewportRef = useRef(viewport);
+    const viewportControllerRef = useRef<CanvasViewportController | null>(null);
     renderedViewportRef.current = viewport;
     const previewCanvasViewport = useCallback((next: ViewportTransform) => {
         viewportRef.current = next;
@@ -1285,7 +1286,7 @@ function InfiniteCanvasPage() {
     );
 
     const viewBounds = useMemo(() => {
-        const padding = 280;
+        const padding = 280 / viewport.k;
         const rect = containerRef.current?.getBoundingClientRect();
         const width = rect?.width || size.width;
         const height = rect?.height || size.height;
@@ -1449,7 +1450,7 @@ function InfiniteCanvasPage() {
         nodes,
         connections,
         selectedNodeIds,
-        viewport,
+        viewportMoving: isCanvasPanning,
         nodesRef,
         connectionsRef,
         selectedNodeIdsRef,
@@ -1855,6 +1856,9 @@ function InfiniteCanvasPage() {
     }, [getCanvasCenter]);
 
     const resetViewport = useCallback(() => {
+        if (focusAnimRef.current) cancelAnimationFrame(focusAnimRef.current);
+        focusAnimRef.current = null;
+        viewportControllerRef.current?.finish();
         if (!nodesRef.current.length) {
             setViewport({ x: size.width / 2, y: size.height / 2, k: 1 });
             setContextMenu(null);
@@ -1881,7 +1885,9 @@ function InfiniteCanvasPage() {
             setContextMenu(null);
 
             if (focusAnimRef.current) cancelAnimationFrame(focusAnimRef.current);
+            viewportControllerRef.current?.finish();
             const start = { ...viewportRef.current };
+            viewportControllerRef.current?.begin(start);
             const duration = 450;
             const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
             let startTime: number | null = null;
@@ -1889,8 +1895,9 @@ function InfiniteCanvasPage() {
                 if (startTime === null) startTime = now;
                 const progress = Math.min((now - startTime) / duration, 1);
                 const t = easeOutCubic(progress);
-                setViewport({ x: start.x + (target.x - start.x) * t, y: start.y + (target.y - start.y) * t, k: start.k + (target.k - start.k) * t });
+                viewportControllerRef.current?.move({ x: start.x + (target.x - start.x) * t, y: start.y + (target.y - start.y) * t, k: start.k + (target.k - start.k) * t });
                 focusAnimRef.current = progress < 1 ? requestAnimationFrame(step) : null;
+                if (progress === 1) viewportControllerRef.current?.finish();
             };
             focusAnimRef.current = requestAnimationFrame(step);
         },
@@ -1909,8 +1916,21 @@ function InfiniteCanvasPage() {
 
     useEffect(() => () => void (focusAnimRef.current && cancelAnimationFrame(focusAnimRef.current)), []);
 
+    const finishViewportInteraction = useCallback(() => {
+        if (focusAnimRef.current) cancelAnimationFrame(focusAnimRef.current);
+        focusAnimRef.current = null;
+        viewportControllerRef.current?.finish();
+    }, []);
+    const beginMinimapInteraction = useCallback(() => {
+        finishViewportInteraction();
+        viewportControllerRef.current?.begin(viewportRef.current);
+        return viewportRef.current;
+    }, [finishViewportInteraction]);
+    const moveMinimapViewport = useCallback((next: ViewportTransform) => viewportControllerRef.current?.move(next), []);
+
     const setZoomScale = useCallback(
         (scale: number) => {
+            finishViewportInteraction();
             const nextScale = Math.min(Math.max(scale, 0.05), 5);
             setViewport((prev) => ({
                 x: size.width / 2 - ((size.width / 2 - prev.x) / prev.k) * nextScale,
@@ -1919,7 +1939,7 @@ function InfiniteCanvasPage() {
             }));
             setContextMenu(null);
         },
-        [size.height, size.width],
+        [size.height, size.width, finishViewportInteraction],
     );
 
     const applyHistory = useCallback((entry: CanvasHistoryEntry) => {
@@ -4360,6 +4380,8 @@ function InfiniteCanvasPage() {
                 />
 
                 <InfiniteCanvas
+                    viewportControllerRef={viewportControllerRef}
+                    onManualViewportStart={finishViewportInteraction}
                     containerRef={containerRef}
                     viewport={viewport}
                     tool={canvasTool}
@@ -4570,7 +4592,7 @@ function InfiniteCanvasPage() {
                     onShowImageInfoChange={setShowImageInfo}
                 />
 
-                {isMiniMapOpen ? <Minimap nodes={nodes} viewport={viewport} viewportSize={size} onViewportChange={setViewport} /> : null}
+                {isMiniMapOpen ? <Minimap nodes={nodes} viewport={viewport} viewportSize={size} onViewportChange={moveMinimapViewport} onViewportStart={beginMinimapInteraction} onViewportEnd={finishViewportInteraction} /> : null}
 
                 <CanvasZoomControls scale={viewport.k} onScaleChange={setZoomScale} onReset={resetViewport} isMiniMapOpen={isMiniMapOpen} onToggleMiniMap={() => setIsMiniMapOpen((value) => !value)} />
 
