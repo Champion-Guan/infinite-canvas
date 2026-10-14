@@ -59,7 +59,12 @@ export async function migrationInstallationMode(root) {
 // Inspect only the exact listener. Never return environment values or issue a
 // kill-by-port command. Start time, UID, executable and source bytes are pinned.
 export async function inspectPortableService({ version, privateRoot, run = execute, uid = process.getuid(), port = 5174 } = {}) {
-  if (version !== '1.0.7') throw Error('migration_portable_version_unsupported');
+  // Portable handoff is intentionally version agnostic. Older builds used a
+  // hard-coded 1.0.7 gate, which made every later extracted release (including
+  // 1.0.27) impossible to migrate even though its service identity was valid.
+  const portableVersion = String(version || '').match(/^(\d+)\.(\d+)\.(\d+)$/);
+  if (!portableVersion || Number(portableVersion[1]) * 10000 + Number(portableVersion[2]) * 100 + Number(portableVersion[3]) < 10007)
+    throw Error('migration_portable_version_unsupported');
   if (!Number.isSafeInteger(port) || port < 1024 || port > 65535) throw Error('migration_service_identity_unknown');
   const command = async (file, args) => (await run(file, args, { encoding: 'utf8', timeout: 5000, maxBuffer: 2 * 1024 * 1024 })).stdout.trim();
   const listeners = [...new Set((await command('/usr/sbin/lsof', ['-t', '-nP', `-iTCP:${port}`, '-sTCP:LISTEN'])).split(/\s+/))];

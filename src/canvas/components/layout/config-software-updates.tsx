@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { App, Button, Select, Switch } from "antd";
 import { useVersionCheck } from "@/hooks/use-version-check";
 import { VersionReleaseModal } from "@/components/layout/version-release-modal";
+import { formatDisplayVersion } from "@/constant/env";
 import { useSoftwareUpdateActions } from "@/hooks/use-software-update-actions";
 import { updateMessages, installationMessages, updateRequest, type UpdatePreferences } from "@/services/software-updates";
 
@@ -39,7 +40,7 @@ export function ConfigSoftwareUpdates() {
     return (
         <section data-guan-updates-panel className="space-y-4 text-sm text-stone-700 dark:text-stone-200">
             <div className="grid grid-cols-2 gap-3">
-                <div>当前版本：{status?.currentVersion || "读取中"}</div><div>最新稳定版本：{status?.latest?.version || "尚未获得"}</div>
+                <div>当前版本：{formatDisplayVersion(status?.currentVersion || "")}</div><div>最新稳定版本：{formatDisplayVersion(status?.latest?.version || "")}</div>
                 <div>更新渠道：{status?.channel || "GitHub Public / Stable"}</div><div>上次检查：{status?.lastCheckedAt ? new Date(status.lastCheckedAt).toLocaleString() : "尚未检查"}</div>
             </div>
             <div className="flex flex-wrap items-center gap-5">

@@ -496,6 +496,12 @@
         100% { opacity: 1; transform: scale(1); }
     }
 
+    @keyframes guan-drop-target-pulse {
+        from { box-shadow: 0 0 0 0 rgb(47 128 255 / 10%), 0 8px 20px rgb(47 128 255 / 8%); }
+        60% { box-shadow: 0 0 0 5px rgb(47 128 255 / 22%), 0 14px 38px rgb(47 128 255 / 16%); }
+        to { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 30%, transparent), 0 16px 36px color-mix(in srgb, var(--ring) 16%, transparent); }
+    }
+
     @keyframes guan-focus-ring {
         from { opacity: 0; transform: scale(.94); }
         55% { opacity: 1; transform: scale(1.015); }
@@ -956,13 +962,15 @@
         transition-duration: var(--guan-motion-fast);
     }
 
+    /* Portal overlays already animate their mask. A second content animation
+     * caused the first frame to flash when opening panels from the canvas. */
     .ant-modal-content,
     .ant-drawer-content,
     .ant-popover,
     .ant-dropdown,
     .ant-tooltip {
-        animation: guan-surface-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
-        transform-origin: var(--guan-motion-origin, center top);
+        animation: none;
+        transform: none;
     }
 
     .ant-card,
@@ -1047,7 +1055,7 @@
     }
 
     .guan-node-drop-target {
-        animation: guan-drop-magnet 420ms var(--guan-motion-spring) both;
+        animation: guan-drop-target-pulse 320ms var(--guan-motion-gentle) both;
         box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 30%, transparent), 0 16px 36px color-mix(in srgb, var(--ring) 16%, transparent) !important;
     }
 

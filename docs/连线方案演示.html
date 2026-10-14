@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI-Workbench 连线方案演示</title>
+<style>
+  :root{color-scheme:dark;font:14px -apple-system,BlinkMacSystemFont,"SF Pro Display",sans-serif;background:#111113;color:#f5f5f7}
+  body{margin:0;padding:28px;display:grid;gap:16px;place-items:center} h1{font-size:22px;font-weight:600;margin:0} p{color:#a1a1aa;margin:0}
+  .toolbar{display:flex;gap:16px;align-items:center;color:#a1a1aa}.toolbar input{accent-color:#8b5cf6}
+  svg{width:min(100%,1000px);height:auto;border:1px solid #29292d;border-radius:18px;background:radial-gradient(#2d2d31 1px,transparent 1px);background-size:20px 20px;box-shadow:0 22px 60px #0008}
+  .node{fill:#1d1d21;stroke:#4b4b54;stroke-width:1.5}.node text{fill:#f5f5f7;font-size:14px}.sub{fill:#a1a1aa;font-size:11px}
+  .edge{fill:none;stroke:#8b5cf6;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.edge.alt{stroke:#38bdf8;stroke-width:2}.port{fill:#a78bfa;stroke:#111113;stroke-width:3}
+  .flow{stroke-dasharray:7 12;animation:flow 1.3s linear infinite}@keyframes flow{to{stroke-dashoffset:-38}}
+  @media(prefers-reduced-motion:reduce){.flow{animation:none}}
+</style>
+<h1>圆角正交路由 + 扇出共享主干</h1><p>主干只绘制一次，分支在目标前扇出；缩放到远景时隐藏分支流光，降低视觉噪声。</p>
+<div class="toolbar"><label>预览缩放 <input id="zoom" type="range" min=".65" max="1.25" step=".05" value="1"></label><span id="zoomText">100%</span></div>
+<svg id="canvas" viewBox="0 0 980 540" role="img" aria-label="连线布局演示"><g id="scene">
+  <path class="edge" d="M300 190 H450 Q470 190 470 210 V330 Q470 350 490 350 H650"/><path class="edge flow" d="M470 330 Q470 350 490 350 H650"/>
+  <path class="edge alt" d="M470 330 V420 Q470 440 490 440 H650"/><circle class="port" cx="470" cy="330" r="6"/>
+  <g class="node"><rect x="90" y="145" width="210" height="90" rx="18"/><text x="116" y="180">产品参数</text><text class="sub" x="116" y="204">共享主干起点</text></g>
+  <g class="node"><rect x="650" y="305" width="230" height="90" rx="18"/><text x="678" y="340">生成图片</text><text class="sub" x="678" y="364">分支 A · 近景</text></g>
+  <g class="node"><rect x="650" y="395" width="230" height="90" rx="18"/><text x="678" y="430">提示词预览</text><text class="sub" x="678" y="454">分支 B · 远景可隐藏</text></g>
+</g></svg>
+<script>const s=document.querySelector('#scene'),z=document.querySelector('#zoom'),t=document.querySelector('#zoomText');z.oninput=()=>{const v=+z.value;s.setAttribute('transform',`translate(${490*(1-v)} ${270*(1-v)}) scale(${v})`);t.textContent=Math.round(v*100)+'%'};</script>
+</html>

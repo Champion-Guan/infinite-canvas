@@ -47,6 +47,7 @@ export async function desktopShortcut({ desktop, node, root, port = 8888 }) {
   if (![desktop, node, root].every(value => typeof value === 'string' && path.isAbsolute(value) && !/[\x00-\x1f]/.test(value))
     || !Number.isSafeInteger(port) || port < 1024 || port > 65535) throw Error('desktop_shortcut_paths_invalid');
   const destination = path.join(desktop, 'AI-Workbench.app');
+  const logoPath = path.join(root, 'public/assets/local-brand/workbench-logo.png');
   const url = `http://127.0.0.1:${port}`;
   const probe = `ObjC.import('Foundation');\nfunction run() {\n  try {\n    const data = $.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile;\n    const text = ObjC.unwrap($.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding));\n    const value = JSON.parse(text);\n    return value.app === 'guan-ai-workbench' && value.ready === true && value.maintenance === false && value.origin === ${JSON.stringify(url)} ? 'ready' : '';\n  } catch (_) { return ''; }\n}\n`;
   const launch = `#!/bin/sh\nlauncher_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"\nif [ "$(/usr/bin/curl --noproxy '*' --fail --silent --max-time 2 --max-filesize 16384 ${shell(url + '/local-app/health')} | /usr/bin/osascript -l JavaScript "$launcher_dir/probe.js" 2>/dev/null)" = ready ]; then\n  exec /usr/bin/open ${shell(`http://localhost:${port}`)}\nfi\nif ${shell(node)} ${shell(path.join(root, 'scripts/start-macos.mjs'))} >/dev/null 2>&1; then\n  exit 0\nfi\n/usr/bin/osascript -e 'display alert "AI-Workbench 启动未完成" message "请从最新安装包运行启动工作台入口以修复桌面快捷方式。原有画布和配置不会被清空。若仍失败，请检查软件更新服务。" as warning' >/dev/null 2>&1\nexit 1\n`;
@@ -56,6 +57,10 @@ export async function desktopShortcut({ desktop, node, root, port = 8888 }) {
       if (!info.isDirectory() || info.isSymbolicLink()) throw Error('desktop_shortcut_conflict');
     }
     const entry = path.join(bundle, 'Contents/MacOS/launch');
+    try {
+      const logo = await readFile(logoPath);
+      await writePrivateFile(path.join(bundle, 'Contents/Resources/AppIcon.png'), logo);
+    } catch { /* Older extracted bundles may not include branding assets. */ }
     await writePrivateFile(path.join(bundle, 'Contents/MacOS/probe.js'), probe);
     await writePrivateFile(entry, launch);
     await chmod(entry, 0o700);
@@ -74,7 +79,7 @@ export async function desktopShortcut({ desktop, node, root, port = 8888 }) {
   }
   const temporary = path.join(desktop, '.AI-Workbench-' + randomUUID() + '.app');
   await mkdir(path.join(temporary, 'Contents/MacOS'), { recursive: true, mode: 0o700 });
-  await writePrivateFile(path.join(temporary, 'Contents/Info.plist'), `<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.guanaiworkbench.desktop</string><key>CFBundleName</key><string>AI-Workbench</string><key>CFBundleExecutable</key><string>launch</string><key>CFBundlePackageType</key><string>APPL</string><key>LSUIElement</key><true/></dict></plist>\n`);
+  await writePrivateFile(path.join(temporary, 'Contents/Info.plist'), `<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.guanaiworkbench.desktop</string><key>CFBundleName</key><string>AI-Workbench</string><key>CFBundleExecutable</key><string>launch</string><key>CFBundleIconFile</key><string>AppIcon.png</string><key>CFBundlePackageType</key><string>APPL</string><key>LSUIElement</key><true/></dict></plist>\n`);
   await writePrivateFile(path.join(temporary, 'Contents/guan-workbench-shortcut'), 'AI-Workbench desktop launcher\n');
   await refresh(temporary);
   // Do not rename over an existing entry.

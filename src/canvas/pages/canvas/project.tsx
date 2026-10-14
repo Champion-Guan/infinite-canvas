@@ -255,6 +255,8 @@ type ConnectionDropTarget = {
     isNearNode: boolean;
 };
 
+const ASSET_DRAG_DATA_TYPE = "application/x-guan-asset";
+
 type CanvasHistoryEntry = Pick<CanvasClipboard, "nodes" | "connections"> & {
     chatSessions: CanvasAssistantSession[];
     activeChatId: string | null;
@@ -1382,8 +1384,8 @@ function InfiniteCanvasPage() {
                 </Tooltip>
             </>}
         </span>],
-        ...(previewMetadata?.upstreamSize ? [["上游请求尺寸", previewMetadata.upstreamSize] as [string, ReactNode]] : []),
-        ...(previewOriginal ? [["最终图片尺寸", previewSize] as [string, ReactNode]] : []),
+        ...(!requestedAndActualSizeMatch && previewMetadata?.upstreamSize ? [["上游请求尺寸", previewMetadata.upstreamSize] as [string, ReactNode]] : []),
+        ...(!requestedAndActualSizeMatch && previewOriginal ? [["最终图片尺寸", previewSize] as [string, ReactNode]] : []),
         ...(previewDeliveryNote ? [["尺寸处理", previewDeliveryNote] as [string, ReactNode]] : []),
     ];
     const previewGridRows: Array<[string, ReactNode]> = [
@@ -2668,7 +2670,7 @@ function InfiniteCanvasPage() {
             id,
             type: CanvasNodeType.Image,
             title: generatedImageName(node, imageId),
-            position: { x: node.position.x + node.width * 2 + 96, y: node.position.y + node.height / 2 - size.height / 2 },
+            position: { x: node.position.x + node.width + 32, y: node.position.y + node.height / 2 - size.height / 2 },
             ...size,
             metadata: {
                 content: image.content,
@@ -3267,6 +3269,22 @@ function InfiniteCanvasPage() {
                 return;
             }
 
+            const assetData = event.dataTransfer.getData(ASSET_DRAG_DATA_TYPE);
+            if (assetData) {
+                try {
+                    const payload = JSON.parse(assetData) as { id?: unknown };
+                    const asset = typeof payload.id === "string" ? useAssetStore.getState().assets.find((item) => item.id === payload.id) : null;
+                    if (asset) {
+                        const position = screenToCanvas(event.clientX, event.clientY);
+                        const nodeType = asset.kind === "text" ? CanvasNodeType.Text : asset.kind === "video" ? CanvasNodeType.Video : CanvasNodeType.Image;
+                        const node = createCanvasNode(nodeType, position, asset.kind === "text" ? { content: asset.data.content, status: NODE_STATUS_SUCCESS } : { content: asset.data.dataUrl, status: NODE_STATUS_SUCCESS, mimeType: asset.data.mimeType, storageKey: asset.data.storageKey });
+                        setNodes((prev) => [...prev, node]);
+                        setSelectedNodeIds(new Set([node.id]));
+                        setSelectedConnectionId(null);
+                    }
+                } catch { /* Ignore malformed asset drags. */ }
+                return;
+            }
             const files = Array.from(event.dataTransfer.files).filter(
                 (item) => item.type.startsWith("image/") || item.type.startsWith("video/") || isAudioFile(item),
             );
@@ -4673,7 +4691,7 @@ function InfiniteCanvasPage() {
                 {angleNode?.metadata?.content ? <CanvasNodeAngleDialog dataUrl={angleNode.metadata.content} open={Boolean(angleNode)} onClose={() => setAngleNodeId(null)} onConfirm={(params) => void generateAngleNode(angleNode!, params)} /> : null}
 
                 <Modal
-                    title={t("canvas.projectPage.imageDetails")}
+                    title={`图片详情 - ${previewNode?.title || "未命名图片"}`}
                     open={Boolean(previewContent)}
                     centered
                     onCancel={() => setPreviewNodeId(null)}
@@ -4702,12 +4720,13 @@ function InfiniteCanvasPage() {
                                             </div>
                                         ))}
                                     </div>
-                                    {previewOriginal ? <button type="button" className="guan-apple-action mt-3 rounded border px-3 py-2 text-sm" onClick={async () => {
+                                    {previewContent ? <button type="button" className="guan-apple-action mt-3 rounded border px-3 py-2 text-sm" onClick={async () => {
                                         try {
-                                            const blob = await readDownloadBlob({ kind: "image", storageKey: previewOriginal.storageKey });
-                                            saveAs(blob, `generated-original.${imageExtension(blob.type)}`);
+                                            const blob = previewOriginal ? await readDownloadBlob({ kind: "image", storageKey: previewOriginal.storageKey }) : await (await fetch(previewContent)).blob();
+                                            const safeTitle = (previewNode?.title || "图片").replace(/[\\/:*?"<>|]/g, "_");
+                                            saveAs(blob, `${safeTitle}.${imageExtension(blob.type)}`);
                                         } catch (error) { message.error(error instanceof Error ? error.message : "原图下载失败"); }
-                                    }} style={{ borderColor: theme.node.stroke, background: theme.toolbar.itemHover, color: theme.node.text }}>下载生成原图</button> : null}
+                                    }} style={{ borderColor: theme.node.stroke, background: theme.toolbar.itemHover, color: theme.node.text }}>下载图片</button> : null}
                                 </div>
                             ) : null}
                         </div>

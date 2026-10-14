@@ -39,7 +39,7 @@ async function main() {
       const value = await workbenchPageCensus({ ports: [5174, 8888] });
       if (!value.workbenchPagesClosed || value.blockers.length) throw Error('migration_pages_open');
     };
-    console.log(legacy ? '检测到解压运行的 v1.0.7，将备份并首次接入独立更新器，再迁移到 8888。' : '检测到已接管工作台，将迁移到 8888。');
+    console.log(legacy ? `检测到解压运行的 v${state.version}，将备份并首次接入独立更新器，再迁移到 8888。` : '检测到已接管工作台，将迁移到 8888。');
     console.log('运行本脚本表示开始维护。请事先保存画布、结束生成任务并关闭工作台页面；不会关闭其他网站。');
     await closed();
     console.log('正在获取并核验正式 arm64 安装包（可信签名、SHA-256 及文件清单）…');
@@ -142,8 +142,8 @@ main().catch(error => {
   const messages = { migration_pages_open: '请先保存并关闭 5174/8888 工作台页面。',
     migration_installation_incomplete: '更新器安装记录不完整，已停止，不能将它当成普通便携服务接管。',
     migration_recovery_required: '存在未完成的首次接管或更新事务，请先恢复，不会覆盖记录。',
-    migration_portable_version_unsupported: '首次接管目前支持解压运行的 v1.0.7，请先运行该版本。',
-    migration_service_identity_unknown: '无法核实 5174 服务的进程和 v1.0.7 目录，旧服务没有停止。',
+    migration_portable_version_unsupported: '无法识别解压运行版本，必须是完整的稳定版本号。',
+    migration_service_identity_unknown: '无法核实 5174 服务的进程和源码目录，旧服务没有停止。',
     migration_private_root_mismatch: '旧服务使用了不同的私人数据目录，已停止，避免迁移到错误位置。',
     migration_extension_missing: '未收到工作台扩展通信。请在原工作台所在的 Chrome 配置加载本工具的 browser/managed-workbench，再运行迁移。',
     migration_relay_unavailable: '扩展已连接，但旧地址迁移页面通信失败。请更新加载本工具扩展，关闭临时迁移页面后重试。',

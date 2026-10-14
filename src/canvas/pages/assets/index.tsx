@@ -418,6 +418,12 @@ function AssetCard({ asset, onOpen, onEdit, onCopy, onDownload, onDelete }: { as
     return (
         <Card
             hoverable
+            draggable
+            onDragStart={(event) => {
+                event.dataTransfer.effectAllowed = "copy";
+                event.dataTransfer.setData("application/x-guan-asset", JSON.stringify({ id: asset.id }));
+                event.dataTransfer.setData("text/plain", asset.title);
+            }}
             className="overflow-hidden"
             styles={{ body: { padding: 0 } }}
             cover={

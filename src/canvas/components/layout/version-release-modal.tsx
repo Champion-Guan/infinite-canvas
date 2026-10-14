@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useVersionCheck } from "@/hooks/use-version-check";
 import { updateMessages, installationMessages } from "@/services/software-updates";
 import { useSoftwareUpdateActions } from "@/hooks/use-software-update-actions";
+import { formatDisplayVersion } from "@/constant/env";
 
 function getTagColor(type: string) {
     if (type === "新增" || type === "Added") return "green";
@@ -41,7 +42,7 @@ export function VersionReleaseModal({ className, style, label }: VersionReleaseM
                 aria-label={`版本 ${currentVersion}，查看更新日志`}
             >
                 <span className="relative inline-flex">
-                    {label || currentVersion}
+                    {label || formatDisplayVersion(currentVersion)}
                     {hasNewVersion ? <span className="absolute -right-1.5 -top-1 size-1.5 rounded-full bg-green-500" /> : null}
                 </span>
             </button>
@@ -51,7 +52,7 @@ export function VersionReleaseModal({ className, style, label }: VersionReleaseM
                 <div className="mb-5 grid grid-cols-2 gap-3">
                     <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-800">
                         <div className="text-xs text-stone-500 dark:text-stone-400">{t("version.currentVersion")}</div>
-                        <div className="mt-1 text-base font-semibold text-stone-950 dark:text-stone-100">{currentVersion}</div>
+                        <div className="mt-1 text-base font-semibold text-stone-950 dark:text-stone-100">{formatDisplayVersion(currentVersion)}<span className="sr-only">{currentVersion}</span></div>{/* {currentVersion}</div> */}
                     </div>
                     <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-800">
                         <div className="flex items-center justify-between gap-3">
@@ -65,7 +66,7 @@ export function VersionReleaseModal({ className, style, label }: VersionReleaseM
                                 {t(checking ? "version.checking" : "version.checkUpdates")}
                             </button>
                         </div>
-                        <div className="mt-1 text-base font-semibold text-stone-950 dark:text-stone-100">{latestVersion}</div>
+                        <div className="mt-1 text-base font-semibold text-stone-950 dark:text-stone-100">{formatDisplayVersion(latestVersion)}</div>
                     </div>
                 </div>
                 <div data-guan-version-update-actions className="guan-update-timeline mb-5 space-y-2">
@@ -88,7 +89,7 @@ export function VersionReleaseModal({ className, style, label }: VersionReleaseM
                             content: (
                                 <div>
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-sm font-semibold text-stone-950 dark:text-stone-100">{release.version === "Unreleased" ? t("version.unreleased") : release.version}</span>
+                                        <span className="text-sm font-semibold text-stone-950 dark:text-stone-100">{release.version === "Unreleased" ? t("version.unreleased") : formatDisplayVersion(release.version)}</span>
                                         <span className="text-xs text-stone-500 dark:text-stone-400">{release.date}</span>
                                         <div className="flex min-w-0 items-center gap-1.5">
                                             {release.version === latestVersion ? <Tag color="green">{t("version.latest")}</Tag> : null}
