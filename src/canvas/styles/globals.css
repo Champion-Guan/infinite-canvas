@@ -273,7 +273,11 @@
     }
 
     .guan-drop-magnet {
-        animation: guan-drop-magnet 520ms var(--guan-motion-spring) both;
+        /* Canvas nodes carry their world position in an inline translate().
+         * Never animate transform on the node itself: replacing that inline
+         * transform makes the snap target visibly jump. The target highlight
+         * is handled by the shadow animation below. */
+        animation: guan-drop-magnet-shadow 520ms var(--guan-motion-spring) both;
     }
 
     .guan-node-drop-target {
@@ -496,6 +500,12 @@
         0% { opacity: .65; transform: scale(.98); }
         65% { opacity: 1; transform: scale(1.02); }
         100% { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes guan-drop-magnet-shadow {
+        0% { box-shadow: 0 0 0 0 rgb(47 128 255 / 0%); }
+        65% { box-shadow: 0 0 0 5px rgb(47 128 255 / 20%), 0 14px 34px rgb(47 128 255 / 14%); }
+        100% { box-shadow: 0 0 0 3px rgb(47 128 255 / 16%), 0 12px 30px rgb(47 128 255 / 10%); }
     }
 
     @keyframes guan-drop-target-pulse {
@@ -1084,6 +1094,10 @@
         box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 30%, transparent), 0 16px 36px color-mix(in srgb, var(--ring) 16%, transparent) !important;
     }
 
+    .guan-node-drop-target.guan-drop-magnet {
+        animation: guan-drop-target-pulse 320ms var(--guan-motion-gentle) both;
+    }
+
     .guan-connection-active {
         animation: guan-connection-flash 420ms var(--guan-motion-gentle) both;
         stroke-dasharray: 8 6;
@@ -1153,6 +1167,17 @@
     .ant-dropdown,
     .ant-popover {
         transition: transform var(--guan-motion-panel) var(--guan-motion-spring), opacity var(--guan-motion-fast) var(--guan-motion-gentle);
+    }
+
+    /* Press feedback on portal controls used to read as a flash when a
+     * modal/drawer was opening in the same frame. Keep the controls stable;
+     * their colour and shadow transitions still communicate interaction. */
+    .ant-modal-root button,
+    .ant-drawer-root button,
+    .ant-popover button,
+    .ant-dropdown button {
+        transform: none !important;
+        transition-property: background-color, border-color, color, box-shadow, opacity !important;
     }
 
     .ant-upload-drag,
