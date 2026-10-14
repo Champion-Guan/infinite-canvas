@@ -4662,27 +4662,27 @@ function InfiniteCanvasPage() {
                     styles={{ body: { padding: 0, maxHeight: "80vh", overflow: "hidden" } }}
                 >
                     {previewContent ? (
-                        <div style={{ display: "flex", gap: 20, padding: 20, alignItems: "center", maxHeight: "80vh", background: theme.node.panel, color: theme.node.text }}>
+                        <div className="guan-image-detail-shell" style={{ display: "flex", gap: 20, padding: 20, alignItems: "center", maxHeight: "80vh", background: theme.node.panel, color: theme.node.text }}>
                             <div style={{ flex: "1 1 auto", minWidth: 0, display: "flex", justifyContent: "center", alignItems: "center" }}>
-                                <img src={previewContent} alt={previewNode?.title || t("assets.kinds.image")} style={{ maxWidth: "100%", maxHeight: "76vh", objectFit: "contain" }} />
+                                <img className="guan-image-detail-preview" src={previewContent} alt={previewNode?.title || t("assets.kinds.image")} style={{ maxWidth: "100%", maxHeight: "76vh", objectFit: "contain" }} />
                             </div>
                             {previewMetadata ? (
-                                <div style={{ width: 280, flex: "0 0 280px", alignSelf: "stretch", overflowY: "auto", borderLeft: `1px solid ${theme.node.stroke}`, paddingLeft: 20 }}>
+                                <div className="guan-image-detail-info" style={{ width: 280, flex: "0 0 280px", alignSelf: "stretch", overflowY: "auto", borderLeft: `1px solid ${theme.node.stroke}`, paddingLeft: 20 }}>
                                     {previewRows.map(([label, value]) => (
-                                        <div key={label} style={{ padding: "10px 0", borderBottom: `1px solid ${theme.node.stroke}` }}>
+                                        <div className="guan-image-detail-row" key={label} style={{ padding: "10px 0", borderBottom: `1px solid ${theme.node.stroke}` }}>
                                             <div style={{ color: theme.node.muted, fontSize: 12, marginBottom: 4 }}>{label}</div>
                                             <div style={{ color: theme.node.text, fontSize: 14, wordBreak: "break-word" }}>{value}</div>
                                         </div>
                                     ))}
                                     <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", borderTop: `1px solid ${theme.node.stroke}`, marginTop: 4 }}>
                                         {previewGridRows.map(([label, value]) => (
-                                            <div key={label} style={{ minWidth: 0, padding: "10px 6px", borderBottom: `1px solid ${theme.node.stroke}` }}>
+                                            <div className="guan-image-detail-grid-cell" key={label} style={{ minWidth: 0, padding: "10px 6px", borderBottom: `1px solid ${theme.node.stroke}` }}>
                                                 <div style={{ color: theme.node.muted, fontSize: 12, marginBottom: 4, whiteSpace: "nowrap" }}>{label}</div>
                                                 <div style={{ color: theme.node.text, fontSize: 14, wordBreak: "break-word" }}>{value}</div>
                                             </div>
                                         ))}
                                     </div>
-                                    {previewOriginal ? <button type="button" className="mt-3 rounded border px-3 py-2 text-sm" onClick={async () => {
+                                    {previewOriginal ? <button type="button" className="guan-apple-action mt-3 rounded border px-3 py-2 text-sm" onClick={async () => {
                                         try {
                                             const blob = await readDownloadBlob({ kind: "image", storageKey: previewOriginal.storageKey });
                                             saveAs(blob, `generated-original.${imageExtension(blob.type)}`);

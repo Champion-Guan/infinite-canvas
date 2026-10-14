@@ -101,8 +101,9 @@ html[data-workbench-theme="dark"] .guan-product-empty button { background: #2728
 @media (hover: none) { .guan-product-delete { opacity: 1; pointer-events: auto; } .guan-product-capsule-wrap .guan-dc-product-capsule { padding-right: 32px; } }
 
 .guan-dc-canvas-actions { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; margin-left: 10px; }
-.guan-dc-canvas-action { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 9px; border: 1px solid var(--dc-border); border-radius: 8px; background: var(--dc-panel); color: var(--dc-text); cursor: pointer; font: 12px/1.2 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-.guan-dc-canvas-action:hover { background: var(--dc-hover); }
+.guan-dc-canvas-action { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 9px; border: 1px solid var(--dc-border); border-radius: 8px; background: var(--dc-panel); color: var(--dc-text); cursor: pointer; font: 12px/1.2 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; transition: transform .18s cubic-bezier(.22,1,.36,1), background-color .18s ease, box-shadow .18s ease; }
+.guan-dc-canvas-action:hover { background: var(--dc-hover); transform: translateY(-1px); box-shadow: 0 6px 18px rgb(0 0 0 / 10%); }
+.guan-dc-canvas-action:active { transform: scale(.96); }
 .guan-dc-canvas-action svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; }
 .guan-dc-header-canvas-input { display: none !important; }
 
@@ -148,7 +149,7 @@ html[data-workbench-theme="dark"] .guan-product-empty button { background: #2728
 @keyframes guan-dc-empty-in { from { opacity: 0; transform: scale(.98) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .guan-dc-product-capsule, .guan-product-delete, .guan-product-trash-row, .guan-product-trash-row button, .guan-product-empty, .guan-product-empty button { animation: none !important; transition: none !important; transform: none !important; }
+  .guan-dc-product-capsule, .guan-product-delete, .guan-product-trash-row, .guan-product-trash-row button, .guan-product-empty, .guan-product-empty button, .guan-dc-canvas-action, .guan-dc-excel-import-progress, .guan-dc-excel-import-summary, .guan-dc-excel-import-actions, .guan-dc-excel-preview { animation: none !important; transition: none !important; transform: none !important; }
 }
 
 .guan-dc-product-capsule { background: var(--dc-bg); color: var(--dc-text); }
@@ -655,6 +656,7 @@ html[data-workbench-theme="dark"] .guan-product-empty button { background: #2728
   padding: 54px 30px 58px;
   color: var(--dc-text);
   text-align: center;
+  animation: guan-dc-row-in .3s cubic-bezier(.22,1,.36,1) both;
 }
 
 .guan-dc-excel-import-progress-icon {
@@ -694,7 +696,7 @@ html[data-workbench-theme="dark"] .guan-product-empty button { background: #2728
   height: 100%;
   border-radius: inherit;
   background: #17181a;
-  transition: width .28s ease;
+  transition: width .45s cubic-bezier(.22,1,.36,1);
 }
 
 .guan-dc-excel-import-progress small {
@@ -707,6 +709,12 @@ html[data-workbench-theme="dark"] .guan-product-empty button { background: #2728
   gap: 7px;
   flex: 0 0 auto;
   padding: 18px 24px 10px;
+  animation: guan-dc-row-in .3s cubic-bezier(.22,1,.36,1) both;
+}
+
+.guan-dc-excel-import-actions,
+.guan-dc-excel-preview {
+  animation: guan-dc-row-in .3s cubic-bezier(.22,1,.36,1) both;
 }
 
 .guan-dc-excel-import-summary strong {

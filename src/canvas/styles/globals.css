@@ -595,6 +595,67 @@
         animation: guan-route-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
     }
 
+    .guan-history-list-card,
+    .guan-history-retry-all,
+    .guan-history-select,
+    .guan-history-selection-footer,
+    .guan-apple-action {
+        transition:
+            transform var(--guan-motion-normal) var(--guan-motion-spring),
+            opacity var(--guan-motion-fast) var(--guan-motion-gentle),
+            background-color var(--guan-motion-fast) var(--guan-motion-gentle),
+            box-shadow var(--guan-motion-normal) var(--guan-motion-gentle);
+    }
+
+    .guan-history-list-card:hover,
+    .guan-apple-action:hover {
+        transform: translateY(-1px);
+    }
+
+    .guan-history-list-card:active,
+    .guan-apple-action:active {
+        transform: scale(0.98);
+    }
+
+    .guan-image-detail-shell {
+        animation: guan-surface-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
+    }
+
+    .guan-image-detail-preview {
+        animation: guan-image-reveal 420ms var(--guan-motion-spring) both;
+    }
+
+    .guan-image-detail-row,
+    .guan-image-detail-grid-cell {
+        animation: guan-detail-row-in 280ms var(--guan-motion-spring) both;
+    }
+
+    .guan-image-detail-row:nth-child(2), .guan-image-detail-grid-cell:nth-child(2) { animation-delay: 25ms; }
+    .guan-image-detail-row:nth-child(3), .guan-image-detail-grid-cell:nth-child(3) { animation-delay: 50ms; }
+    .guan-image-detail-row:nth-child(4), .guan-image-detail-grid-cell:nth-child(4) { animation-delay: 75ms; }
+
+    .guan-canvas-zoom-dock,
+    .guan-canvas-minimap {
+        animation: guan-surface-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
+        transition: box-shadow var(--guan-motion-normal) var(--guan-motion-gentle), transform var(--guan-motion-normal) var(--guan-motion-spring);
+    }
+
+    .guan-canvas-zoom-dock:hover,
+    .guan-canvas-minimap:hover {
+        box-shadow: 0 18px 45px color-mix(in srgb, currentColor 14%, transparent);
+    }
+
+    .ant-collapse-item,
+    .ant-tabs-tab,
+    .ant-switch {
+        transition: background-color var(--guan-motion-fast) var(--guan-motion-gentle), color var(--guan-motion-fast) var(--guan-motion-gentle), transform var(--guan-motion-fast) var(--guan-motion-spring);
+    }
+
+    .ant-collapse-item:hover,
+    .ant-tabs-tab:hover {
+        transform: translateX(1px);
+    }
+
     @keyframes guan-surface-enter {
         from { opacity: 0; transform: translateY(8px) scale(0.985); }
         to { opacity: 1; transform: translateY(0) scale(1); }
@@ -603,6 +664,16 @@
     @keyframes guan-route-enter {
         from { opacity: 0; transform: translateY(5px); }
         to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes guan-image-reveal {
+        from { opacity: 0; transform: scale(0.96); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes guan-detail-row-in {
+        from { opacity: 0; transform: translateX(8px); }
+        to { opacity: 1; transform: translateX(0); }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -619,7 +690,21 @@
         .ant-card,
         [data-guan-card],
         .guan-route-enter,
-        .guan-route-loading {
+        .guan-route-loading,
+        .guan-history-list-card,
+        .guan-history-retry-all,
+        .guan-history-select,
+        .guan-history-selection-footer,
+        .guan-apple-action,
+        .guan-image-detail-shell,
+        .guan-image-detail-preview,
+        .guan-image-detail-row,
+        .guan-image-detail-grid-cell,
+        .guan-canvas-zoom-dock,
+        .guan-canvas-minimap,
+        .ant-collapse-item,
+        .ant-tabs-tab,
+        .ant-switch {
             animation: none !important;
             transform: none !important;
             transition: none !important;
