@@ -149,8 +149,13 @@
         --guan-motion-fast: 140ms;
         --guan-motion-normal: 220ms;
         --guan-motion-panel: 320ms;
+        --guan-motion-slow: 460ms;
+        --guan-motion-stagger: 28ms;
+        --guan-motion-distance: 6px;
         --guan-motion-spring: cubic-bezier(0.22, 1, 0.36, 1);
         --guan-motion-gentle: cubic-bezier(0.25, 0.8, 0.25, 1);
+        --guan-motion-shadow: 0 12px 34px rgb(28 25 23 / 12%);
+        --guan-motion-shadow-dark: 0 16px 42px rgb(0 0 0 / 28%);
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -185,6 +190,49 @@
         transition-duration: var(--guan-motion-fast);
     }
 
+    /* Global Apple-style primitives. Components should compose these classes
+     * instead of inventing independent durations or easing curves. */
+    .guan-apple-transition {
+        transition:
+            transform var(--guan-motion-normal) var(--guan-motion-spring),
+            opacity var(--guan-motion-fast) var(--guan-motion-gentle),
+            color var(--guan-motion-fast) var(--guan-motion-gentle),
+            background-color var(--guan-motion-fast) var(--guan-motion-gentle),
+            border-color var(--guan-motion-fast) var(--guan-motion-gentle),
+            box-shadow var(--guan-motion-normal) var(--guan-motion-gentle);
+    }
+
+    .guan-apple-press:active {
+        transform: scale(.97);
+        transition-duration: var(--guan-motion-fast);
+    }
+
+    .guan-apple-enter {
+        animation: guan-apple-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
+    }
+
+    .guan-apple-fade {
+        animation: guan-apple-fade var(--guan-motion-normal) var(--guan-motion-gentle) both;
+    }
+
+    .guan-apple-status {
+        animation: guan-apple-status var(--guan-motion-slow) var(--guan-motion-gentle) both;
+    }
+
+    .guan-apple-stagger > * {
+        animation: guan-apple-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
+    }
+
+    .guan-apple-stagger > *:nth-child(2) { animation-delay: calc(var(--guan-motion-stagger) * 1); }
+    .guan-apple-stagger > *:nth-child(3) { animation-delay: calc(var(--guan-motion-stagger) * 2); }
+    .guan-apple-stagger > *:nth-child(4) { animation-delay: calc(var(--guan-motion-stagger) * 3); }
+    .guan-apple-stagger > *:nth-child(5) { animation-delay: calc(var(--guan-motion-stagger) * 4); }
+
+    .guan-apple-scroll {
+        scroll-behavior: smooth;
+        overscroll-behavior: contain;
+    }
+
     .guan-motion-panel {
         transform-origin: var(--guan-motion-origin, center top);
         animation: guan-panel-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
@@ -209,13 +257,35 @@
         to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
+    @keyframes guan-apple-enter {
+        from { opacity: 0; transform: translateY(var(--guan-motion-distance)) scale(.985); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes guan-apple-fade {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes guan-apple-status {
+        0% { opacity: .65; transform: scale(.96); }
+        55% { opacity: 1; transform: scale(1.02); }
+        100% { opacity: 1; transform: scale(1); }
+    }
+
     @media (prefers-reduced-motion: reduce) {
         .guan-motion-interactive,
         .guan-motion-panel,
-        .guan-motion-pop {
+        .guan-motion-pop,
+        .guan-apple-transition,
+        .guan-apple-enter,
+        .guan-apple-fade,
+        .guan-apple-status,
+        .guan-apple-stagger > * {
             animation: none !important;
             transform: none !important;
             will-change: auto;
+            transition: none !important;
         }
     }
 
