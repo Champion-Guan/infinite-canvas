@@ -1832,15 +1832,19 @@ function renderHeaderControls(root) {
       }
       if (productCapsule) {
         event.preventDefault();
+        const selectProduct = () => {
+          try {
+            const product = api.selectCanvasProduct(productCapsule.dataset.productId || "");
+            controls.dataset.activeCanvasId = product.id;
+            window.dispatchEvent(new CustomEvent("guan-native-canvas-select", { detail: product }));
+            renderHeaderControls(root);
+            if (root?.dataset.open === "true") renderPanel(root);
+          } catch (error) { alert(error instanceof Error ? error.message : String(error)); }
+        };
         try {
-          const product = api.selectCanvasProduct(productCapsule.dataset.productId || "");
-          controls.dataset.activeCanvasId = product.id;
-          window.dispatchEvent(new CustomEvent("guan-native-canvas-select", { detail: product }));
-          renderHeaderControls(root);
-          if (root?.dataset.open === "true") renderPanel(root);
-        } catch (error) {
-          alert(error instanceof Error ? error.message : String(error));
-        }
+          if (typeof document.startViewTransition === "function" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) document.startViewTransition(selectProduct);
+          else selectProduct();
+        } catch { selectProduct(); }
         return;
       }
       const trigger = target.closest(".guan-dc-file-trigger");

@@ -143,6 +143,13 @@ html[data-workbench-theme="dark"] .guan-product-empty button { background: #2728
   background: #111214;
   color: #ffffff;
   box-shadow: 0 5px 16px rgb(0 0 0 / 12%);
+  view-transition-name: guan-active-product-capsule;
+}
+
+::view-transition-old(guan-active-product-capsule),
+::view-transition-new(guan-active-product-capsule) {
+  animation-duration: .28s;
+  animation-timing-function: cubic-bezier(.22,1,.36,1);
 }
 
 @keyframes guan-dc-row-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
