@@ -675,6 +675,7 @@
             opacity var(--guan-motion-fast) var(--guan-motion-gentle),
             background-color var(--guan-motion-fast) var(--guan-motion-gentle),
             box-shadow var(--guan-motion-normal) var(--guan-motion-gentle);
+        view-transition-name: match-element;
     }
 
     .guan-history-list-card:hover,
@@ -819,6 +820,42 @@
         animation: guan-switch-pop var(--guan-motion-normal) var(--guan-motion-spring) both;
     }
 
+    ::view-transition-group(*) {
+        animation-duration: var(--guan-motion-panel);
+        animation-timing-function: var(--guan-motion-spring);
+    }
+
+    .ant-form-item-has-error .ant-input,
+    .ant-form-item-has-error .ant-select-selector,
+    input[aria-invalid="true"],
+    textarea[aria-invalid="true"] {
+        animation: guan-validation-shake 320ms var(--guan-motion-gentle) both;
+    }
+
+    .ant-form-item-has-success .ant-input,
+    .ant-form-item-has-success .ant-select-selector,
+    [data-save-success="true"] {
+        animation: guan-save-flash 520ms var(--guan-motion-gentle) both;
+    }
+
+    .ant-upload-list-item,
+    .ant-image,
+    .ant-image-mask {
+        animation: guan-apple-enter var(--guan-motion-normal) var(--guan-motion-spring) both;
+    }
+
+    .ant-slider-track,
+    .ant-slider-handle,
+    .ant-progress-bg {
+        transition: all var(--guan-motion-normal) var(--guan-motion-spring);
+    }
+
+    .guan-task-stage,
+    .guan-generation-stage,
+    .guan-performance-progress {
+        animation: guan-timeline-entry var(--guan-motion-normal) var(--guan-motion-spring) both;
+    }
+
     [data-status="loading"],
     .guan-status-loading,
     .guan-task-loading {
@@ -890,6 +927,18 @@
         to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
+    @keyframes guan-validation-shake {
+        0%, 100% { transform: translateX(0); }
+        30% { transform: translateX(-3px); }
+        65% { transform: translateX(3px); }
+    }
+
+    @keyframes guan-save-flash {
+        0% { box-shadow: 0 0 0 0 color-mix(in srgb, #22c55e 0%, transparent); }
+        45% { box-shadow: 0 0 0 4px color-mix(in srgb, #22c55e 20%, transparent); }
+        100% { box-shadow: 0 0 0 0 color-mix(in srgb, #22c55e 0%, transparent); }
+    }
+
     @media (prefers-reduced-motion: reduce) {
         .ant-btn,
         header a,
@@ -943,7 +992,20 @@
         .guan-node-drop-target,
         .guan-connection-active,
         .guan-agent-timeline-entry,
-        .guan-canvas-save-status {
+        .guan-canvas-save-status,
+        .ant-form-item-has-error .ant-input,
+        .ant-form-item-has-error .ant-select-selector,
+        input[aria-invalid="true"],
+        textarea[aria-invalid="true"],
+        .ant-form-item-has-success .ant-input,
+        .ant-form-item-has-success .ant-select-selector,
+        [data-save-success="true"],
+        .ant-upload-list-item,
+        .ant-image,
+        .ant-image-mask,
+        .guan-task-stage,
+        .guan-generation-stage,
+        .guan-performance-progress {
             animation: none !important;
             transform: none !important;
             transition: none !important;
