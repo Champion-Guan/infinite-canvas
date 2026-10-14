@@ -4,9 +4,9 @@ export const NODE_PLACEMENT_GAP = 48;
 export type PlacementBounds = { x: number; y: number; width: number; height: number };
 
 export function nextGenerationResultPosition(source: Pick<CanvasNodeData, "position" | "width" | "height">,
-    result: Pick<CanvasNodeData, "width" | "height">, existingOutputCount: number, gap = NODE_PLACEMENT_GAP): Position {
+    result: Pick<CanvasNodeData, "width" | "height">, existingOutputCount: number, gap = NODE_PLACEMENT_GAP, sourceGap = 96): Position {
     const index = Number.isSafeInteger(existingOutputCount) && existingOutputCount > 0 ? existingOutputCount : 0;
-    return { x: source.position.x + source.width + 96 + index * (result.width + gap),
+    return { x: source.position.x + source.width + sourceGap + index * (result.width + gap),
         y: source.position.y + (source.height - result.height) / 2 };
 }
 

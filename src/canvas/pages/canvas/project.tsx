@@ -3448,6 +3448,8 @@ function InfiniteCanvasPage() {
                             { position: parentPosition, width: parentConfig.width, height: parentConfig.height },
                             imageConfig,
                             resultIndex,
+                            48,
+                            32,
                         ),
                         width: reuseImageNode ? sourceNode?.width || imageConfig.width : imageConfig.width,
                         height: reuseImageNode ? sourceNode?.height || imageConfig.height : imageConfig.height,
