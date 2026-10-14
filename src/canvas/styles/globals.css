@@ -143,9 +143,82 @@
     html {
         @apply font-sans;
     }
+
+    /* Apple-like motion: short, springy and disabled for reduced-motion users. */
+    :root {
+        --guan-motion-fast: 140ms;
+        --guan-motion-normal: 220ms;
+        --guan-motion-panel: 320ms;
+        --guan-motion-spring: cubic-bezier(0.22, 1, 0.36, 1);
+        --guan-motion-gentle: cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            scroll-behavior: auto !important;
+            animation-duration: 1ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 1ms !important;
+        }
+    }
 }
 
 @layer utilities {
+    .guan-motion-interactive {
+        transition:
+            transform var(--guan-motion-normal) var(--guan-motion-spring),
+            opacity var(--guan-motion-fast) var(--guan-motion-gentle),
+            background-color var(--guan-motion-fast) var(--guan-motion-gentle),
+            border-color var(--guan-motion-fast) var(--guan-motion-gentle),
+            box-shadow var(--guan-motion-normal) var(--guan-motion-gentle);
+        will-change: transform;
+    }
+
+    .guan-motion-interactive:hover {
+        transform: translateY(-1px);
+    }
+
+    .guan-motion-interactive:active {
+        transform: scale(0.98);
+        transition-duration: var(--guan-motion-fast);
+    }
+
+    .guan-motion-panel {
+        transform-origin: var(--guan-motion-origin, center top);
+        animation: guan-panel-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
+    }
+
+    .guan-motion-pop {
+        animation: guan-pop-in var(--guan-motion-normal) var(--guan-motion-spring) both;
+    }
+
+    .guan-content-visibility-auto {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 176px;
+    }
+
+    @keyframes guan-panel-enter {
+        from { opacity: 0; transform: translateY(-6px) scale(0.985); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes guan-pop-in {
+        from { opacity: 0; transform: translateY(4px) scale(0.97); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .guan-motion-interactive,
+        .guan-motion-panel,
+        .guan-motion-pop {
+            animation: none !important;
+            transform: none !important;
+            will-change: auto;
+        }
+    }
+
     .ai-title-aurora {
         background: linear-gradient(90deg, #111827 0%, #111827 36%, #6b7280 54%, #111827 72%, #111827 100%);
         background-size: 220% 100%;

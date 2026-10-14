@@ -47,7 +47,8 @@ export function VersionReleaseModal({ className, style, label }: VersionReleaseM
                 </span>
             </button>
             <Modal title={t("version.title")} open={open} width={680} centered footer={null} onCancel={() => setOpen(false)}>
-                <div data-guan-updates-summary className="mb-3 text-xs text-stone-500 dark:text-stone-400">{status?.channel || "GitHub Public / Stable"} · {status ? updateMessages[status.error || status.state] || "检查未完成" : "本机更新服务未连接"}</div>
+                <div className="guan-motion-pop">
+                    <div data-guan-updates-summary className="mb-3 text-xs text-stone-500 dark:text-stone-400">{status?.channel || "GitHub Public / Stable"} · {status ? updateMessages[status.error || status.state] || "检查未完成" : "本机更新服务未连接"}</div>
                 <div className="mb-5 grid grid-cols-2 gap-3">
                     <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-800">
                         <div className="text-xs text-stone-500 dark:text-stone-400">{t("version.currentVersion")}</div>
@@ -109,6 +110,7 @@ export function VersionReleaseModal({ className, style, label }: VersionReleaseM
                             ),
                         }))}
                     />
+                </div>
                 </div>
             </Modal>
         </>
