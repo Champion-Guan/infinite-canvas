@@ -656,6 +656,85 @@
         transform: translateX(1px);
     }
 
+    /* Form controls use the same restrained spring language as native macOS
+     * controls. Geometry updates remain CSS-only and never touch canvas nodes. */
+    .ant-input,
+    .ant-input-affix-wrapper,
+    .ant-select-selector,
+    .ant-picker,
+    input:not([type="range"]):not([type="checkbox"]),
+    textarea,
+    select {
+        transition: border-color var(--guan-motion-fast) var(--guan-motion-gentle), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle), background-color var(--guan-motion-fast) var(--guan-motion-gentle);
+    }
+
+    .ant-input:focus,
+    .ant-input-affix-wrapper:focus-within,
+    .ant-select-focused .ant-select-selector,
+    .ant-picker-focused,
+    input:not([type="range"]):not([type="checkbox"]):focus,
+    textarea:focus,
+    select:focus {
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 18%, transparent);
+    }
+
+    .ant-empty,
+    .ant-empty-image,
+    .ant-result,
+    .ant-spin-container,
+    .ant-progress,
+    .ant-alert,
+    .ant-message-notice,
+    .ant-notification-notice {
+        animation: guan-soft-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
+    }
+
+    .ant-spin-dot-item {
+        animation-duration: 1s !important;
+    }
+
+    .ant-progress-bg,
+    .ant-progress-success-bg {
+        transition: width .45s var(--guan-motion-spring), background-color var(--guan-motion-normal) var(--guan-motion-gentle);
+    }
+
+    .ant-drawer-content-wrapper,
+    .ant-modal-wrap,
+    .ant-dropdown,
+    .ant-popover {
+        transition: transform var(--guan-motion-panel) var(--guan-motion-spring), opacity var(--guan-motion-fast) var(--guan-motion-gentle);
+    }
+
+    .ant-upload-drag,
+    [data-upload-dropzone],
+    .guan-history-list-card {
+        transition: border-color var(--guan-motion-fast) var(--guan-motion-gentle), background-color var(--guan-motion-fast) var(--guan-motion-gentle), transform var(--guan-motion-normal) var(--guan-motion-spring), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle);
+    }
+
+    .ant-upload-drag:hover,
+    .ant-upload-drag.ant-upload-drag-hover,
+    [data-upload-dropzone]:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 28px color-mix(in srgb, currentColor 10%, transparent);
+    }
+
+    .ant-switch-checked .ant-switch-handle {
+        animation: guan-switch-pop var(--guan-motion-normal) var(--guan-motion-spring) both;
+    }
+
+    [data-status="loading"],
+    .guan-status-loading,
+    .guan-task-loading {
+        animation: guan-status-pulse 1.8s ease-in-out infinite;
+    }
+
+    .guan-task-success,
+    .guan-task-error,
+    [data-status="success"],
+    [data-status="error"] {
+        animation: guan-status-settle 320ms var(--guan-motion-spring) both;
+    }
+
     @keyframes guan-surface-enter {
         from { opacity: 0; transform: translateY(8px) scale(0.985); }
         to { opacity: 1; transform: translateY(0) scale(1); }
@@ -674,6 +753,27 @@
     @keyframes guan-detail-row-in {
         from { opacity: 0; transform: translateX(8px); }
         to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes guan-soft-enter {
+        from { opacity: 0; transform: translateY(4px) scale(.99); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes guan-switch-pop {
+        from { transform: scale(.86); }
+        70% { transform: scale(1.08); }
+        to { transform: scale(1); }
+    }
+
+    @keyframes guan-status-pulse {
+        0%, 100% { opacity: .72; }
+        50% { opacity: 1; }
+    }
+
+    @keyframes guan-status-settle {
+        from { opacity: 0; transform: scale(.9); }
+        to { opacity: 1; transform: scale(1); }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -704,7 +804,28 @@
         .guan-canvas-minimap,
         .ant-collapse-item,
         .ant-tabs-tab,
-        .ant-switch {
+        .ant-switch,
+        .ant-input,
+        .ant-input-affix-wrapper,
+        .ant-select-selector,
+        .ant-picker,
+        input,
+        textarea,
+        select,
+        .ant-empty,
+        .ant-empty-image,
+        .ant-result,
+        .ant-spin-container,
+        .ant-progress,
+        .ant-alert,
+        .ant-message-notice,
+        .ant-notification-notice,
+        .ant-upload-drag,
+        [data-upload-dropzone],
+        .guan-status-loading,
+        .guan-task-loading,
+        .guan-task-success,
+        .guan-task-error {
             animation: none !important;
             transform: none !important;
             transition: none !important;
