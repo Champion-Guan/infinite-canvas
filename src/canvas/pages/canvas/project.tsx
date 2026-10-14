@@ -788,7 +788,6 @@ function InfiniteCanvasPage() {
         if (!projectLoaded) return;
         nodesRef.current.filter(hasResumableVideoTask).forEach((node) => void pollVideoNodeTask(node, true));
         // Resume once after the current canvas is restored, not on later config identity changes.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [projectLoaded]);
 
     useEffect(() => {

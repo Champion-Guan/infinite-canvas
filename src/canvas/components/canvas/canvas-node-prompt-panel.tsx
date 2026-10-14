@@ -51,7 +51,6 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange, 
     // Restore prompts only when switching nodes; preserve the current input after generation on the same node.
     useEffect(() => {
         setPrompt(node.metadata?.composerContent ?? node.metadata?.prompt ?? "");
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [node.id]);
 
     const updatePrompt = (value: string) => {

@@ -11,6 +11,7 @@ import { schedulePersistenceTask } from "@/lib/scheduled-persistence";
 import { createRecoveryReadGate } from "@/lib/recovery-read-gate";
 import { cleanupUnusedImages, ensureImagePreview, previewUrlFor, resolveImageUrl, uploadImage } from "@/services/image-storage";
 import { cleanupUnusedMedia, resolveMediaUrl } from "@/services/file-storage";
+import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 
 export type AssetKind = "text" | "image" | "video";
 export type TextAsset = AssetBase<"text"> & { data: { content: string } };
@@ -105,7 +106,6 @@ export const useAssetStore = create<AssetStore>()(
             replaceAssets: (assets) => set({ assets }),
             cleanupImages: (extra) => {
                 void schedulePersistenceTask("asset-media-cleanup", (start) => window.setTimeout(start, 0), async () => {
-                    const { useCanvasStore } = await import("@/stores/canvas/use-canvas-store");
                     await cleanupUnusedImages({ assets: get().assets, projects: useCanvasStore.getState().projects, extra });
                     await cleanupUnusedMedia({ assets: get().assets, projects: useCanvasStore.getState().projects, extra });
                 }).catch(() => undefined); // Failure evidence retained; no detached rejection or data logging.

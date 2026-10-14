@@ -250,7 +250,6 @@ export default function ImagePage() {
             if (command.taskId) updateAgentTask(command.taskId, { status: "failed", error: t("workbench.generationFailed") });
             message.error(t("workbench.generationFailed"));
         });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [autoRunToken]);
 
     const downloadImage = async (image: GeneratedImage, index: number) => {

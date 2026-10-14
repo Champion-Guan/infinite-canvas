@@ -533,6 +533,88 @@
 
 }
 
+/* Shared Apple-style interaction language for the application chrome. Keep
+ * canvas geometry itself free of implicit transforms so dragging stays precise. */
+@layer components {
+    .ant-btn,
+    header a,
+    header button,
+    aside button,
+    [role="dialog"] button {
+        transition:
+            transform var(--guan-motion-fast) var(--guan-motion-spring),
+            background-color var(--guan-motion-fast) var(--guan-motion-gentle),
+            border-color var(--guan-motion-fast) var(--guan-motion-gentle),
+            color var(--guan-motion-fast) var(--guan-motion-gentle),
+            box-shadow var(--guan-motion-normal) var(--guan-motion-gentle),
+            opacity var(--guan-motion-fast) var(--guan-motion-gentle);
+    }
+
+    .ant-btn:not(:disabled):hover,
+    header a:hover,
+    header button:hover,
+    aside button:hover,
+    [role="dialog"] button:hover {
+        transform: translateY(-1px);
+    }
+
+    .ant-btn:not(:disabled):active,
+    header a:active,
+    header button:active,
+    aside button:active,
+    [role="dialog"] button:active {
+        transform: scale(0.97);
+        transition-duration: var(--guan-motion-fast);
+    }
+
+    .ant-modal-content,
+    .ant-drawer-content,
+    .ant-popover,
+    .ant-dropdown,
+    .ant-tooltip {
+        animation: guan-surface-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
+        transform-origin: var(--guan-motion-origin, center top);
+    }
+
+    .ant-card,
+    [data-guan-card] {
+        transition:
+            transform var(--guan-motion-normal) var(--guan-motion-spring),
+            box-shadow var(--guan-motion-normal) var(--guan-motion-gentle),
+            border-color var(--guan-motion-fast) var(--guan-motion-gentle);
+    }
+
+    .ant-card:hover,
+    [data-guan-card]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 30px color-mix(in srgb, currentColor 10%, transparent);
+    }
+
+    @keyframes guan-surface-enter {
+        from { opacity: 0; transform: translateY(8px) scale(0.985); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .ant-btn,
+        header a,
+        header button,
+        aside button,
+        [role="dialog"] button,
+        .ant-modal-content,
+        .ant-drawer-content,
+        .ant-popover,
+        .ant-dropdown,
+        .ant-tooltip,
+        .ant-card,
+        [data-guan-card] {
+            animation: none !important;
+            transform: none !important;
+            transition: none !important;
+        }
+    }
+}
+
 ::view-transition-old(root),
 ::view-transition-new(root) {
     animation: none;
