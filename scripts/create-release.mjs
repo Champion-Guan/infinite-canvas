@@ -23,6 +23,7 @@ await mkdir(stage, { mode: 0o700 });
 // Portable runtime allowlist. Never copy the whole source tree or test fixtures.
 const entries = ['server.mjs', 'package.json', 'package-lock.json', 'README.md', 'LICENSE', 'UI-PROTECTION.md', 'public', 'src/server', 'src/shared', 'scripts/start-portable.mjs', 'scripts/start.command', 'scripts/start.sh', 'scripts/start.bat', 'scripts/authorize-updates.mjs', 'docs/MIGRATION.md', 'docs/PROJECT-STRUCTURE.md', 'docs/PROJECT-GOAL.md', 'docs/PHASE2-ACCEPTANCE.md', 'docs/STABLE-UPDATES-PHASE3.md', 'docs/STABLE-UPDATES-PHASE4.md'];
 entries.push('scripts/run-update-progress.mjs');
+entries.push('scripts/run-online-migration.mjs');
 const filter = file => {
   const relative = path.relative(root, file);
   if (useBuiltCanvas && relative.split(path.sep).slice(0, 2).join('/') === 'public/infinite-canvas') return false;

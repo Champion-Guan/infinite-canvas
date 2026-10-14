@@ -3,7 +3,7 @@
 // response is still NOT authority for global coverage or installation.
 (() => {
   const ORIGIN = location.origin;
-  if (!['http://127.0.0.1:8888', 'http://localhost:8888'].includes(ORIGIN)) return;
+  if (!['http://127.0.0.1:8888', 'http://localhost:8888', 'http://127.0.0.1:3000', 'http://localhost:3000'].includes(ORIGIN)) return;
   const session = crypto.randomUUID(), pending = new Set();
   let native = null, page = null, connected = false, stopped = false, attempts = 0, retry = null;
   const valid = value => value && typeof value === 'object' && !Array.isArray(value);

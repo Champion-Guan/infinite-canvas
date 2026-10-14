@@ -56,15 +56,15 @@ test('actual extension uses existing-profile fixed Origin, filtered Chrome inven
   let frameDocument = documentId.replaceAll('-', '').toUpperCase();
   const event = () => ({ addListener() {} });
   const native = { postMessage: value => sent.push(value), onMessage: { addListener: fn => { onReply = fn; } }, onDisconnect: event() };
-  const chrome = { tabs: { onCreated: event(), onRemoved: event(), onReplaced: event(), onUpdated: event(),
+  const chrome = { storage: { local: { get: async () => ({}), set: async () => {} } }, tabs: { onCreated: event(), onRemoved: event(), onReplaced: event(), onUpdated: event(),
     query: async input => { queries.push(input); return [{ id: 1, windowId: 2, url: 'http://127.0.0.1:8888/private?key=not-a-real-key', title: 'private title' }]; } },
     webNavigation: { onCommitted: event(), onHistoryStateUpdated: event(), onErrorOccurred: event(), getAllFrames: async () => [{ frameId: 0, parentFrameId: -1, documentId: frameDocument, documentLifecycle: 'active', url: 'http://127.0.0.1:8888/private' }, { frameId: 1, parentFrameId: 0, url: 'https://example.invalid/private' }] },
     action: { setBadgeText: async value => { badges.push(value.text); }, setBadgeBackgroundColor: async () => {}, onClicked: event() },
-    windows: { create: async value => created.push(value) }, runtime: { connectNative: name => { assert.equal(name, 'com.guanaiworkbench.browser'); return native; }, onConnect: event(), onStartup: event(), onInstalled: event() } };
+    windows: { create: async value => created.push(value) }, runtime: { onMessage: event(), connectNative: name => { assert.equal(name, 'com.guanaiworkbench.browser'); return native; }, onConnect: event(), onStartup: event(), onInstalled: event() } };
   const context = vm.createContext({ chrome, crypto: webcrypto, URL, TextEncoder, setInterval: fn => { timer ??= fn; return 1; }, clearInterval() {} });
   vm.runInContext(readFileSync(new URL('../browser/managed-workbench/background.js', import.meta.url), 'utf8'), context);
   await new Promise(resolve => setImmediate(resolve));
-  assert.equal(sent.length, 1); assert.deepEqual(Array.from(queries[0].url), ['http://127.0.0.1:8888/*', 'http://localhost:8888/*']);
+  assert.equal(sent.length, 1); assert.deepEqual(Array.from(queries[0].url), ['http://127.0.0.1:8888/*', 'http://localhost:8888/*', 'http://localhost:3000/*', 'http://127.0.0.1:3000/*']);
   assert.equal(sent[0].windows[0].foreignFrames, 1); assert.equal(sent[0].windows[0].frames.length, 1);
   assert.equal(sent[0].windows[0].frames[0].documentId, documentId, 'actual Chrome hex UUID format is canonicalized before the native bridge');
   assert.doesNotMatch(JSON.stringify(sent), /private|example.invalid|title|not-a-real-key/);
@@ -79,7 +79,8 @@ test('actual extension uses existing-profile fixed Origin, filtered Chrome inven
     assert.equal(new ManagedBrowserObservation().accept(JSON.parse(JSON.stringify(sent.at(-1)))).unknown, true);
   }
   const manifest = JSON.parse(readFileSync(new URL('../browser/managed-workbench/manifest.json', import.meta.url)));
-  assert.deepEqual(manifest.host_permissions, ['http://localhost:8888/*', 'http://127.0.0.1:8888/*', 'http://127.0.0.1:5174/*']); assert.ok(!manifest.permissions.includes('tabs'));
-  assert.deepEqual(manifest.content_scripts, [{ matches: ['http://localhost:8888/*', 'http://127.0.0.1:8888/*', 'http://127.0.0.1:5174/*'], js: ['page-relay.js', 'migration-relay.js'], all_frames: true, run_at: 'document_start', world: 'ISOLATED' }]);
+  const origins = ['http://localhost:3000/*', 'http://127.0.0.1:3000/*', 'http://localhost:8888/*', 'http://127.0.0.1:8888/*', 'http://127.0.0.1:5174/*'];
+  assert.deepEqual(manifest.host_permissions, origins); assert.ok(!manifest.permissions.includes('tabs'));
+  assert.deepEqual(manifest.content_scripts, [{ matches: origins, js: ['page-relay.js', 'migration-relay.js', 'online-update-profile.js'], all_frames: true, run_at: 'document_start', world: 'ISOLATED' }]);
   assert.ok(!manifest.externally_connectable);
 });

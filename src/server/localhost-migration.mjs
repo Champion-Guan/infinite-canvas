@@ -144,7 +144,10 @@ button.onclick=async()=>{button.disabled=true;let popup,timer;try{
     if (!nonce) return false;
     try {
       const receipt = JSON.parse(await readFile(join(backupRoot, 'localhost-' + nonce, 'MIGRATION.json')));
-      return receipt.target === target && receipt.source === source && receipt.phase === 'browser-verified' && receipt.exportMode === 'top-level';
+      const online = port === 3000 && receipt.target === target && receipt.phase === 'browser-verified'
+        && receipt.exportMode === 'top-level' && ['http://localhost:8888', 'http://127.0.0.1:8888'].includes(receipt.source)
+        && /^[a-f0-9]{64}$/.test(receipt.targetSha256 || '') && /^[a-f0-9]{64}$/.test(receipt.mergedSha256 || '');
+      return online || receipt.target === target && receipt.source === source && receipt.phase === 'browser-verified' && receipt.exportMode === 'top-level';
     } catch { return false; }
   };
   return handler;

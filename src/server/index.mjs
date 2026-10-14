@@ -29,6 +29,8 @@ import { createBackendControl } from "./update-backend-control.mjs";
 import { portMigrationPage } from "./port-migration-page.mjs";
 import { createLocalhostMigration, localhostMigrationGuard } from "./localhost-migration.mjs";
 import { createPort3000ReadonlyBridge } from "./port3000-readonly-bridge.mjs";
+import { OnlineUpdateMigration } from "./online-update-migration.mjs";
+import { UpdateManager } from "./update-manager.mjs";
 
 const projectRoot = fileURLToPath(new URL("../../", import.meta.url));
 
@@ -68,6 +70,15 @@ const softwareUpdates = new SoftwareUpdates({ directory: privatePaths.updates, c
   downloader: new StableDownload({ directory: join(privatePaths.updates, "packages") }),
   auth: new UpdateAuth({ directory: privatePaths.updates, vault: new MacKeychainVault({ executable: join(privatePaths.runtime, "guan-keychain") }) }),
   proxyUrl: () => getImageRelayProxyUrl() });
+const onlineOriginMigration = !sourceDevelopment && port === 8888 && process.platform === 'darwin' && process.arch === 'arm64'
+  && process.env.GUAN_UPDATE_QUARANTINE === '1' ? new OnlineUpdateMigration({ paths: privatePaths,
+    manager: new UpdateManager({ root: join(privatePaths.root, 'installation'), dataRoot: privatePaths.data,
+      repository: 'Champion-Guan/infinite-canvas' }), projectRoot, instance: applicationInstanceId,
+    version: applicationVersion, enabled: true, ready: async () => {
+      const result = await softwareUpdates.manager.request({ op: 'service-ready' }, 3000);
+      if (!result.owned || result.currentVersion !== applicationVersion) throw Error('service_ownership_lost');
+    } }) : null;
+softwareUpdates.migration = onlineOriginMigration;
 const updateHttp = createUpdateHttpHandler({ updates: softwareUpdates, origin: `http://127.0.0.1:${port}`, activityGate });
 const staticOnlyCsp = [
   "default-src 'self' data: blob:;",
@@ -4063,6 +4074,19 @@ const server = createServer(async (request, response) => {
     response.end(method === "HEAD" ? undefined : portMigrationPage); return;
   }
   if (updateStartup.reject(request, response, pathname)) return;
+  if (pathname === '/local-app/online-migration/profile' && onlineOriginMigration) {
+    if (method !== 'POST' || !isLocalAppRequest(request) || request.headers.origin !== `http://${request.headers.host}`
+      || request.headers['content-type'] !== 'application/json') { response.writeHead(403); response.end(); return; }
+    let release;
+    try {
+      release = activityGate.acquire('storage'); let bytes = '';
+      for await (const chunk of request) { bytes += chunk; if (Buffer.byteLength(bytes) > 1024) throw Error(); }
+      await onlineOriginMigration.register(JSON.parse(bytes), request.headers.origin);
+      response.setHeader('set-cookie', `guan_online_profile=${JSON.parse(bytes).browserSession}; Path=/; HttpOnly; SameSite=Strict; Max-Age=1800`);
+      response.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); response.end('{"registered":true}');
+    } catch { response.writeHead(409); response.end(); } finally { release?.(); }
+    return;
+  }
   if (await localhostMigration(request, response)) return;
   if (port === 3000 && (pathname === '/' || pathname.startsWith('/canvas/'))
     && !(await localhostMigration.hasVerifiedLanding(request))) {

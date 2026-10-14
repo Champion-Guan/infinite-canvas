@@ -6,6 +6,7 @@ import { promisify } from 'node:util';
 import { mkdir, realpath } from 'node:fs/promises';
 import { runtimePaths, privateDirectory, readPrivateFile } from '../src/server/runtime-paths.mjs';
 import { PortableLaunchdJobs, portableDescriptor, startPortableJob, desktopShortcut } from './lib/macos-launcher.mjs';
+import { stableServiceOrigin } from '../src/server/update-service-origin.mjs';
 
 const run = promisify(execFile);
 async function main() {
@@ -23,6 +24,7 @@ async function main() {
   }
   const agents = path.join(homedir(), 'Library/LaunchAgents'), logs = path.join(paths.root, 'logs/launcher');
   const current = await readPrivateFile(path.join(paths.root, 'installation/current.json'), { maxBytes: 4096 });
+  const activePort = current !== null ? Number(new URL(await stableServiceOrigin(paths.root)).port) : 3000;
   if (current !== null) {
     // Signed supervisor remains the sole owner; never spawn a portable second service.
     await run(process.execPath, [path.join(root, 'scripts/open-managed-workbench.mjs')], { timeout: 90000, maxBuffer: 65536 });
@@ -51,9 +53,9 @@ async function main() {
     await run('/usr/bin/open', ['http://localhost:3000']);
   }
   try {
-    const shortcut = await desktopShortcut({ desktop: path.join(homedir(), 'Desktop'), node: process.execPath, root, port: current !== null ? 8888 : 3000 });
+    const shortcut = await desktopShortcut({ desktop: path.join(homedir(), 'Desktop'), node: process.execPath, root, port: activePort });
     console.log(shortcut.created ? '已创建桌面 AI-Workbench 入口。' : '桌面 AI-Workbench 入口已存在。');
   } catch { console.log('桌面入口未创建：已有同名文件或桌面权限不足，工作台仍正常运行。'); }
-  console.log(`工作台已启动：http://localhost:${current !== null ? 8888 : 3000}。由后台服务管理，可以关闭此终端。`);
+  console.log(`工作台已启动：http://localhost:${activePort}。由后台服务管理，可以关闭此终端。`);
 }
 main().catch(error => { console.error(/^[a-z_]{1,80}$/.test(error?.message || '') ? error.message : 'macos_launcher_failed'); process.exitCode = 1; });

@@ -33,10 +33,10 @@ async function mergeState(key, source, target) {
 // Pure planning: never opens a database or writes storage. Both complete
 // snapshots must already have been durably backed up by the local service.
 export async function planPort3000Merge(source, target) {
-  for (const [snapshot, origin] of [[source, 'http://localhost:8888'], [target, 'http://localhost:3000']]) {
-    if (snapshot?.origin !== origin || snapshot.app !== 'guan-ai-workbench' || snapshot.kind !== 'full-browser-backup'
+  for (const [snapshot, origins] of [[source, ['http://localhost:8888', 'http://127.0.0.1:8888']], [target, ['http://localhost:3000']]]) {
+    if (!origins.includes(snapshot?.origin) || snapshot.app !== 'guan-ai-workbench' || snapshot.kind !== 'full-browser-backup'
       || snapshot.format !== 1 || !Array.isArray(snapshot.databases) || !snapshot.localStorage || !snapshot.sessionStorage)
-      throw Error('定向合并只允许 localhost:8888 到 localhost:3000 的完整备份');
+      throw Error('定向合并只允许本机 8888 到 localhost:3000 的完整备份');
   }
   const merged = structuredClone(target);
   const changes = { configurationConflicts: 0, mergedStates: 0, retainedCaches: 0 };

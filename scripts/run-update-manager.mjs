@@ -11,6 +11,8 @@ import { OperatorUpdateAuthority } from '../src/server/update-operator-authority
 import { ClosedBrowserCoordinator } from '../src/server/update-closed-browser-coordinator.mjs';
 import { UpdateInstallScheduler } from '../src/server/update-install-scheduler.mjs';
 import { startSettledCurrent } from '../src/server/update-settled-startup.mjs';
+import { stableServiceOrigin } from '../src/server/update-service-origin.mjs';
+import { workbenchPageCensus } from '../src/server/workbench-page-census.mjs';
 
 // Stable, independently launched entry point. Never loads user runtime.env or
 // invokes shell commands; full installation remains closed until stage-5's
@@ -20,7 +22,7 @@ async function main() {
   const projectRoot = fileURLToPath(new URL('../', import.meta.url));
   const paths = runtimePaths({ projectRoot });
   const manager = new UpdateManager({ root: path.join(paths.root, 'installation'), dataRoot: paths.data,
-    projectRoot, repository: 'Champion-Guan/infinite-canvas' });
+    projectRoot, repository: 'Champion-Guan/infinite-canvas', origin: await stableServiceOrigin(paths.root) });
   await manager.initialize();
   // Lazy connection: read-only diagnostics/staging remain available if the
   // separately installed owner is absent. No PID/port fallback is allowed.
@@ -31,10 +33,12 @@ async function main() {
   const ledger = new UpdateTaskLedger({ file: path.join(paths.updates, 'task-ledger.json'), version: '1.0.5' });
   const authority = new OperatorUpdateAuthority({ file: path.join(paths.updates, 'operator-consent.json'), manager,
     service: manager.service, ledger, pageOnly: true });
-  manager.coordinator = new ClosedBrowserCoordinator({ service: manager.service, ledger, authority, pageOnly: true });
+  manager.coordinator = new ClosedBrowserCoordinator({ service: manager.service, ledger, authority, pageOnly: true,
+    census: () => workbenchPageCensus({ ports: [Number(new URL(manager.origin).port)] }) });
   manager.operator = authority;
   const scheduler = new UpdateInstallScheduler({ manager, authority, preferencesFile: path.join(paths.updates, 'preferences.json'),
-    onInstalled: () => promisify(execFile)('/usr/bin/open', ['http://localhost:8888'], { timeout: 10000 }),
+    onInstalled: () => promisify(execFile)('/usr/bin/open', [manager.origin.replace('127.0.0.1', 'localhost')], { timeout: 10000 }),
+    census: () => workbenchPageCensus({ ports: [Number(new URL(manager.origin).port)] }),
     restoreCurrent: () => startSettledCurrent({ manager, authority, ledger }) });
   manager.scheduler = scheduler;
   const ipc = await serveUpdateManager({ manager, socketPath: path.join(paths.updates, 'u.sock'), downloadsDirectory: path.join(paths.updates, 'packages') });

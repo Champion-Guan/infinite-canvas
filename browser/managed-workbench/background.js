@@ -3,7 +3,7 @@
 // Browser-level inventory is observational until the independent coordinator
 // additionally proves every profile, task root and persistence checkpoint.
 const ORIGIN = 'http://127.0.0.1:8888';
-const WORKBENCH_ORIGINS = [ORIGIN, 'http://localhost:8888'];
+const WORKBENCH_ORIGINS = [ORIGIN, 'http://localhost:8888', 'http://localhost:3000', 'http://127.0.0.1:3000'];
 const HOST = 'com.guanaiworkbench.browser';
 let port = null, timer = null, scanning = false, dirty = true, revision = 0, sequence = 0;
 let session = crypto.randomUUID(), lastSnapshot = null;
@@ -13,6 +13,13 @@ const pages = new Map();
 const exact = (v, keys) => v && typeof v === 'object' && !Array.isArray(v)
   && Object.keys(v).length === keys.length && keys.every(k => Object.hasOwn(v, k));
 const uuid = v => typeof v === 'string' && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(v);
+// A per-Chrome-profile opaque witness survives service-worker suspension.
+// Read/write only this extension-owned key; never browser business storage.
+const onlineSession = chrome.storage.local.get('guan-online-profile-v1').then(async value => {
+  if (uuid(value['guan-online-profile-v1'])) return value['guan-online-profile-v1'];
+  const id = crypto.randomUUID(); await chrome.storage.local.set({ 'guan-online-profile-v1': id }); return id;
+});
+onlineSession.catch(() => {});
 const pageErrors = ['managed_page_already_paused', 'managed_page_flush_unconfirmed', 'managed_page_epoch_mismatch', 'managed_page_checkpoint_invalid'];
 const isWorkbench = value => {
   try { return WORKBENCH_ORIGINS.includes(new URL(value).origin); } catch { return false; }
@@ -94,7 +101,7 @@ chrome.tabs.onReplaced.addListener(changed);
 // Ignore event contents (including unrelated titles/URLs). Conservatively
 // invalidate topology without reading or forwarding other websites' data.
 chrome.tabs.onUpdated.addListener(changed);
-const navigationFilter = { url: [{ schemes: ['http'], hostEquals: '127.0.0.1', ports: [8888, 5174] }, { schemes: ['http'], hostEquals: 'localhost', ports: [8888] }] };
+const navigationFilter = { url: [{ schemes: ['http'], hostEquals: '127.0.0.1', ports: [3000, 8888, 5174] }, { schemes: ['http'], hostEquals: 'localhost', ports: [3000, 8888] }] };
 chrome.webNavigation.onCommitted.addListener(changed, navigationFilter);
 chrome.webNavigation.onHistoryStateUpdated.addListener(changed, navigationFilter);
 chrome.webNavigation.onErrorOccurred.addListener(changed, navigationFilter);
@@ -223,3 +230,55 @@ async function migrationTick() {
   finally { migrationBusy = false; }
 }
 setInterval(() => { void migrationTick(); }, 2000);
+
+// Protocol 2 uses only top-level migration documents created by this extension.
+// Never close a workbench or other customer tab, even if it reuses a tab id.
+let onlineMigration = null, onlineBusy = false;
+async function onlineMigrationTick() {
+  if (onlineBusy) return;
+  onlineBusy = true;
+  try {
+    let info;
+    for (const origin of [ORIGIN, 'http://localhost:8888']) {
+      try {
+        const response = await fetch(origin + '/local-app/online-migration/session', { signal: AbortSignal.timeout(1500) });
+        if (response.ok) { info = await response.json(); break; }
+      } catch { /* No active migration at this fixed local Origin. */ }
+    }
+    if (info?.protocol !== 2 || ![ORIGIN, 'http://localhost:8888'].includes(info.sourceOrigin)
+      || info.targetOrigin !== 'http://localhost:3000') return;
+    const control = new URL(info.controlUrl), source = new URL(info.sourceUrl), target = new URL(info.targetUrl);
+    if (control.origin !== info.sourceOrigin || !/^\/online-migration-[a-f0-9-]{36}$/.test(control.pathname)
+      || control.search || control.hash || control.username || control.password
+      || source.href !== control.href + '/source' || target.href !== info.targetOrigin + control.pathname) return;
+    if (!onlineMigration || onlineMigration.control !== control.href) {
+      if (info.phase !== 'waiting-source') return;
+      const tabs = await chrome.tabs.query({ url: WORKBENCH_ORIGINS.map(origin => origin + '/*') });
+      if (tabs.length) return; // Customer pages must already be closed.
+      const claim = await fetch(control.href + '/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session: await onlineSession }), signal: AbortSignal.timeout(1500) });
+      if (!claim.ok) return;
+      onlineMigration = { control: control.href, sourceUrl: source.href, targetUrl: target.href,
+        source: (await chrome.tabs.create({ url: source.href, active: true })).id, target: null };
+    }
+    if (info.phase === 'source-backed-up' && onlineMigration.target === null) {
+      await closeMigrationTab(onlineMigration.source, onlineMigration.sourceUrl); onlineMigration.source = null;
+      onlineMigration.target = (await chrome.tabs.create({ url: onlineMigration.targetUrl, active: true })).id;
+    }
+    if (['browser-verified', 'failed'].includes(info.phase)) {
+      for (const role of ['source', 'target']) if (onlineMigration[role] !== null) {
+        await closeMigrationTab(onlineMigration[role], onlineMigration[role + 'Url']); onlineMigration[role] = null;
+      }
+    }
+  } catch { /* Unknown tab/profile/bridge remains a veto, never an install grant. */ }
+  finally { onlineBusy = false; }
+}
+setInterval(() => { void onlineMigrationTick(); }, 2000);
+
+chrome.runtime.onMessage.addListener((value, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id || sender.frameId !== 0 || !sender.tab?.id || !isWorkbench(sender.url)
+    || !exact(value, ['op']) || value.op !== 'guan-online-update-profile') return;
+  onlineSession.then(browserSession => sendResponse({ extensionId: chrome.runtime.id, browserSession,
+    extensionVersion: chrome.runtime.getManifest().version })).catch(() => sendResponse(null));
+  return true;
+});

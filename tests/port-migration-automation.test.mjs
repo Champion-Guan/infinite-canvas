@@ -54,7 +54,7 @@ async function background(existing = []) {
       }
       return { ok: true, json: async () => { assert.equal(target, 'http://127.0.0.1:8888/local-migration/session'); return { protocol: 1, migrationUrl: url, phase }; } };
     },
-    chrome: { runtime: { id: 'test', onConnect: events, onStartup: events, onInstalled: events,
+    chrome: { storage: { local: { get: async () => ({}), set: async () => {} } }, runtime: { id: 'test', onMessage: events, onConnect: events, onStartup: events, onInstalled: events,
       connectNative: () => ({ onMessage: events, onDisconnect: events, postMessage() {} }) },
     action: { onClicked: events, setBadgeText: async () => {}, setBadgeBackgroundColor: async () => {} },
     windows: {}, webNavigation: { onCommitted: events, onHistoryStateUpdated: events, onErrorOccurred: events },

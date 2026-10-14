@@ -4,6 +4,7 @@ import { runtimePaths } from '../src/server/runtime-paths.mjs';
 import { UpdateManager } from '../src/server/update-manager.mjs';
 import { OwnedUpdateService } from '../src/server/update-service.mjs';
 import { serveUpdateSupervisor, supervisorCapability } from '../src/server/update-supervisor.mjs';
+import { stableServiceOrigin } from '../src/server/update-service-origin.mjs';
 
 // Installed independently of both current application and manager versions.
 // Capability provisioning and first launch belong to the approved bootstrap,
@@ -13,10 +14,10 @@ async function main() {
   const projectRoot = fileURLToPath(new URL('../', import.meta.url));
   const paths = runtimePaths({ projectRoot });
   const verifier = new UpdateManager({ root: path.join(paths.root, 'installation'), dataRoot: paths.data,
-    projectRoot, repository: 'Champion-Guan/infinite-canvas' });
+    projectRoot, repository: 'Champion-Guan/infinite-canvas', origin: await stableServiceOrigin(paths.root) });
   await verifier.initialize();
   const service = new OwnedUpdateService({ versionsRoot: path.join(verifier.root, 'versions'),
-    dataRoot: paths.data, privateRoot: paths.root, verify: pointer => verifier.verifyInstalled(pointer) });
+    dataRoot: paths.data, privateRoot: paths.root, origin: verifier.origin, verify: pointer => verifier.verifyInstalled(pointer) });
   const capability = await supervisorCapability(path.join(paths.updates, 'supervisor.capability'));
   const ipc = await serveUpdateSupervisor({ service, socketPath: path.join(paths.updates, 's.sock'), capability,
     versionsRoot: service.versionsRoot, dataRoot: paths.data, origin: service.origin });

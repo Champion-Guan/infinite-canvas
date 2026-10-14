@@ -6,7 +6,7 @@ export type SoftwareUpdateStatus = {
     history: { at: string; state: string; version: string | null; error: string | null }[];
     download: { state: string; progress: number; error?: string | null };
     install: { allowed: false; state: string; currentVersion?: string | null; targetVersion?: string | null;
-        reason?: string | null; staging?: boolean; stageError?: string | null };
+        reason?: string | null; staging?: boolean; stageError?: string | null; migrationRequired?: boolean };
 };
 export const updateMessages: Record<string, string> = {
     update_repository_locked: "更新仓库固定为 Champion-Guan/infinite-canvas",
@@ -43,6 +43,8 @@ export const updateMessages: Record<string, string> = {
     install_browsers_running: "请保存并关闭所有工作台页面，其他网站可以继续使用",
     install_page_inventory_unavailable: "无法核实工作台页面状态，请检查本机浏览器自动化授权或浏览器支持情况",
     install_evidence_changed: "确认之后活动或保存状态改变，请重新核实",
+    update_migration_extension_required: "请在使用工作台的 Chrome 配置中加载或重新加载随安装包提供的工作台扩展 1.0.4；未接入前保留原地址",
+    update_migration_recovery_required: "上次地址迁移未结束，原数据与备份保留，需要安全恢复",
 };
 export const installationMessages: Record<string, string> = {
     unavailable: "更新器未启动", disabled: "安装关闭", idle: "更新器已就绪", staged: "已暂存并再次验签（未执行）",
@@ -50,6 +52,11 @@ export const installationMessages: Record<string, string> = {
     blocked: "安装被安全阻止", prepared: "已准备版本事务", stopping: "正在停止受控服务", switching: "正在切换版本",
     starting: "正在隔离启动", committed: "版本事务已提交", "rolling-back": "正在恢复旧版", "rolled-back": "已恢复旧版",
     "awaiting-browser-exit": "已确认，等待工作台页面关闭", "confirmation-required": "等待本次更新确认", deferred: "已选择稍后安装",
+    "migration-required": "新版本已安装，待自动迁移数据到 localhost:3000",
+    "migration-backing-up": "正在备份私人文件与浏览器数据", "migration-copying": "正在复制并逐项校验浏览器数据",
+    "migration-prepared": "已准备地址迁移事务", "migration-browser-verified": "浏览器完整数据已核验",
+    "migration-switching": "正在切换后台与桌面入口至 3000", "migration-health-check": "正在检查新地址服务",
+    "migration-starting": "数据迁移已提交，正在确认服务激活",
 };
 export async function updateRequest(operation: "status" | "check" | "download" | "stage" | "preferences" | "approve" | "defer", input?: Partial<UpdatePreferences> | { acknowledgement: "saved-and-all-tasks-ended" }): Promise<SoftwareUpdateStatus> {
     const response = await fetch(`/local-app/updates/${operation}`, {

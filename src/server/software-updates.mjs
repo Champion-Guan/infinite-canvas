@@ -8,7 +8,8 @@ import { STABLE_REPOSITORY, isWorkbenchRepository, isPublicUpdateRepository, sam
 export const UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const defaults = () => ({ version: 1, repository: STABLE_REPOSITORY, autoCheck: true, autoDownload: true, autoInstall: false, network: 'auto' });
 export class SoftwareUpdates {
-  constructor({ directory, auth, currentVersion, downloader = null, manager = null, progress = null, proxyUrl = () => null, readRelease = readGitHubStable, now = Date.now, lockRepository = true }) {
+  constructor({ directory, auth, currentVersion, downloader = null, manager = null, progress = null, migration = null, proxyUrl = () => null, readRelease = readGitHubStable, now = Date.now, lockRepository = true }) {
+    this.migration = migration;
     this.progress = progress;
     this.lockRepository = lockRepository;
     this.downloader = downloader;
@@ -45,7 +46,7 @@ export class SoftwareUpdates {
       return this.lockRepository || isWorkbenchRepository(p.repository) ? { ...p, repository: STABLE_REPOSITORY } : p;
     } catch { throw new UpdateError('update_storage_invalid'); }
   }
-  async status() {
+  async status(context) {
     try {
       const p = await this.preferences(), meta = isPublicUpdateRepository(p.repository) ? null : await this.auth.metadata(), history = await this.history(p.repository);
       const bound = Boolean(meta && meta.repository.toLowerCase() === p.repository.toLowerCase());
@@ -57,7 +58,7 @@ export class SoftwareUpdates {
       return { ...result, latest, history, lastCheckedAt: result.lastCheckedAt || history.at(-1)?.at || null, currentVersion: this.currentVersion, preferences: p, channel: isPublicUpdateRepository(p.repository) ? 'GitHub Public / Stable' : 'GitHub Private / Stable',
         authorization: isPublicUpdateRepository(p.repository) ? 'not-required' : bound ? 'configured-not-verified' : 'required', checking: Boolean(this.inFlight),
         hasNewVersion: Boolean(result.latest && compareVersions(result.latest.version, this.currentVersion) > 0),
-        download, install: this.manager ? { ...(await this.manager.status()),
+        download, install: this.manager ? { ...(await this.manager.status()), ...(await this.migration?.status(context)),
           staging: Boolean(this.staging), stageError: this.stageResult?.repository === p.repository ? this.stageResult.error : null }
           : { allowed: false, state: 'disabled' } };
     } catch (e) { return { ...this.result, latest: null, currentVersion: this.currentVersion, preferences: defaults(), channel: 'GitHub Private / Stable', authorization: 'unavailable', checking: false, hasNewVersion: false, error: e.code || 'update_storage_invalid', state: 'error', download: { state: 'not-implemented', progress: 0 }, install: { allowed: false, state: 'disabled' } }; }
@@ -153,7 +154,12 @@ export class SoftwareUpdates {
     }).finally(() => { this.staging = null; });
     return this.status();
   }
-  async approve(acknowledgement) {
+  async approve(acknowledgement, context) {
+    if (!this.stopped && this.migration && (await this.migration.status(context))?.state === 'migration-required') {
+      if (!(await this.preferences()).autoInstall) throw new UpdateError('install_disabled');
+      await this.migration.approve(acknowledgement, context);
+      return this.status(context);
+    }
     if (this.stopped || !this.manager?.approve || !this.downloader?.stageIdentity || this.staging) throw new UpdateError('update_stage_unavailable');
     const p = await this.preferences();
     if (!p.autoInstall) throw new UpdateError('install_disabled');
@@ -165,6 +171,8 @@ export class SoftwareUpdates {
     return this.status();
   }
   async progressWindow() {
+    if (!this.stopped && this.progress && (await this.migration?.status())?.migrationRequired)
+      return this.progress.open(this.currentVersion);
     if (this.stopped || !this.manager || !this.progress || !this.downloader?.stageIdentity) throw new UpdateError('update_progress_unavailable');
     const p = await this.preferences(), identity = this.downloader.stageIdentity(p.repository);
     if (compareVersions(identity.version, this.currentVersion) <= 0) throw new UpdateError('version_not_newer');

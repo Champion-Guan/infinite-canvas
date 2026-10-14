@@ -8,8 +8,10 @@ export function createUpdateHttpHandler({ updates, origin, activityGate }) {
       reply(res, 403, { error: 'local_origin_required' }); return true;
     }
     let release;
+    const migrationContext = { sourceOrigin: `http://${req.headers.host}`,
+      migrationSession: /(?:^|;\s*)guan_online_profile=([a-f0-9-]{36})(?:;|$)/.exec(req.headers.cookie || '')?.[1] };
     try {
-      if (req.url === '/local-app/updates/status' && req.method === 'GET') reply(res, 200, await updates.status());
+      if (req.url === '/local-app/updates/status' && req.method === 'GET') reply(res, 200, await updates.status(migrationContext));
       else if (req.method === 'POST' && ['/local-app/updates/check', '/local-app/updates/download', '/local-app/updates/stage', '/local-app/updates/preferences', '/local-app/updates/approve', '/local-app/updates/defer', '/local-app/updates/progress-window'].includes(req.url)) {
         release = activityGate.acquire('storage');
         if (req.headers['content-type']?.split(';')[0].trim() !== 'application/json') throw new UpdateError('invalid_request');
@@ -23,7 +25,7 @@ export function createUpdateHttpHandler({ updates, origin, activityGate }) {
           // activity before the exact-owned backend checks all remaining work.
           // A concurrent new task remains visible to the gate/durable ledger.
           release(); release = null;
-          reply(res, 200, await updates.approve(input.acknowledgement)); return true;
+          reply(res, 200, await updates.approve(input.acknowledgement, migrationContext)); return true;
         }
         if (!req.url.endsWith('/preferences') && (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).length)) throw new UpdateError('invalid_request');
         reply(res, 200, req.url.endsWith('/progress-window') ? await updates.progressWindow() : req.url.endsWith('/check') ? await updates.check() : req.url.endsWith('/download') ? await updates.download()

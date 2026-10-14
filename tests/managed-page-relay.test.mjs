@@ -22,10 +22,10 @@ function fixture(t, { supported = true, senderOrigin = ORIGIN, senderId = extens
     postMessage(data, origin, ports = []) { queueMicrotask(() => { for (const fn of listeners.get('message') || []) fn({ data, origin, ports, source: window }); }); } };
   const onConnect = event(), nativeMessages = [];
   const native = { postMessage: value => nativeMessages.push(value), onMessage: event(), onDisconnect: event(), disconnect() {} };
-  const backgroundChrome = { tabs: { onCreated: event(), onRemoved: event(), onReplaced: event(), onUpdated: event(), query: async () => [] },
+  const backgroundChrome = { storage: { local: { get: async () => ({}), set: async () => {} } }, tabs: { onCreated: event(), onRemoved: event(), onReplaced: event(), onUpdated: event(), query: async () => [] },
     webNavigation: { onCommitted: event(), onHistoryStateUpdated: event(), onErrorOccurred: event() },
     action: { setBadgeText: async () => {}, setBadgeBackgroundColor: async () => {}, onClicked: event() },
-    runtime: { id: extension, onConnect, connectNative: () => native, onStartup: event(), onInstalled: event() } };
+    runtime: { id: extension, onConnect, onMessage: event(), connectNative: () => native, onStartup: event(), onInstalled: event() } };
   const timersApi = { setInterval: fn => { timers.push(fn); return timers.length; }, clearInterval() {} };
   const background = vm.createContext({ chrome: backgroundChrome, crypto: webcrypto, URL, TextEncoder, ...timersApi });
   vm.runInContext(code('browser/managed-workbench/background.js'), background);
