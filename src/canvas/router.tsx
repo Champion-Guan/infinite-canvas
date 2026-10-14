@@ -19,8 +19,10 @@ const ConfigPage = lazy(() => import("@/pages/config"));
 
 function LazyPage({ component: Component }: { component: ComponentType }) {
     return (
-        <Suspense fallback={<main className="flex h-full items-center justify-center bg-background text-sm text-muted-foreground" aria-busy="true">正在加载工作台…</main>}>
-            <Component />
+        <Suspense fallback={<main className="guan-route-loading flex h-full items-center justify-center bg-background text-sm text-muted-foreground" aria-busy="true">正在加载工作台…</main>}>
+            <div className="guan-route-enter h-full min-h-0">
+                <Component />
+            </div>
         </Suspense>
     );
 }

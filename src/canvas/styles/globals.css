@@ -590,9 +590,19 @@
         box-shadow: 0 12px 30px color-mix(in srgb, currentColor 10%, transparent);
     }
 
+    .guan-route-enter,
+    .guan-route-loading {
+        animation: guan-route-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
+    }
+
     @keyframes guan-surface-enter {
         from { opacity: 0; transform: translateY(8px) scale(0.985); }
         to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes guan-route-enter {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -607,7 +617,9 @@
         .ant-dropdown,
         .ant-tooltip,
         .ant-card,
-        [data-guan-card] {
+        [data-guan-card],
+        .guan-route-enter,
+        .guan-route-loading {
             animation: none !important;
             transform: none !important;
             transition: none !important;
