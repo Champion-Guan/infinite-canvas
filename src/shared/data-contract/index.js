@@ -1713,7 +1713,7 @@ function renderHeaderControls(root) {
       ${capsuleProducts.map((product, index) => {
         const label = canvasDisplayName(product, index);
         return `
-          <div class="guan-product-capsule-wrap"><button type="button" class="guan-dc-product-capsule guan-dc-product-capsule-${canvasStatus(product.id)} ${product.id === selectedCanvasId ? "is-active" : ""}"
+          <div class="guan-product-capsule-wrap guan-apple-glow"><button type="button" class="guan-dc-product-capsule guan-shared-product-capsule guan-dc-product-capsule-${canvasStatus(product.id)} ${product.id === selectedCanvasId ? "is-active" : ""}"
             role="tab" aria-selected="${product.id === selectedCanvasId}" data-product-id="${escapeHtml(product.id)}"
             title="${escapeHtml(label)}">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"></rect><circle cx="8.5" cy="9" r="1.5"></circle><path d="m5.5 17 4.4-4.4 3.2 3.2 2.2-2.2 3.2 3.4"></path></svg>

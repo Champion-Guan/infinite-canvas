@@ -23,6 +23,15 @@ test('release parser preserves upstream entries and bundles Chinese stable notes
   assert.ok(local.find(entry => entry.version === '1.0.18').items.some(item => item.content.includes('快捷键')));
 });
 
+test('visible current version follows the running server instead of a stale canvas bundle', () => {
+  const { resolveCurrentWorkbenchVersion } = load('../src/canvas/hooks/use-version-check.ts', { APP_VERSION: '1.0.23' });
+  assert.equal(resolveCurrentWorkbenchVersion('1.0.26'), '1.0.26');
+  assert.equal(resolveCurrentWorkbenchVersion(null), '1.0.23');
+  const modal = readFileSync(new URL('../src/canvas/components/layout/version-release-modal.tsx', import.meta.url), 'utf8');
+  assert.ok(modal.includes('aria-label={`版本 ${currentVersion}，查看更新日志`}'));
+  assert.ok(modal.includes('{currentVersion}</div>'));
+});
+
 function actions(overrides = {}, fail = '') {
   const calls = [], confirmations = [];
   const status = { hasNewVersion: true, latest: { version: '1.1.0' }, preferences: { autoInstall: false }, download: { state: 'verified' }, install: { state: 'staged' }, ...overrides };

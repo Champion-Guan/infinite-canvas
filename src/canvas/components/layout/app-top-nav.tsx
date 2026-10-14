@@ -38,7 +38,7 @@ export function AppTopNav() {
                 <header className="guan-motion-panel sticky top-0 z-20 h-14 shrink-0 border-b border-stone-200 bg-background/90 backdrop-blur-xl dark:border-stone-800">
                     <div className="mx-auto flex h-full max-w-7xl items-stretch justify-between gap-5 px-6">
                         <div className="flex min-w-0 items-center">
-                            <Link to="/" className="guan-motion-interactive flex h-full shrink-0 items-center gap-2 text-sm font-semibold leading-none tracking-tight text-stone-950 dark:text-stone-100 dark:hover:text-stone-300">
+                            <Link to="/" className="guan-page-transition guan-motion-interactive flex h-full shrink-0 items-center gap-2 text-sm font-semibold leading-none tracking-tight text-stone-950 dark:text-stone-100 dark:hover:text-stone-300">
                                 <span
                                     className="size-5 shrink-0 bg-current"
                                     style={{
@@ -68,7 +68,7 @@ export function AppTopNav() {
                                             key={tool.slug}
                                             to={`/${tool.slug}`}
                                             className={cn(
-                                                "guan-motion-interactive relative flex h-14 shrink-0 items-center gap-2 text-sm leading-6 after:absolute after:inset-x-0 after:bottom-0 after:h-px",
+                                                "guan-nav-item guan-motion-interactive relative flex h-14 shrink-0 items-center gap-2 text-sm leading-6 after:absolute after:inset-x-0 after:bottom-0 after:h-px",
                                                 active
                                                     ? "font-medium text-stone-950 after:bg-stone-950 dark:text-stone-100 dark:after:bg-stone-100"
                                                     : "text-stone-500 after:bg-transparent hover:text-stone-950 dark:text-stone-400 dark:hover:text-stone-100",

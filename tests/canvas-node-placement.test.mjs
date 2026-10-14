@@ -5,7 +5,7 @@ import ts from '../src/canvas/node_modules/typescript/lib/typescript.js';
 
 const source = readFileSync(new URL('../src/canvas/lib/canvas/canvas-node-placement.ts', import.meta.url), 'utf8');
 const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
-const { placeCanvasNode, placeNewCanvasNodes, arrangeOverlappingCanvasNodes, nodesOverlap } = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'));
+const { placeCanvasNode, placeNewCanvasNodes, arrangeOverlappingCanvasNodes, nextGenerationResultPosition, nodesOverlap } = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'));
 const card = (id, x = 637, y = 291, width = 340, height = 240, metadata = {}) => ({ id, type: 'config', title: id, position: { x, y }, width, height, metadata });
 function noOverlaps(nodes) {
   const cards = nodes.filter(node => node.type !== 'group');
@@ -18,6 +18,18 @@ test('five same-position cards are reserved in one batch; existing cards stay fi
   noOverlaps(nodes);
   assert.equal(nodes[0], first);
   assert.equal(nodes[1].position.y, first.position.y + first.height + 48);
+});
+
+test('generation outputs form a compact left-to-right row aligned with their source', () => {
+  const source = card('config', 100, 200, 340, 240);
+  const result = card('result', 0, 0, 340, 240);
+  const first = nextGenerationResultPosition(source, result, 0);
+  const second = nextGenerationResultPosition(source, result, 1);
+  const third = nextGenerationResultPosition(source, result, 2);
+  assert.deepEqual(first, { x: 536, y: 200 });
+  assert.deepEqual(second, { x: 924, y: 200 });
+  assert.deepEqual(third, { x: 1312, y: 200 });
+  assert.equal(nodesOverlap({ ...result, position: first }, { ...result, position: second }), false);
 });
 
 test('functional sequential additions use the latest transaction, not stale closure nodes', () => {

@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { homedir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +14,7 @@ import { UpdateInstallScheduler } from '../src/server/update-install-scheduler.m
 import { startSettledCurrent } from '../src/server/update-settled-startup.mjs';
 import { stableServiceOrigin } from '../src/server/update-service-origin.mjs';
 import { workbenchPageCensus } from '../src/server/workbench-page-census.mjs';
+import { desktopShortcut } from './lib/macos-launcher.mjs';
 
 // Stable, independently launched entry point. Never loads user runtime.env or
 // invokes shell commands; full installation remains closed until stage-5's
@@ -37,7 +39,15 @@ async function main() {
     census: () => workbenchPageCensus({ ports: [Number(new URL(manager.origin).port)] }) });
   manager.operator = authority;
   const scheduler = new UpdateInstallScheduler({ manager, authority, preferencesFile: path.join(paths.updates, 'preferences.json'),
-    onInstalled: () => promisify(execFile)('/usr/bin/open', [manager.origin.replace('127.0.0.1', 'localhost')], { timeout: 10000 }),
+    onInstalled: async () => {
+      try {
+        const pointer = await manager.readCurrent();
+        const installed = pointer && await manager.verifyInstalled(pointer);
+        if (installed) await desktopShortcut({ desktop: path.join(homedir(), 'Desktop'),
+          node: path.join(installed.directory, 'runtime/node'), root: installed.directory, port: Number(new URL(manager.origin).port) });
+      } catch { /* A conflicting user desktop item must not affect a healthy update. */ }
+      await promisify(execFile)('/usr/bin/open', [manager.origin.replace('127.0.0.1', 'localhost')], { timeout: 10000 });
+    },
     census: () => workbenchPageCensus({ ports: [Number(new URL(manager.origin).port)] }),
     restoreCurrent: () => startSettledCurrent({ manager, authority, ledger }) });
   manager.scheduler = scheduler;

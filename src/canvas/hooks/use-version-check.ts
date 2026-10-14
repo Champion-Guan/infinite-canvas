@@ -4,6 +4,10 @@ import { APP_VERSION } from "@/constant/env";
 import type { ReleaseInfo } from "@/lib/release";
 import { updateRequest, updateMessages, type SoftwareUpdateStatus } from "@/services/software-updates";
 
+export function resolveCurrentWorkbenchVersion(serverVersion: string | null | undefined, bundleVersion = APP_VERSION) {
+    return serverVersion || bundleVersion;
+}
+
 export function useVersionCheck() {
     const { message } = App.useApp();
     const localReleases = useMemo<ReleaseInfo[]>(() => __APP_RELEASES__ || [], []);
@@ -49,13 +53,17 @@ export function useVersionCheck() {
     }, [refresh]);
 
     const latest = status?.latest;
+    // The backend owns the running application version. The canvas bundle may
+    // be ahead during source-mode rollout or stale in an already-open iframe.
+    const currentVersion = resolveCurrentWorkbenchVersion(status?.currentVersion);
     const releases = latest ? [{ version: latest.version, date: latest.publishedAt.slice(0, 10), items: [{ type: "更新", content: latest.notes || "暂无更新说明" }] }, ...localReleases.filter(r => r.version !== latest.version)] : localReleases;
 
     return {
         open,
         setOpen,
         openReleaseModal,
-        latestVersion: latest?.version || APP_VERSION,
+        currentVersion,
+        latestVersion: latest?.version || currentVersion,
         releases,
         checking,
         hasNewVersion: status?.hasNewVersion || false,

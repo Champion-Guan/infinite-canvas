@@ -32,7 +32,13 @@ export function startUpdateTaskGuard() {
         const text = await response.text();
         if (text.length > 8192) throw Error("本地任务安全协议无效。");
         const value = JSON.parse(text) as { taskEvidenceProtocol?: number; version?: string; instanceId?: string };
-        if (value.taskEvidenceProtocol !== 1 || value.version !== APP_VERSION || typeof value.instanceId !== "string"
+        const serverVersion = typeof value.version === "string" ? value.version : "";
+        const clientVersion = APP_VERSION;
+        const serverMajor = /^(\d+)\.(\d+)\.(\d+)$/.exec(serverVersion);
+        const clientMajor = /^(\d+)\.(\d+)\.(\d+)$/.exec(clientVersion);
+        const compatibleVersion = Boolean(serverMajor && clientMajor && serverMajor[1] === clientMajor[1]
+            && serverMajor[2] === clientMajor[2] && Number(serverMajor[3]) >= 5);
+        if (value.taskEvidenceProtocol !== 1 || !compatibleVersion || typeof value.instanceId !== "string"
             || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(value.instanceId)) throw Error("本地任务安全协议不兼容，请重新打开工作台。");
         if (stopped) throw Error("任务安全连接已经关闭。");
         instance = value.instanceId;

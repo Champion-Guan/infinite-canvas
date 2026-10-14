@@ -16,6 +16,9 @@ async function fixture(t, mode = 'normal', realBackend = false) {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), 'guan-owned-service-')));
   const versionsRoot = path.join(root, 'versions'), privateRoot = path.join(root, 'private'), dataRoot = path.join(privateRoot, 'data');
   await mkdir(versionsRoot); await mkdir(dataRoot, { recursive: true });
+  await mkdir(path.join(privateRoot, 'updates'), { recursive: true, mode: 0o700 });
+  await writeFile(path.join(privateRoot, 'updates/preferences.json'), JSON.stringify({ version: 1, repository: 'Champion-Guan/infinite-canvas',
+    autoCheck: false, autoDownload: false, autoInstall: false, network: 'direct' }), { mode: 0o600 });
   const reservation = createServer(); await new Promise(resolve => reservation.listen(0, '127.0.0.1', resolve));
   const port = reservation.address().port; await new Promise(resolve => reservation.close(resolve));
   assert.notEqual(port, 5174); const origin = `http://127.0.0.1:${port}`;
@@ -30,7 +33,7 @@ async function fixture(t, mode = 'normal', realBackend = false) {
     await copyFile(new URL('../src/server/update-startup.mjs', import.meta.url), path.join(directory, 'update-startup.mjs'));
     await writeFile(path.join(directory, 'fixture.json'), JSON.stringify({ mode, version: pointer.version, buildId: pointer.buildId }));
   } else {
-    for (const file of ['server.mjs', 'package.json', 'src/server', 'src/shared', 'config/examples', 'node_modules/undici'])
+    for (const file of ['server.mjs', 'package.json', 'src/server', 'src/shared', 'scripts/lib', 'config/examples', 'node_modules/undici'])
       await cp(new URL(file, project), path.join(directory, file), { recursive: true });
     await mkdir(path.join(directory, 'public/infinite-canvas'), { recursive: true });
     await writeFile(path.join(directory, 'public/index.html'), '<title>QA</title>');

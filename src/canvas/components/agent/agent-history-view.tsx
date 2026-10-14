@@ -81,7 +81,7 @@ export function AgentHistoryView({
                                 role="button"
                                 tabIndex={canResume ? 0 : -1}
                                 aria-disabled={!canResume}
-                                className={`${canResume ? "cursor-pointer hover:bg-black/5 dark:hover:bg-white/10" : "cursor-default opacity-60"} rounded-lg border px-2.5 py-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/20`}
+                                className={`guan-card-surface ${canResume ? "cursor-pointer hover:bg-black/5 dark:hover:bg-white/10" : "cursor-default opacity-60"} rounded-lg border px-2.5 py-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/20`}
                                 style={{ borderColor: active ? theme.node.text : theme.node.stroke, background: "transparent", color: theme.node.text }}
                                 onClick={() => {
                                     if (canResume) onResumeThread(thread.id);

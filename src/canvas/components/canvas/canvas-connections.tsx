@@ -62,6 +62,16 @@ export const ConnectionPath = memo(function ConnectionPath({
                 // colour and width during dragging; restore glow on release.
                 style={{ filter: active && !dragging ? `drop-shadow(0 0 8px ${theme.node.activeStroke}66)` : undefined, pointerEvents: "none" }}
             />
+            {active && !dragging ? (
+                <path
+                    className="guan-connection-flow"
+                    d={pathD}
+                    stroke={theme.node.activeStroke}
+                    strokeWidth={2.5}
+                    fill="none"
+                    aria-hidden="true"
+                />
+            ) : null}
         </g>
     );
 });

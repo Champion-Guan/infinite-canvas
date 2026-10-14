@@ -40,6 +40,8 @@ type CanvasNodeProps = {
     renderNodeContent?: (node: CanvasNodeData) => ReactNode;
     groupChildCount?: number;
     isGroupDropTarget?: boolean;
+    isSettling?: boolean;
+    isLayoutTransition?: boolean;
     batchExpanded?: boolean;
     onMouseDown: (event: React.MouseEvent, nodeId: string) => void;
     onSelectCapture?: (event: React.MouseEvent, nodeId: string) => void;
@@ -109,6 +111,8 @@ export const CanvasNode = React.memo(function CanvasNode({
     renderNodeContent,
     groupChildCount = 0,
     isGroupDropTarget = false,
+    isSettling = false,
+    isLayoutTransition = false,
     batchExpanded = false,
     onMouseDown,
     onSelectCapture,
@@ -306,12 +310,12 @@ export const CanvasNode = React.memo(function CanvasNode({
     return (
         <div
             data-node-id={data.id}
-            className={`node-element group/node absolute flex select-none flex-col transition-shadow duration-200 ${isGroup ? "z-[5]" : isSelected ? "z-50" : "z-10"} ${referenceSelectionState === "available" ? "cursor-pointer" : referenceSelectionState ? "cursor-not-allowed" : ""} ${isGroupDropTarget ? "guan-node-drop-target" : ""}`}
+            className={`node-element group/node absolute flex select-none flex-col transition-shadow duration-200 ${isGroup ? "z-[5]" : isSelected ? "z-50" : "z-10"} ${referenceSelectionState === "available" ? "cursor-pointer" : referenceSelectionState ? "cursor-not-allowed" : ""} ${isGroupDropTarget ? "guan-node-drop-target guan-drop-magnet" : ""} ${isConnectionTarget ? "guan-connection-target guan-focus-ring" : ""} ${isSettling ? "guan-node-settle" : ""} ${isLayoutTransition ? "guan-layout-transition" : ""}`}
             style={{
                 transform: `translate(${data.position.x}px, ${data.position.y}px)`,
                 width: data.width,
                 height: data.height,
-                transition: "box-shadow 200ms ease",
+                transition: isSettling ? "transform 420ms cubic-bezier(.22,1,.36,1), box-shadow 200ms ease" : "box-shadow 200ms ease",
                 contain: "layout style",
             }}
             onMouseEnter={() => {

@@ -87,7 +87,7 @@ test('actual asset cleanup is busy when scheduled and waits sequential image/med
     let assets = ['initial'];
     const body = expression('stores/use-asset-store.ts', 'cleanupImages').replace('await import("@/stores/canvas/use-canvas-store")', 'await loadCanvas()');
     const cleanup = run('const cleanup = ' + body, { ...f.bindings, window: { setTimeout: fn => { timers.push(fn); } },
-        get: () => ({ assets }), loadCanvas: async () => ({ useCanvasStore: { getState: () => ({ projects: ['project'] }) } }),
+        get: () => ({ assets }), useCanvasStore: { getState: () => ({ projects: ['project'] }) },
         cleanupUnusedImages: data => { calls.push(['images', data]); return images.promise; },
         cleanupUnusedMedia: data => { calls.push(['media', data]); return media.promise; },
     }, 'cleanup');
@@ -102,7 +102,7 @@ test('failed actual asset cleanup does not run the subsequent media cleanup or a
     const f = fixture(); let start, mediaCalls = 0;
     const body = expression('stores/use-asset-store.ts', 'cleanupImages').replace('await import("@/stores/canvas/use-canvas-store")', 'await loadCanvas()');
     const cleanup = run('const cleanup = ' + body, { ...f.bindings, window: { setTimeout: fn => { start = fn; } }, get: () => ({ assets: [] }),
-        loadCanvas: async () => ({ useCanvasStore: { getState: () => ({ projects: [] }) } }),
+        useCanvasStore: { getState: () => ({ projects: [] }) },
         cleanupUnusedImages: async () => { throw Error('failed'); }, cleanupUnusedMedia: async () => { mediaCalls++; },
     }, 'cleanup');
     cleanup(); start(); await assert.rejects(f.flushStorageCheckpoints()); await tick();

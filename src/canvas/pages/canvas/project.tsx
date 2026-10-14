@@ -14,7 +14,7 @@ import { setImageBlob } from "@/services/image-storage";
 import { setMediaBlob } from "@/services/file-storage";
 import type { RootScope } from "@/lib/page-drain-barrier";
 import { settleActivityGroup } from "@/lib/settle-activity-group";
-import { arrangeOverlappingCanvasNodes, placeCanvasNode, placeNewCanvasNodes } from "@/lib/canvas/canvas-node-placement";
+import { arrangeOverlappingCanvasNodes, nextGenerationResultPosition, placeCanvasNode, placeNewCanvasNodes } from "@/lib/canvas/canvas-node-placement";
 import { canvasContentSnapshot } from "@/lib/canvas/canvas-content-snapshot";
 import { createVisibilityIndex } from "@/lib/canvas/visibility-index";
 
@@ -506,6 +506,13 @@ function InfiniteCanvasPage() {
     const saveStatus = useCanvasSaveStore((state) => state.status);
     const [expandedBatchNodeIds, setExpandedBatchNodeIds] = useState<Set<string>>(new Set());
     const [isNodeDragging, setIsNodeDragging] = useState(false);
+    const [motionNodeIds, setMotionNodeIds] = useState<Set<string>>(new Set());
+    const motionClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [historyReplay, setHistoryReplay] = useState(false);
+
+    useEffect(() => () => {
+        if (motionClearTimerRef.current) clearTimeout(motionClearTimerRef.current);
+    }, []);
     const [isCanvasPanning, setIsCanvasPanning] = useState(false);
     const canvasPanningRef = useRef(false);
     const panOverlayRef = useRef<HTMLDivElement>(null);
@@ -1951,6 +1958,8 @@ function InfiniteCanvasPage() {
             historyCommitTimerRef.current = null;
         }
         applyingHistoryRef.current = true;
+        setHistoryReplay(true);
+        window.setTimeout(() => setHistoryReplay(false), 420);
         // Undo/redo restores exact positions, even intentionally overlapping layouts.
         setRawNodes(entry.nodes);
         setConnections(entry.connections);
@@ -2182,6 +2191,12 @@ function InfiniteCanvasPage() {
         setDropTargetGroupId(null);
         dragDropTargetRef.current = null;
         if (dragRef.current.hasMoved && endX != null && endY != null) {
+            setMotionNodeIds(new Set(movedIds));
+            if (motionClearTimerRef.current) clearTimeout(motionClearTimerRef.current);
+            motionClearTimerRef.current = setTimeout(() => {
+                setMotionNodeIds(new Set());
+                motionClearTimerRef.current = null;
+            }, 460);
             setNodes((prev) => {
                 const moved = prev.map((node) => {
                     const initial = initialPositions.get(node.id);
@@ -3392,6 +3407,8 @@ function InfiniteCanvasPage() {
                     const parentConfig = NODE_DEFAULT_SIZE[isConfigNode ? CanvasNodeType.Config : isImageNode ? CanvasNodeType.Image : CanvasNodeType.Text];
                     const imageConfig = NODE_DEFAULT_SIZE[CanvasNodeType.Image];
                     const parentPosition = sourceNode?.position || { x: 0, y: 0 };
+                    const resultIndex = connectionsRef.current.filter((connection) => connection.fromNodeId === nodeId
+                        && nodesRef.current.some((candidate) => candidate.id === connection.toNodeId && candidate.type === CanvasNodeType.Image)).length;
                     const rootId = reuseImageNode ? nodeId : nanoid();
                     const imageIds = Array.from({ length: count }, () => nanoid());
                     pendingChildIds = [rootId];
@@ -3409,10 +3426,11 @@ function InfiniteCanvasPage() {
                         id: rootId,
                         type: CanvasNodeType.Image,
                         title: generatedTitle,
-                        position: {
-                            x: reuseImageNode ? parentPosition.x : parentPosition.x + parentConfig.width + 96,
-                            y: parentPosition.y + parentConfig.height / 2 - imageConfig.height / 2,
-                        },
+                        position: reuseImageNode ? parentPosition : nextGenerationResultPosition(
+                            { position: parentPosition, width: parentConfig.width, height: parentConfig.height },
+                            imageConfig,
+                            resultIndex,
+                        ),
                         width: reuseImageNode ? sourceNode?.width || imageConfig.width : imageConfig.width,
                         height: reuseImageNode ? sourceNode?.height || imageConfig.height : imageConfig.height,
                         metadata: {
@@ -4440,6 +4458,8 @@ function InfiniteCanvasPage() {
                             showPanel={!isNodeResizing && dialogNodeId === node.id && !selectionBox && !getNodeDefinition(node.type)?.hidePanel}
                             groupChildCount={groupChildCountById.get(node.id) || 0}
                             isGroupDropTarget={dropTargetGroupId === node.id}
+                            isSettling={motionNodeIds.has(node.id)}
+                            isLayoutTransition={historyReplay}
                             batchExpanded={expandedBatchNodeIds.has(node.id)}
                             showImageInfo={showImageInfo}
                             mentionReferences={mentionReferencesByNodeId.get(node.id) || EMPTY_REFERENCES}

@@ -247,6 +247,302 @@
         contain-intrinsic-size: auto 176px;
     }
 
+    /* Apple-style interaction primitives used by the canvas and workbench
+     * surfaces. They animate opacity, paint and transforms only, so canvas
+     * geometry remains on the compositor during pointer interactions. */
+    .guan-node-settle {
+        animation: guan-node-settle 420ms var(--guan-motion-spring) both;
+        transform-origin: center;
+        will-change: transform, filter;
+    }
+
+    .guan-layout-transition {
+        animation: guan-layout-transition 420ms var(--guan-motion-spring) both;
+    }
+
+    .guan-history-replay {
+        animation: guan-history-replay 360ms var(--guan-motion-spring) both;
+    }
+
+    .guan-connection-flow {
+        stroke-dasharray: 1 18;
+        stroke-linecap: round;
+        animation: guan-connection-flow 760ms linear infinite;
+        opacity: .78;
+        pointer-events: none;
+    }
+
+    .guan-drop-magnet {
+        animation: guan-drop-magnet 520ms var(--guan-motion-spring) both;
+    }
+
+    .guan-node-drop-target {
+        box-shadow: 0 0 0 2px rgb(47 128 255 / 30%), 0 14px 38px rgb(47 128 255 / 16%);
+        transition: box-shadow var(--guan-motion-normal) var(--guan-motion-spring), background-color var(--guan-motion-normal) var(--guan-motion-gentle);
+    }
+
+    .guan-connection-target > div {
+        box-shadow: 0 0 0 3px rgb(47 128 255 / 28%), 0 12px 36px rgb(47 128 255 / 18%);
+        transition: box-shadow var(--guan-motion-normal) var(--guan-motion-spring);
+    }
+
+    .guan-history-list-card,
+    .guan-history-selection-footer,
+    [data-canvas-save-status],
+    .guan-canvas-save-status {
+        transition: opacity var(--guan-motion-fast) var(--guan-motion-gentle), background-color var(--guan-motion-normal) var(--guan-motion-gentle), color var(--guan-motion-fast) var(--guan-motion-gentle), transform var(--guan-motion-normal) var(--guan-motion-spring);
+    }
+
+    .guan-history-list-card:active { transform: scale(.992); }
+
+    .guan-download-action .guan-download-icon { transition: transform var(--guan-motion-normal) var(--guan-motion-spring), opacity var(--guan-motion-fast) var(--guan-motion-gentle); }
+    .guan-download-action.is-loading .guan-download-icon { animation: guan-download-spin 780ms linear infinite; }
+    .guan-download-action:not(.is-loading):focus-visible .guan-download-icon { animation: guan-download-confirm 360ms var(--guan-motion-spring) both; }
+
+    [data-canvas-save-status="saving"] > span:first-child {
+        animation: guan-save-pulse 1.15s ease-in-out infinite;
+    }
+
+    [data-canvas-save-status="saved"] > span:first-child {
+        animation: guan-save-confirm 360ms var(--guan-motion-spring) both;
+    }
+
+    [data-update-stage],
+    [data-agent-message],
+    [data-onboarding-step] {
+        animation: guan-apple-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
+    }
+
+    [data-error-state] { animation: guan-error-recover 360ms var(--guan-motion-spring) both; }
+
+    .guan-scroll-edge-top,
+    .guan-scroll-edge-bottom {
+        box-shadow: 0 -8px 16px rgb(0 0 0 / 7%);
+        transition: box-shadow var(--guan-motion-normal) var(--guan-motion-gentle);
+    }
+
+    .guan-scroll-edge-top { box-shadow: 0 8px 16px rgb(0 0 0 / 7%); }
+
+    .guan-guided-step-line {
+        transform-origin: left center;
+        animation: guan-step-line 560ms var(--guan-motion-spring) both;
+    }
+
+    .guan-focus-ring {
+        animation: guan-focus-ring 480ms var(--guan-motion-gentle) both;
+    }
+
+    .guan-canvas-viewport[data-panning="true"] [data-canvas-grid] {
+        opacity: .28;
+        transition: opacity 180ms var(--guan-motion-gentle);
+    }
+
+    [data-canvas-grid] {
+        transition: opacity 320ms var(--guan-motion-gentle), filter 320ms var(--guan-motion-gentle);
+    }
+
+    .guan-apple-glow {
+        position: relative;
+        isolation: isolate;
+    }
+
+    .guan-apple-glow::after {
+        position: absolute;
+        inset: -8px;
+        z-index: -1;
+        border-radius: inherit;
+        background: radial-gradient(circle at var(--guan-pointer-x, 50%) var(--guan-pointer-y, 50%), rgb(255 255 255 / 22%), transparent 58%);
+        content: "";
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--guan-motion-normal) var(--guan-motion-gentle);
+    }
+
+    .guan-apple-glow:hover::after,
+    .guan-apple-glow:focus-visible::after { opacity: 1; }
+
+    .guan-shared-product-capsule {
+        view-transition-name: guan-product-capsule;
+    }
+
+    ::view-transition-group(guan-product-capsule) {
+        animation-duration: 360ms;
+        animation-timing-function: var(--guan-motion-spring);
+    }
+
+    .guan-toolbar-focus:focus-visible {
+        animation: guan-toolbar-focus 360ms var(--guan-motion-spring) both;
+    }
+
+    .guan-update-timeline > * {
+        animation: guan-apple-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
+    }
+
+    .guan-update-timeline > *:nth-child(2) { animation-delay: 45ms; }
+    .guan-update-timeline > *:nth-child(3) { animation-delay: 90ms; }
+    .guan-update-timeline > *:nth-child(4) { animation-delay: 135ms; }
+    .guan-update-timeline > *:nth-child(5) { animation-delay: 180ms; }
+
+    .guan-touch-follow {
+        touch-action: pan-y;
+        will-change: transform;
+    }
+
+    .guan-card-surface {
+        transition: transform var(--guan-motion-normal) var(--guan-motion-spring), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle), border-color var(--guan-motion-fast) var(--guan-motion-gentle);
+    }
+
+    .guan-card-surface:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--guan-motion-shadow);
+    }
+
+    .dark .guan-card-surface:hover { box-shadow: var(--guan-motion-shadow-dark); }
+
+    .guan-card-surface:active { transform: translateY(0) scale(.992); transition-duration: var(--guan-motion-fast); }
+
+    .guan-option-pill {
+        transition: transform var(--guan-motion-normal) var(--guan-motion-spring), opacity var(--guan-motion-fast) var(--guan-motion-gentle), background-color var(--guan-motion-fast) var(--guan-motion-gentle), border-color var(--guan-motion-fast) var(--guan-motion-gentle), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle);
+    }
+
+    .guan-option-pill:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 16px rgb(28 25 23 / 10%); }
+    .guan-option-pill:active:not(:disabled) { transform: scale(.96); }
+
+    .guan-result-grid > * {
+        animation: guan-apple-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
+    }
+
+    .guan-result-grid > *:nth-child(2) { animation-delay: 36ms; }
+    .guan-result-grid > *:nth-child(3) { animation-delay: 72ms; }
+    .guan-result-grid > *:nth-child(4) { animation-delay: 108ms; }
+
+    /* Cross-page surfaces that are outside the canvas geometry hot path. */
+    .guan-page-transition { animation: guan-page-transition 300ms var(--guan-motion-spring) both; }
+    .guan-language-transition { animation: guan-language-transition 220ms var(--guan-motion-gentle) both; }
+    .guan-drop-zone { transition: border-color var(--guan-motion-normal) var(--guan-motion-spring), background-color var(--guan-motion-normal) var(--guan-motion-gentle), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle), transform var(--guan-motion-normal) var(--guan-motion-spring); }
+    .guan-drop-zone[data-drag-active="true"] { border-color: currentColor; box-shadow: 0 0 0 4px rgb(47 128 255 / 12%), 0 14px 34px rgb(47 128 255 / 12%); transform: scale(1.005); }
+    .guan-drop-preview { animation: guan-drop-preview 420ms var(--guan-motion-spring) both; }
+    .guan-dc-excel-import-backdrop,
+    .ant-modal-mask,
+    .ant-drawer-mask { animation: guan-backdrop-in 220ms var(--guan-motion-gentle) both; }
+    .guan-dc-excel-import-card,
+    .ant-modal-content,
+    .ant-drawer-content { animation: guan-dialog-in 320ms var(--guan-motion-spring) both; }
+    .guan-dc-excel-import-progress { animation: guan-apple-enter 280ms var(--guan-motion-spring) both; }
+    .guan-dc-excel-import-summary,
+    .guan-dc-excel-import-actions { animation: guan-apple-enter 320ms var(--guan-motion-spring) 60ms both; }
+    .guan-dc-import-product { transition: transform var(--guan-motion-normal) var(--guan-motion-spring), background-color var(--guan-motion-fast) var(--guan-motion-gentle), border-color var(--guan-motion-fast) var(--guan-motion-gentle); }
+    .guan-dc-import-product:hover { transform: translateX(2px); }
+    .guan-dc-import-product.is-selected { animation: guan-selection-confirm 260ms var(--guan-motion-spring) both; }
+    .guan-product-trash-row { animation: guan-apple-enter 300ms var(--guan-motion-spring) both; }
+    .guan-product-trash-row button { transition: transform var(--guan-motion-normal) var(--guan-motion-spring), background-color var(--guan-motion-fast) var(--guan-motion-gentle), opacity var(--guan-motion-fast) var(--guan-motion-gentle); }
+    .guan-product-trash-row button:active { transform: scale(.95); }
+    .guan-notification-enter,
+    .ant-notification-notice { animation: guan-notification-in 300ms var(--guan-motion-spring) both; }
+    .ant-message-notice-content { animation: guan-message-in 260ms var(--guan-motion-spring) both; }
+    .guan-context-menu,
+    [data-canvas-context-menu] { transform-origin: var(--guan-menu-origin, top left); animation: guan-menu-in 220ms var(--guan-motion-spring) both; }
+    .guan-scroll-shadow { transition: box-shadow var(--guan-motion-normal) var(--guan-motion-gentle); }
+    .guan-responsive-layout { transition: grid-template-columns var(--guan-motion-panel) var(--guan-motion-spring), width var(--guan-motion-panel) var(--guan-motion-spring), gap var(--guan-motion-panel) var(--guan-motion-spring); }
+    .guan-status-transition { animation: guan-status-transition 360ms var(--guan-motion-spring) both; }
+    .guan-progress-stage { animation: guan-apple-enter 300ms var(--guan-motion-spring) both; }
+    .guan-progress-stage + .guan-progress-stage { animation-delay: 42ms; }
+    .guan-progress-stage + .guan-progress-stage + .guan-progress-stage { animation-delay: 84ms; }
+    .guan-nav-item::after { transform: scaleX(0); transform-origin: center; transition: transform var(--guan-motion-normal) var(--guan-motion-spring), background-color var(--guan-motion-fast) var(--guan-motion-gentle); }
+    .guan-nav-item:hover::after,
+    .guan-nav-item[aria-current="page"]::after { transform: scaleX(1); }
+    .guan-model-picker { transition: transform var(--guan-motion-normal) var(--guan-motion-spring), border-color var(--guan-motion-fast) var(--guan-motion-gentle), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle); }
+    .guan-model-picker:hover { transform: translateY(-1px); box-shadow: 0 7px 18px rgb(28 25 23 / 10%); }
+    .guan-model-picker-menu { animation: guan-menu-in 220ms var(--guan-motion-spring) both; transform-origin: top left; }
+    .guan-agent-composer { transition: border-color var(--guan-motion-fast) var(--guan-motion-gentle), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle), transform var(--guan-motion-normal) var(--guan-motion-spring); }
+    .guan-agent-composer:focus-within { box-shadow: 0 14px 36px rgb(28 25 23 / 14%); transform: translateY(-1px); }
+    .guan-agent-attachment { transition: transform var(--guan-motion-normal) var(--guan-motion-spring), opacity var(--guan-motion-fast) var(--guan-motion-gentle); }
+    .guan-agent-attachment:hover { transform: translateY(-2px) scale(1.03); }
+    .guan-plugin-row { animation: guan-apple-enter 280ms var(--guan-motion-spring) both; }
+    .guan-plugin-row:nth-child(2) { animation-delay: 32ms; }
+    .guan-plugin-row:nth-child(3) { animation-delay: 64ms; }
+    .ant-tabs-ink-bar { transition: transform var(--guan-motion-normal) var(--guan-motion-spring), width var(--guan-motion-normal) var(--guan-motion-spring); }
+    .ant-collapse-item,
+    .ant-form-item,
+    .ant-input-affix-wrapper,
+    .ant-select-selector,
+    .ant-switch { transition: border-color var(--guan-motion-fast) var(--guan-motion-gentle), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle), background-color var(--guan-motion-fast) var(--guan-motion-gentle); }
+    .ant-input-affix-wrapper:focus-within,
+    .ant-select-focused .ant-select-selector { box-shadow: 0 0 0 3px rgb(47 128 255 / 12%) !important; }
+
+    @keyframes guan-node-settle {
+        0% { filter: saturate(.82) brightness(.98); opacity: .78; }
+        58% { filter: saturate(1.08) brightness(1.02); opacity: 1; }
+        100% { filter: saturate(1) brightness(1); opacity: 1; }
+    }
+
+    @keyframes guan-layout-transition {
+        from { opacity: .72; filter: saturate(.85); }
+        to { opacity: 1; filter: saturate(1); }
+    }
+
+    @keyframes guan-history-replay {
+        from { opacity: .56; filter: blur(1px); transform: scale(.985); }
+        to { opacity: 1; filter: blur(0); transform: scale(1); }
+    }
+
+    @keyframes guan-connection-flow {
+        to { stroke-dashoffset: -38; }
+    }
+
+    @keyframes guan-drop-magnet {
+        0% { opacity: .65; transform: scale(.98); }
+        65% { opacity: 1; transform: scale(1.02); }
+        100% { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes guan-focus-ring {
+        from { opacity: 0; transform: scale(.94); }
+        55% { opacity: 1; transform: scale(1.015); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes guan-toolbar-focus {
+        from { box-shadow: 0 0 0 0 rgb(47 128 255 / 0); }
+        45% { box-shadow: 0 0 0 5px rgb(47 128 255 / 18%); }
+        to { box-shadow: 0 0 0 2px rgb(47 128 255 / 12%); }
+    }
+
+    @keyframes guan-save-pulse {
+        0%, 100% { opacity: .55; transform: scale(.85); }
+        50% { opacity: 1; transform: scale(1.15); }
+    }
+
+    @keyframes guan-download-spin { to { transform: rotate(360deg); } }
+    @keyframes guan-download-confirm { from { transform: scale(.72); opacity: .55; } 65% { transform: scale(1.2); opacity: 1; } to { transform: scale(1); opacity: 1; } }
+    @keyframes guan-page-transition { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes guan-language-transition { from { opacity: .25; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes guan-drop-preview { from { opacity: 0; transform: translateY(4px) scale(.94); } 70% { opacity: 1; transform: translateY(-1px) scale(1.02); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes guan-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes guan-dialog-in { from { opacity: 0; transform: translateY(8px) scale(.97); } 65% { opacity: 1; transform: translateY(-1px) scale(1.005); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes guan-selection-confirm { from { transform: scale(.98); } 65% { transform: scale(1.012); } to { transform: scale(1); } }
+    @keyframes guan-notification-in { from { opacity: 0; transform: translate3d(18px, -4px, 0) scale(.96); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
+    @keyframes guan-message-in { from { opacity: 0; transform: translateY(-3px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes guan-menu-in { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
+    @keyframes guan-status-transition { from { opacity: .5; transform: scale(.9); } 65% { opacity: 1; transform: scale(1.04); } to { opacity: 1; transform: scale(1); } }
+
+    @keyframes guan-save-confirm {
+        from { opacity: .5; transform: scale(.6); }
+        65% { opacity: 1; transform: scale(1.25); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes guan-error-recover {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-3px); }
+        75% { transform: translateX(3px); }
+    }
+
+    @keyframes guan-step-line {
+        from { opacity: 0; transform: scaleX(0); }
+        to { opacity: 1; transform: scaleX(1); }
+    }
+
     @keyframes guan-panel-enter {
         from { opacity: 0; transform: translateY(-6px) scale(0.985); }
         to { opacity: 1; transform: translateY(0) scale(1); }
@@ -287,6 +583,29 @@
             will-change: auto;
             transition: none !important;
         }
+        .guan-node-settle,
+        .guan-layout-transition,
+        .guan-history-replay,
+        .guan-connection-flow,
+        .guan-drop-magnet,
+        .guan-focus-ring,
+        .guan-update-timeline > *,
+        .guan-page-transition,
+        .guan-language-transition,
+        .guan-drop-preview,
+        .guan-dc-excel-import-backdrop,
+        .guan-dc-excel-import-card,
+        .guan-dc-excel-import-progress,
+        .guan-dc-excel-import-summary,
+        .guan-dc-excel-import-actions,
+        .guan-dc-import-product.is-selected,
+        .guan-product-trash-row,
+        .guan-notification-enter,
+        .ant-notification-notice,
+        .ant-message-notice-content,
+        .guan-context-menu,
+        [data-canvas-context-menu],
+        .guan-progress-stage { animation: none !important; }
     }
 
     .ai-title-aurora {

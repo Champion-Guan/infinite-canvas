@@ -78,7 +78,7 @@ export function AgentChatTimeline({
     return (
         <div className="relative min-h-0 flex-1">
             <div ref={listRef} className="thin-scrollbar h-full select-text overflow-y-auto" onScroll={updateScrollState}>
-                <div ref={contentRef} className="space-y-4 px-4 pt-4">
+                <div ref={contentRef} className="guan-agent-timeline space-y-4 px-4 pt-4">
                     {timeline.map((entry) => entry.type === "commands"
                         ? <AgentCommandGroupRow key={entry.id} items={entry.items} theme={theme} />
                         : <AgentChatMessageRow key={entry.item.id} item={entry.item} theme={theme} />)}
@@ -117,7 +117,7 @@ const AgentChatMessageRow = memo(function AgentChatMessageRow({ item, theme }: {
     const endpoint = useAgentStore((state) => state.url);
     const token = useAgentStore((state) => state.token);
     return (
-        <div className="guan-agent-timeline-entry" style={item.streamId ? undefined : historyMessageStyle}>
+        <div className="guan-agent-timeline-entry guan-apple-enter" data-agent-message style={item.streamId ? undefined : historyMessageStyle}>
             <AgentChatMessage item={agentMessageToChatMessage(item, endpoint, token)} theme={theme} />
         </div>
     );
@@ -125,7 +125,7 @@ const AgentChatMessageRow = memo(function AgentChatMessageRow({ item, theme }: {
 
 const AgentCommandGroupRow = memo(function AgentCommandGroupRow({ items, theme }: { items: AgentChatItem[]; theme: (typeof canvasThemes)[keyof typeof canvasThemes] }) {
     return (
-        <div className="guan-agent-timeline-entry" style={items.some((item) => item.streamId) ? undefined : historyMessageStyle}>
+        <div className="guan-agent-timeline-entry guan-apple-enter" data-agent-message style={items.some((item) => item.streamId) ? undefined : historyMessageStyle}>
             <AgentCommandGroup items={items} theme={theme} />
         </div>
     );

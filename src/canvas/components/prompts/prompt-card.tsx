@@ -28,7 +28,7 @@ export function PromptCard({
     return (
         <Card
             hoverable
-            className={compact ? "group cursor-pointer overflow-hidden transition-transform duration-200 hover:-translate-y-1" : "flex h-full flex-col overflow-hidden"}
+            className={compact ? "guan-card-surface group cursor-pointer overflow-hidden" : "guan-card-surface flex h-full flex-col overflow-hidden"}
             styles={{ body: compact ? { padding: 0 } : { display: "flex", flex: 1, flexDirection: "column", padding: 0 } }}
             cover={
                 <button type="button" className="block w-full cursor-pointer text-left" onClick={onOpen}>

@@ -397,7 +397,7 @@ export default function ImagePage() {
 
     return (
         <div className="flex h-full flex-col overflow-hidden bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
-            <main className="guan-apple-scroll grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 lg:grid-cols-[300px_minmax(0,1fr)] lg:overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)]">
+            <main className="guan-page-transition guan-apple-scroll grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 lg:grid-cols-[300px_minmax(0,1fr)] lg:overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)]">
                 <aside className="thin-scrollbar hidden min-h-0 overflow-y-auto rounded-lg border border-stone-200 bg-card p-4 shadow-sm dark:border-stone-800 lg:block">
                     <LogPanel
                         logs={logs}
@@ -457,7 +457,8 @@ export default function ImagePage() {
                                     </div>
                                 </div>
                                 <div
-                                    className={`hover-scrollbar hover-scrollbar-hint relative flex min-h-24 w-full min-w-0 max-w-full gap-2 overflow-x-scroll overflow-y-hidden rounded-lg border border-dashed p-2 pb-3 overscroll-x-contain transition-colors ${isReferenceDragActive ? "border-stone-900 bg-stone-100/80 dark:border-stone-100 dark:bg-stone-900/80" : "border-stone-300 dark:border-stone-700"}`}
+                                    className={`guan-drop-zone hover-scrollbar hover-scrollbar-hint relative flex min-h-24 w-full min-w-0 max-w-full gap-2 overflow-x-scroll overflow-y-hidden rounded-lg border border-dashed p-2 pb-3 overscroll-x-contain transition-colors ${isReferenceDragActive ? "border-stone-900 bg-stone-100/80 dark:border-stone-100 dark:bg-stone-900/80" : "border-stone-300 dark:border-stone-700"}`}
+                                    data-drag-active={isReferenceDragActive ? "true" : "false"}
                                     onDragEnter={(event) => {
                                         event.preventDefault();
                                         dragDepthRef.current += 1;
@@ -532,7 +533,7 @@ export default function ImagePage() {
                             {running ? <Tag className="m-0 px-2 py-1">{t("workbench.waiting", { time: formatDuration(elapsedMs) })}</Tag> : null}
                         </div>
                         {results.length ? (
-                            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+                            <div className="guan-result-grid grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
                                 {results.map((result, index) =>
                                     result.status === "success" && result.image ? (
                                         <ResultImageCard key={result.id} image={result.image} index={index} onEdit={addResultToReferences} onDownload={downloadImage} onSaveAsset={saveResultToAssets} />
@@ -621,7 +622,7 @@ function ResultImageCard({
     const { t } = useTranslation();
     useSyncExternalStore(subscribeImagePreviews, getImagePreviewRevision);
     return (
-        <div className="overflow-hidden rounded-lg border border-stone-200 bg-background dark:border-stone-800">
+                        <div className="guan-card-surface overflow-hidden rounded-lg border border-stone-200 bg-background dark:border-stone-800">
             <Image src={previewUrlFor(image.storageKey) || image.dataUrl} preview={{ src: image.dataUrl }} alt={t("imageWorkbench.resultAlt", { count: index + 1 })} className="aspect-square object-cover" />
             <div className="space-y-2 border-t border-stone-200 px-3 py-2.5 dark:border-stone-800">
                 <div className="flex min-w-0 gap-x-2 gap-y-1 text-xs text-stone-500 dark:text-stone-400">

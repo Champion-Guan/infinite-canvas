@@ -128,7 +128,7 @@ export function CanvasPluginManagerModal({ open, onClose }: { open: boolean; onC
 
     // Shared plugin row: icon, title with name and version, description, and actions.
     const row = (key: string, icon: ReactNode, name: string, version: string, subtitle: string | undefined, right: ReactNode) => (
-        <div key={key} className="flex items-center gap-3 rounded-xl border px-3 py-2.5" style={{ borderColor: theme.node.stroke, background: theme.node.fill }}>
+        <div key={key} className="guan-plugin-row guan-card-surface flex items-center gap-3 rounded-xl border px-3 py-2.5" style={{ borderColor: theme.node.stroke, background: theme.node.fill }}>
             <span className="grid size-9 shrink-0 place-items-center rounded-lg text-base" style={{ background: theme.toolbar.activeBg, color: theme.node.muted }}>
                 {icon}
             </span>

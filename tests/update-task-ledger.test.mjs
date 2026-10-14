@@ -9,10 +9,10 @@ import { UpdateTaskLedger } from '../src/server/update-task-ledger.mjs';
 import { createUpdateTaskHttpHandler } from '../src/server/update-task-http.mjs';
 import { ActivityGate } from '../src/server/activity-gate.mjs';
 
-async function fixture(t, maximum = 4096) {
+async function fixture(t, maximum = 4096, version = '1.0.5') {
   const directory = await realpath(await mkdtemp(path.join(tmpdir(), 'guan-task-ledger-')));
   await chmod(directory, 0o700); t.after(() => rm(directory, { recursive: true, force: true }));
-  const file = path.join(directory, 'tasks.json'), ledger = new UpdateTaskLedger({ file, version: '1.0.5', maximum });
+  const file = path.join(directory, 'tasks.json'), ledger = new UpdateTaskLedger({ file, version, maximum });
   await ledger.initialize();
   const request = () => ({ id: randomUUID(), pageId: randomUUID(), domain: 'canvas', version: '1.0.5' });
   return { ledger, file, directory, request };
@@ -52,6 +52,13 @@ test('concurrent begins preserve rows, duplicate/capacity/invalid input is rejec
   assert.equal((await f.ledger.snapshot()).pending, 2);
   await f.ledger.complete({ id: rows[0].id, instance: f.ledger.instance });
   await f.ledger.begin(f.request()); assert.equal((await f.ledger.snapshot()).pending, 2);
+});
+test('task evidence accepts cached patch builds within the same compatible protocol line only', async t => {
+  const f = await fixture(t, 4096, '1.0.26');
+  const cached = { ...f.request(), version: '1.0.23' };
+  assert.deepEqual(await f.ledger.begin(cached), { id: cached.id, instance: f.ledger.instance });
+  await assert.rejects(f.ledger.begin({ ...f.request(), version: '1.1.5' }));
+  await assert.rejects(f.ledger.begin({ ...f.request(), version: '1.0.4' }));
 });
 test('corrupt evidence, links, insecure permissions and unsafe paths are never silently reseeded', async t => {
   const f = await fixture(t); await writeFile(f.file, 'broken');

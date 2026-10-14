@@ -54,8 +54,10 @@ test('actual signed runtime + user launchd + operator consent + independent sche
   files['src/server/update-manager.mjs'] = files['src/server/update-manager.mjs'].toString()
     .replace('} catch {\n        let current;', '} catch (error) { console.error(/^(install|update|service)_[a-z_]+$/.test(error.message) ? error.message : "QA bootstrap failure");\n        let current;');
   for (const entry of ['scripts/run-update-manager.mjs', 'scripts/run-update-supervisor.mjs']) {
-    files[entry] = files[entry].toString().replace("repository: 'Champion-Guan/infinite-canvas' });", "repository: 'Champion-Guan/infinite-canvas', origin: '" + origin + "' });");
-    files[entry] = files[entry].replace("onInstalled: () => promisify(execFile)('/usr/bin/open', ['http://localhost:8888'], { timeout: 10000 }),", 'onInstalled: async () => {},');
+    files[entry] = files[entry].toString().replace("repository: 'Champion-Guan/infinite-canvas', origin: await stableServiceOrigin(paths.root) });",
+      "repository: 'Champion-Guan/infinite-canvas', origin: '" + origin + "' });");
+    files[entry] = files[entry].replace(/onInstalled: async \(\) => \{[\s\S]*?\n    \},\n    census:/,
+      'onInstalled: async () => {},\n    census:');
   }
   files['scripts/run-update-supervisor.mjs'] = files['scripts/run-update-supervisor.mjs']
     .replace('privateRoot: paths.root, verify:', "privateRoot: paths.root, origin: '" + origin + "', disableProxy: true, startupTimeout: 30000, verify:");

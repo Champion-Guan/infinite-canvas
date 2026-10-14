@@ -3,7 +3,6 @@ import { Button, Modal, Progress, Tag, Timeline } from "antd";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { useVersionCheck } from "@/hooks/use-version-check";
-import { APP_VERSION } from "@/constant/env";
 import { updateMessages, installationMessages } from "@/services/software-updates";
 import { useSoftwareUpdateActions } from "@/hooks/use-software-update-actions";
 
@@ -28,7 +27,7 @@ type VersionReleaseModalProps = {
 
 export function VersionReleaseModal({ className, style, label }: VersionReleaseModalProps) {
     const { t } = useTranslation();
-    const { open, setOpen, openReleaseModal, latestVersion, releases, checking, hasNewVersion, checkLatestRelease, status, refresh } = useVersionCheck();
+    const { open, setOpen, openReleaseModal, currentVersion, latestVersion, releases, checking, hasNewVersion, checkLatestRelease, status, refresh } = useVersionCheck();
     const actions = useSoftwareUpdateActions(status, refresh, open);
 
     return (
@@ -39,10 +38,10 @@ export function VersionReleaseModal({ className, style, label }: VersionReleaseM
                 style={style}
                 onClick={openReleaseModal}
                 title={t("version.viewUpdates")}
-                aria-label={`版本 ${APP_VERSION}，查看更新日志`}
+                aria-label={`版本 ${currentVersion}，查看更新日志`}
             >
                 <span className="relative inline-flex">
-                    {label || APP_VERSION}
+                    {label || currentVersion}
                     {hasNewVersion ? <span className="absolute -right-1.5 -top-1 size-1.5 rounded-full bg-green-500" /> : null}
                 </span>
             </button>
@@ -52,7 +51,7 @@ export function VersionReleaseModal({ className, style, label }: VersionReleaseM
                 <div className="mb-5 grid grid-cols-2 gap-3">
                     <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-800">
                         <div className="text-xs text-stone-500 dark:text-stone-400">{t("version.currentVersion")}</div>
-                        <div className="mt-1 text-base font-semibold text-stone-950 dark:text-stone-100">{APP_VERSION}</div>
+                        <div className="mt-1 text-base font-semibold text-stone-950 dark:text-stone-100">{currentVersion}</div>
                     </div>
                     <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-800">
                         <div className="flex items-center justify-between gap-3">
@@ -69,7 +68,7 @@ export function VersionReleaseModal({ className, style, label }: VersionReleaseM
                         <div className="mt-1 text-base font-semibold text-stone-950 dark:text-stone-100">{latestVersion}</div>
                     </div>
                 </div>
-                <div data-guan-version-update-actions className="mb-5 space-y-2">
+                <div data-guan-version-update-actions className="guan-update-timeline mb-5 space-y-2">
                     <div className="flex flex-wrap gap-2">
                         <Button loading={actions.downloading} disabled={!status?.hasNewVersion || actions.busy || actions.staging || status.download.state === "verified" || status.download.state === "trust-not-configured"} onClick={() => void actions.download()}>下载更新</Button>
                         <Button type="primary" disabled={!actions.canInstall || actions.busy || status?.install.state === "awaiting-browser-exit"} onClick={actions.approve}>安装更新</Button>
@@ -93,7 +92,7 @@ export function VersionReleaseModal({ className, style, label }: VersionReleaseM
                                         <span className="text-xs text-stone-500 dark:text-stone-400">{release.date}</span>
                                         <div className="flex min-w-0 items-center gap-1.5">
                                             {release.version === latestVersion ? <Tag color="green">{t("version.latest")}</Tag> : null}
-                                            {release.version === APP_VERSION ? <Tag>{t("version.current")}</Tag> : null}
+                                            {release.version === currentVersion ? <Tag>{t("version.current")}</Tag> : null}
                                         </div>
                                     </div>
                                     <div className="mt-2 space-y-1.5">

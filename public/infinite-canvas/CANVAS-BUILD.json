@@ -1,12 +1,28 @@
 {
   "app": "guan-ai-workbench",
   "format": 1,
-  "version": "1.0.23",
-  "sourceHash": "036c85a95d1ee02762207a29553b80ccd26fe2f772ca2cf56fead84047446efb",
+  "version": "1.0.27",
+  "sourceHash": "6bc746e62be8ed41abe6b5f097144c38d047de8ae53ca6760c2d738ed55274f1",
   "files": {
-    "assets/highlighted-body-KQOG7T2V-Re7e2Dwy.js": "f28210666dddde053d9c9b009925c81d3c5a0391cdd2a6e30bc06c6b5fce0a08",
-    "assets/index-BtEEq2sn.css": "2f32b28de632241ddf4a8195e65329351f22ea7745886ab30a6266dd92b6755b",
-    "assets/index-ZFge2skX.js": "fc0183643ae27d7c313969ba4b173f678afbb6708b4ac34de2150a4aa40fb1e5",
+    "assets/arrow-right-CpmPUzvN.js": "294d7440203c26eeed25e6d615c2239bd814cf234a1ec6d8784938f17456302c",
+    "assets/asset-picker-modal-B0kpdav2.js": "6503045245e9256912ea891d710342f570c5fce073345575a0e2eaab12242f81",
+    "assets/canvas-export-Kez3qmXQ.js": "ea124a7369a5c1f9702fa7d9fc1f0534ef77a842cf30142f29c40e7105e9c6f2",
+    "assets/highlighted-body-KQOG7T2V-Cdcvv3LE.js": "689f1588dee9a70783a3a010d843a5a7844a5803626307c19e2ce42e8529590d",
+    "assets/index-BRF0efGi.js": "57aa42a4405ef387633376e55f0a8a4c35742c2af5192c2bb2a1230dcdff5940",
+    "assets/index-BtiU0vcR.js": "5675a1dea14bc76311f12a6392484382d4f420cf689f105a34a53dedeac2b710",
+    "assets/index-C8Mh9WFc.js": "21a03f9bf490e640c9bd410e92d67c75a7902794867d4ebf923cb91d5ad72b9b",
+    "assets/index-CUkT4nfQ.js": "d540370059d797f84fb13a7fea8baff63f2cce6b75a3fcd3bdb27e12109a5d29",
+    "assets/index-CcAYt-68.js": "765c66bc60968ef47fe4b067b3c5e47f8f48791a85a5ebf13d114132ee0ed1c2",
+    "assets/index-DOrzmHK5.js": "8be2143cffd5a1849efc68be06cefc2aec3972874747266f3f5f0899e15a3785",
+    "assets/index-DeIIJjQO.css": "3996bc651ac86e5d77e153fc3e443638ec7a805badc53b628e8384807cebda5f",
+    "assets/index-EuV7tU99.js": "bbfc249900697b01710535b6d9202341f44028eea173e8ed316632bbb92360ad",
+    "assets/index-PuEeRVVM.js": "21c31a74271387b197b0b487f3d20213a3af9aa63e9ae30e04d133a183c2e685",
+    "assets/index-vDDATVH4.js": "ec202b93883a65f751aa239fd7a075aecfd60a33eb8782a457c41cb7d003b681",
+    "assets/media-download-BDEL92HK.js": "424e546580fc2e17876d03cdf44ad4aa14df415dfac7008bcfe36ff754ebb080",
+    "assets/project-Dx5Ff3mA.js": "5cc9db8df4ec358b41cb9ec7d1d803ab8eb2ef695957b0ab8982bbfc25b58cc3",
+    "assets/square-check-big-BwSCkdGa.js": "0a121d5fe47f8b18f6610d758d56e5e67de19ff311c2a4f14fc62267a2f61b4c",
+    "assets/use-prompt-list-TLIK05yo.js": "dbf3bc8a064711e3fea8acb7b40ceb08edf6c74474316b313c66ffbbcebe7810",
+    "assets/video-DtbNjQkw.js": "bddd7024676895c7efd028eab0318da7a8ba08b327130c3e43d9db4945f0abcd",
     "excel-prompts-bridge.js": "3bee43457c505123a51010c7e7fe8b7d080aa18ee9045976e26557ce75d36744",
     "icons/claude.svg": "a3101f3047a119aa11825ad9369510f0c472428c8c52d420e31bc62db44a8364",
     "icons/deepseek.svg": "deba5f98a5c1796e20fcac3149bcd7eb8a32f0bdd04d048819400b1f28bd1439",
@@ -15,6 +31,6 @@
     "icons/grok.svg": "9175fc90c22655160231976c849f25a03b888d7cc0e04c5f1b987b659bb07c95",
     "icons/linuxdo.svg": "7864fbfc8a4b9c865fa2b543c408b4bf02e3b4d3dfe6ccc947c0810201e3e458",
     "icons/openai.svg": "a595df6b423920c67a7f8f73c063e4bfb72d415948097b6cac063a2366bb5186",
-    "index.html": "332d095a6c900239502faa641eb03346def107fd086c283bfc7b565a7397ee3a"
+    "index.html": "8a8bfda992b0c4a40e87259502feb14e780712a610271f5bea18962f2ff25107"
   }
 }

@@ -7,6 +7,12 @@ const exact = (v, keys) => v && typeof v === 'object' && !Array.isArray(v)
   && Object.keys(v).length === keys.length && keys.every(key => Object.hasOwn(v, key));
 const uuid = v => typeof v === 'string' && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(v);
 const taskId = v => uuid(v) || typeof v === 'string' && /^[a-f0-9]{64}$/.test(v);
+const protocolCompatibleVersion = (client, server) => {
+  const clientParts = /^(\d+)\.(\d+)\.(\d+)$/.exec(client || '');
+  const serverParts = /^(\d+)\.(\d+)\.(\d+)$/.exec(server || '');
+  return Boolean(clientParts && serverParts && clientParts[1] === serverParts[1] && clientParts[2] === serverParts[2]
+    && Number(clientParts[3]) >= 5 && Number(serverParts[3]) >= 5);
+};
 const domains = ['canvas', 'workbench', 'agent', 'webdav', 'storage'];
 
 // Backend-owned durable write-ahead evidence. No task content, credentials,
@@ -84,7 +90,7 @@ export class UpdateTaskLedger {
   }
   begin(value) {
     if (!exact(value, ['id', 'pageId', 'domain', 'version']) || !taskId(value.id) || !uuid(value.pageId)
-      || !domains.includes(value.domain) || value.version !== this.version) return Promise.reject(Error('task_ledger_request_invalid'));
+      || !domains.includes(value.domain) || !protocolCompatibleVersion(value.version, this.version)) return Promise.reject(Error('task_ledger_request_invalid'));
     const input = { ...value };
     return this.serial(async () => {
       if (this.frozen) throw Error('update_quiescing');

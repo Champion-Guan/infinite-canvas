@@ -650,8 +650,8 @@ const CanvasGenerationHistoryTab = memo(function CanvasGenerationHistoryTab({ no
                     {selectionMode ? "取消" : "选择"}
                 </button>
                 {validCompletedFiles.length ? (
-                    <button type="button" disabled={downloading || (selectionMode && !selectedHistoryFiles.length)} onClick={() => void downloadAll(selectionMode ? selectedHistoryFiles : validCompletedFiles)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-40" style={{ color: theme.node.text }} title={selectionMode ? "打包下载选择模式中勾选的文件" : "一键打包下载全部已成功生成的文件"}>
-                        <Download className="size-3.5" />
+                    <button type="button" disabled={downloading || (selectionMode && !selectedHistoryFiles.length)} onClick={() => void downloadAll(selectionMode ? selectedHistoryFiles : validCompletedFiles)} className={cn("guan-download-action inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-40", downloading && "is-loading")} style={{ color: theme.node.text }} title={selectionMode ? "打包下载选择模式中勾选的文件" : "一键打包下载全部已成功生成的文件"}>
+                        <Download className="guan-download-icon size-3.5" />
                         {downloading ? "正在打包…" : "下载"}
                     </button>
                 ) : null}
@@ -665,11 +665,11 @@ const CanvasGenerationHistoryTab = memo(function CanvasGenerationHistoryTab({ no
                             const invalidFiles = invalidFilesForNode(node);
                             const invalid = invalidFiles.length > 0;
                             return (
-                            <div key={node.id} className={cn("guan-history-list-card flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs transition hover:bg-black/5 dark:hover:bg-white/10", selectionMode && selectedHistoryIds.has(node.id) && "bg-black/5 dark:bg-white/10")}>
+                            <motion.div key={node.id} layout transition={{ layout: { type: "spring", stiffness: 520, damping: 34, mass: .7 } }} className={cn("guan-history-list-card flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs transition hover:bg-black/5 dark:hover:bg-white/10", selectionMode && selectedHistoryIds.has(node.id) && "bg-black/5 dark:bg-white/10")}>
                                 {selectionMode ? <Checkbox aria-label={`勾选${node.title || "生成任务"}`} disabled={downloading || !downloadableIds.has(node.id)} checked={selectedHistoryIds.has(node.id) && downloadableIds.has(node.id)} onChange={() => toggleHistorySelection(node.id)} /> : null}
                                 <button type="button" disabled={selectionMode && (downloading || !downloadableIds.has(node.id))} onClick={() => selectionMode ? toggleHistorySelection(node.id) : onPreviewNode(node.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left" aria-label={`${selectionMode ? "选择" : "查看"}${node.title || "生成任务"}`}>
                                 {node.type === CanvasNodeType.Image && (node.metadata?.content || node.metadata?.images?.find((image) => image.content)?.content) ? (
-                                    <img src={node.metadata.content || node.metadata.images?.find((image) => image.content)?.content} alt="" className="size-10 shrink-0 rounded-md object-cover" />
+                                    <img src={node.metadata.content || node.metadata.images?.find((image) => image.content)?.content} alt="" className="size-10 shrink-0 rounded-md object-cover guan-image-shared-element" style={{ viewTransitionName: `guan-history-${node.id}` }} />
                                 ) : (
                                     <span className="grid size-10 shrink-0 place-items-center rounded-md bg-black/5 dark:bg-white/10">
                                         {node.type === CanvasNodeType.Video ? <Video className="size-4 opacity-60" /> : <ImageIcon className="size-4 opacity-60" />}
@@ -688,7 +688,7 @@ const CanvasGenerationHistoryTab = memo(function CanvasGenerationHistoryTab({ no
                                         <span>重试</span>
                                     </button>
                                 ) : null}
-                            </div>
+                            </motion.div>
                             );
                         })}
                     </div>
@@ -782,7 +782,7 @@ function recycleBinImagePreview(node: CanvasNodeData) {
 function AssetCard({ asset, theme, onInsert, onRemove }: { asset: Asset; theme: CanvasTheme; onInsert: () => void; onRemove: () => void }) {
     const { t } = useTranslation();
     return (
-        <div className="group relative aspect-square overflow-hidden rounded-xl border transition duration-200 hover:-translate-y-0.5 hover:shadow-lg" style={{ borderColor: theme.node.stroke, background: theme.node.panel }}>
+        <div className="guan-card-surface group relative aspect-square overflow-hidden rounded-xl border" style={{ borderColor: theme.node.stroke, background: theme.node.panel }}>
             <AssetCover asset={asset} />
             <div className="absolute inset-0 flex items-center justify-center gap-2.5 opacity-0 transition duration-200 group-hover:opacity-100">
                 <button

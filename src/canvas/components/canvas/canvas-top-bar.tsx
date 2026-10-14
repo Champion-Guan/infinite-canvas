@@ -75,7 +75,7 @@ export function CanvasTopBar({
                             type="button"
                             onClick={toggleSidePanel}
                             aria-label={sidePanelOpen ? t("canvas.collapsePanel") : t("canvas.expandPanel")}
-                            className="grid size-7 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10"
+                            className="guan-apple-glow guan-toolbar-focus grid size-7 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10"
                             style={{ color: theme.node.text }}
                         >
                             {sidePanelOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
@@ -94,7 +94,7 @@ export function CanvasTopBar({
                             ],
                         }}
                     >
-                        <button type="button" className="grid size-7 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} aria-label={t("canvas.openMenu")}>
+                        <button type="button" className="guan-apple-glow guan-toolbar-focus grid size-7 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} aria-label={t("canvas.openMenu")}>
                             <Menu className="size-4" />
                         </button>
                     </Dropdown>
@@ -131,7 +131,7 @@ export function CanvasTopBar({
                 <div className="pointer-events-auto flex items-center gap-1.5">
                     <button
                         type="button"
-                        className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-stone-600 transition-colors hover:bg-black/5 hover:text-stone-950 dark:text-stone-300 dark:hover:bg-white/10 dark:hover:text-white"
+                        className="guan-apple-glow guan-toolbar-focus inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-stone-600 transition-colors hover:bg-black/5 hover:text-stone-950 dark:text-stone-300 dark:hover:bg-white/10 dark:hover:text-white"
                         style={{ color: theme.node.text }}
                         onClick={() => openConfigDialog(false)}
                         aria-label={t("navigation.config")}
@@ -139,10 +139,10 @@ export function CanvasTopBar({
                     >
                         <Settings2 className="size-4" />
                     </button>
-                    <VersionReleaseModal className="inline-flex h-7 shrink-0 cursor-pointer items-center rounded-md px-2 text-xs font-medium transition-colors hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} />
+                    <VersionReleaseModal className="guan-apple-glow guan-toolbar-focus inline-flex h-7 shrink-0 cursor-pointer items-center rounded-md px-2 text-xs font-medium transition-colors hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} />
                     <button
                         type="button"
-                        className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-stone-600 transition-colors hover:bg-black/5 hover:text-stone-950 dark:text-stone-300 dark:hover:bg-white/10 dark:hover:text-white"
+                        className="guan-apple-glow guan-toolbar-focus inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-stone-600 transition-colors hover:bg-black/5 hover:text-stone-950 dark:text-stone-300 dark:hover:bg-white/10 dark:hover:text-white"
                         style={{ color: theme.node.text }}
                         onClick={() => setShortcutsOpen(true)}
                         aria-label={t("topNav.shortcuts")}

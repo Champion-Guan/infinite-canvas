@@ -3,6 +3,13 @@ import type { CanvasNodeData, Position } from "@/types/canvas";
 export const NODE_PLACEMENT_GAP = 48;
 export type PlacementBounds = { x: number; y: number; width: number; height: number };
 
+export function nextGenerationResultPosition(source: Pick<CanvasNodeData, "position" | "width" | "height">,
+    result: Pick<CanvasNodeData, "width" | "height">, existingOutputCount: number, gap = NODE_PLACEMENT_GAP): Position {
+    const index = Number.isSafeInteger(existingOutputCount) && existingOutputCount > 0 ? existingOutputCount : 0;
+    return { x: source.position.x + source.width + 96 + index * (result.width + gap),
+        y: source.position.y + (source.height - result.height) / 2 };
+}
+
 function valid(node: CanvasNodeData) {
     return Number.isFinite(node.position.x) && Number.isFinite(node.position.y) && Number.isFinite(node.width) && Number.isFinite(node.height) && node.width > 0 && node.height > 0;
 }

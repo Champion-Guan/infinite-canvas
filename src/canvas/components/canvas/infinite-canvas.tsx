@@ -316,7 +316,8 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
     return (
         <div
             ref={containerRef}
-            className="relative h-full w-full select-none overflow-hidden"
+            className="guan-canvas-viewport relative h-full w-full select-none overflow-hidden"
+            data-panning={isPanning ? "true" : "false"}
             style={{ background: theme.canvas.background, cursor }}
             onPointerDown={handlePointerDown}
             onDoubleClick={handleDoubleClick}
@@ -355,6 +356,7 @@ function CanvasGrid({ viewport, mode, gridRef }: { viewport: ViewportTransform; 
         <div
             ref={gridRef}
             className="pointer-events-none absolute inset-0 opacity-40"
+            data-canvas-grid
             style={{
                 backgroundImage,
                 backgroundSize: `${gridSize}px ${gridSize}px`,

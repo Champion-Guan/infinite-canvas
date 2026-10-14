@@ -21,13 +21,13 @@ function loadGuard(activity, video, agent, fetcher, version = '1.0.5') {
   vm.runInContext(ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context);
   return context.startUpdateTaskGuard();
 }
-async function fixture(t) {
+async function fixture(t, serverVersion = '1.0.5', clientVersion = serverVersion) {
   const directory = await realpath(await mkdtemp(path.join(tmpdir(), 'guan-task-guard-'))); await chmod(directory, 0o700);
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const ledger = new UpdateTaskLedger({ file: path.join(directory, 'tasks.json'), version: '1.0.5', instance: randomUUID() });
+  const ledger = new UpdateTaskLedger({ file: path.join(directory, 'tasks.json'), version: serverVersion, instance: randomUUID() });
   await ledger.initialize(); let handler, dropCompletion = false;
   const server = createServer(async (req, res) => {
-    if (req.url === '/local-app/health') { res.end(JSON.stringify({ taskEvidenceProtocol: 1, version: '1.0.5', instanceId: ledger.instance })); return; }
+    if (req.url === '/local-app/health') { res.end(JSON.stringify({ taskEvidenceProtocol: 1, version: serverVersion, instanceId: ledger.instance })); return; }
     if (dropCompletion && req.url.endsWith('/complete')) { res.writeHead(503); res.end(); return; }
     if (!await handler(req, res)) { res.writeHead(404); res.end(); }
   });
@@ -37,7 +37,7 @@ async function fixture(t) {
   handler = createUpdateTaskHttpHandler({ ledger, origin });
   const activity = createActivityFixture().registry, video = journalFixture(activity), agent = journalFixture(activity, { domain: 'agent', namespace: 'agent' });
   const fetcher = (url, options = {}) => fetch(origin + url, { ...options, headers: { ...options.headers, origin } });
-  const stop = loadGuard(activity, video.journal, agent.journal, fetcher); t.after(stop);
+  const stop = loadGuard(activity, video.journal, agent.journal, fetcher, clientVersion); t.after(stop);
   return { ledger, activity, video, agent, directory, failCompletion: () => { dropCompletion = true; } };
 }
 test('actual guard and HTTP ledger persist intent before network dispatch, then retire only confirmed completion', async t => {
@@ -76,6 +76,11 @@ test('legacy stays synchronous/compatible, but signed compatible clients fail cl
     let synchronous = false; const mutation = activity.run('agent', () => { synchronous = true; });
     assert.equal(synchronous, true); await mutation; stop();
   }
+});
+test('patch-version skew between a cached canvas bundle and its same-line server does not block generation', async t => {
+  const f = await fixture(t, '1.0.26', '1.0.23');
+  assert.equal(await f.activity.runNetwork('canvas', () => 'generated'), 'generated');
+  assert.equal((await f.ledger.snapshot()).pending, 0);
 });
 test('native terminal handoff retains its sentinel if browser removal fails instead of advertising false idle', async t => {
   const f = await fixture(t), key = 'b'.repeat(64);
