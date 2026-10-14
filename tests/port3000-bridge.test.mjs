@@ -38,9 +38,14 @@ test('old-origin bridge exposes only a nonce-bound exporter and codecs; verified
   assert.equal((await send(target, 'localhost:3000', prefix + '/target-backup?nonce=' + session.nonce,
     { ...snapshot, origin: 'http://localhost:3000', localStorage: {} })).status, 200);
   const saved = JSON.parse((await send(target, 'localhost:3000', prefix + '/backup?nonce=' + session.nonce, snapshot)).body);
+  assert.equal((await send(target, 'localhost:3000', prefix + '/verified?nonce=' + session.nonce, { verified: true, sha256: saved.sha256 })).status, 409);
+  assert.equal((await send(target, 'localhost:3000', prefix + '/merged-backup?nonce=' + session.nonce,
+    { ...snapshot, origin: 'http://localhost:3000', localStorage: { canvas: 'tampered' } })).status, 409);
+  const merged = JSON.parse((await send(target, 'localhost:3000', prefix + '/merged-backup?nonce=' + session.nonce,
+    { ...snapshot, origin: 'http://localhost:3000' })).body);
   const headers = { host: 'localhost:3000', cookie: 'guan_port3000_verified=' + session.nonce };
   assert.equal(await migration.hasVerifiedLanding({ headers }), false);
-  const verified = await send(target, 'localhost:3000', prefix + '/verified?nonce=' + session.nonce, { verified: true, sha256: saved.sha256 });
+  const verified = await send(target, 'localhost:3000', prefix + '/verified?nonce=' + session.nonce, { verified: true, sha256: saved.sha256, mergedSha256: merged.sha256 });
   assert.equal(verified.status, 200); assert.match(verified.headers['set-cookie'][0], /HttpOnly; SameSite=Strict/);
   assert.equal(await createLocalhostMigration(options).hasVerifiedLanding({ headers }), true);
   assert.equal(await migration.hasVerifiedLanding({ headers: { ...headers, host: 'localhost:8888' } }), false);

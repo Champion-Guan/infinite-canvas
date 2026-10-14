@@ -1,4 +1,5 @@
 import { encodeBackupValue, decodeBackupValue } from './browser-backup-codec.mjs';
+import { planPort3000Merge, comparableSnapshot } from './port3000-merge.mjs';
 const result = request => new Promise((resolve, reject) => {
   request.onsuccess = () => resolve(request.result); request.onerror = () => reject(Error('浏览器数据库操作失败'));
 });
@@ -56,7 +57,7 @@ export async function exportBrowserStorage() {
   return snapshot;
 }
 // No clear/delete/put. Original source is retained; an occupied target is refused.
-export async function restoreBrowserStorage(snapshot, { recoverEmptyAliasCopy = false } = {}) {
+export async function restoreBrowserStorage(snapshot, { recoverEmptyAliasCopy = false, mergeTargetBackup } = {}) {
   const target = new URL(location.origin);
   const localAliasCopy = target.protocol === 'http:' && target.hostname === 'localhost'
     && Number(target.port) >= 1024 && snapshot?.origin === `http://127.0.0.1:${target.port}`;
@@ -65,6 +66,10 @@ export async function restoreBrowserStorage(snapshot, { recoverEmptyAliasCopy = 
   if ((!legacyPortCopy && !localAliasCopy && !port3000Copy) || snapshot?.app !== 'guan-ai-workbench'
     || snapshot.kind !== 'full-browser-backup' || snapshot.format !== 1
     || !Array.isArray(snapshot.databases) || !snapshot.localStorage || !snapshot.sessionStorage) throw Error('迁移地址或备份格式不匹配');
+  if (mergeTargetBackup) {
+    if (!port3000Copy) throw Error('定向合并地址不匹配');
+    return restoreMergedStorage(snapshot, mergeTargetBackup);
+  }
   const localValues = storage(localStorage);
   const recoverDefaults = localAliasCopy && recoverEmptyAliasCopy && isEmptyAliasCopyDefaults(localValues);
   const occupiedLocal = !recoverDefaults && Object.entries(localValues).some(([key, value]) =>
@@ -111,4 +116,53 @@ export async function restoreBrowserStorage(snapshot, { recoverEmptyAliasCopy = 
     }
     return { verified: true, databases: decoded.length };
   } catch { throw Error('迁移未通过，已保留原地址和备份；新地址的部分副本也保留，请勿打开工作台或覆盖数据'); }
+}
+
+async function restoreMergedStorage(source, targetBackup) {
+  const { snapshot: merged, changes } = await planPort3000Merge(source, targetBackup);
+  if (comparableSnapshot(await exportBrowserStorage()) !== comparableSnapshot(targetBackup))
+    throw Error('目标数据在备份后发生变化，已停止合并');
+  // Decode all data before the first write. Only changed records are put;
+  // no database, object store or record is cleared/deleted.
+  const decoded = merged.databases.map(db => ({ ...db, stores: db.stores.map(store => ({ ...store,
+    records: store.records.map(record => ({ encoded: record, key: decodeBackupValue(record.key), value: decodeBackupValue(record.value) })) })) }));
+  try {
+    for (const spec of decoded) {
+      const original = targetBackup.databases.find(db => db.name === spec.name);
+      const modified = spec.stores.filter(store => {
+        const before = original?.stores.find(item => item.name === store.name);
+        return !before || JSON.stringify(store.records.map(record => record.encoded)) !== JSON.stringify(before.records);
+      });
+      if (!modified.length) continue;
+      const request = indexedDB.open(spec.name, spec.version);
+      request.onupgradeneeded = () => {
+        if (original) { request.transaction.abort(); return; }
+        for (const store of spec.stores) {
+          const created = request.result.createObjectStore(store.name, { keyPath: store.keyPath, autoIncrement: store.autoIncrement });
+          for (const index of store.indexes) created.createIndex(index.name, index.keyPath, { unique: index.unique, multiEntry: index.multiEntry });
+        }
+      };
+      request.onblocked = () => { /* No forced closure or deletion of another site's database. */ };
+      const db = await result(request);
+      try {
+        const tx = db.transaction(modified.map(store => store.name), 'readwrite'), done = committed(tx);
+        for (const store of modified) {
+          const previous = new Map((original?.stores.find(item => item.name === store.name)?.records || []).map(record => [JSON.stringify(record.key), JSON.stringify(record.value)]));
+          const out = tx.objectStore(store.name);
+          for (const record of store.records) {
+            if (previous.get(JSON.stringify(record.encoded.key)) === JSON.stringify(record.encoded.value)) continue;
+            if (store.keyPath === null) out.put(record.value, record.key); else out.put(record.value);
+          }
+        }
+        await done;
+      } finally { db.close(); }
+    }
+    for (const [area, out] of [['localStorage', localStorage], ['sessionStorage', sessionStorage]])
+      for (const [key, value] of Object.entries(merged[area])) {
+        if (area === 'sessionStorage' && key === transientSessionKey) continue;
+        if (out.getItem(key) !== value) out.setItem(key, value);
+      }
+    if (comparableSnapshot(await exportBrowserStorage()) !== comparableSnapshot(merged)) throw Error('合并内容逐项校验失败');
+    return { verified: true, databases: decoded.length, changes };
+  } catch { throw Error('合并未通过，两份完整备份及旧地址保留；请勿打开工作台或反复覆盖'); }
 }

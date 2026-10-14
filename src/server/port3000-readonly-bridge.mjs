@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 // Only the migration exporter and its two codecs are available at the old
 // Origin. No canvas, credential, generation, proxy or updater API is exposed.
 export function createPort3000ReadonlyBridge({ migration, contractRoot }) {
-  const files = new Map(['port-migration.mjs', 'browser-backup-codec.mjs'].map(name => ['/data-contract/' + name, new URL(name, contractRoot)]));
+  const files = new Map(['port-migration.mjs', 'browser-backup-codec.mjs', 'port3000-merge.mjs'].map(name => ['/data-contract/' + name, new URL(name, contractRoot)]));
   return createServer(async (req, res) => {
     try {
       if (req.headers.host !== 'localhost:8888') { res.writeHead(403); res.end(); return; }

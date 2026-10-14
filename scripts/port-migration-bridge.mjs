@@ -41,7 +41,7 @@ if (!portable) for (const name of ['installation', 'updater-deployment'])
 await writePrivateFile(path.join(directory, 'PRIVATE-BACKUP.json'), JSON.stringify({ format: 1, mode: portable ? 'portable' : 'managed', files: before }));
 }
 const nonce = randomUUID(), prefix = '/migration-' + nonce;
-const modules = Object.fromEntries(await Promise.all(['port-migration.mjs', 'browser-backup-codec.mjs'].map(async name =>
+const modules = Object.fromEntries(await Promise.all(['port-migration.mjs', 'browser-backup-codec.mjs', 'port3000-merge.mjs'].map(async name =>
   [name, await readFile(path.join(projectRoot, 'src/shared/data-contract', name))])));
 let snapshot = resume ? path.join(directory, 'browser-5174.json') : null;
 let report = resume ? JSON.parse(await readFile(path.join(directory, 'MIGRATION.json'))) : { phase: 'waiting-source', privateFiles: before.length };

@@ -2,6 +2,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { readFile, readdir } from 'node:fs/promises';
 import { isEmptyAliasCopyDefaults } from '../shared/data-contract/port-migration.mjs';
+import { planPort3000Merge, comparableSnapshot } from '../shared/data-contract/port3000-merge.mjs';
 import { privateDirectory, writePrivateFile } from './runtime-paths.mjs';
 
 export const localhostMigrationGuard = `<script>if(location.hostname==='localhost'&&localStorage.getItem(location.port==='3000'?'guan-port3000-copy-v1':'guan-localhost-copy-v1')!=='top-level-verified')location.replace('/local-app/localhost-migration');</script>`;
@@ -14,7 +15,10 @@ export function createLocalhostMigration({ port, backupRoot, gate, sourceOrigin 
   const marker = port === 3000 ? 'guan-port3000-copy-v1' : 'guan-localhost-copy-v1';
   const prefix = '/local-app/localhost-migration';
   const sessions = new Map();
-  const page = `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>迁移工作台地址</title><style>body{font:16px system-ui;max-width:780px;margin:80px auto;padding:24px;color:#222;background:#fafafa}button{padding:12px 20px}pre{white-space:pre-wrap}iframe{display:none}</style><h1>工作台迁移到 localhost</h1><p>请先保存并关闭旧地址的工作台页面、结束生成任务。只复制同一浏览器配置的数据，原地址数据保留，完整备份保存到本机私人目录。目标已有数据时停止，不覆盖。</p><button id="start">已保存并关闭，开始备份与迁移</button><pre id="status" role="status"></pre><a href="${source}">返回旧地址</a><script type="module" src="${prefix}/client.js"></script></html>`;
+  const policy = port === 3000 && source === 'http://localhost:8888'
+    ? '两边数据先完整备份。保留目标其他项目的数据及旧画布，工作台同名配置采用旧地址值；同标识业务内容冲突时停止，不清空数据。'
+    : '完整备份保存到本机私人目录。目标已有数据时停止，不覆盖。';
+  const page = `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>迁移工作台地址</title><style>body{font:16px system-ui;max-width:780px;margin:80px auto;padding:24px;color:#222;background:#fafafa}button{padding:12px 20px}pre{white-space:pre-wrap}iframe{display:none}</style><h1>工作台迁移到 localhost</h1><p>请先保存并关闭旧地址的工作台页面、结束生成任务。只复制同一浏览器配置的数据，原地址数据保留。${policy}</p><button id="start">已保存并关闭，开始备份与迁移</button><pre id="status" role="status"></pre><a href="${source}">返回旧地址</a><script type="module" src="${prefix}/client.js"></script></html>`;
   const client = `import {restoreBrowserStorage,exportBrowserStorage} from '/data-contract/port-migration.mjs';
 const source=${JSON.stringify(source)},prefix=${JSON.stringify(prefix)},button=document.querySelector('#start'),status=document.querySelector('#status');
 status.textContent='目标本地配置项：'+localStorage.length;
@@ -24,12 +28,13 @@ button.onclick=async()=>{button.disabled=true;let popup,timer;try{
  status.textContent='正在读取旧地址完整数据…';
  const snapshot=await new Promise((resolve,reject)=>{const receive=e=>{if(e.origin!==source||e.source!==popup||e.data?.nonce!==nonce)return;window.removeEventListener('message',receive);clearTimeout(timer);if(e.data.error)reject(Error(e.data.error));else resolve(e.data.snapshot)};window.addEventListener('message',receive);timer=setTimeout(()=>{window.removeEventListener('message',receive);reject(Error('旧地址备份超时，未切换地址'))},120000);popup.location=source+prefix+'/source?nonce='+nonce});
  status.textContent='正在保存完整备份…';
- const targetBackup=await fetch(prefix+'/target-backup?nonce='+nonce,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(await exportBrowserStorage())});if(!targetBackup.ok)throw Error('目标副本备份失败');
+ const targetSnapshot=await exportBrowserStorage();const targetBackup=await fetch(prefix+'/target-backup?nonce='+nonce,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(targetSnapshot)});if(!targetBackup.ok)throw Error('目标副本备份失败');
  const backup=await fetch(prefix+'/backup?nonce='+nonce,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(snapshot)});if(!backup.ok)throw Error('备份校验未通过');const evidence=await backup.json();
  const targetEvidence=await targetBackup.json();
  if(!Object.keys(snapshot.localStorage).length&&!snapshot.databases.length&&!confirm('旧地址没有数据。如果你以前使用过工作台，请取消并检查 Chrome 配置。仅首次使用且确认无需旧数据时，是否进入空白工作台？'))throw Error('旧地址没有可迁移的数据，已停止；请检查浏览器配置');
- status.textContent='完整备份已保存，正在复制并逐项验证…';await restoreBrowserStorage(snapshot,{recoverEmptyAliasCopy:targetEvidence.recoverEmptyAliasCopy===true});
- const verified=await fetch(prefix+'/verified?nonce='+nonce,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sha256:evidence.sha256,verified:true})});if(!verified.ok)throw Error('迁移结果未保存');
+ status.textContent='完整备份已保存，正在复制并逐项验证…';await restoreBrowserStorage(snapshot,{recoverEmptyAliasCopy:targetEvidence.recoverEmptyAliasCopy===true,...(targetEvidence.mergeAllowed?{mergeTargetBackup:targetSnapshot}:{})});
+ let mergedSha256;if(targetEvidence.mergeAllowed){const merged=await fetch(prefix+'/merged-backup?nonce='+nonce,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(await exportBrowserStorage())});if(!merged.ok)throw Error('合并结果备份失败');mergedSha256=(await merged.json()).sha256;}
+ const verified=await fetch(prefix+'/verified?nonce='+nonce,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sha256:evidence.sha256,verified:true,...(mergedSha256?{mergedSha256}:{})})});if(!verified.ok)throw Error('迁移结果未保存');
  localStorage.setItem(${JSON.stringify(marker)},'top-level-verified');status.textContent='复制及逐项校验通过，正在打开工作台…';location.replace('/');
 }catch(e){status.textContent=e.message+'。旧地址数据与备份保留，请勿清空目标数据或反复覆盖。';}finally{clearTimeout(timer);popup?.close();button.disabled=false}};`;
   const reply = (res, code, value, type = 'application/json') => {
@@ -85,7 +90,9 @@ button.onclick=async()=>{button.disabled=true;let popup,timer;try{
             } catch { /* incomplete backup never authorizes recovery */ }
           }
         }
-        session.targetBackup = true; reply(res, 200, { backedUp: true, recoverEmptyAliasCopy }); return true;
+        session.targetBackup = true;
+        session.mergeAllowed = port === 3000 && source === 'http://localhost:8888';
+        reply(res, 200, { backedUp: true, recoverEmptyAliasCopy, mergeAllowed: session.mergeAllowed }); return true;
       }
       if (url.pathname === prefix + '/backup' && !session.backup && !session.writing) {
         session.writing = true;
@@ -102,10 +109,27 @@ button.onclick=async()=>{button.disabled=true;let popup,timer;try{
         session.backup = directory;
         reply(res, 200, { sha256: session.sha256, backedUp: true }); return true;
       }
+      if (url.pathname === prefix + '/merged-backup' && session.mergeAllowed && session.backup && !session.mergedSha256) {
+        const bytes = await read(req, 1024 ** 3), snapshot = JSON.parse(bytes);
+        if (snapshot.app !== 'guan-ai-workbench' || snapshot.kind !== 'full-browser-backup' || snapshot.format !== 1 || snapshot.origin !== target) throw Error();
+        const sourceSnapshot = JSON.parse(await readFile(join(session.backup, 'browser-127.json')));
+        const targetSnapshot = JSON.parse(await readFile(join(session.backup, 'browser-localhost-before.json')));
+        const expected = await planPort3000Merge(sourceSnapshot, targetSnapshot);
+        if (comparableSnapshot(snapshot) !== comparableSnapshot(expected.snapshot)) throw Error();
+        const file = join(session.backup, 'browser-localhost-merged.json');
+        await writePrivateFile(file, bytes, { exclusive: true });
+        if (!bytes.equals(await readFile(file))) throw Error();
+        session.mergedSha256 = createHash('sha256').update(bytes).digest('hex');
+        reply(res, 200, { sha256: session.mergedSha256 }); return true;
+      }
       if (url.pathname === prefix + '/verified' && session.backup && !session.verified) {
         const value = JSON.parse(await read(req, 256));
-        if (value.verified !== true || value.sha256 !== session.sha256 || Object.keys(value).sort().join(',') !== 'sha256,verified') throw Error();
-        await writePrivateFile(join(session.backup, 'MIGRATION.json'), JSON.stringify({ format: 1, source, target, sha256: session.sha256, exportMode: 'top-level', counts: session.counts, phase: 'browser-verified' }));
+        const merged = session.mergedSha256;
+        if ((session.mergeAllowed && !merged) || value.verified !== true || value.sha256 !== session.sha256
+          || Object.keys(value).sort().join(',') !== (merged ? 'mergedSha256,sha256,verified' : 'sha256,verified')
+          || (merged && value.mergedSha256 !== merged)) throw Error();
+        await writePrivateFile(join(session.backup, 'MIGRATION.json'), JSON.stringify({ format: 1, source, target, sha256: session.sha256,
+          ...(merged ? { mergedSha256: merged, mergePolicy: 'retain-target-projects-source-preferences' } : {}), exportMode: 'top-level', counts: session.counts, phase: 'browser-verified' }));
         if (port === 3000) res.setHeader('set-cookie', `guan_port3000_verified=${nonce}; Path=/; HttpOnly; SameSite=Strict; Max-Age=31536000`);
         session.verified = true; reply(res, 200, { verified: true }); return true;
       }
