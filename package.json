@@ -1,7 +1,7 @@
 {
   "name": "guan-ai-workbench",
   "private": true,
-  "version": "1.0.25",
+  "version": "1.0.26",
   "description": "Local AI image workbench with an embedded infinite canvas.",
   "scripts": {
     "start": "node server.mjs",
@@ -39,5 +39,6 @@
     "@typescript-eslint/parser": "8.71.1",
     "eslint": "10.12.0",
     "fake-indexeddb": "^6.2.5"
-  }
+  },
+  "type": "module"
 }

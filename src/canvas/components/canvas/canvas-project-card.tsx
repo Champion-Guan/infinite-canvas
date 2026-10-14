@@ -1,4 +1,5 @@
 import { Check, Download, Pencil, Trash2, X } from "lucide-react";
+import { memo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Input } from "antd";
 import { useTranslation } from "react-i18next";
@@ -8,7 +9,7 @@ import { useCanvasUiStore } from "@/stores/canvas/use-canvas-ui-store";
 import { exportCanvasProjects } from "@/lib/canvas/canvas-export";
 import { hasAgentUrlBootstrap } from "@/lib/agent/agent-url-bootstrap";
 
-export function CanvasProjectCard({ project }: { project: CanvasProject }) {
+export const CanvasProjectCard = memo(function CanvasProjectCard({ project }: { project: CanvasProject }) {
     const { i18n, t } = useTranslation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -80,4 +81,4 @@ export function CanvasProjectCard({ project }: { project: CanvasProject }) {
             </div>
         </article>
     );
-}
+}, (previous, next) => previous.project === next.project);
