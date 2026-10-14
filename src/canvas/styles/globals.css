@@ -726,6 +726,33 @@
         transform: translateX(1px);
     }
 
+    .guan-node-drop-target {
+        animation: guan-drop-magnet 420ms var(--guan-motion-spring) both;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 30%, transparent), 0 16px 36px color-mix(in srgb, var(--ring) 16%, transparent) !important;
+    }
+
+    .guan-connection-active {
+        animation: guan-connection-flash 420ms var(--guan-motion-gentle) both;
+        stroke-dasharray: 8 6;
+    }
+
+    .guan-agent-timeline-entry {
+        animation: guan-timeline-entry 320ms var(--guan-motion-spring) both;
+    }
+
+    .guan-canvas-save-status {
+        transition: color var(--guan-motion-normal) var(--guan-motion-gentle), opacity var(--guan-motion-fast) var(--guan-motion-gentle);
+    }
+
+    .guan-canvas-save-status[data-canvas-save-status="saving"] > :first-child {
+        animation: guan-status-pulse 1.4s ease-in-out infinite;
+    }
+
+    .guan-canvas-save-status[data-canvas-save-status="saved"] > :first-child,
+    .guan-canvas-save-status[data-canvas-save-status="error"] > :first-child {
+        animation: guan-status-settle 280ms var(--guan-motion-spring) both;
+    }
+
     /* Form controls use the same restrained spring language as native macOS
      * controls. Geometry updates remain CSS-only and never touch canvas nodes. */
     .ant-input,
@@ -846,6 +873,23 @@
         to { opacity: 1; transform: scale(1); }
     }
 
+    @keyframes guan-drop-magnet {
+        from { transform: translateY(3px) scale(.985); }
+        65% { transform: translateY(-1px) scale(1.012); }
+        to { transform: translateY(0) scale(1); }
+    }
+
+    @keyframes guan-connection-flash {
+        from { stroke-opacity: .45; stroke-width: 2; }
+        45% { stroke-opacity: 1; stroke-width: 4; }
+        to { stroke-opacity: .95; stroke-width: 3; }
+    }
+
+    @keyframes guan-timeline-entry {
+        from { opacity: 0; transform: translateY(7px) scale(.99); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
     @media (prefers-reduced-motion: reduce) {
         .ant-btn,
         header a,
@@ -895,7 +939,11 @@
         .guan-status-loading,
         .guan-task-loading,
         .guan-task-success,
-        .guan-task-error {
+        .guan-task-error,
+        .guan-node-drop-target,
+        .guan-connection-active,
+        .guan-agent-timeline-entry,
+        .guan-canvas-save-status {
             animation: none !important;
             transform: none !important;
             transition: none !important;

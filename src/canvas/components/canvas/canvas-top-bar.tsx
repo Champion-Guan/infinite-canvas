@@ -200,7 +200,7 @@ function CanvasSaveStatus({ status }: { status: "saving" | "saved" | "error" }) 
     const saving = status === "saving";
     const failed = status === "error";
     return (
-        <span className="flex h-8 items-center gap-1.5 text-xs" style={{ color: failed ? "#dc2626" : saving ? "#d97706" : theme.node.muted }} aria-live="polite" data-canvas-save-status={status}>
+        <span className="guan-canvas-save-status flex h-8 items-center gap-1.5 text-xs" style={{ color: failed ? "#dc2626" : saving ? "#d97706" : theme.node.muted }} aria-live="polite" data-canvas-save-status={status}>
             <span className="size-2 rounded-full" style={{ background: failed ? "#dc2626" : saving ? "#f59e0b" : "#22c55e" }} />
             <span className="max-w-[140px] truncate">{failed ? "保存失败" : saving ? "保存中…" : "已保存"}</span>
         </span>

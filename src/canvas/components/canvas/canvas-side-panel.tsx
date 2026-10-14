@@ -637,7 +637,7 @@ const CanvasGenerationHistoryTab = memo(function CanvasGenerationHistoryTab({ no
             <div className="flex flex-wrap items-center gap-2 px-3 pb-2 pt-1">
                 <span className="text-xs font-medium opacity-60">生成任务 / 生成历史</span>
                 <span className="text-xs opacity-35">{history.length}</span>
-                <button type="button" disabled={!history.length} onClick={toggleHistorySorted} className={cn("inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-40", sorted && "bg-black/5 dark:bg-white/10")} style={{ color: theme.node.text }} title={sorted ? "当前为分类顺序；点击恢复生成任务请求顺序" : "当前为生成任务请求顺序；点击按主图、详情页编号、富内容编号、其他排序，同类按图片序号排列"}>
+                <button type="button" disabled={!history.length} onClick={() => { const transition = (document as Document & { startViewTransition?: (callback: () => void) => unknown }).startViewTransition; if (transition && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) transition(toggleHistorySorted); else toggleHistorySorted(); }} className={cn("inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-40", sorted && "bg-black/5 dark:bg-white/10")} style={{ color: theme.node.text }} title={sorted ? "当前为分类顺序；点击恢复生成任务请求顺序" : "当前为生成任务请求顺序；点击按主图、详情页编号、富内容编号、其他排序，同类按图片序号排列"}>
                     <ArrowDownWideNarrow className="size-3.5" />
                     排序
                 </button>

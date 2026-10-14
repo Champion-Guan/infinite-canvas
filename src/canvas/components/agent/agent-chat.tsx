@@ -117,7 +117,7 @@ const AgentChatMessageRow = memo(function AgentChatMessageRow({ item, theme }: {
     const endpoint = useAgentStore((state) => state.url);
     const token = useAgentStore((state) => state.token);
     return (
-        <div style={item.streamId ? undefined : historyMessageStyle}>
+        <div className="guan-agent-timeline-entry" style={item.streamId ? undefined : historyMessageStyle}>
             <AgentChatMessage item={agentMessageToChatMessage(item, endpoint, token)} theme={theme} />
         </div>
     );
@@ -125,7 +125,7 @@ const AgentChatMessageRow = memo(function AgentChatMessageRow({ item, theme }: {
 
 const AgentCommandGroupRow = memo(function AgentCommandGroupRow({ items, theme }: { items: AgentChatItem[]; theme: (typeof canvasThemes)[keyof typeof canvasThemes] }) {
     return (
-        <div style={items.some((item) => item.streamId) ? undefined : historyMessageStyle}>
+        <div className="guan-agent-timeline-entry" style={items.some((item) => item.streamId) ? undefined : historyMessageStyle}>
             <AgentCommandGroup items={items} theme={theme} />
         </div>
     );

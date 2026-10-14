@@ -51,6 +51,7 @@ export const ConnectionPath = memo(function ConnectionPath({
                 }}
             />
             <path
+                className={active ? "guan-connection-path guan-connection-active" : "guan-connection-path"}
                 d={pathD}
                 stroke={active ? theme.node.activeStroke : theme.node.muted}
                 strokeWidth={active ? 3 : 2}
