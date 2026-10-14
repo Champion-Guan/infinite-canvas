@@ -329,7 +329,9 @@
     }
 
     .guan-focus-ring {
-        animation: guan-focus-ring 480ms var(--guan-motion-gentle) both;
+        /* The node owns an inline translate() for canvas coordinates. A scale
+         * animation here overwrote that transform and made snap targets jump. */
+        animation: guan-focus-ring-paint 240ms var(--guan-motion-gentle) both;
     }
 
     .guan-canvas-viewport[data-panning="true"] [data-canvas-grid] {
@@ -506,6 +508,11 @@
         from { opacity: 0; transform: scale(.94); }
         55% { opacity: 1; transform: scale(1.015); }
         to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes guan-focus-ring-paint {
+        from { opacity: .78; }
+        to { opacity: 1; }
     }
 
     @keyframes guan-toolbar-focus {
@@ -973,6 +980,14 @@
         transform: none;
     }
 
+    .ant-modal-root .ant-modal-wrap,
+    .ant-modal-root .ant-modal,
+    .ant-drawer-root .ant-drawer,
+    .ant-drawer-root .ant-drawer-content-wrapper {
+        animation: none !important;
+        transition: none !important;
+    }
+
     .ant-card,
     [data-guan-card] {
         transition:
@@ -1031,6 +1046,16 @@
     .guan-image-detail-row:nth-child(2), .guan-image-detail-grid-cell:nth-child(2) { animation-delay: 25ms; }
     .guan-image-detail-row:nth-child(3), .guan-image-detail-grid-cell:nth-child(3) { animation-delay: 50ms; }
     .guan-image-detail-row:nth-child(4), .guan-image-detail-grid-cell:nth-child(4) { animation-delay: 75ms; }
+
+    .guan-image-detail-download {
+        border-color: rgb(124 58 237 / 28%);
+        background: linear-gradient(135deg, rgb(124 58 237 / 14%), rgb(59 130 246 / 12%));
+        color: rgb(109 40 217);
+        white-space: nowrap;
+    }
+    .guan-image-detail-download:hover { border-color: rgb(124 58 237 / 50%); box-shadow: 0 6px 18px rgb(124 58 237 / 18%); }
+    .dark .guan-image-detail-download { color: rgb(221 214 254); border-color: rgb(167 139 250 / 35%); }
+    .guan-image-detail-original-download { background: color-mix(in srgb, currentColor 7%, transparent); }
 
     .guan-canvas-zoom-dock,
     .guan-canvas-minimap {

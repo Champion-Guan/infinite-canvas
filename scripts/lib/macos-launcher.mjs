@@ -57,6 +57,7 @@ export async function desktopShortcut({ desktop, node, root, port = 8888 }) {
       if (!info.isDirectory() || info.isSymbolicLink()) throw Error('desktop_shortcut_conflict');
     }
     const entry = path.join(bundle, 'Contents/MacOS/launch');
+    await writePrivateFile(path.join(bundle, 'Contents/Info.plist'), `<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.guanaiworkbench.desktop</string><key>CFBundleName</key><string>AI-Workbench</string><key>CFBundleExecutable</key><string>launch</string><key>CFBundleIconFile</key><string>AppIcon.png</string><key>CFBundlePackageType</key><string>APPL</string><key>LSUIElement</key><true/></dict></plist>\n`);
     try {
       const logo = await readFile(logoPath);
       await writePrivateFile(path.join(bundle, 'Contents/Resources/AppIcon.png'), logo);
