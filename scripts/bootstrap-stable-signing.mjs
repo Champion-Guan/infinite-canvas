@@ -8,7 +8,7 @@ import { runtimePaths, writePrivateFile } from '../src/server/runtime-paths.mjs'
 import { MacKeychainVault } from '../src/server/keychain-vault.mjs';
 import { keyId, sha256 } from '../src/server/stable-manifest.mjs';
 
-const repository = 'Champion-Guan/guan-ai-workbench', secretName = 'GUAN_STABLE_SIGNING_KEY';
+const repository = 'Champion-Guan/infinite-canvas', secretName = 'GUAN_STABLE_SIGNING_KEY';
 let stage = 'preflight', directory;
 try {
   const [confirmation, backupRoot] = process.argv.slice(2), root = fileURLToPath(new URL('../', import.meta.url));
@@ -20,7 +20,7 @@ try {
   const ghEnv = { ...process.env, GH_DEBUG: '', HTTPS_PROXY: 'http://127.0.0.1:7890', HTTP_PROXY: 'http://127.0.0.1:7890' };
   const gh = args => execFileSync('gh', args, { env: ghEnv, stdio: ['ignore', 'pipe', 'pipe'], timeout: 30000 }).toString();
   const repo = JSON.parse(gh(['api', `repos/${repository}`]));
-  if (repo.full_name !== repository || repo.private !== true || repo.owner?.id !== 87700227 || repo.permissions?.admin !== true) throw Error();
+  if (repo.full_name !== repository || repo.private !== false || repo.owner?.id !== 87700227 || repo.permissions?.admin !== true) throw Error();
   const secrets = JSON.parse(gh(['secret', 'list', '--repo', repository, '--json', 'name']));
   if (!Array.isArray(secrets) || secrets.some(s => s.name === secretName)) throw Error(); // Never overwrite an existing key.
   directory = await mkdtemp(path.join(backupRoot, 'stable-signing-20261011-')); await chmod(directory, 0o700);

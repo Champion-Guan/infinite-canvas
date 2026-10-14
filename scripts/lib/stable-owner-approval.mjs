@@ -4,8 +4,8 @@ import { readFile, lstat } from 'node:fs/promises';
 function verifyOwnerContext({ event, eventName, repository, ownerId, actorId,
   triggeringActor, ref, sha }) {
   const repo = event?.repository;
-  if (eventName !== 'workflow_dispatch' || repository !== 'Champion-Guan/guan-ai-workbench'
-    || repo?.full_name !== repository || repo.private !== true
+  if (eventName !== 'workflow_dispatch' || repository !== 'Champion-Guan/infinite-canvas'
+    || repo?.full_name !== repository || repo.private !== false
     || String(repo.owner?.id) !== '87700227' || repo.owner?.login !== 'Champion-Guan'
     || ownerId !== '87700227' || actorId !== '87700227' || triggeringActor !== 'Champion-Guan'
     || String(event.sender?.id) !== '87700227' || event.sender?.login !== 'Champion-Guan'
