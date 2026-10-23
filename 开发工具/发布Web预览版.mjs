@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { readFile, mkdtemp, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { WEB_REPOSITORY, WEB_MANIFEST_NAMES, verifyWebManifest, sha256 } from '../扩展功能/客户安装/Web发布协议.mjs';
+import { WEB_REPOSITORY, WEB_MANIFEST_NAMES, webReleaseAssetName, verifyWebManifest, sha256 } from '../扩展功能/客户安装/Web发布协议.mjs';
 
 // 发布为单独web-v标签的Prerelease，旧Stable客户端忽略这个渠道。
 export async function publishWebPreview(recordFile) {
@@ -20,11 +20,11 @@ export async function publishWebPreview(recordFile) {
   const notes = join(directory, '发布说明.md');
   await writeFile(notes, `Web预览版 ${record.version}\n\nApple Silicon（macOS arm64）。下载“${selected.name}”，解压后双击“安装工作台.command”，再双击“启动工作台.command”，打开 http://localhost:3100。安装器联网取得本Release的签名清单并核验全部文件。\n\n旧版用户先导出产品，再用新版“导入产品”创建画布；凭据重新配置。保留旧Origin和旧数据。已有Web版在设置→软件更新中验签下载，确认保存和任务结束、关闭工作台页面后升级。版本目录与SQLite/素材分开，失败保留或回退。\n\n这是预览版；跨Mac实机验收与未迁移功能详见仓库开发文档。\n`, { flag: 'wx', mode: 0o600 });
   run(['release', 'create', tag, '--repo', WEB_REPOSITORY, '--target', record.commit, '--draft', '--prerelease', '--title', '生图工作台 Web ' + record.version, '--notes-file', notes]);
-  run(['release', 'upload', tag, '--repo', WEB_REPOSITORY, record.archive, ...WEB_MANIFEST_NAMES.map(name => join(directory, name))]);
+  run(['release', 'upload', tag, '--repo', WEB_REPOSITORY, record.archive + '#' + selected.name, ...WEB_MANIFEST_NAMES.map(name => join(directory, name) + '#' + name)]);
   const downloaded = await mkdtemp(join(directory, '远程复核-'));
-  for (const name of [selected.name, ...WEB_MANIFEST_NAMES]) run(['release', 'download', tag, '--repo', WEB_REPOSITORY, '--pattern', name, '--dir', downloaded]);
-  verifyWebManifest(await readFile(join(downloaded, WEB_MANIFEST_NAMES[0])), await readFile(join(downloaded, WEB_MANIFEST_NAMES[1])), { releaseVersion: record.version });
-  assert.equal(sha256(await readFile(join(downloaded, selected.name))), selected.sha256);
+  for (const name of [selected.name, ...WEB_MANIFEST_NAMES]) run(['release', 'download', tag, '--repo', WEB_REPOSITORY, '--pattern', webReleaseAssetName(name), '--dir', downloaded]);
+  verifyWebManifest(await readFile(join(downloaded, webReleaseAssetName(WEB_MANIFEST_NAMES[0]))), await readFile(join(downloaded, webReleaseAssetName(WEB_MANIFEST_NAMES[1]))), { releaseVersion: record.version });
+  assert.equal(sha256(await readFile(join(downloaded, webReleaseAssetName(selected.name)))), selected.sha256);
   run(['release', 'edit', tag, '--repo', WEB_REPOSITORY, '--draft=false', '--prerelease']);
   return { url: `https://github.com/${WEB_REPOSITORY}/releases/tag/${tag}`, version: record.version, channel: 'web-preview' };
 }

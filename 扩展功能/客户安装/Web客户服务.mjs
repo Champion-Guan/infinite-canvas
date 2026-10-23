@@ -23,7 +23,7 @@ try {
   const stop = async update => {
     if (stopping) return; stopping = true;
     try {
-      if (app.getStatus().ready) await app.closeForUpdate(); else await app.close();
+      if (update && app.getStatus().ready) await app.closeForUpdate(); else await app.close();
       clearInterval(timer); manager.close(); send({ type: 'web-service-stopped' });
       process.disconnect();
     } catch (e) { stopping = false; send({ type: 'web-service-stop-blocked', error: e.code || 'install_tasks_pending' }); }

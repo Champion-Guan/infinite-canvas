@@ -6,7 +6,7 @@ import { readGitHubStable } from './github-stable.mjs';
 import { readReleaseAsset } from './github-assets.mjs';
 import { flushPrivateWrites } from './runtime-paths.mjs';
 import { UpdateError } from './update-auth.mjs';
-import { selectWebRelease, verifyWebManifest, WEB_MANIFEST_NAMES } from '../客户安装/Web发布协议.mjs';
+import { selectWebRelease, verifyWebManifest, WEB_MANIFEST_NAMES, webReleaseAssetName } from '../客户安装/Web发布协议.mjs';
 import { StorageError, requireValue } from '../本机存储/协议.mjs';
 
 // 源码与客户包共用验签下载；只有独立客户安装管理器提供版本切换能力。
@@ -35,7 +35,7 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
   };
   const updates = new SoftwareUpdates({ directory, currentVersion, manager, auth: { token: async () => '' },
     readRelease: routed(options => readGitHubStable({ ...options, ...(webPackage ? { selectRelease: selectWebRelease } : {}) })),
-    downloader: new StableDownload({ directory: join(directory, 'packages'), readAsset: routed(readReleaseAsset), ...(webPackage ? { verifyManifest: verifyWebManifest, manifestNames: WEB_MANIFEST_NAMES } : {}) }) });
+    downloader: new StableDownload({ directory: join(directory, 'packages'), readAsset: routed(readReleaseAsset), ...(webPackage ? { verifyManifest: verifyWebManifest, manifestNames: WEB_MANIFEST_NAMES, releaseAssetName: webReleaseAssetName } : {}) }) });
   // network='proxy' 的实际运行状态在每次请求取得租约时核实。
   updates.proxyUrl = () => networkProxy.getStatus().enabled ? 'managed-proxy' : null;
   const status = async () => ({ ...await updates.status(), channel: webPackage ? 'GitHub Public / Web预览版' : 'GitHub Public / Stable', ...(!manager ? { install: { allowed: false, state: 'source-development', reason: 'web_release_required' } } : {}) });

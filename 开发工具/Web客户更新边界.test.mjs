@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { keyId } from '../扩展功能/软件更新/stable-manifest.mjs';
-import { WEB_APP, WEB_REPOSITORY, WEB_ORIGIN, WEB_MANIFEST_NAMES, packageName, sha256, verifyWebManifest, selectWebRelease } from '../扩展功能/客户安装/Web发布协议.mjs';
+import { WEB_APP, WEB_REPOSITORY, WEB_ORIGIN, WEB_MANIFEST_NAMES, webReleaseAssetName, packageName, sha256, verifyWebManifest, selectWebRelease } from '../扩展功能/客户安装/Web发布协议.mjs';
+import { StableDownload } from '../扩展功能/软件更新/stable-download.mjs';
 import { inventoryWebFiles, verifyWebDirectory, verifySignedWebDirectory, extractSignedWebPackage, safeMember } from '../扩展功能/客户安装/Web安装包核验.mjs';
 import { switchWebVersion } from '../扩展功能/客户安装/Web版本事务.mjs';
 import { readWebArchive } from '../扩展功能/客户安装/Web压缩包读取.mjs';
@@ -38,12 +39,48 @@ test('拒绝篡改、未知公钥、降级、重复版本和其他架构', () =>
   assert.throws(() => verifyWebManifest(s.bytes, s.signature, { ...verifyOptions, arch: 'x64' }));
 });
 const release = (version, extra = {}) => ({ id: 12, tag_name: 'web-v' + version, published_at: '2026-10-23T00:00:00Z', draft: false, prerelease: true,
-  assets: WEB_MANIFEST_NAMES.map((name, index) => ({ name, id: index + 1, state: 'uploaded', size: index ? 64 : 2048 })), ...extra });
+  assets: [...WEB_MANIFEST_NAMES, packageName(version)].map((name, index) => ({ name: webReleaseAssetName(name), id: index + 1, state: 'uploaded', size: index === 1 ? 64 : 2048 })), ...extra });
 test('选择Web预发布，忽略旧正式版、草稿、缺签名和普通提交', () => {
   const rows = [release('2.0.0-beta.1'), release('2.0.0-beta.2'), release('2.1.0-beta.1', { draft: true }),
     release('2.2.0-beta.1', { assets: [] }), release('3.0.0', { prerelease: false }), { tag_name: 'v1.2.8', draft: false, prerelease: false, assets: [] }];
   assert.equal(selectWebRelease(rows).version, '2.0.0-beta.2');
   assert.equal(selectWebRelease(rows.slice(2)), null);
+});
+test('GitHub实际资产名映射：本地中文不变，缺包、重复资产及任意名称拒绝', () => {
+  assert.equal(webReleaseAssetName('Web更新清单.json'), 'Web.json');
+  assert.equal(webReleaseAssetName('Web更新清单.sig'), 'Web.sig');
+  assert.equal(webReleaseAssetName(packageName('2.0.0-beta.2')), 'Web-v2.0.0-beta.2-macos-arm64.zip');
+  for (const name of ['other.json', '../Web.json', '生图工作台Web-vinvalid-macos-arm64.zip']) assert.throws(() => webReleaseAssetName(name));
+  const r = release('2.0.0-beta.2');
+  assert.equal(selectWebRelease([{ ...r, assets: r.assets.slice(0, 2) }]), null);
+  assert.equal(selectWebRelease([{ ...r, assets: [...r.assets, r.assets[0]] }]), null);
+  assert.equal(selectWebRelease([{ ...r, assets: r.assets.map(a => ({ ...a, name: a.name === 'Web.json' ? 'Web更新清单.json' : a.name })) }]), null);
+});
+test('从GitHub净化后的资产名验签下载，磁盘仍保存中文清单；篡改包拒绝', async () => {
+  const parent = await mkdtemp(join(tmpdir(), 'Web远程命名-')), zip = Buffer.from('signed-package');
+  const m = manifest(); m.packages[0].sha256 = sha256(zip); m.packages[0].size = zip.length;
+  const s = signed(m), r = release(m.version), seen = [];
+  r.assets[0].size = s.bytes.length; r.assets[2].size = zip.length;
+  const options = { directory: join(parent, '下载'), trustedKeys, arch: 'arm64', platform: 'darwin', verifyManifest: verifyWebManifest,
+    manifestNames: WEB_MANIFEST_NAMES, releaseAssetName: webReleaseAssetName, freeSpace: async () => 1e9,
+    readAsset: async ({ asset, onChunk }) => {
+      seen.push(asset.name);
+      if (asset.name === 'Web.json') return s.bytes;
+      if (asset.name === 'Web.sig') return s.signature;
+      assert.equal(asset.name, 'Web-v2.0.0-beta.2-macos-arm64.zip'); await onChunk(zip); return zip.length;
+    } };
+  const d = new StableDownload(options);
+  await d.download({ repository: WEB_REPOSITORY, release: { ...r, version: m.version }, currentVersion: '2.0.0-beta.1' });
+  assert.equal(d.status(WEB_REPOSITORY).state, 'verified');
+  assert.deepEqual(seen, ['Web.json', 'Web.sig', 'Web-v2.0.0-beta.2-macos-arm64.zip']);
+  assert.deepEqual(await readFile(join(d.verified.directory, WEB_MANIFEST_NAMES[0])), s.bytes);
+  assert.deepEqual(await readFile(join(d.verified.directory, WEB_MANIFEST_NAMES[1])), s.signature);
+  const bad = new StableDownload({ ...options, directory: join(parent, '损坏下载'), readAsset: async input => {
+    if (input.onChunk) { await input.onChunk(Buffer.alloc(zip.length)); return zip.length; }
+    return options.readAsset(input);
+  } });
+  await bad.download({ repository: WEB_REPOSITORY, release: { ...r, version: m.version }, currentVersion: '2.0.0-beta.1' });
+  assert.equal(bad.status(WEB_REPOSITORY).error, 'package_integrity_failed');
 });
 for (const path of ['../数据', '/tmp/a', 'a/../b', 'a//b', 'a\\b', '.运行/x', 'data/a', 'a/private.pem', 'a/test.sqlite', 'a/.env.production']) {
   test('包路径拦截：' + path, () => assert.throws(() => safeMember(path)));

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { webInstallPaths, readState, versionPath, installWebDirectory } from './Web安装目录.mjs';
 import { runWebSupervisor, ownedProcess } from './Web安装管理器.mjs';
 import { verifySignedWebDirectory } from './Web安装包核验.mjs';
-import { WEB_REPOSITORY, WEB_MANIFEST_NAMES, fail } from './Web发布协议.mjs';
+import { WEB_REPOSITORY, WEB_MANIFEST_NAMES, webReleaseAssetName, fail } from './Web发布协议.mjs';
 import { readReleaseAsset } from '../软件更新/github-assets.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url)), paths = webInstallPaths();
@@ -21,7 +21,7 @@ async function bootstrapProof() {
   const release = JSON.parse(Buffer.concat(chunks));
   if (release.draft !== false || release.prerelease !== true || release.tag_name !== 'web-v' + m.version || !Array.isArray(release.assets)) fail('web_release_unavailable');
   for (const [index, name] of WEB_MANIFEST_NAMES.entries()) {
-    const assets = release.assets.filter(a => a.name === name && a.state === 'uploaded');
+    const assets = release.assets.filter(a => a.name === webReleaseAssetName(name) && a.state === 'uploaded');
     if (assets.length !== 1) fail('release_assets_invalid');
     const bytes = await readReleaseAsset({ repository: WEB_REPOSITORY, token: '', asset: assets[0], maxBytes: index === 0 ? 65536 : 64, signal: AbortSignal.timeout(30000) });
     // 覆盖的仅为公共验签证据；包内任意业务文件不在此写入范围。

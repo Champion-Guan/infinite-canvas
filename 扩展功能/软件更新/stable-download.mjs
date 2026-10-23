@@ -5,12 +5,14 @@ import { constants } from 'node:fs';
 import { privateDirectory, writePrivateFile } from './runtime-paths.mjs';
 import { verifyStableManifest } from './stable-manifest.mjs';
 import { STABLE_TRUSTED_KEYS } from './stable-trust.mjs';
-import { readReleaseAsset } from './github-assets.mjs';
 import { UpdateError } from './update-auth.mjs';
 
+// 注入下载端口时无需装载网络客户端；真实下载仍使用同一个受限实现。
+const readReleaseAsset = async options => (await import('./github-assets.mjs')).readReleaseAsset(options);
+
 export class StableDownload {
-  constructor({ directory, trustedKeys = STABLE_TRUSTED_KEYS, readAsset = readReleaseAsset, arch = process.arch, platform = process.platform, freeSpace, verifyManifest = verifyStableManifest, manifestNames = ['guan-stable-manifest.json', 'guan-stable-manifest.sig'] } = {}) {
-    this.verifyManifest = verifyManifest; this.manifestNames = manifestNames;
+  constructor({ directory, trustedKeys = STABLE_TRUSTED_KEYS, readAsset = readReleaseAsset, arch = process.arch, platform = process.platform, freeSpace, verifyManifest = verifyStableManifest, manifestNames = ['guan-stable-manifest.json', 'guan-stable-manifest.sig'], releaseAssetName = name => name } = {}) {
+    this.verifyManifest = verifyManifest; this.manifestNames = manifestNames; this.releaseAssetName = releaseAssetName;
     this.directory = directory; this.keys = trustedKeys; this.readAsset = readAsset; this.arch = arch; this.platform = platform;
     this.freeSpace = freeSpace || (async () => { const s = await statfs(directory); return s.bavail * s.bsize; });
     this.state = { state: 'idle', progress: 0, error: null }; this.pending = null; this.controller = null;
@@ -39,7 +41,7 @@ export class StableDownload {
     if (!Object.keys(this.keys).length) throw new UpdateError('signing_trust_not_configured');
     const signal = this.controller.signal;
     const asset = name => {
-      const a = release.assets?.filter(x => x.name === name);
+      const a = release.assets?.filter(x => x.name === this.releaseAssetName(name));
       if (a?.length !== 1 || !Number.isSafeInteger(a[0].id) || !Number.isSafeInteger(a[0].size) || a[0].size < 1) throw new UpdateError('release_assets_invalid');
       return a[0];
     };
