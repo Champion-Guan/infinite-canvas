@@ -7,6 +7,7 @@ import { runWebSupervisor, ownedProcess } from './Web安装管理器.mjs';
 import { verifySignedWebDirectory } from './Web安装包核验.mjs';
 import { WEB_REPOSITORY, WEB_MANIFEST_NAMES, webReleaseAssetName, fail } from './Web发布协议.mjs';
 import { readReleaseAsset } from '../软件更新/github-assets.mjs';
+import { readWebAddress, waitWebAddress } from './Web运行地址.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url)), paths = webInstallPaths();
 async function bootstrapProof() {
@@ -38,9 +39,10 @@ export async function customerCommand(operation) {
   }
   if (operation === 'supervisor') return runWebSupervisor();
   const state = await readState(paths.state), running = await readState(paths.lock);
-  if (operation === 'status') return { installed: Boolean(state), running: Boolean(ownedProcess(running)), version: state?.current?.version, phase: state?.phase };
+  if (operation === 'status') return { installed: Boolean(state), running: Boolean(ownedProcess(running)), version: state?.current?.version, phase: state?.phase,
+    address: await readWebAddress(paths, running, state, ownedProcess) };
   if (operation === 'start') {
-    if (running) { if (ownedProcess(running)) return { running: true }; fail('update_recovery_required'); }
+    if (running) { if (ownedProcess(running)) return waitWebAddress(paths, ownedProcess); fail('update_recovery_required'); }
     if (!state?.current) fail('web_install_required');
     const packageRoot = versionPath(paths, state.current);
     await verifySignedWebDirectory(packageRoot, { releaseVersion: state.current.version });
@@ -48,7 +50,7 @@ export async function customerCommand(operation) {
     const child = spawn(join(packageRoot, 'runtime/node'), [join(packageRoot, '扩展功能/客户安装/Web客户命令.mjs'), 'supervisor'], {
       cwd: packageRoot, detached: true, stdio: ['ignore', log.fd, log.fd], env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8' } });
     child.unref(); await log.close();
-    return { starting: true, address: 'http://localhost:3100' };
+    return waitWebAddress(paths, ownedProcess);
   }
   if (operation === 'stop') {
     if (!ownedProcess(running)) fail('web_process_unowned');
@@ -58,6 +60,6 @@ export async function customerCommand(operation) {
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (process.argv.length !== 3) fail('invalid_request');
-  try { const result = await customerCommand(process.argv[2]); if (result) console.log(JSON.stringify(result)); }
+  try { const result = await customerCommand(process.argv[2]); if (result?.address) console.log('工作台已就绪，请打开：' + result.address); if (result) console.log(JSON.stringify(result)); }
   catch (e) { console.error('操作未完成：' + (e.code || 'web_operation_failed') + '。现有版本与个人数据保留。'); process.exitCode = 1; }
 }

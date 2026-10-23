@@ -11,6 +11,7 @@ import { createSessionController } from './受控会话.mjs';
 import { createLocalAuthorizationGateway } from './本机授权网关.mjs';
 import { createBackupCoordinator } from './自动备份.mjs';
 import { openSQLiteCredentialVault } from '../本机凭据/SQLite凭据保管.mjs';
+import { DEFAULT_WORKBENCH_PORT, listenWorkbench } from './工作台端口.mjs';
 
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.gif': 'image/gif', '.mp4': 'video/mp4', '.mp3': 'audio/mpeg', '.txt': 'text/plain' };
 function readStaticBundle(directory) {
@@ -42,7 +43,7 @@ function readStaticBundle(directory) {
   return { files, scriptHashes: [...hashes].join(' ') };
 }
 
-// 默认仍为动态隔离入口；固定localhost:3100只能由另行批准的日常装配调用，不安装常驻服务。
+// 日常入口从3000顺延；保留旧客户管理器要求的固定3100兼容入口。
 // storage由可信启动工具装配同一个已批准的四文件包，避免跨模块StorageError身份漂移。
 export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, initialize = false, storage, credentialKeyProvider, endpoint = { hostname: '127.0.0.1', port: 0 }, networkProxyOptions = {}, softwareUpdateOptions = {}, deferActivation = false } = {}) {
   requireValue(typeof webRoot === 'string' && typeof dataRoot === 'string' && isAbsolute(dataRoot) && typeof initialize === 'boolean' &&
@@ -50,8 +51,8 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
   requireValue(endpoint && typeof endpoint === 'object' && !Array.isArray(endpoint) &&
     Object.keys(endpoint).sort().join(',') === 'hostname,port' &&
     ['127.0.0.1', 'localhost'].includes(endpoint.hostname) &&
-    (endpoint.port === 0 || endpoint.port === 3100 && endpoint.hostname === 'localhost'),
-    'invalid_launcher_endpoint', '只允许隔离临时入口或明确的localhost:3100日常入口。');
+    (endpoint.port === 0 || [DEFAULT_WORKBENCH_PORT, 3100].includes(endpoint.port) && endpoint.hostname === 'localhost'),
+    'invalid_launcher_endpoint', '只允许本机临时入口或受支持的localhost工作台入口。');
   // 复制值，避免等待期间调用方修改endpoint导致Host/Origin错配；监听始终仅127.0.0.1。
   const { hostname, port } = endpoint;
   let { files, scriptHashes } = readStaticBundle(webRoot);
@@ -119,7 +120,7 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
     if (errors.length) throw new AggregateError(errors, '隔离工作台清理不完整，请保留数据根并检查锁；没有自动清锁。');
   }
   try {
-    await new Promise((done, fail) => { server.once('error', fail); server.listen(port, '127.0.0.1', done); });
+    await listenWorkbench(server, port, { automatic: port === DEFAULT_WORKBENCH_PORT });
     const origin = 'http://' + hostname + ':' + server.address().port;
     workspace = storage.openWorkspace({ dataRoot, initialize });
     credentialPort = await openSQLiteCredentialVault({ workspace, keyProvider: credentialKeyProvider, initialize });

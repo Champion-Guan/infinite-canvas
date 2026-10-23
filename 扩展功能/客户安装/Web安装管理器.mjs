@@ -7,6 +7,7 @@ import { webInstallPaths, privateDirectory, readState, writeState, versionPath }
 import { WEB_APP, fail } from './Web发布协议.mjs';
 import { switchWebVersion } from './Web版本事务.mjs';
 import { restoreWebStage, stageWebPackage, validateStageIdentity } from './Web暂存恢复.mjs';
+import { isWorkbenchOrigin } from '../本机服务/工作台端口.mjs';
 
 export function processIdentity(pid) {
   try { return { pid, command: execFileSync('/bin/ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8' }).trim(),
@@ -21,12 +22,17 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
   await privateDirectory(paths.root); await privateDirectory(paths.versions);
   let state = await readState(paths.state);
   if (state?.app !== WEB_APP || !['committed', 'rolled-back'].includes(state.phase)) fail('update_recovery_required');
-  const lock = await open(paths.lock, 'wx', 0o600);
-  await lock.writeFile(JSON.stringify(processIdentity(process.pid))); await lock.sync(); await lock.close();
+  const owner = processIdentity(process.pid), lock = await open(paths.lock, 'wx', 0o600);
+  await lock.writeFile(JSON.stringify(owner)); await lock.sync(); await lock.close();
   let child = null, childStatus = null, childStopped = true, current = state.current, staged = null, installing = false, approved = false;
   let phase = 'idle', reason = null, targetVersion = null, timer;
   const verify = identity => verifySignedWebDirectory(versionPath(paths, identity), { releaseVersion: identity.version });
-  const save = async value => { state = { app: WEB_APP, ...value }; await writeState(paths.state, state); if (['committed', 'rolled-back'].includes(state.phase) && child?.connected) child.send({ type: 'web-service-activate' }); };
+  const save = async value => {
+    state = { app: WEB_APP, ...value }; await writeState(paths.state, state);
+    const ready = ['committed', 'rolled-back'].includes(state.phase) && childStatus?.ready === true && childStatus.version === state.current?.version;
+    await writeState(paths.address, { owner, ready, origin: ready ? childStatus.origin : null, version: state.current?.version, workspaceId: state.workspaceId });
+    if (ready && child?.connected) child.send({ type: 'web-service-activate' });
+  };
   const canApprove = () => Boolean(staged && !installing && ['staged', 'deferred', 'blocked'].includes(phase) &&
     ['committed', 'rolled-back'].includes(state.phase));
   const status = () => ({ allowed: true, state: phase, currentVersion: current.version, targetVersion, reason, canApprove: canApprove() });
@@ -60,7 +66,7 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
     const verified = await verify(identity), packageRoot = versionPath(paths, identity);
     childStatus = null; childStopped = false;
     const proc = spawn(join(packageRoot, 'runtime/node'), [join(packageRoot, '扩展功能/客户安装/Web客户服务.mjs')], {
-      cwd: packageRoot, stdio: ['ignore', 'inherit', 'inherit', 'ipc'], env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8' } });
+      cwd: packageRoot, stdio: ['ignore', 'inherit', 'inherit', 'ipc'], env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8', GUAN_WEB_PORT_POLICY: 'automatic-v1' } });
     child = proc;
     return await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(Error('web_start_timeout')), 60000);
@@ -68,7 +74,7 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
       proc.on('message', value => {
         if (value?.type === 'web-service-ready') {
           childStatus = value.status;
-          if (value.status?.version !== verified.inventory.version) { finish(Error('web_health_mismatch')); return; }
+          if (!value.status?.ready || value.status.version !== verified.inventory.version || !isWorkbenchOrigin(value.status.origin)) { finish(Error('web_health_mismatch')); return; }
           finish(null, value.status);
         } else if (value?.type === 'web-service-status') childStatus = value.status;
         else if (value?.type === 'web-service-stopped') childStopped = true;
@@ -113,7 +119,7 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
     }, 1000);
     const shutdown = async () => {
       if (installing || stageJob) return;
-      try { await stop(false); clearInterval(timer); await unlink(paths.lock); process.exit(0); }
+      try { await stop(false); clearInterval(timer); await unlink(paths.address).catch(e => { if (e.code !== 'ENOENT') throw e; }); await unlink(paths.lock); process.exit(0); }
       catch { reason = 'install_tasks_pending'; }
     };
     for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(signal, () => void shutdown());

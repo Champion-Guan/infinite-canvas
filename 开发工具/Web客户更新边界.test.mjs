@@ -226,3 +226,15 @@ test('服务重启后确认安装取管理器已复核身份，不依赖下载�
       approve: async (received, ack) => { assert.deepEqual(received, identity); assert.equal(ack, 'saved-and-all-tasks-ended'); approved++; } } });
   await updates.configure({ autoInstall: true }); await updates.approve('saved-and-all-tasks-ended'); assert.equal(approved, 1);
 });
+
+
+for (const origin of ['http://localhost:3000', 'http://localhost:3001']) test('升级健康确认接受实际顺延地址：' + origin, async () => {
+  const t = transaction({ start: async identity => ({ ...ready(identity), origin }) });
+  assert.equal((await switchWebVersion(t.args)).current, next);
+});
+test('健康确认拒绝远程地址、路径及旧工作区', async () => {
+  for (const origin of ['http://evil.invalid:3000', 'http://localhost:3000/path', 'https://localhost:3000']) {
+    const t = transaction({ start: async identity => ({ ...ready(identity), origin: identity === next ? origin : WEB_ORIGIN }) });
+    assert.equal((await switchWebVersion(t.args)).rolledBack, true);
+  }
+});

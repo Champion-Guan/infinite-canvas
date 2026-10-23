@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, randomUUID, randomBytes } from 'node:crypto';
 import { createRenewingDataClient } from '../扩展功能/本机存储/续期数据客户端.mjs';
-import { createSessionController } from '../扩展功能/本机服务/可重连受控会话.mjs';
+import { createSessionController } from '../扩展功能/本机服务/受控会话.mjs';
 import { createRecoverableShardedApplicationStorage } from '../扩展功能/本机存储/可恢复分片应用存储.mjs';
 import { PROTOCOL, StorageError, serializeDocument } from '../扩展功能/本机存储/协议.mjs';
 
@@ -184,4 +184,29 @@ test('应用分片队列在休眠后新编辑自动恢复并完成原队列', as
     await store.setItem('one', { title: '休眠后编辑' }); await app.flush();
     assert.equal(await store.getItem('one').then(value => value.title), '休眠后编辑');
     assert.equal(f.calls.reconnect, 1); assert.equal(app.getStatus().state, 'saved'); app.close();
+});
+
+
+test('续期响应丢失一次自动取回原结果，业务保存只发送一次', async t => {
+    const f = fixture(t); await f.client.readUsage(); f.tick(50_001);
+    const renew = f.host.renew; let lose = true;
+    f.host.renew = async session => { const result = await renew(session); if (lose) { lose = false; throw new StorageError('authorization_connection_failed', '合成续期响应丢失', 503); } return result; };
+    const original = input(); const ack = await f.client.writeDocument(original);
+    assert.equal(f.calls.renew, 2); assert.equal(f.calls.issued, 2); assert.equal(f.calls.reconnect, 0);
+    assert.equal(f.requests.filter(item => item.method === 'PUT').length, 1);
+    assert.equal(ack.operationId, original.operationId); assert.equal(f.documents.get('demo').revision, 1);
+    assert.equal(f.client.getStatus().state, 'saved');
+});
+
+test('续期持续丢响应只重试一次，过期后新操作可用原会话恢复', async t => {
+    const f = fixture(t); await f.client.readUsage(); f.tick(50_001);
+    const renew = f.host.renew;
+    f.host.renew = async session => { await renew(session); throw new StorageError('authorization_connection_failed', '合成持续丢失', 503); };
+    const original = input(); await assert.rejects(f.client.writeDocument(original), code('authorization_connection_failed'));
+    assert.equal(f.calls.renew, 2); assert.equal(f.calls.issued, 2); assert.equal(f.documents.size, 0);
+    assert.equal(f.client.getStatus().state, 'error'); f.tick(60_000);
+    await f.client.writeDocument(original);
+    assert.equal(f.calls.reconnect, 1); assert.equal(f.calls.issued, 3);
+    assert.equal(f.requests.filter(item => item.method === 'PUT').length, 1);
+    assert.equal(f.documents.get('demo').revision, 1);
 });

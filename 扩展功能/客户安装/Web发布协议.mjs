@@ -6,6 +6,7 @@ import { UpdateError } from '../软件更新/update-auth.mjs';
 
 export const WEB_REPOSITORY = 'Champion-Guan/infinite-canvas';
 export const WEB_MANIFEST_NAMES = ['Web更新清单.json', 'Web更新清单.sig'];
+// 已签名安装身份的兼容字段；实际监听地址由运行时从3000开始分配。
 export const WEB_ORIGIN = 'http://localhost:3100';
 export const WEB_APP = 'guan-web-workbench';
 export const fail = code => { throw new UpdateError(code); };

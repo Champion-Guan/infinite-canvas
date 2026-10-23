@@ -8,6 +8,11 @@ const jsonStores = new Set(['infinite-canvas:canvas_store', 'infinite-canvas:ass
 const sha = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))].map(byte => byte.toString(16).padStart(2, '0')).join('');
 const mediaRefs = entries => [...new Set([...entries.values()].flatMap(entry => entry.mediaIds))].sort();
 const requestWindows = new WeakMap();
+function saveFailure(error, stage) {
+  if (!(error instanceof Error)) error = new StorageError('connection_failed', '保存响应未确认，请保留页面并重试。', 503);
+  error.saveStage = stage;
+  return error;
+}
 // 原服务每会话120次/10秒保持不变；应用分片最多96次/10.05秒，为其他状态请求留余量。
 // 同一客户端跨namespace/恢复实例共享窗口。等待不是丢弃或重发，写入仍保留原operationId。
 function pacedClient(client) {
@@ -43,7 +48,9 @@ export function createShardedApplicationStorage({ client, secretPort, readBlobUr
   client = pacedClient(client);
   const codec = createValueCodec({ client, secretPort, readBlobUrl }), spaces = new Map(), known = new Set(), errors = new Map();
   let pending = 0, closed = false, hasSaved = false;
-  const status = () => ({ state: errors.size ? 'error' : pending ? 'saving' : hasSaved ? 'saved' : 'idle', pending, errors: [...errors.keys()] });
+  const status = () => ({ state: errors.size ? 'error' : pending ? 'saving' : hasSaved ? 'saved' : 'idle', pending, errors: [...errors.keys()],
+    failures: [...errors].map(([namespace, error]) => ({ namespace, code: /^[a-z_]{3,64}$/.test(error?.code) ? error.code : 'connection_failed',
+      stage: error?.saveStage ?? 'prepare', status: Number.isInteger(error?.status) ? error.status : null })) });
   function notify() { try { onStatus(status()); } catch { /* UI观察器不决定持久化结果。 */ } }
   function state(name) {
     requireValue(!closed && APP_NAMESPACES.includes(name), 'namespace_denied', '未声明的应用存储命名空间。');
@@ -81,7 +88,7 @@ export function createShardedApplicationStorage({ client, secretPort, readBlobUr
       await load(space); return fn();
     });
     // 先完成计数/错误状态，再向调用方交付结果，避免await读取后立即close仍被误判忙碌。
-    const tracked = result.then(value => { if (!space.blocked) errors.delete(space.name); pending--; notify(); return value; }, error => { errors.set(space.name, true); pending--; notify(); throw error; });
+    const tracked = result.then(value => { if (!space.blocked) errors.delete(space.name); pending--; notify(); return value; }, error => { errors.set(space.name, error); pending--; notify(); throw error; });
     space.tail = tracked.then(() => {}, () => {});
     return tracked;
   }
@@ -108,8 +115,13 @@ export function createShardedApplicationStorage({ client, secretPort, readBlobUr
   async function retryWrite(space) {
     requireValue(space.blocked, 'nothing_to_retry', '没有待确认的分片保存。');
     const plan = space.blocked;
-    while (plan.index < plan.parts.length) { await savePart(plan.parts[plan.index]); plan.index++; }
-    const ack = await confirmed(plan.root);
+    while (plan.index < plan.parts.length) {
+      try { await savePart(plan.parts[plan.index]); plan.index++; }
+      catch (error) { throw saveFailure(error, 'fragment'); }
+    }
+    let ack;
+    try { ack = await confirmed(plan.root); }
+    catch (error) { throw saveFailure(error, 'root'); }
     space.entries = plan.entries; space.revision = ack.revision; space.blocked = null; hasSaved = true; return ack;
   }
   async function commit(space, entries) {

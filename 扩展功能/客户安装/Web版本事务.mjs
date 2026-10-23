@@ -1,7 +1,8 @@
 import { compareVersions } from '../软件更新/stable-version.mjs';
 import { WEB_ORIGIN, fail } from './Web发布协议.mjs';
+import { isWorkbenchOrigin } from '../本机服务/工作台端口.mjs';
 
-// 独立管理进程调用。存储路径从不交给下载包决定，所有版本使用同一工作区和Origin。
+// 独立管理进程调用。存储路径从不交给下载包决定，所有版本使用同一工作区。
 export async function switchWebVersion({ previous, target, workspaceId, save, stop, start, verify, report = () => {} }) {
   if (!workspaceId || compareVersions(target.version, previous.version) <= 0 || target.dataSchema !== previous.dataSchema ||
     target.dataSchema !== 1 || target.origin !== WEB_ORIGIN || previous.origin !== WEB_ORIGIN) fail('web_migration_required');
@@ -20,7 +21,7 @@ export async function switchWebVersion({ previous, target, workspaceId, save, st
     await save({ phase: 'switching', current: previous, target, workspaceId });
     report('starting');
     const ready = await start(target);
-    if (!ready?.ready || ready.workspaceId !== workspaceId || ready.version !== target.version || ready.origin !== WEB_ORIGIN) fail('web_health_mismatch');
+    if (!ready?.ready || ready.workspaceId !== workspaceId || ready.version !== target.version || !isWorkbenchOrigin(ready.origin)) fail('web_health_mismatch');
     await save({ phase: 'committed', current: target, previous, workspaceId });
     report('committed');
     return { current: target, rolledBack: false };
@@ -30,7 +31,7 @@ export async function switchWebVersion({ previous, target, workspaceId, save, st
     try {
       await stop(); await verify(previous);
       const ready = await start(previous);
-      if (!ready?.ready || ready.workspaceId !== workspaceId || ready.version !== previous.version || ready.origin !== WEB_ORIGIN) fail('web_health_mismatch');
+      if (!ready?.ready || ready.workspaceId !== workspaceId || ready.version !== previous.version || !isWorkbenchOrigin(ready.origin)) fail('web_health_mismatch');
       await save({ phase: 'rolled-back', current: previous, previous: target, workspaceId });
       report('rolled-back');
       return { current: previous, rolledBack: true, error: 'update_failed_rolled_back' };

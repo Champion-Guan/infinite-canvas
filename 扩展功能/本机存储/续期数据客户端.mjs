@@ -51,7 +51,14 @@ export function createRenewingDataClient({ url, host, origin = globalThis.locati
           requireValue(autoReconnect, 'session_expired', '本机数据会话已过期，需要恢复原连接。', 401);
           session = await reconnectSession(previous);
         } else {
-          try { session = await host.renew({ ...previous.session }); }
+          try {
+            try { session = await host.renew({ ...previous.session }); }
+            catch (error) {
+              // 仅重试无业务副作用的幂等续期；保存/生成请求仍不因未知响应自动重放。
+              if (!autoReconnect || !['authorization_connection_failed', 'connection_failed'].includes(error?.code)) throw error;
+              session = await host.renew({ ...previous.session });
+            }
+          }
           catch (error) {
             // 续期请求恰好跨过期限时，服务已明确拒绝，尚未发出业务请求。
             if (!autoReconnect || error?.code !== 'session_expired' || !expired(previous)) throw error;

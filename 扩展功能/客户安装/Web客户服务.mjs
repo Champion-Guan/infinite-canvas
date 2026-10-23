@@ -16,6 +16,8 @@ let app, timer, stopping = false;
 const send = message => { if (process.connected) process.send(message); };
 try {
   app = await startDailyWorkbench({ webRoot: join(root, 'web'), storage: { openWorkspace, startDataService }, ...helper,
+    // beta3管理器仍校验3100；其升级事务完成后，下次由新版管理器启动即使用自动端口。
+    ...(process.env.GUAN_WEB_PORT_POLICY === 'automatic-v1' ? {} : { endpoint: { hostname: 'localhost', port: 3100 } }),
     initialize: !existsSync(dailyWorkbenchPaths().dataRoot), deferActivation: true, softwareUpdateOptions: { webPackage: true, currentVersion: inventory.version, manager } });
   const status = () => ({ ...app.getStatus(), workspaceId: app.workspaceId, version: inventory.version, origin: app.origin });
   send({ type: 'web-service-ready', status: { ...status(), ready: true, acceptingPages: false } });

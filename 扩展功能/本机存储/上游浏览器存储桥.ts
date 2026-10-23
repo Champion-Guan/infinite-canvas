@@ -10,7 +10,7 @@ export type SQLiteUsage = {
     usage: number; quota: number | null; contentBytes: number;
     databases: Array<{ name: string; version: number; bytes: number; stores: Array<{ name: string; records: number; bytes: number }> }>;
 };
-type RuntimeStatus = { state: string; pending: number; errors: string[]; retrying?: boolean; failures?: Array<{ namespace: string; code: string }> };
+type RuntimeStatus = { state: string; pending: number; errors: string[]; retrying?: boolean; failures?: Array<{ namespace: string; code: string; stage?: string; status?: number | null }> };
 export interface SQLiteRuntime {
     createInstance(options: { name?: string; storeName?: string }): SQLiteInstance;
     flush(): Promise<unknown>;
@@ -34,6 +34,7 @@ export function storageStatus() {
     return { state: failed.size || current?.state === "error" ? "error" : writes.size || scheduled.size || current?.pending ? "saving" : current?.state ?? "idle",
         pending: Math.max(writes.size, current?.pending ?? 0) + scheduled.size, retrying: !!retryFlight || !!current?.retrying,
         conflict: codes.includes("revision_conflict"), reconnectRequired: codes.includes("session_expired"), reconnecting,
+        failure: current?.failures?.[0] ?? null,
         reconnectError: reconnectError ?? codes.find(code => ["authorization_expired", "authorization_denied", "lease_expired", "session_host_closed"].includes(code ?? "")) ?? null };
 }
 function statusChanged() { if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("guan:storage-status", { detail: storageStatus() })); }

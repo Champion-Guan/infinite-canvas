@@ -20,6 +20,7 @@ export function SQLiteSaveStatus() {
         <p role="alert" aria-live="assertive" style={{ margin: 0, fontWeight: 600 }}>{title}</p>
             <p style={{ margin: "6px 0 10px" }}>{status.conflict ? "其他窗口已修改数据。请保留本页，不要刷新、关闭或强制覆盖；需要先处理版本冲突。" : expired ? "页面授权已结束或服务已重开，不能恢复原连接。编辑仍在本页，请保留页面，勿刷新或关闭，需先由可信入口恢复授权。" : reconnect ? "自动恢复本机连接未完成。编辑仍保留在本页，请勿刷新或关闭；点击下方重试连接并保存。" : "编辑仍保留在本页内存中。请勿刷新或关闭，连接恢复后点击重试。"}</p>
             {status.reconnectError && !expired && <p role="alert" style={{ margin: "6px 0 10px" }}>重新连接或保存尚未完成，编辑仍保留，请稍后重试。</p>}
+            {status.failure && <p style={{ margin: "6px 0 10px", fontSize: 12 }}>保存诊断：{status.failure.code} · {status.failure.stage === "root" ? "提交目录" : status.failure.stage === "fragment" ? "写入分片" : "准备保存"}{status.failure.status ? ` · HTTP ${status.failure.status}` : ""}</p>}
             <button type="button" disabled={status.retrying || status.conflict} onClick={() => { void (reconnect ? reconnectAndRetrySQLiteStorage() : retrySQLiteStorage()).catch(() => { /* 状态事件保留错误，不能假报成功。 */ }); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", color: "inherit", cursor: status.retrying ? "wait" : "pointer" }}>
                 {status.reconnecting ? "正在重新连接…" : status.retrying ? "正在重试…" : reconnect ? "重新连接并保存" : "重试未确认保存"}
             </button>

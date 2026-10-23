@@ -33,3 +33,10 @@ test('自动恢复失败和绝对授权到期显示不同原因', () => {
     const expired = render({ state: 'error', reconnectError: 'authorization_expired' });
     assert.match(expired, /页面授权已结束/); assert.doesNotMatch(expired, /自动恢复本机连接未完成/);
 });
+
+
+test('保存失败显示精确阶段与错误码，不显示内容或凭据', () => {
+    const html = render({ state: 'error', failure: { code: 'revision_conflict', stage: 'root', status: 409 } });
+    assert.match(html, /revision_conflict/); assert.match(html, /提交目录/); assert.match(html, /HTTP 409/);
+    assert.match(render({ state: 'error', failure: { code: 'connection_failed', stage: 'fragment' } }), /写入分片/);
+});

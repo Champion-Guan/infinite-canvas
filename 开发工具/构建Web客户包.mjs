@@ -99,7 +99,7 @@ export async function buildWebPackage({ root = sourceRoot, runtimeDirectory, ups
     // shell标识符需ASCII；面向客户的文件名称仍为中文。
     writeFileSync(join(stage, file), readFileSync(join(stage, file), 'utf8').replaceAll('工作台目录', 'GUAN_WEB_ROOT'), { mode: 0o700 });
   }
-  writeFileSync(join(stage, '安装使用说明.txt'), 'Apple Silicon Web预览版。\n先双击“安装工作台.command”，联网验证固定仓库签名后安装；再双击“启动工作台.command”，打开 http://localhost:3100。\n个人SQLite数据位于AI-Workbench-重建版/工作区，安装版本单独保存，更新不清空或替换私人数据。\n旧3000/8888工作台用户先在旧版导出产品，再用新版“导入产品”新建画布；API配置请重新填写。不覆盖旧浏览器存储。\n更新在设置的软件更新页操作；确认保存且任务结束后关闭工作台页面，其余网站可继续使用。\n', { mode: 0o600 });
+  writeFileSync(join(stage, '安装使用说明.txt'), 'Apple Silicon Web预览版。\n先双击“安装工作台.command”，联网验证固定仓库签名后安装；再双击“启动工作台.command”，按启动器显示的实际地址打开。默认 http://localhost:3000，被占用时自动顺延空闲端口。\n个人SQLite数据位于AI-Workbench-重建版/工作区，安装版本单独保存，更新不清空或替换私人数据。\n旧3000/8888工作台用户先在旧版导出产品，再用新版“导入产品”新建画布；API配置请重新填写。不覆盖旧浏览器存储。\n更新在设置的软件更新页操作；确认保存且任务结束后关闭工作台页面，其余网站可继续使用。\n', { mode: 0o600 });
   // 统一包权限，包含npm依赖；不带链接或构建机身份信息。
   execFileSync('/bin/chmod', ['-R', 'go-w', stage]);
   const inventory = { format: 1, app: WEB_APP, repository: WEB_REPOSITORY, version: release.版本, commit,

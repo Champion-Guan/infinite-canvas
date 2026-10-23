@@ -1,8 +1,8 @@
 {
   "仓库": "Champion-Guan/infinite-canvas",
-  "版本": "2.0.0-beta.3",
+  "版本": "2.0.0-beta.4",
   "渠道": "web-preview",
   "架构": "arm64",
   "数据版本": 1,
-  "入口": "http://localhost:3100"
+  "入口": "默认 http://localhost:3000，占用时顺延；以启动器输出为准"
 }

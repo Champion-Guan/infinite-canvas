@@ -7,7 +7,7 @@ import { WEB_APP, WEB_ORIGIN, fail } from './Web发布协议.mjs';
 
 export const webInstallPaths = () => {
   const root = join(homedir(), 'Library/Application Support/AI-Workbench-Web安装');
-  return { root, versions: join(root, '版本'), state: join(root, '当前版本.json'), lock: join(root, '运行锁.json'), log: join(root, '工作台.log') };
+  return { root, versions: join(root, '版本'), state: join(root, '当前版本.json'), lock: join(root, '运行锁.json'), address: join(root, '运行地址.json'), log: join(root, '工作台.log') };
 };
 export async function privateDirectory(path) {
   try { await mkdir(path, { mode: 0o700 }); } catch (e) { if (e.code !== 'EEXIST') throw e; }

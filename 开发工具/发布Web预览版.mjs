@@ -18,7 +18,7 @@ export async function publishWebPreview(recordFile) {
   const { selected, manifest } = verifyWebManifest(proof[0], proof[1], { releaseVersion: record.version });
   assert.equal(manifest.commit, record.commit); assert.equal(sha256(await readFile(record.archive)), selected.sha256);
   const notes = join(directory, '发布说明.md');
-  await writeFile(notes, `Web预览版 ${record.version}\n\nApple Silicon（macOS arm64）。下载“${selected.name}”，解压后双击“安装工作台.command”，再双击“启动工作台.command”，打开 http://localhost:3100。安装器联网取得本Release的签名清单并核验全部文件。\n\n旧版用户先导出产品，再用新版“导入产品”创建画布；凭据重新配置。保留旧Origin和旧数据。已有Web版在设置→软件更新中验签下载，确认保存和任务结束、关闭工作台页面后升级。版本目录与SQLite/素材分开，失败保留或回退。\n\n这是预览版；跨Mac实机验收与未迁移功能详见仓库开发文档。\n`, { flag: 'wx', mode: 0o600 });
+  await writeFile(notes, `Web预览版 ${record.version}\n\nApple Silicon（macOS arm64）。下载“${selected.name}”，解压后双击“安装工作台.command”，再双击“启动工作台.command”，按启动器显示的实际地址打开。默认 http://localhost:3000，被占用时自动顺延空闲端口。安装器联网取得本Release的签名清单并核验全部文件。\n\n旧版用户先导出产品，再用新版“导入产品”创建画布；凭据重新配置。保留旧工作台和旧数据。已有Web版在设置→软件更新中验签下载，确认保存和任务结束、关闭工作台页面后升级。版本目录与SQLite/素材分开，失败保留或回退。\n\n这是预览版；跨Mac实机验收与未迁移功能详见仓库开发文档。\n`, { flag: 'wx', mode: 0o600 });
   run(['release', 'create', tag, '--repo', WEB_REPOSITORY, '--target', record.commit, '--draft', '--prerelease', '--title', '生图工作台 Web ' + record.version, '--notes-file', notes]);
   run(['release', 'upload', tag, '--repo', WEB_REPOSITORY, record.archive + '#' + selected.name, ...WEB_MANIFEST_NAMES.map(name => join(directory, name) + '#' + name)]);
   const downloaded = await mkdtemp(join(directory, '远程复核-'));

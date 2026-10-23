@@ -18,7 +18,8 @@ export function createRecoverableShardedApplicationStorage(options) {
     const baseStatus = base?.getStatus();
     return { state: failed.length || baseStatus?.state === 'error' ? 'error' : pending ? 'saving' : everSaved ? 'saved' : 'idle', pending,
       errors: [...new Set([...failed.map(space => space.name), ...(baseStatus?.errors ?? [])])], retrying: !!flight,
-      failures: failed.map(space => ({ namespace: space.name, code: typeof space.error?.code === 'string' ? space.error.code : 'save_unconfirmed' })) };
+      failures: [...(baseStatus?.failures ?? []), ...failed.filter(space => !baseStatus?.failures?.some(item => item.namespace === space.name))
+        .map(space => ({ namespace: space.name, code: /^[a-z_]{3,64}$/.test(space.error?.code) ? space.error.code : 'save_unconfirmed', stage: 'prepare', status: null }))] };
   }
   function notify() {
     const value = status();
