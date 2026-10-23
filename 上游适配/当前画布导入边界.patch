@@ -1,0 +1,82 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 2dc173d..b7df1d2 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,3 +1,4 @@
++import { useCanvasContentImport } from "@/扩展功能/画布导入/当前画布导入操作";
+ import { useCanvasTaskReceipts } from "@/扩展功能/画布生成/生成任务回执操作";
+ import { promptGenerationPatch, detectedPromptConfig, generationSettingsFromNode, generationNodeForExecution } from "@/扩展功能/画布生成/生成参数继承";
+ import { ExcelCanvasScope, useExcelPromptContext } from "@/扩展功能/Excel画布/Excel画布上下文";
+@@ -26,10 +27,8 @@ import { requestEdit, requestGeneration } from "@/services/api/image";
+ import { requestAudioGeneration, storeGeneratedAudio } from "@/services/api/audio";
+ import { createVideoGenerationTask, isVideoTaskFailed, storeGeneratedVideo, waitForVideoGenerationTask } from "@/services/api/video";
+ import { defaultConfig, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+-import { collectImageStorageKeys, deleteStoredImages, ensureImagePreview, getImageBlob, setImageBlob, uploadImage } from "@/services/image-storage";
+-import { collectMediaStorageKeys, deleteStoredMedia, getMediaBlob, setMediaBlob, uploadMediaFile, type UploadedFile } from "@/services/file-storage";
+-import { readZip } from "@/lib/zip";
+-import { prepareCanvasContentImport } from "@/扩展功能/画布导入/画布内容导入";
++import { collectImageStorageKeys, deleteStoredImages, ensureImagePreview, getImageBlob, uploadImage } from "@/services/image-storage";
++import { collectMediaStorageKeys, deleteStoredMedia, getMediaBlob, uploadMediaFile, type UploadedFile } from "@/services/file-storage";
+ import { recycleCanvasNodes, restoreCanvasNodes, withoutDeletedNodes } from "@/扩展功能/画布回收/画布节点回收";
+ import { nanoid } from "nanoid";
+ import { getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
+@@ -218,8 +217,6 @@ function InfiniteCanvasPage() {
+     const openAgentPanel = useAgentStore((state) => state.openPanel);
+     const containerRef = useRef<HTMLDivElement>(null);
+     const imageInputRef = useRef<HTMLInputElement>(null);
+-    const contentInputRef = useRef<HTMLInputElement>(null);
+-    const contentImportBusyRef = useRef(false);
+     const recycleBusyRef = useRef(new Set<string>());
+     const surfaceRef = useRef({ projectId, active: productActive, mounted: true });
+     surfaceRef.current.projectId = projectId;
+@@ -1458,49 +1455,7 @@ function InfiniteCanvasPage() {
+         if (!surface.mounted || !surface.active || surface.projectId !== projectId || restoredProjectIdRef.current !== projectId || !useCanvasStore.getState().openProject(projectId)) throw new Error("原画布已关闭或切换，请回到原画布重试。");
+     }, [projectId]);
+ 
+-    const importCurrentContents = useCallback(async (file?: File) => {
+-        if (!file || contentImportBusyRef.current) return;
+-        contentImportBusyRef.current = true;
+-        const hide = message.loading("正在导入画布内容…", 0);
+-        let media: Array<{ key: string; blob: Blob }> = [];
+-        let applied = false;
+-        try {
+-            await observeActivity("storage", async () => {
+-                assertImportTarget();
+-                if (file.size > 256 * 1024 * 1024) throw new Error("ZIP 文件不能超过 256 MB");
+-                const zip = await readZip(file);
+-                const manifest = zip.get("projects.json");
+-                if (!manifest) throw new Error("请选择导出当前画布生成的 ZIP 文件");
+-                const prepared = prepareCanvasContentImport(JSON.parse(await manifest.text()), zip, nodesRef.current);
+-                assertImportTarget();
+-                media = prepared.media;
+-                await settleActivityGroup(media.map(({ key, blob }) => key.startsWith("image:") ? setImageBlob(key, blob) : setMediaBlob(key, blob)));
+-                const imported = await hydrateCanvasImages(prepared.nodes);
+-                assertImportTarget();
+-                const before = createHistoryEntry();
+-                const next = { ...before, nodes: placeNewCanvasNodes(before.nodes, [...before.nodes, ...imported]), connections: [...before.connections, ...prepared.connections] };
+-                historyRef.current.past = [...historyRef.current.past.slice(-49), before];
+-                historyRef.current.future = [];
+-                applyHistory(next);
+-                applied = true;
+-                setSelectedNodeIds(new Set(imported.map(node => node.id)));
+-                await saveProductCanvas(projectId);
+-                message.success(`已向当前画布追加 ${imported.length} 个节点，可撤销`);
+-            });
+-        } catch (error) {
+-            if (!applied && media.length) {
+-                await settleActivityGroup([
+-                    deleteStoredImages(media.filter(item => item.key.startsWith("image:")).map(item => item.key)),
+-                    deleteStoredMedia(media.filter(item => !item.key.startsWith("image:")).map(item => item.key)),
+-                ]).catch(() => undefined);
+-            }
+-            message.error(`${applied ? "内容已追加，但保存未确认：" : "导入失败："}${error instanceof Error ? error.message : String(error)}`);
+-        } finally {
+-            contentImportBusyRef.current = false;
+-            if (contentInputRef.current) contentInputRef.current.value = "";
+-            hide();
+-        }
+-    }, [applyHistory, assertImportTarget, createHistoryEntry, message, projectId]);
++    const { contentInputRef, importCurrentContents } = useCanvasContentImport({ projectId, nodesRef, historyRef, createHistoryEntry, applyHistory, setSelectedNodeIds, assertImportTarget, message });
+ 
+     const restoreDeletedNodeBatch = useCallback(async (batchId: string) => {
+         if (recycleBusyRef.current.has(batchId)) return;

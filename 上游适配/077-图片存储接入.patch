@@ -1,0 +1,170 @@
+diff --git a/web/src/services/image-storage.ts b/web/src/services/image-storage.ts
+index f9c62d7..1a2ea03 100644
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -1,6 +1,10 @@
+-import localforage from "localforage";
++import { sqliteForage as localforage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ 
+ import { nanoid } from "nanoid";
++import { decodeInlineImage } from "@/扩展功能/画布迁移扩展/内嵌图片解码.mjs";
++import { createPersistenceCheckpoint } from "@/扩展功能/安全与批量/persistence-checkpoint";
++import { settleActivityGroup } from "@/扩展功能/安全与批量/settle-activity-group";
++const previewCheckpoint = createPersistenceCheckpoint();
+ import i18n from "@/i18n";
+ import { withLocalProxy } from "@/stores/use-config-store";
+ import { createImageThumbnail } from "@/lib/image-thumbnail";
+@@ -8,10 +12,22 @@ import { createImageThumbnail } from "@/lib/image-thumbnail";
+ export type UploadedImage = {
+     url: string;
+     storageKey?: string;
++    /** 交付图的本地 Blob 主键；storageKey 仍保持向后兼容。 */
++    deliveryStorageKey?: string;
++    /** 生成/导入时保留的原始 Blob 主键。当前没有格式转换时与交付图内容相同。 */
++    originalStorageKey?: string;
+     width: number;
+     height: number;
+     bytes: number;
+     mimeType: string;
++    deliveryWidth?: number;
++    deliveryHeight?: number;
++    deliveryBytes?: number;
++    deliveryMimeType?: string;
++    originalWidth?: number;
++    originalHeight?: number;
++    originalBytes?: number;
++    originalMimeType?: string;
+ };
+ 
+ const store = localforage.createInstance({ name: "infinite-canvas", storeName: "image_files" });
+@@ -23,7 +39,7 @@ const previewUrls = new Map<string, string>();
+ const previewListeners = new Set<() => void>();
+ let previewRevision = 0;
+ let previewQueue: Promise<unknown> = Promise.resolve();
+-const IMAGE_PREVIEW_VERSION = 1;
++const IMAGE_PREVIEW_VERSION = 2;
+ const IMAGE_DOWNLOAD_TIMEOUT_MS = 10 * 60_000;
+ const IMAGE_REMOTE_LOAD_TIMEOUT_MS = 10 * 60_000;
+ const IMAGE_DECODE_TIMEOUT_MS = 10_000;
+@@ -36,6 +52,10 @@ type ImageReadOptions = { signal?: AbortSignal };
+ 
+ export async function uploadImage(input: string | Blob, options?: ImageReadOptions): Promise<UploadedImage> {
+     if (typeof input !== "string") return storeImage(input, options);
++    if (/^data:image\/(?:png|jpe?g|webp);base64,/i.test(input)) {
++        throwIfAborted(options?.signal);
++        return storeImage(decodeInlineImage(input), options);
++    }
+ 
+     let blob: Blob;
+     try {
+@@ -51,19 +71,43 @@ export async function uploadImage(input: string | Blob, options?: ImageReadOptio
+ 
+ async function storeImage(blob: Blob, options?: ImageReadOptions): Promise<UploadedImage> {
+     const storageKey = `image:${nanoid()}`;
++    const originalStorageKey = `${storageKey}:original`;
+     const url = URL.createObjectURL(blob);
+     try {
+-        const meta = await loadImageMeta(url, options);
+-        if (!meta) throw new Error(i18n.t("common.imageReadFailed"));
+         throwIfAborted(options?.signal);
++        // 原图与交付图分开落盘。当前管线未做转码时写入相同字节，
++        // 但保留两个稳定主键，后续裁剪/适配尺寸不会覆盖原始结果。
+         await store.setItem(storageKey, blob);
++        await store.setItem(originalStorageKey, blob);
++        const meta = await loadImageMeta(url, options);
++        if (!meta) throw new Error(i18n.t("common.imageReadFailed"));
+         throwIfAborted(options?.signal);
+         objectUrls.set(storageKey, url);
+-        await storeImagePreview(storageKey, blob);
+-        return { url, storageKey, width: meta.width, height: meta.height, bytes: blob.size, mimeType: blob.type.startsWith("image/") ? blob.type : "" };
++        // The original is ready now; thumbnail work must not delay success/download.
++        queueImagePreview(storageKey);
++        const mimeType = blob.type.startsWith("image/") ? blob.type : "";
++        return {
++            url,
++            storageKey,
++            deliveryStorageKey: storageKey,
++            originalStorageKey,
++            width: meta.width,
++            height: meta.height,
++            bytes: blob.size,
++            mimeType,
++            deliveryWidth: meta.width,
++            deliveryHeight: meta.height,
++            deliveryBytes: blob.size,
++            deliveryMimeType: mimeType,
++            originalWidth: meta.width,
++            originalHeight: meta.height,
++            originalBytes: blob.size,
++            originalMimeType: mimeType,
++        };
+     } catch (error) {
+         URL.revokeObjectURL(url);
+         await store.removeItem(storageKey).catch(() => undefined);
++        await store.removeItem(originalStorageKey).catch(() => undefined);
+         throw error;
+     }
+ }
+@@ -155,6 +199,20 @@ export async function getImageBlob(storageKey: string) {
+     return store.getItem<Blob>(storageKey);
+ }
+ 
++export async function getOriginalImageBlob(originalStorageKey?: string, fallbackStorageKey?: string) {
++    if (originalStorageKey) {
++        const original = await store.getItem<Blob>(originalStorageKey);
++        if (original) return original;
++    }
++    return fallbackStorageKey ? store.getItem<Blob>(fallbackStorageKey) : undefined;
++}
++
++export async function resolveOriginalImageUrl(originalStorageKey?: string, fallbackStorageKey?: string, fallback = "") {
++    const key = originalStorageKey || fallbackStorageKey;
++    if (!key) return fallback;
++    return resolveImageUrl(key, fallback);
++}
++
+ // 缩略图按图片的 storageKey 另存一份 WebP，只放在本地 IndexedDB 里，不写进节点数据，也不参与导出和 WebDAV 同步。
+ export function previewUrlFor(storageKey?: string) {
+     return storageKey ? previewUrls.get(storageKey) : undefined;
+@@ -193,8 +251,10 @@ function queueImagePreview(storageKey: string) {
+ }
+ 
+ async function storeImagePreview(storageKey: string, original: Blob) {
+-    const preview = await createImageThumbnail(original).catch(() => undefined);
+-    await previewStore.setItem<StoredImagePreview>(storageKey, { version: IMAGE_PREVIEW_VERSION, blob: preview }).catch(() => undefined);
++    let preview: Blob | undefined;
++    try { preview = await previewCheckpoint.run(`decode:${storageKey}`, () => createImageThumbnail(original)); }
++    catch { return undefined; } // Failed decode is not a valid "preview unnecessary" cache record.
++    await previewCheckpoint.run(`save:${storageKey}`, () => previewStore.setItem<StoredImagePreview>(storageKey, { version: IMAGE_PREVIEW_VERSION, blob: preview }));
+     return preview ? cacheImagePreview(storageKey, preview) : undefined;
+ }
+ 
+@@ -242,7 +302,7 @@ export async function deleteStoredImages(keys: Iterable<string>) {
+ 
+ export async function cleanupUnusedImages(usedData: unknown) {
+     const usedKeys = collectImageStorageKeys(usedData);
+-    await Promise.all([
++    await settleActivityGroup([
+         imageLogStore.iterate((value) => {
+             collectImageStorageKeys(value, usedKeys);
+         }),
+@@ -258,12 +318,17 @@ export async function cleanupUnusedImages(usedData: unknown) {
+     await previewStore.iterate((_value, key) => {
+         if (!usedKeys.has(key)) orphanPreviews.push(key);
+     });
+-    await Promise.all([deleteStoredImages(unused), ...orphanPreviews.map(deleteImagePreview)]);
++    // History alone does not cover recycled snapshots, cached frames or pending
++    // writes. Retain originals/previews until a trusted reference inventory exists.
++    // Explicit user-requested deletion remains available through deleteStoredImages.
++    return { status: "retained" as const, candidates: unused.length, previews: orphanPreviews.length, reason: "reference_inventory_unverified" as const };
+ }
+ 
+ export function collectImageStorageKeys(value: unknown, keys = new Set<string>()) {
+     if (!value || typeof value !== "object") return keys;
+-    if ("storageKey" in value && typeof value.storageKey === "string" && value.storageKey.startsWith("image:")) keys.add(value.storageKey);
++    for (const field of ["storageKey", "deliveryStorageKey", "originalStorageKey"]) {
++        if (field in value && typeof value[field] === "string" && value[field].startsWith("image:")) keys.add(value[field]);
++    }
+     Object.values(value).forEach((item) => (Array.isArray(item) ? item.forEach((child) => collectImageStorageKeys(child, keys)) : collectImageStorageKeys(item, keys)));
+     return keys;
+ }

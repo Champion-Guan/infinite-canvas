@@ -1,0 +1,20 @@
+diff --git a/web/src/components/canvas/canvas-toolbar.tsx b/web/src/components/canvas/canvas-toolbar.tsx
+index 2c3e0a8..967c502 100644
+--- a/web/src/components/canvas/canvas-toolbar.tsx
++++ b/web/src/components/canvas/canvas-toolbar.tsx
+@@ -8,6 +8,7 @@ import { canvasThemes, type CanvasBackgroundMode, type CanvasColorTheme, type Ca
+ import { getNodePluginId, listNodeDefinitions, useNodeRegistryVersion } from "@/lib/canvas/node-registry";
+ import { getNodeSpec } from "@/constant/canvas";
+ import { useThemeStore } from "@/stores/use-theme-store";
++import { SystemThemeButton } from "@/扩展功能/主题/跟随系统按钮";
+ import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+ import { useTranslation } from "react-i18next";
+ 
+@@ -265,6 +266,7 @@ export function CanvasToolbar({
+                             {t("canvas.toolbar.dark")}
+                         </CanvasThemeButton>
+                     </div>
++                    <SystemThemeButton />
+                     </> : null}
+                     <div className="mt-3 px-1 pb-1.5 text-[11px] font-medium opacity-50">{t("canvas.toolbar.gridStyle")}</div>
+                     <Segmented

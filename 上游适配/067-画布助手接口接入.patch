@@ -1,0 +1,49 @@
+diff --git a/web/src/services/api/canvas-agent.ts b/web/src/services/api/canvas-agent.ts
+index b70722e..d5acb50 100644
+--- a/web/src/services/api/canvas-agent.ts
++++ b/web/src/services/api/canvas-agent.ts
+@@ -1,3 +1,4 @@
++import { productFeatures, requireProductFeature } from "@/扩展功能/产品配置/功能开关";
+ import i18n from "@/i18n";
+ import type { CanvasAgentSnapshot } from "@/lib/canvas/canvas-agent-ops";
+ import type { AgentReasoningEffort } from "@/stores/use-agent-store";
+@@ -42,6 +43,7 @@ export type AgentSkillResponse = { ok?: boolean; data?: AgentSkillDetail };
+ export type AgentSkillDraftResponse = { ok?: boolean; data?: AgentSkillDraft };
+ 
+ export async function postState(endpoint: string, token: string, clientId: string, snapshot: CanvasAgentSnapshot | null) {
++    requireProductFeature("externalAgent");
+     try {
+         const response = await fetch(`${endpoint}/canvas/state?token=${encodeURIComponent(token)}&clientId=${encodeURIComponent(clientId)}`, {
+             method: "POST",
+@@ -55,6 +57,7 @@ export async function postState(endpoint: string, token: string, clientId: strin
+ }
+ 
+ export async function activateAgentClient(endpoint: string, token: string, clientId: string) {
++    requireProductFeature("externalAgent");
+     try {
+         await fetch(`${endpoint}/canvas/activate?token=${encodeURIComponent(token)}&clientId=${encodeURIComponent(clientId)}`, { method: "POST" });
+     } catch {}
+@@ -81,6 +84,7 @@ export async function revealAgentLocalFile(endpoint: string, token: string, path
+ }
+ 
+ export function resolveAgentMessageAssetUrl(endpoint: string, token: string, value: string) {
++    if (!productFeatures.externalAgent) return "";
+     const match = AGENT_MESSAGE_ASSET_PATTERN.exec(value);
+     if (!match) return value.startsWith("agent-asset:") ? "" : value;
+     const baseUrl = endpoint.trim().replace(/\/$/, "");
+@@ -116,6 +120,7 @@ export function setCodexSkillEnabled(endpoint: string, token: string, skill: Pic
+ }
+ 
+ export async function fetchAgentJson<T>(endpoint: string, token: string, path: string, init?: RequestInit) {
++    requireProductFeature("externalAgent");
+     const url = `${endpoint}${path}${path.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}`;
+     const res = await fetch(url, init);
+     const data = (await res.json().catch(() => ({}))) as T & { error?: string; msg?: string };
+@@ -124,6 +129,7 @@ export async function fetchAgentJson<T>(endpoint: string, token: string, path: s
+ }
+ 
+ export async function discoverAgentConfig(endpoint: string) {
++    requireProductFeature("externalAgent");
+     try {
+         const res = await fetch(`${endpoint}/config`);
+         if (!res.ok) return null;

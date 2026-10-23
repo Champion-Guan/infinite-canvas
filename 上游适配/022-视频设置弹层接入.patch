@@ -1,0 +1,20 @@
+diff --git a/web/src/components/canvas/canvas-video-settings-popover.tsx b/web/src/components/canvas/canvas-video-settings-popover.tsx
+index 6e84f5a..6ba1ef1 100644
+--- a/web/src/components/canvas/canvas-video-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-video-settings-popover.tsx
+@@ -1,5 +1,5 @@
+ import { useEffect, useRef, useState, type RefObject } from "react";
+-import { createPortal } from "react-dom";
++import { createProductPortal } from "@/扩展功能/产品/产品界面边界";
+ import { Settings2 } from "lucide-react";
+ import { Button } from "antd";
+ 
+@@ -95,7 +95,7 @@ function VideoSettingsPortal({
+         color: theme.node.text,
+     } as const;
+ 
+-    return createPortal(
++    return createProductPortal(
+         <div
+             ref={panelRef}
+             className="canvas-image-settings-popover"

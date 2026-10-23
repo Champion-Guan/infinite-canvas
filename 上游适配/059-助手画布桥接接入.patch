@@ -1,0 +1,19 @@
+diff --git a/web/src/pages/canvas/hooks/use-agent-bridge.ts b/web/src/pages/canvas/hooks/use-agent-bridge.ts
+index c9aaeb6..4404672 100644
+--- a/web/src/pages/canvas/hooks/use-agent-bridge.ts
++++ b/web/src/pages/canvas/hooks/use-agent-bridge.ts
+@@ -1,5 +1,6 @@
+ import { useCallback, useEffect, useMemo, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+ 
++import { productFeatures } from "@/扩展功能/产品配置/功能开关";
+ import i18n from "@/i18n";
+ import { useAgentStore } from "@/stores/use-agent-store";
+ import { applyCanvasAgentOps, type CanvasAgentOp, type CanvasAgentSnapshot } from "@/lib/canvas/canvas-agent-ops";
+@@ -90,6 +91,7 @@ export function useAgentBridge(params: AgentBridgeParams) {
+     }, [agentUndoSnapshot, projectTitle, projectId]);
+ 
+     useEffect(() => {
++        if (!productFeatures.externalAgent) return;
+         setAgentCanvasContext({ snapshot: agentSnapshot, applyOps: applyAgentOps, undoOps: undoAgentOps, canUndo: Boolean(agentUndoSnapshot) });
+         return () => setAgentCanvasContext(null);
+     }, [agentSnapshot, applyAgentOps, agentUndoSnapshot, setAgentCanvasContext, undoAgentOps]);

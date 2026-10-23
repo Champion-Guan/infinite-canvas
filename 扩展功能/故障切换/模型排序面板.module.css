@@ -1,0 +1,4 @@
+.list { display: grid; gap: 8px; max-height: min(50vh, 480px); overflow-y: auto; margin: 16px 0; padding: 0; list-style: none; }
+.row { display: flex; align-items: center; gap: 8px; padding: 10px; border: 1px solid var(--color-border, #d9dce2); border-radius: 8px; }
+.number { min-width: 22px; opacity: .55; font-variant-numeric: tabular-nums; }
+.name { flex: 1; min-width: 0; overflow-wrap: anywhere; }

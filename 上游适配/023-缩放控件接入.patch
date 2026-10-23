@@ -1,0 +1,46 @@
+diff --git a/web/src/components/canvas/canvas-zoom-controls.tsx b/web/src/components/canvas/canvas-zoom-controls.tsx
+index 64a6d09..a539e68 100644
+--- a/web/src/components/canvas/canvas-zoom-controls.tsx
++++ b/web/src/components/canvas/canvas-zoom-controls.tsx
+@@ -1,3 +1,4 @@
++import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import type { ReactNode } from "react";
+ import { Compass, Focus, HelpCircle } from "lucide-react";
+ import { useState } from "react";
+@@ -16,6 +17,7 @@ type CanvasZoomControlsProps = {
+ };
+ 
+ export function CanvasZoomControls({ scale, onScaleChange, onReset, isMiniMapOpen, onToggleMiniMap }: CanvasZoomControlsProps) {
++    const productActive = useProductActive();
+     const [shortcutsOpen, setShortcutsOpen] = useState(false);
+     const { t } = useTranslation();
+     const colorTheme = useThemeStore((state) => state.theme);
+@@ -24,7 +26,7 @@ export function CanvasZoomControls({ scale, onScaleChange, onReset, isMiniMapOpe
+     const activeStyle = { background: theme.toolbar.activeBg, color: theme.toolbar.activeText };
+ 
+     return (
+-        <div className="absolute bottom-5 left-5 z-50" onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
++        <div className="guan-canvas-zoom-dock absolute bottom-5 left-5 z-50" onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
+             <div className="flex h-14 items-center gap-1 rounded-xl border px-2 shadow-lg backdrop-blur" style={dockStyle}>
+                 <Tooltip title={isMiniMapOpen ? t("canvas.miniMapClose") : t("canvas.miniMapOpen")}>
+                     <Button
+@@ -36,8 +38,8 @@ export function CanvasZoomControls({ scale, onScaleChange, onReset, isMiniMapOpe
+                         aria-label={isMiniMapOpen ? t("canvas.miniMapClose") : t("canvas.miniMapOpen")}
+                     />
+                 </Tooltip>
+-                <Tooltip title={t("canvas.resetView")}>
+-                    <Button type="text" className="!h-8 !w-8 !min-w-8 !p-0" style={{ color: theme.toolbar.item }} icon={<Focus className="size-4" />} onClick={onReset} aria-label={t("canvas.resetView")} />
++                <Tooltip title="定位全部内容">
++                    <Button type="text" className="!h-8 !w-8 !min-w-8 !p-0" style={{ color: theme.toolbar.item }} icon={<Focus className="size-4" />} onClick={onReset} aria-label="定位全部内容" />
+                 </Tooltip>
+                 <Tooltip title={t("canvas.zoom")}>
+                     <input
+@@ -59,7 +61,7 @@ export function CanvasZoomControls({ scale, onScaleChange, onReset, isMiniMapOpe
+                     <Button type="text" className="!h-8 !w-8 !min-w-8 !p-0" style={shortcutsOpen ? activeStyle : { color: theme.toolbar.item }} icon={<HelpCircle className="size-4" />} onClick={() => setShortcutsOpen(true)} aria-label={t("canvas.shortcuts")} />
+                 </Tooltip>
+             </div>
+-            <Modal title={t("canvas.shortcuts")} open={shortcutsOpen} onCancel={() => setShortcutsOpen(false)} footer={null} centered>
++            <Modal title={t("canvas.shortcuts")} open={productActive && shortcutsOpen} onCancel={() => setShortcutsOpen(false)} footer={null} centered>
+                 <div className="space-y-3 border-t pt-4 text-sm" style={{ borderColor: theme.node.stroke }}>
+                     <Shortcut label={`Ctrl / Space + ${t("canvas.shortcut.drag")}`} value={t("canvas.shortcut.toggleTool")} />
+                     <Shortcut label={t("canvas.shortcut.wheel")} value={t("canvas.shortcut.zoom")} />

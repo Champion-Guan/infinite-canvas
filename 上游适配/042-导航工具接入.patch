@@ -1,0 +1,21 @@
+diff --git a/web/src/constant/navigation-tools.ts b/web/src/constant/navigation-tools.ts
+index c71f227..040ed50 100644
+--- a/web/src/constant/navigation-tools.ts
++++ b/web/src/constant/navigation-tools.ts
+@@ -1,6 +1,7 @@
++import { isPageEnabled } from "@/扩展功能/产品配置/功能开关";
+ import { FileText, ImagePlus, Images, Maximize2, Settings2, Video } from "lucide-react";
+ 
+-export const navigationTools = [
++export const navigationTools = ([
+     {
+         slug: "canvas",
+         icon: Maximize2,
+@@ -25,6 +26,6 @@ export const navigationTools = [
+         slug: "config",
+         icon: Settings2,
+     },
+-] as const;
++] as const).filter((tool) => isPageEnabled(tool.slug));
+ 
+ export type NavigationToolSlug = (typeof navigationTools)[number]["slug"];

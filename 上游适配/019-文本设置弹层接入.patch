@@ -1,0 +1,20 @@
+diff --git a/web/src/components/canvas/canvas-text-settings-popover.tsx b/web/src/components/canvas/canvas-text-settings-popover.tsx
+index fa11571..aa05647 100644
+--- a/web/src/components/canvas/canvas-text-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-text-settings-popover.tsx
+@@ -1,5 +1,5 @@
+ import { useEffect, useRef, useState, type RefObject } from "react";
+-import { createPortal } from "react-dom";
++import { createProductPortal } from "@/扩展功能/产品/产品界面边界";
+ import { Settings2 } from "lucide-react";
+ import { Button, InputNumber } from "antd";
+ import { useTranslation } from "react-i18next";
+@@ -90,7 +90,7 @@ function TextSettingsPortal({ buttonRect, panelRef, placement, theme, config, co
+         color: theme.node.text,
+     } as const;
+ 
+-    return createPortal(
++    return createProductPortal(
+         <div ref={panelRef} style={style} onPointerDown={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
+             <TextSettingsPanel config={config} onConfigChange={onConfigChange} theme={theme} />
+             {onCountChange ? (

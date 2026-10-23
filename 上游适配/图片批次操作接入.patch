@@ -1,0 +1,106 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 05ea73e..4f940bf 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,6 +1,7 @@
+ import { useCanvasImageResults } from "@/扩展功能/媒体交付/图片结果保存操作";
+ import { usePromptTranslation } from "@/扩展功能/画布生成/提示词翻译操作";
+ import { useSinglePromptConfig } from "@/扩展功能/画布生成/单卡配置创建";
++import { useCanvasImageBatches } from "@/扩展功能/媒体交付/图片批次操作";
+ import { useCanvasMediaDownloads } from "@/扩展功能/媒体交付/画布下载操作";
+ import { useCanvasBatchGeneration } from "@/扩展功能/画布生成/批量生成操作";
+ import { useCanvasNodeRecycle } from "@/扩展功能/画布回收/节点回收操作";
+@@ -1833,71 +1834,9 @@ function InfiniteCanvasPage() {
+         });
+     }, []);
+ 
+-    const setBatchPrimary = useCallback((nodeId: string, itemId: string) => {
+-        setNodes((prev) =>
+-            prev.map((node) => {
+-                if (node.id !== nodeId) return node;
+-                if (node.type === CanvasNodeType.Text) {
+-                    const text = node.metadata?.texts?.find((item) => item.id === itemId);
+-                    return text?.content ? { ...node, metadata: { ...node.metadata, content: text.content, primaryTextId: text.id } } : node;
+-                }
+-                const image = node.metadata?.images?.find((item) => item.id === itemId);
+-                if (!image?.content) return node;
+-                const edge = Math.max(node.width, node.height);
+-                const size = node.metadata?.freeResize ? { width: node.width, height: node.height } : fitNodeSize(image.naturalWidth, image.naturalHeight, edge, edge);
+-                return {
+-                    ...node,
+-                    position: { x: node.position.x + node.width / 2 - size.width / 2, y: node.position.y + node.height / 2 - size.height / 2 },
+-                    ...size,
+-                    metadata: {
+-                        ...node.metadata,
+-                        content: image.content,
+-                        storageKey: image.storageKey,
+-                        naturalWidth: image.naturalWidth,
+-                        naturalHeight: image.naturalHeight,
+-                        bytes: image.bytes,
+-                        mimeType: image.mimeType,
+-                        primaryImageId: image.id,
+-                    },
+-                };
+-            }),
+-        );
+-    }, []);
+-
+-    const duplicateBatchImage = useCallback((node: CanvasNodeData, imageId: string) => {
+-        const image = node.metadata?.images?.find((item) => item.id === imageId);
+-        if (!image?.content) return;
+-        const id = nanoid();
+-        const edge = Math.max(node.width, node.height);
+-        const size = fitNodeSize(image.naturalWidth, image.naturalHeight, edge, edge);
+-        const copy: CanvasNodeData = {
+-            id,
+-            type: CanvasNodeType.Image,
+-            title: node.title,
+-            position: { x: node.position.x + node.width * 2 + 96, y: node.position.y + node.height / 2 - size.height / 2 },
+-            ...size,
+-            metadata: {
+-                content: image.content,
+-                storageKey: image.storageKey,
+-                naturalWidth: image.naturalWidth,
+-                naturalHeight: image.naturalHeight,
+-                bytes: image.bytes,
+-                mimeType: image.mimeType,
+-                status: NODE_STATUS_SUCCESS,
+-                prompt: node.metadata?.prompt,
+-                generationType: node.metadata?.generationType,
+-                model: node.metadata?.model,
+-                size: node.metadata?.size,
+-                quality: node.metadata?.quality,
+-                background: node.metadata?.background,
+-                references: node.metadata?.references,
+-            },
+-        };
+-        setNodes((prev) => [...prev, copy]);
+-        setSelectedNodeIds(new Set([id]));
+-        setSelectedConnectionId(null);
+-        setDialogNodeId(id);
+-    }, []);
++    const { setBatchPrimary, duplicateBatchImage, deleteBatchImage } = useCanvasImageBatches({
++        nodesRef, setNodes, setExpandedBatchNodeIds, setSelectedNodeIds, setSelectedConnectionId, setDialogNodeId,
++    });
+ 
+     const handleNodePromptChange = useCallback((nodeId: string, prompt: string) => {
+         setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, prompt } } : node)));
+@@ -3029,18 +2968,6 @@ function InfiniteCanvasPage() {
+         [completeVideoNodeTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, pollVideoNodeTask, projectId, recordImageGatewayTask, requestNodeText, saveCanvasImageResult, setNodes, startGenerationRequest, t],
+     );
+ 
+-    const deleteBatchImage = useCallback((nodeId: string, imageId: string) => {
+-        const node = nodesRef.current.find((item) => item.id === nodeId);
+-        if ((node?.metadata?.images?.length || 0) <= 2) setExpandedBatchNodeIds((current) => new Set([...current].filter((id) => id !== nodeId)));
+-        setNodes((prev) =>
+-            prev.map((item) => {
+-                if (item.id !== nodeId) return item;
+-                const images = item.metadata?.images?.filter((image) => image.id !== imageId) || [];
+-                return { ...item, metadata: { ...item.metadata, images, count: images.length, primaryImageId: item.metadata?.primaryImageId === imageId ? images[0]?.id : item.metadata?.primaryImageId } };
+-            }),
+-        );
+-    }, []);
+-
+     const retryBatchImage = useCallback((node: CanvasNodeData, imageId: string) => void handleRetryNode(node, imageId), [handleRetryNode]);
+ 
+     const generateImageFromTextNode = useSinglePromptConfig({

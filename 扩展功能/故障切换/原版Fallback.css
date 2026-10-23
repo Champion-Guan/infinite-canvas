@@ -1,0 +1,31 @@
+.guan-fallback .local-canvas-settings-tabpanel{padding:2px 0 12px;min-height:260px}
+.guan-fallback .local-canvas-settings-card{border:1px solid #e7e5e4;border-radius:8px;padding:12px;background:transparent}
+.guan-fallback .local-canvas-settings-card h4{margin:0;color:#17181a;font-size:14px;font-weight:650}
+.guan-fallback .local-canvas-settings-card p{margin:4px 0 0;color:#78716c;font-size:12px;line-height:1rem}
+.guan-fallback .local-canvas-fallback-list{display:grid;gap:8px;margin-top:14px}
+.guan-fallback .local-canvas-fallback-switch{display:flex;align-items:center;gap:2px;width:max-content;max-width:100%;margin-top:14px;padding:3px;border-radius:9px;background:#f1f2f4}
+.guan-fallback .local-canvas-fallback-switch button{border:0;border-radius:7px;padding:6px 14px;background:transparent;color:#60656d;font:inherit;font-size:12px;cursor:pointer;transition:background .18s,color .18s,box-shadow .18s}
+.guan-fallback .local-canvas-fallback-switch button:hover{color:#1677ff}
+.guan-fallback .local-canvas-fallback-switch button.is-active{background:#fff;color:#24262a;box-shadow:0 1px 4px rgba(20,24,32,.16);font-weight:600}
+.guan-fallback .local-canvas-fallback-group{margin-top:14px;padding-top:14px;border-top:1px solid #eceef1}
+.guan-fallback .local-canvas-fallback-group:first-of-type{margin-top:12px;padding-top:0;border-top:0}
+.guan-fallback .local-canvas-fallback-group-head{display:flex;align-items:center;gap:10px}
+.guan-fallback .local-canvas-fallback-group-head label{font-size:12px;color:#34363b;font-weight:650;cursor:pointer}
+.guan-fallback .local-canvas-fallback-group-head small{margin-left:auto;color:#8b9098;font-size:11px}
+.guan-fallback .local-canvas-fallback-group-head button{border:1px solid #d9dce2;border-radius:6px;padding:3px 7px;background:#fff;color:#666b73;font-size:11px;cursor:pointer;white-space:nowrap}
+.guan-fallback .local-canvas-fallback-master{width:15px;height:15px;accent-color:#1677ff}
+.guan-fallback .local-canvas-fallback-row{display:flex;align-items:center;gap:10px;border:1px solid #e7e7eb;border-radius:9px;padding:10px 11px}
+.guan-fallback .local-canvas-fallback-row label{min-width:0;flex:1;font-size:12px;color:#25272b}.guan-fallback .local-canvas-fallback-row small{display:block;margin-top:3px;color:#8b9098;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.guan-fallback .local-canvas-fallback-row button{border:0;background:transparent;color:#717780;cursor:pointer;font-size:14px;padding:2px 4px}.guan-fallback .local-canvas-fallback-row button:disabled{opacity:.35;cursor:not-allowed}
+.guan-fallback .local-canvas-settings-note{margin-top:12px;font-size:12px;line-height:1rem;color:#78716c}
+html[data-theme="dark"] .guan-fallback .local-canvas-settings-card,html.dark .guan-fallback .local-canvas-settings-card{border-color:#292524;background:transparent;color:#f4f4f5}
+html[data-theme="dark"] .guan-fallback .local-canvas-settings-card h4,html.dark .guan-fallback .local-canvas-settings-card h4{color:#f4f4f5}
+html[data-theme="dark"] .guan-fallback .local-canvas-settings-card p,html.dark .guan-fallback .local-canvas-settings-card p,html[data-theme="dark"] .guan-fallback .local-canvas-settings-note,html.dark .guan-fallback .local-canvas-settings-note{color:#78716c}
+html[data-theme="dark"] .guan-fallback .local-canvas-fallback-row,html.dark .guan-fallback .local-canvas-fallback-row,html[data-theme="dark"] .guan-fallback .local-canvas-fallback-group,html.dark .guan-fallback .local-canvas-fallback-group{border-color:#292524}
+html[data-theme="dark"] .guan-fallback .local-canvas-fallback-row label,html.dark .guan-fallback .local-canvas-fallback-row label{color:#f4f4f5}
+html[data-theme="dark"] .guan-fallback .local-canvas-fallback-group-head label,html.dark .guan-fallback .local-canvas-fallback-group-head label{color:#f4f4f5}
+html[data-theme="dark"] .guan-fallback .local-canvas-fallback-master,html.dark .guan-fallback .local-canvas-fallback-master{accent-color:#8ab4ff}
+html[data-theme="dark"] .guan-fallback .local-canvas-fallback-switch,html.dark .guan-fallback .local-canvas-fallback-switch{background:#292524}
+html[data-theme="dark"] .guan-fallback .local-canvas-fallback-switch button,html.dark .guan-fallback .local-canvas-fallback-switch button{color:#aeb4bf}
+html[data-theme="dark"] .guan-fallback .local-canvas-fallback-switch button:hover,html.dark .guan-fallback .local-canvas-fallback-switch button:hover{color:#8ab4ff}
+html[data-theme="dark"] .guan-fallback .local-canvas-fallback-switch button.is-active,html.dark .guan-fallback .local-canvas-fallback-switch button.is-active{background:#44403c;color:#f4f4f5;box-shadow:0 1px 4px rgba(0,0,0,.35)}

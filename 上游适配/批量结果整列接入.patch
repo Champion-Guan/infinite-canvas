@@ -1,0 +1,94 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 8892ac7..0468678 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -41,6 +41,7 @@ import { useAssetStore } from "@/stores/use-asset-store";
+ import { useThemeStore } from "@/stores/use-theme-store";
+ import { cropDataUrl, splitDataUrl, upscaleDataUrl } from "@/lib/canvas/canvas-image-data";
+ import { fitNodeSize, nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
++import { batchResultPosition, resizedResultPosition, type BatchResultPlacement } from "@/扩展功能/画布布局/批量结果排布";
+ import { arrangeOverlappingCanvasNodes, nextGenerationResultPosition, placeCanvasNode, placeNewCanvasNodes } from "@/扩展功能/画布布局/卡片自动避让";
+ import { captureVideoFrame, type VideoFramePosition } from "@/lib/canvas/canvas-video-frame";
+ import { App, Button, Modal } from "antd";
+@@ -166,7 +167,7 @@ function applyGeneratedVideo(item: CanvasNodeData, video: UploadedFile, extra: C
+         ...item,
+         width: videoSize.width,
+         height: videoSize.height,
+-        position: { x: item.position.x + item.width / 2 - videoSize.width / 2, y: item.position.y + item.height / 2 - videoSize.height / 2 },
++        position: resizedResultPosition(item, videoSize),
+         metadata: { ...item.metadata, ...videoMetadata(video), ...extra },
+     };
+ }
+@@ -2549,7 +2550,7 @@ function InfiniteCanvasPage() {
+     }, []);
+ 
+     const handleGenerateNode = useCallback(
+-        async (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string) => {
++        async (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string, batchPlacement?: BatchResultPlacement) => {
+             if (!isGenerationModeEnabled(mode)) { message.info("不支持的生成模式。"); return; }
+             const sourceNode = nodesRef.current.find((node) => node.id === nodeId);
+             const generationConfig = buildGenerationConfig(effectiveConfig, generationNodeForExecution(sourceNode, nodeId, nodesRef.current, connectionsRef.current), mode);
+@@ -2644,7 +2645,7 @@ function InfiniteCanvasPage() {
+                         id: rootId,
+                         type: CanvasNodeType.Image,
+                         title: effectivePrompt.slice(0, 32) || "Generated Image",
+-                        position: reuseImageNode ? parentPosition : nextGenerationResultPosition(
++                        position: reuseImageNode ? parentPosition : batchPlacement ? batchResultPosition(batchPlacement, imageConfig) : nextGenerationResultPosition(
+                             { position: parentPosition, width: parentConfig.width, height: parentConfig.height },
+                             imageConfig,
+                             resultIndex,
+@@ -2661,6 +2662,7 @@ function InfiniteCanvasPage() {
+                             ...generationMetadata,
+                             generationNameBase,
+                             generationStartedAt,
++                            ...(batchPlacement ? { generationBatchId: batchPlacement.batchId } : {}),
+                         },
+                     };
+ 
+@@ -2766,7 +2768,7 @@ function InfiniteCanvasPage() {
+                         id: videoId,
+                         type: CanvasNodeType.Video,
+                         title: effectivePrompt.slice(0, 32) || "Generated Video",
+-                        position: reuseVideoNode ? sourceNode.position : { x: parent.x + (sourceNode?.width || spec.width) + 96, y: parent.y },
++                        position: reuseVideoNode ? sourceNode.position : batchPlacement ? batchResultPosition(batchPlacement, spec) : { x: parent.x + (sourceNode?.width || spec.width) + 96, y: parent.y },
+                         width: reuseVideoNode ? sourceNode.width : spec.width,
+                         height: reuseVideoNode ? sourceNode.height : spec.height,
+                         metadata: {
+@@ -2774,6 +2776,7 @@ function InfiniteCanvasPage() {
+                             status: NODE_STATUS_LOADING,
+                             model: generationConfig.model,
+                             generationStartedAt,
++                            ...(batchPlacement ? { generationBatchId: batchPlacement.batchId } : {}),
+                             size: generationConfig.size,
+                             seconds: generationConfig.videoSeconds,
+                             vquality: generationConfig.vquality,
+@@ -2817,10 +2820,10 @@ function InfiniteCanvasPage() {
+                         id: audioId,
+                         type: CanvasNodeType.Audio,
+                         title: effectivePrompt.slice(0, 32) || "Generated Audio",
+-                        position: reuseAudioNode ? sourceNode.position : { x: parent.x + (sourceNode?.width || spec.width) + 96, y: parent.y + ((sourceNode?.height || spec.height) - spec.height) / 2 },
++                        position: reuseAudioNode ? sourceNode.position : batchPlacement ? batchResultPosition(batchPlacement, spec) : { x: parent.x + (sourceNode?.width || spec.width) + 96, y: parent.y + ((sourceNode?.height || spec.height) - spec.height) / 2 },
+                         width: reuseAudioNode ? sourceNode.width : spec.width,
+                         height: reuseAudioNode ? sourceNode.height : spec.height,
+-                        metadata: { prompt: effectivePrompt, status: NODE_STATUS_LOADING, ...buildAudioGenerationMetadata(generationConfig), generationStartedAt },
++                        metadata: { prompt: effectivePrompt, status: NODE_STATUS_LOADING, ...buildAudioGenerationMetadata(generationConfig), generationStartedAt, ...(batchPlacement ? { generationBatchId: batchPlacement.batchId } : {}) },
+                     };
+                     pendingChildIds = [audioId];
+                     setNodes((prev) =>
+@@ -2852,7 +2855,7 @@ function InfiniteCanvasPage() {
+                     id: rootId,
+                     type: CanvasNodeType.Text,
+                     title: effectivePrompt.slice(0, 32) || "Generated Text",
+-                    position: reuseTextNode ? sourceNode.position : { x: parentPosition.x + parentConfig.width + 96, y: parentPosition.y + parentConfig.height / 2 - textConfig.height / 2 },
++                    position: reuseTextNode ? sourceNode.position : batchPlacement ? batchResultPosition(batchPlacement, textConfig) : { x: parentPosition.x + parentConfig.width + 96, y: parentPosition.y + parentConfig.height / 2 - textConfig.height / 2 },
+                     width: reuseTextNode ? sourceNode.width : textConfig.width,
+                     height: reuseTextNode ? sourceNode.height : textConfig.height,
+                     metadata: {
+@@ -2864,6 +2867,7 @@ function InfiniteCanvasPage() {
+                         reasoningEffort: generationConfig.reasoningEffort,
+                         textCount,
+                         generationStartedAt,
++                        ...(batchPlacement ? { generationBatchId: batchPlacement.batchId } : {}),
+                         texts: textIds.map((id) => ({ id, status: NODE_STATUS_LOADING, content: "" })),
+                         primaryTextId: textIds[0],
+                     },

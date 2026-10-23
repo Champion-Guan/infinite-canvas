@@ -1,0 +1,6 @@
+{
+  "name": "guan-network-proxy-boundary",
+  "private": true,
+  "type": "module",
+  "dependencies": { "yaml": "2.8.2" }
+}

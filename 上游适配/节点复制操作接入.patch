@@ -1,0 +1,153 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 4f940bf..25a19b5 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -14,7 +14,7 @@ import { registerExcelParameterNode } from "@/扩展功能/Excel画布/Excel参
+ import { PROMPT_VARIABLES_NODE_TYPE } from "@/扩展功能/Excel画布/旧版参数规则";
+ import { useExcelParameterOperations } from "@/扩展功能/Excel画布/Excel参数操作";
+ import { useExcelCanvasInsertion } from "@/扩展功能/Excel画布/Excel插入操作";
+-import { remapCopiedExcelRelations } from "@/扩展功能/Excel画布/Excel卡片事务";
++import { useCanvasNodeCopy } from "@/扩展功能/画布布局/节点复制操作";
+ import { useCanvasNodeTransactions } from "@/扩展功能/画布生成/画布节点事务";
+ import { useGlobalImageReference } from "@/扩展功能/画布生成/全局参考图操作";
+ import { EXCEL_PROMPT_DRAG_TYPE } from "@/扩展功能/Excel画布/Excel拖入校验";
+@@ -130,17 +130,14 @@ registerBuiltinNodes();
+ registerExcelParameterNode();
+ const excelFactory = { create: createCanvasNode, edgeId: nanoid, place: placeCanvasNode };
+ 
+-type CanvasClipboard = {
+-    nodes: CanvasNodeData[];
+-    connections: CanvasConnection[];
+-};
+-
+ type ConnectionDropTarget = {
+     nodeId: string | null;
+     isNearNode: boolean;
+ };
+ 
+-type CanvasHistoryEntry = Pick<CanvasClipboard, "nodes" | "connections"> & {
++type CanvasHistoryEntry = {
++    nodes: CanvasNodeData[];
++    connections: CanvasConnection[];
+     chatSessions: CanvasAssistantSession[];
+     activeChatId: string | null;
+     backgroundMode: CanvasBackgroundMode;
+@@ -228,7 +225,6 @@ function InfiniteCanvasPage() {
+         return () => { surfaceRef.current.mounted = false; };
+     }, []);
+     const uploadTargetRef = useRef<{ nodeId?: string; position?: Position } | null>(null);
+-    const clipboardRef = useRef<CanvasClipboard | null>(null);
+     const historyRef = useRef<{ past: CanvasHistoryEntry[]; future: CanvasHistoryEntry[] }>({ past: [], future: [] });
+     const lastHistoryRef = useRef<CanvasHistoryEntry | null>(null);
+     const historyCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+@@ -1074,106 +1070,10 @@ function InfiniteCanvasPage() {
+         setClearConfirmOpen(false);
+     }, [deleteNodes, deselectCanvas]);
+ 
+-    const duplicateNode = useCallback((nodeId: string) => {
+-        const source = nodesRef.current.find((node) => node.id === nodeId);
+-        if (!source) return;
+-
+-        const id = `${source.type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+-        const next: CanvasNodeData = {
+-            ...source,
+-            id,
+-            title: `${source.title} Copy`,
+-            position: { x: source.position.x + 36, y: source.position.y + 36 },
+-        };
+-        const referenceConnections = connectionsRef.current.filter((connection) => connection.toNodeId === nodeId).map((connection) => ({ ...connection, id: nanoid(), toNodeId: id }));
+-
+-        setNodes((prev) => [...prev, next]);
+-        setConnections((prev) => [...prev, ...referenceConnections]);
+-        setSelectedNodeIds(new Set([id]));
+-        setSelectedConnectionId(null);
+-        if (next.type !== CanvasNodeType.Group) setDialogNodeId(id);
+-    }, []);
+-
+-    const copySelectedNodes = useCallback(() => {
+-        const selectedIds = selectedNodeIdsRef.current;
+-        if (!selectedIds.size) return;
+-
+-        const copiedNodes = nodesRef.current
+-            .filter((node) => selectedIds.has(node.id))
+-            .map((node) => ({
+-                ...node,
+-                position: { ...node.position },
+-                metadata: node.metadata ? { ...node.metadata } : undefined,
+-            }));
+-
+-        if (!copiedNodes.length) return;
+-
+-        clipboardRef.current = {
+-            nodes: copiedNodes,
+-            connections: connectionsRef.current.filter((connection) => selectedIds.has(connection.toNodeId)).map((connection) => ({ ...connection })),
+-        };
+-    }, []);
+-
+-    const pasteCopiedNodes = useCallback(() => {
+-        const clipboard = clipboardRef.current;
+-        if (!clipboard?.nodes.length) return false;
+-
+-        const center = getCanvasCenter();
+-        const bounds = clipboard.nodes.reduce(
+-            (acc, node) => ({
+-                left: Math.min(acc.left, node.position.x),
+-                top: Math.min(acc.top, node.position.y),
+-                right: Math.max(acc.right, node.position.x + node.width),
+-                bottom: Math.max(acc.bottom, node.position.y + node.height),
+-            }),
+-            { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity },
+-        );
+-        const dx = center.x - (bounds.left + bounds.right) / 2;
+-        const dy = center.y - (bounds.top + bounds.bottom) / 2;
+-        const idMap = new Map<string, string>();
+-        const nextNodes = clipboard.nodes.map((node, index) => {
+-            const id = `${node.type}-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`;
+-            idMap.set(node.id, id);
+-            return {
+-                ...node,
+-                id,
+-                title: node.title.endsWith(" Copy") ? node.title : `${node.title} Copy`,
+-                position: {
+-                    x: node.position.x + dx,
+-                    y: node.position.y + dy,
+-                },
+-                metadata: node.metadata ? { ...node.metadata } : undefined,
+-            };
+-        });
+-
+-        const pastedNodes = nextNodes.map((node: CanvasNodeData) => {
+-            node = remapCopiedExcelRelations(node, idMap);
+-            const groupId = node.metadata?.groupId;
+-            if (!groupId) return node;
+-            return { ...node, metadata: { ...node.metadata, groupId: idMap.get(groupId) } };
+-        });
+-
+-        const nextConnections = clipboard.connections.flatMap((connection, index) => {
+-            const toNodeId = idMap.get(connection.toNodeId);
+-            if (!toNodeId) return [];
+-            return [
+-                {
+-                    ...connection,
+-                    id: `conn-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
+-                    fromNodeId: idMap.get(connection.fromNodeId) ?? connection.fromNodeId,
+-                    toNodeId,
+-                },
+-            ];
+-        });
+-
+-        setNodes((prev) => [...prev, ...pastedNodes]);
+-        setConnections((prev) => [...prev, ...nextConnections]);
+-        setSelectedNodeIds(new Set(pastedNodes.map((node) => node.id)));
+-        setSelectedConnectionId(null);
+-        setContextMenu(null);
+-        setDialogNodeId(pastedNodes[0]?.type === CanvasNodeType.Group ? null : pastedNodes[0]?.id || null);
+-        return true;
+-    }, [getCanvasCenter]);
++    const { duplicateNode, copySelectedNodes, pasteCopiedNodes } = useCanvasNodeCopy({
++        nodesRef, connectionsRef, selectedNodeIdsRef, getCanvasCenter, setNodes, setConnections,
++        setSelectedNodeIds, setSelectedConnectionId, setContextMenu, setDialogNodeId,
++    });
+ 
+     const resetViewport = useCallback(() => {
+         if (focusAnimRef.current) cancelAnimationFrame(focusAnimRef.current);

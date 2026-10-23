@@ -1,0 +1,17 @@
+diff --git a/web/src/services/api/audio.ts b/web/src/services/api/audio.ts
+index 7b6eaad..efbbd75 100644
+--- a/web/src/services/api/audio.ts
++++ b/web/src/services/api/audio.ts
+@@ -1,3 +1,4 @@
++import { requireGenerationMode } from "@/扩展功能/产品配置/精简与离线策略";
+ import axios from "axios";
+ 
+ import i18n from "@/i18n";
+@@ -21,6 +22,7 @@ function aiHeaders(config: AiConfig) {
+ }
+ 
+ export async function requestAudioGeneration(config: AiConfig, prompt: string, options?: RequestOptions): Promise<Blob> {
++    requireGenerationMode("audio");
+     const requestConfig = resolveModelRequestConfig(config, config.model || config.audioModel);
+     const model = requestConfig.model.trim();
+     const format = normalizeAudioFormatValue(config.audioFormat);

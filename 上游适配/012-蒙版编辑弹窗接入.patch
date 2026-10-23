@@ -1,0 +1,20 @@
+diff --git a/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx b/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx
+index b539667..3c70290 100644
+--- a/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx
++++ b/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx
+@@ -1,5 +1,5 @@
+ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+-import { createPortal } from "react-dom";
++import { createProductPortal } from "@/扩展功能/产品/产品界面边界";
+ import { Button, Input, Modal, Slider, Tooltip } from "antd";
+ import { Brush, Eraser, ImagePlus, Redo2, RotateCcw, Undo2, WandSparkles, ZoomIn, ZoomOut } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+@@ -251,7 +251,7 @@ export function CanvasNodeMaskEditDialog({ dataUrl, open, onClose, onConfirm }:
+                     </div>
+                 </div>
+                 {brushPreview
+-                    ? createPortal(
++                    ? createProductPortal(
+                           <div
+                               className={`pointer-events-none fixed z-[1100] rounded-full border-2 ${brushPreview.adjusting ? "border-[#fbbf24] bg-black/10" : "border-white/90 bg-black/5"} shadow-[0_0_0_1px_rgba(0,0,0,.8)]`}
+                               style={{ left: brushPreview.x, top: brushPreview.y, width: Math.max(4, brushPreview.size * viewport.imageScale), aspectRatio: 1, transform: "translate(-50%, -50%)" }}

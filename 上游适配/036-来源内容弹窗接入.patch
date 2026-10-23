@@ -1,0 +1,38 @@
+diff --git a/web/src/components/layout/prompt-source-content-modal.tsx b/web/src/components/layout/prompt-source-content-modal.tsx
+index 09c290a..5fc14bd 100644
+--- a/web/src/components/layout/prompt-source-content-modal.tsx
++++ b/web/src/components/layout/prompt-source-content-modal.tsx
+@@ -9,10 +9,11 @@ import { useAssetStore } from "@/stores/use-asset-store";
+ import { fetchSourcePrompts, refreshSource, type Prompt } from "@/services/api/prompts";
+ import type { PromptSource } from "@/services/api/prompt-source-presets";
+ 
+-export function PromptSourceContentModal({ source, onClose }: { source: PromptSource | null; onClose: () => void }) {
++export function PromptSourceContentModal({ source, localItems, onClose }: { source: PromptSource | null; localItems?: Prompt[]; onClose: () => void }) {
+     const { message } = App.useApp();
+     const { t } = useTranslation();
+-    const [items, setItems] = useState<Prompt[]>([]);
++    const [loadedItems, setItems] = useState<Prompt[]>([]);
++    const items = localItems ?? loadedItems;
+     const [loading, setLoading] = useState(false);
+     const [detail, setDetail] = useState<Prompt | null>(null);
+     const copyText = useCopyText();
+@@ -21,6 +22,10 @@ export function PromptSourceContentModal({ source, onClose }: { source: PromptSo
+     const load = useCallback(
+         async (force: boolean) => {
+             if (!source) return;
++            if (localItems) {
++                if (force) message.success(t("config.promptSources.refreshed", { name: source.name, count: localItems.length }));
++                return;
++            }
+             setLoading(true);
+             try {
+                 setItems(force ? await refreshSourceItems(source.id) : await fetchSourcePrompts(source.id));
+@@ -30,7 +35,7 @@ export function PromptSourceContentModal({ source, onClose }: { source: PromptSo
+                 setLoading(false);
+             }
+         },
+-        [source, message, t],
++        [source, localItems, message, t],
+     );
+ 
+     useEffect(() => {

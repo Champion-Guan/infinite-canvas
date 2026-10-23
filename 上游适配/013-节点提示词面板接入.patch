@@ -1,0 +1,61 @@
+diff --git a/web/src/components/canvas/canvas-node-prompt-panel.tsx b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+index 9348463..c99f50c 100644
+--- a/web/src/components/canvas/canvas-node-prompt-panel.tsx
++++ b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+@@ -1,10 +1,12 @@
++import { useProductActive } from "@/扩展功能/产品/产品界面边界";
++import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
+ import { useEffect, useState } from "react";
+ import { ArrowUp, LoaderCircle, Maximize2, Square } from "lucide-react";
+ import { Button, Modal, Tooltip } from "antd";
+ import { useTranslation } from "react-i18next";
+ 
+ import { ModelPicker } from "@/components/model-picker";
+-import { defaultConfig, resolveModelForCapability, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
++import { defaultConfig, FALLBACK_MODEL_OPTION, resolveModelForCapability, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+ import { canvasThemes } from "@/lib/canvas-theme";
+ import { useThemeStore } from "@/stores/use-theme-store";
+ import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
+@@ -46,6 +48,7 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+     const hasImageContent = node.type === CanvasNodeType.Image && Boolean(node.metadata?.content);
+     const isEditingExistingContent = hasTextContent || hasImageContent;
+     const [prompt, setPrompt] = useState(node.metadata?.composerContent ?? node.metadata?.prompt ?? "");
++    const productActive = useProductActive();
+     const [expanded, setExpanded] = useState(false);
+ 
+     // Restore prompts only when switching nodes; preserve the current input after generation on the same node.
+@@ -61,6 +64,7 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+     };
+ 
+     const submit = () => {
++        if (!isGenerationModeEnabled(mode)) return;
+         const text = prompt.trim();
+         if (!text || isRunning) return;
+         onGenerate(node.id, mode, text);
+@@ -70,6 +74,8 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+         setExpanded(true);
+     };
+ 
++    if (!isGenerationModeEnabled(mode)) return <div role="status" className="rounded-xl border p-3 text-sm" style={{ background: theme.toolbar.panel, color: theme.node.text }}>视频和语音新生成及参数编辑已关闭；已有媒体、任务和原参数保留。{isRunning ? <Button onClick={() => onStop(node.id)}>停止当前任务</Button> : null}</div>;
++
+     return (
+         <div
+             data-canvas-no-zoom
+@@ -146,7 +152,7 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+                     </span>
+                 </Button>
+             </div>
+-            <Modal title={t("canvas.promptPanel.editorTitle")} open={expanded} centered width={760} footer={null} onCancel={() => setExpanded(false)} destroyOnHidden>
++            <Modal title={t("canvas.promptPanel.editorTitle")} open={productActive && expanded} centered width={760} footer={null} onCancel={() => setExpanded(false)} destroyOnHidden>
+                 <div data-canvas-no-zoom className="pt-2" onWheelCapture={(event) => event.stopPropagation()}>
+                     <CanvasNodeReferenceBar nodeId={node.id} nodes={nodes} connectedNodes={connectedNodes} onDisconnect={onDisconnectReference} onStartSelection={(nodeId) => { setExpanded(false); onStartReferenceSelection?.(nodeId); }} />
+                     <CanvasPromptChipInput
+@@ -171,6 +177,8 @@ function buildNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mode: Can
+     return {
+         ...globalConfig,
+         model: resolveModelForCapability(globalConfig, node.metadata?.model, mode),
++        fallbackRequested: mode === "image" && (node.metadata?.model === FALLBACK_MODEL_OPTION || !node.metadata?.model && globalConfig.imageModel === FALLBACK_MODEL_OPTION),
++        fallbackCapability: mode,
+         reasoningEffort: node.metadata?.reasoningEffort || globalConfig.reasoningEffort || defaultConfig.reasoningEffort,
+         quality: node.metadata?.quality || globalConfig.quality || defaultConfig.quality,
+         size: node.metadata?.size || globalConfig.size || defaultConfig.size,

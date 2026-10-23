@@ -23,3 +23,6 @@ output/
 *-personal-*.zip
 *.pem
 *.key
+
+# Web装配、构建、证据与个人运行数据
+/.运行/

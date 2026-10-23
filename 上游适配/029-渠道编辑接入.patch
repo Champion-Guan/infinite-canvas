@@ -1,0 +1,72 @@
+diff --git a/web/src/components/layout/channel-editor-drawer.tsx b/web/src/components/layout/channel-editor-drawer.tsx
+index 919dfd4..0da1526 100644
+--- a/web/src/components/layout/channel-editor-drawer.tsx
++++ b/web/src/components/layout/channel-editor-drawer.tsx
+@@ -1,4 +1,6 @@
+-import { Button, Drawer, Input, Segmented, Select, Space } from "antd";
++import { useSettingsViewport } from "@/扩展功能/存储界面/设置视区";
++import { businessFeatures } from "@/扩展功能/产品配置/脚本与提示词来源";
++import { Button, Drawer, Input, InputNumber, Segmented, Select, Space } from "antd";
+ import { ListPlus, Trash2 } from "lucide-react";
+ import { useEffect, useState } from "react";
+ import { useTranslation } from "react-i18next";
+@@ -11,6 +13,7 @@ type ScriptTarget = { name: string; capability: ModelCapability; value: string }
+ 
+ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: boolean; channel: ModelChannel | null; onSave: (channel: ModelChannel) => void; onClose: () => void }) {
+     const { t } = useTranslation();
++    const viewport = useSettingsViewport();
+     const [draft, setDraft] = useState<ModelChannel | null>(channel);
+     const [selectOpen, setSelectOpen] = useState(false);
+     const [scriptTarget, setScriptTarget] = useState<ScriptTarget | null>(null);
+@@ -34,9 +37,9 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open:
+         patch({ apiFormat, baseUrl });
+     };
+ 
+-    const applySelection = (names: string[]) => {
++    const applySelection = (models: ChannelModel[]) => {
+         const map = new Map(draft.models.map((model) => [model.name, model]));
+-        setModels(names.map((name) => map.get(name) || { name, capability: guessCapability(name) }));
++        setModels(models.map((model) => ({ ...map.get(model.name), ...model, capability: model.capability || guessCapability(model.name) })));
+     };
+ 
+     const setCapability = (name: string, capability: ModelCapability) => setModels(draft.models.map((model) => (model.name === name ? { ...model, capability } : model)));
+@@ -52,6 +55,8 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open:
+         <Drawer
+             open={open}
+             width={640}
++            getContainer={viewport ?? undefined}
++            rootStyle={viewport ? { position: "absolute", inset: 0 } : undefined}
+             title={t("config.channelEditor.title")}
+             onClose={onClose}
+             styles={{ body: { paddingTop: 16 } }}
+@@ -101,10 +106,11 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open:
+                                 {model.name}
+                             </span>
+                             <div className="flex shrink-0 items-center gap-2">
++                                <InputNumber size="small" min={0} precision={6} value={model.price} placeholder="价格（可选）" onChange={(value) => setModels(draft.models.map((item) => (item.name === model.name ? { ...item, price: typeof value === "number" ? value : undefined } : item)))} />
+                                 <Segmented size="small" value={model.capability} options={capabilityOptions} onChange={(value) => setCapability(model.name, value as ModelCapability)} />
+-                                <Button size="small" type={model.script ? "primary" : "default"} ghost={Boolean(model.script)} onClick={() => setScriptTarget({ name: model.name, capability: model.capability, value: model.script || "" })}>
++                                {businessFeatures.modelScripts ? <Button size="small" type={model.script ? "primary" : "default"} ghost={Boolean(model.script)} onClick={() => setScriptTarget({ name: model.name, capability: model.capability, value: model.script || "" })}>
+                                     {t(model.script ? "config.channelEditor.scriptReady" : "config.channelEditor.script")}
+-                                </Button>
++                                </Button> : model.script ? <span className="text-xs text-amber-600 dark:text-amber-400" title="原有脚本已保留，生成时会停止，不会改用其他调用方式">自定义脚本已停用</span> : null}
+                                 <Button size="small" danger type="text" icon={<Trash2 className="size-3.5" />} onClick={() => removeModel(model.name)} />
+                             </div>
+                         </div>
+@@ -116,14 +122,14 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open:
+ 
+             <ModelSelectModal open={selectOpen} channel={draft} selectedNames={draft.models.map((model) => model.name)} onConfirm={applySelection} onClose={() => setSelectOpen(false)} />
+ 
+-            <ModelScriptEditor
++            {businessFeatures.modelScripts ? <ModelScriptEditor
+                 open={Boolean(scriptTarget)}
+                 capability={scriptTarget?.capability || "text"}
+                 modelName={scriptTarget?.name || ""}
+                 value={scriptTarget?.value || ""}
+                 onSave={(script) => scriptTarget && setScript(scriptTarget.name, script)}
+                 onClose={() => setScriptTarget(null)}
+-            />
++            /> : null}
+         </Drawer>
+     );
+ }

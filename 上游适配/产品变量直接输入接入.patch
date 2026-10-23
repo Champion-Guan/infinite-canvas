@@ -1,0 +1,20 @@
+diff --git a/web/src/components/canvas/canvas-node-generation.ts b/web/src/components/canvas/canvas-node-generation.ts
+index f8977b0..fcc8c8b 100644
+--- a/web/src/components/canvas/canvas-node-generation.ts
++++ b/web/src/components/canvas/canvas-node-generation.ts
+@@ -7,6 +7,7 @@ import { CanvasNodeType, type CanvasConnection, type CanvasNodeData } from "@/ty
+ import { getGenerationResourceNodes, getGroupResourceNodes } from "@/lib/canvas/canvas-resource-references";
+ import { getNodeDefinition } from "@/lib/canvas/node-registry";
+ import { readProtectedGenerationText } from "@/扩展功能/提示词/生成文本读取";
++import { resolvePromptVariables } from "@/扩展功能/提示词/变量使用规则";
+ 
+ export type NodeGenerationContext = {
+     prompt: string;
+@@ -39,6 +40,7 @@ type NodeGenerationGroupInput = {
+ export type NodeGenerationInput = NodeGenerationResourceInput | NodeGenerationGroupInput;
+ 
+ export function buildNodeGenerationContext(nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[], prompt: string): NodeGenerationContext {
++    prompt = resolvePromptVariables(prompt);
+     const inputs = buildNodeGenerationInputs(nodeId, nodes, connections);
+     const sourceNode = nodes.find((node) => node.id === nodeId);
+     if (sourceNode?.type === CanvasNodeType.Config && Boolean(sourceNode.metadata?.composerContent?.trim())) {

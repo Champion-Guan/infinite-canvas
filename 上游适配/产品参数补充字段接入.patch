@@ -1,0 +1,12 @@
+diff --git a/web/src/types/canvas.ts b/web/src/types/canvas.ts
+index 4a6abb6..1d0e133 100644
+--- a/web/src/types/canvas.ts
++++ b/web/src/types/canvas.ts
+@@ -137,6 +137,7 @@ export type CanvasNodeMetadata = {
+     promptVariableResolvedPrompt?: string;
+     promptVariableTokens?: string[];
+     promptVariableValues?: Record<string, string>;
++    promptVariableSupplement?: string;
+     promptVariablePreviewNodeId?: string;
+     promptVariableSourceNodeId?: string;
+     promptVariablePreviewOf?: string;

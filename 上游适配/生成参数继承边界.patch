@@ -1,0 +1,80 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 37dc274..288b4b5 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,3 +1,4 @@
++import { promptGenerationPatch, detectedPromptConfig, generationSettingsFromNode, generationNodeForExecution } from "@/扩展功能/画布生成/生成参数继承";
+ import { requestCanvasText } from "@/扩展功能/画布生成/原画布文本调用";
+ import { ExcelCanvasScope, useExcelPromptContext } from "@/扩展功能/Excel画布/Excel画布上下文";
+ import { registerExcelParameterNode } from "@/扩展功能/Excel画布/Excel参数节点注册";
+@@ -12,7 +13,6 @@ import { ImageTaskConfirmation, type ConfirmedImageTarget } from "@/扩展功能
+ import { requestCanvasImage, type CanvasImageTask } from "@/扩展功能/画布生成/原画布图片调用";
+ import { saveProductCanvas, useProductCanvasSave } from "@/扩展功能/产品/产品操作";
+ import { observeActivity } from "@/扩展功能/安全与批量/update-activity";
+-import { settleActivityGroup } from "@/扩展功能/安全与批量/settle-activity-group";
+ import { flushSQLiteStorage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
+ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+@@ -126,62 +126,6 @@ import { settleActivityGroup } from "@/扩展功能/安全与批量/settle-activ
+ // Register built-in nodes in the shared registry once when the module loads.
+ registerBuiltinNodes();
+ 
+-function promptGenerationPatch(prompt: string): CanvasNodeMetadata {
+-    const size = prompt.match(/\b(\d{3,5})\s*[x×]\s*(\d{3,5})\s*px\b/i);
+-    const ratio = prompt.match(/\b(\d+\s*:\s*\d+)\b/);
+-    const imageType = prompt.match(/\b(MAIN IMAGE|DETAIL IMAGE|RICH[- ]CONTENT IMAGE|VIDEO FRAME)\b/i)?.[1] || "";
+-    const normalizedRatio = ratio?.[1]?.replace(/\s+/g, "");
+-    const pixelSize = size ? `${size[1]}x${size[2]}` : undefined;
+-    return {
+-        ...(pixelSize || normalizedRatio ? { size: pixelSize || normalizedRatio } : {}),
+-        ...(normalizedRatio ? { generationAspectRatio: normalizedRatio } : {}),
+-        ...(size ? { generationPixelWidth: Number(size[1]), generationPixelHeight: Number(size[2]) } : {}),
+-        ...(imageType ? { generationImageType: imageType.toLowerCase() } : {}),
+-        ...(normalizedRatio || size || imageType ? { generationParamsDetected: true } : {}),
+-    };
+-}
+-
+-function detectedPromptConfig(source: CanvasNodeData, all: CanvasNodeData[], connections: CanvasConnection[], config: ReturnType<typeof useEffectiveConfig>): CanvasNodeMetadata {
+-    const mode = promptGenerationMode(source, all, connections) || "image";
+-    return {
+-        model: config.imageModel || config.model, size: config.size,
+-        count: getGenerationCount(config.canvasImageCount || config.count),
+-        ...promptGenerationPatch(String(source.metadata?.content || source.metadata?.prompt || "")),
+-        ...generationSettingsFromNode(source), generationMode: mode,
+-        ...(mode !== "image" ? { model: mode === "video" ? config.videoModel : mode === "audio" ? config.audioModel : config.textModel } : {}),
+-        generationParamsSourceNodeId: source.id,
+-    };
+-}
+-
+-const INHERITED_GENERATION_SETTINGS = ["model", "quality", "moderation", "size", "background", "count", "reasoningEffort", "seconds", "vquality", "generateAudio", "watermark", "videoMode", "audioVoice", "audioFormat", "audioSpeed", "audioInstructions", "generationAspectRatio", "generationPixelWidth", "generationPixelHeight", "generationImageType", "generationParamsDetected", "generationParamsSourceNodeId"] as const;
+-
+-function generationSettingsFromNode(node: CanvasNodeData | undefined) {
+-    if (!node) return {};
+-    return Object.fromEntries(INHERITED_GENERATION_SETTINGS.flatMap((key) => {
+-        const value = node.metadata?.[key];
+-        return value === undefined || value === null || value === "" ? [] : [[key, value]];
+-    }));
+-}
+-
+-function generationNodeWithConnectedSettings(node: CanvasNodeData | null | undefined, nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[]): CanvasNodeData | undefined {
+-    if (!node) return undefined;
+-    const upstream = connections
+-        .filter((connection) => connection.toNodeId === nodeId)
+-        .map((connection) => nodes.find((candidate) => candidate.id === connection.fromNodeId))
+-        .filter((candidate): candidate is CanvasNodeData => Boolean(candidate));
+-    if (!upstream.length) return node;
+-    const inherited = upstream.reduce<Record<string, unknown>>((result, candidate) => ({ ...result, ...generationSettingsFromNode(candidate) }), {});
+-    return Object.keys(inherited).length ? { ...node, metadata: { ...node.metadata, ...inherited } } : node;
+-}
+-
+-// A generation-config card is a snapshot of its settings. Once it exists,
+-// executing or retrying it must not re-read settings from connected prompt
+-// cards; only prompt text/references remain connected inputs.
+-function generationNodeForExecution(node: CanvasNodeData | null | undefined, nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[]): CanvasNodeData | undefined {
+-    if (node?.type === CanvasNodeType.Config) return node;
+-    return generationNodeWithConnectedSettings(node, nodeId, nodes, connections);
+-}
+-
+ registerExcelParameterNode();
+ const excelFactory = { create: createCanvasNode, edgeId: nanoid, place: placeCanvasNode };
+ 

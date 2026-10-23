@@ -1,0 +1,30 @@
+/* 旧 canvas.css 第49–97行迁入，选择器限制在自有首页，不覆盖作者画布或弹窗。 */
+@font-face { font-family: "Guan Home Geist"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/guan/首页原样资源/Geist拉丁.woff2") format("woff2"); unicode-range: u+00??,u+0131,u+0152-0153,u+02bb-02bc,u+02c6,u+02da,u+02dc,u+0304,u+0308,u+0329,u+2000-206f,u+20ac,u+2122,u+2191,u+2193,u+2212,u+2215,u+feff,u+fffd; }
+@font-face { font-family: "Guan Home Geist Fallback"; src: local("Arial"); ascent-override: 95.94%; descent-override: 28.16%; line-gap-override: 0%; size-adjust: 104.76%; }
+.page {
+  --landing-background: #fff; --landing-text: #17181a; --landing-muted: #72757a; --landing-preview: #f5f5f5; --landing-border: #ddd; --landing-dot: #e5e5e5; --landing-selected-dot: #111;
+  position: relative; height: 100%; overflow: auto; color: var(--landing-text); background: var(--landing-background);
+  font: 14px/1.4285714286 "Guan Home Geist", "Guan Home Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+}
+.page[data-theme="dark"] { --landing-background: #171717; --landing-text: #f5f5f5; --landing-muted: #a3a3a3; --landing-preview: #262626; --landing-border: #404040; --landing-dot: #333; --landing-selected-dot: #fff; }
+.page :global(.guan-product-empty) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); width: 100%; height: 100%; padding: clamp(24px, 3vw, 56px); box-sizing: border-box; gap: 32px; align-items: center; text-align: center; background: var(--landing-background); color: var(--landing-text); }
+.page :global(.guan-product-empty) h2, .page :global(.guan-product-empty) p { margin: 0; }
+.page :global(.guan-product-landing-preview) { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; min-width: 0; width: 100%; }
+.page :global(.guan-product-landing-preview) > * { max-width: 100%; margin-inline: auto; }
+.page :global(.bg-surface-muted) { background: var(--landing-preview); }
+.page :global(.guan-product-landing-introduction) h1 { margin: 0 0 12px; font-size: clamp(28px, 2.5vw, 48px); line-height: 1.25; font-weight: 600; }
+.page :global(.guan-product-empty) p { color: var(--landing-muted); font-size: clamp(14px, 1.15vw, 20px); line-height: 1.7; }
+.page :global(.guan-product-landing-actions) { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; min-width: 0; width: 100%; }
+.page :global(.guan-product-landing-actions) h2 { font-size: clamp(24px, 2vw, 36px); font-weight: 500; }
+.page :global(.guan-product-landing-buttons) { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
+.page :global(.guan-product-landing-buttons) button { padding: 12px 20px; font-size: clamp(16px, 1.4vw, 24px); color: var(--landing-text); background: var(--landing-background); border: 1px solid var(--landing-border); border-radius: 12px; cursor: pointer; transition: transform .18s cubic-bezier(.22,1,.36,1), box-shadow .18s cubic-bezier(.22,1,.36,1); }
+.page :global(.guan-product-landing-buttons) button:hover:enabled { transform: translateY(-2px); box-shadow: 0 8px 20px rgb(0 0 0 / 10%); }
+.page :global(.guan-product-landing-buttons) button:active:enabled { transform: scale(.97); }
+.page :global(.guan-product-landing-buttons) button:disabled { cursor: not-allowed; }
+.page [aria-label="轮播图导航"] { display: flex; align-items: center; justify-content: center; gap: 8px; height: 6px; }
+.page [aria-label="轮播图导航"] button { width: 16px; height: 6px; padding: 0; border: 0; border-radius: 16px; background: var(--landing-dot); cursor: pointer; }
+.page [aria-label="轮播图导航"] button[aria-current="true"] { background: var(--landing-selected-dot); }
+.page [data-slot="badge"] { background: rgb(0 0 0 / 60%); color: #fff; }
+.page button:focus-visible { outline: 2px solid var(--landing-selected-dot); outline-offset: 4px; }
+@media (max-width: 900px) { .page :global(.guan-product-empty) { display: flex; flex-direction: column; justify-content: flex-start; overflow-y: auto; padding: 24px 16px; gap: 40px; } .page :global(.guan-product-landing-actions) { padding-bottom: 24px; } }
+@media (prefers-reduced-motion: reduce) { .page button { transition: none; } }

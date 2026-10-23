@@ -1,0 +1,74 @@
+diff --git a/web/src/components/ui/animated-theme-toggler.tsx b/web/src/components/ui/animated-theme-toggler.tsx
+index 275417e..0369ba2 100644
+--- a/web/src/components/ui/animated-theme-toggler.tsx
++++ b/web/src/components/ui/animated-theme-toggler.tsx
+@@ -4,6 +4,7 @@ import { flushSync } from "react-dom";
+ import { useTranslation } from "react-i18next";
+ 
+ import { cn } from "@/lib/utils";
++import { runThemeTransition } from "@/扩展功能/主题/主题过渡生命周期.mjs";
+ 
+ export type TransitionVariant = "circle" | "square" | "triangle" | "diamond" | "hexagon" | "rectangle" | "star";
+ 
+@@ -131,58 +132,17 @@ export const AnimatedThemeToggler = ({ children, className, duration = 400, vari
+ 
+         const applyTheme = () => {
+             const nextTheme = targetTheme ?? (isDark ? "light" : "dark");
+-            if (nextTheme === (isDark ? "dark" : "light")) return;
+             setIsDark(nextTheme === "dark");
+             document.documentElement.classList.toggle("dark", nextTheme === "dark");
+             document.documentElement.style.colorScheme = nextTheme;
+             onThemeChange?.(nextTheme);
+         };
+ 
+-        if (typeof document.startViewTransition !== "function") {
+-            applyTheme();
+-            return;
+-        }
+-
+         const clipPath = getThemeTransitionClipPaths(shape, x, y, maxRadius, viewportWidth, viewportHeight);
+-
+-        const root = document.documentElement;
+-        root.dataset.magicuiThemeVt = "active";
+-        root.style.setProperty("--magicui-theme-toggle-vt-duration", `${duration}ms`);
+-        // Pin the collapsed clip-path via CSS so Firefox does not paint the new
+-        // theme unclipped between snapshot and the ready.then() JS animation.
+-        root.style.setProperty("--magicui-theme-vt-clip-from", clipPath[0]);
+-        const cleanup = () => {
+-            delete root.dataset.magicuiThemeVt;
+-            root.style.removeProperty("--magicui-theme-toggle-vt-duration");
+-            root.style.removeProperty("--magicui-theme-vt-clip-from");
+-        };
+-
+-        const transition = document.startViewTransition(() => {
+-            flushSync(applyTheme);
++        void runThemeTransition({
++            apply: () => flushSync(applyTheme), clipPath, duration,
++            easing: shape === "star" ? "linear" : "ease-in-out",
+         });
+-        if (typeof transition?.finished?.finally === "function") {
+-            transition.finished.finally(cleanup);
+-        } else {
+-            cleanup();
+-        }
+-
+-        const ready = transition?.ready;
+-        if (ready && typeof ready.then === "function") {
+-            ready.then(() => {
+-                document.documentElement.animate(
+-                    {
+-                        clipPath,
+-                    },
+-                    {
+-                        duration,
+-                        // Star: linear avoids easing overshoot that fights polygon interpolation at t→1; VT group duration is synced above.
+-                        easing: shape === "star" ? "linear" : "ease-in-out",
+-                        fill: "forwards",
+-                        pseudoElement: "::view-transition-new(root)",
+-                    },
+-                );
+-            });
+-        }
+     }, [shape, fromCenter, duration, isDark, targetTheme, onThemeChange]);
+ 
+     return (

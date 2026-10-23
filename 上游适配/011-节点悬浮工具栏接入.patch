@@ -1,0 +1,187 @@
+diff --git a/web/src/components/canvas/canvas-node-hover-toolbar.tsx b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+index 2fc5a84..7cd0902 100644
+--- a/web/src/components/canvas/canvas-node-hover-toolbar.tsx
++++ b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+@@ -1,6 +1,8 @@
++import { useProductActive } from "@/扩展功能/产品/产品界面边界";
++import { sqlitePreferences } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { useEffect, useMemo, useState, type ReactNode } from "react";
+-import { App, Modal, Segmented, Tooltip } from "antd";
+-import { Download, Ellipsis, FolderPlus, Image as ImageIcon, Info, MessageSquare, Minus, Music2, Plus, RefreshCw, Settings2, Trash2, Ungroup, Upload, Video } from "lucide-react";
++import { App, Dropdown, Modal, Segmented, Tooltip } from "antd";
++import { Download, Ellipsis, FolderPlus, Image as ImageIcon, Info, Languages, Link2, MessageSquare, Minus, Music2, Plus, RefreshCw, Settings2, Trash2, Ungroup, Upload, Video } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 
+ import { canvasThemes } from "@/lib/canvas-theme";
+@@ -8,11 +10,18 @@ import { getNodeDefinition } from "@/lib/canvas/node-registry";
+ import { formatBytes, getDataUrlByteSize } from "@/lib/image-utils";
+ import { useCopyText } from "@/hooks/use-copy-text";
+ import { useThemeStore } from "@/stores/use-theme-store";
++import { decodeChannelModel } from "@/stores/use-config-store";
+ import { CanvasNodeType, type CanvasNodeData, type ViewportTransform } from "@/types/canvas";
+ import type { CanvasNodeToolbarItem } from "@/types/canvas-plugin";
+ import { ImageToolSettingsModal, type ImageToolbarSettingsTool } from "./canvas-image-toolbar-settings-modal";
+ import { IMAGE_QUICK_TOOLS_STORAGE_KEY, buildImageToolbarTools, defaultImageQuickToolIds, readImageQuickToolsConfig, type ImageQuickToolId } from "./canvas-image-toolbar-tools";
+ 
++function requestedImageSizeMatchesActual(requestedSize: string | undefined, actualWidth: number | undefined, actualHeight: number | undefined) {
++    if (!requestedSize || !actualWidth || !actualHeight) return false;
++    const match = requestedSize.match(/^\s*(\d+)\s*[x×]\s*(\d+)\s*$/i);
++    return Boolean(match && Number(match[1]) === actualWidth && Number(match[2]) === actualHeight);
++}
++
+ type CanvasNodeHoverToolbarProps = {
+     node: CanvasNodeData | null;
+     viewport: ViewportTransform;
+@@ -26,14 +35,15 @@ type CanvasNodeHoverToolbarProps = {
+     onUpload: (node: CanvasNodeData) => void;
+     onDownload: (node: CanvasNodeData) => void;
+     onSaveAsset: (node: CanvasNodeData) => void;
++    onUseAsGlobalReference: (node: CanvasNodeData) => void;
+     onMaskEdit: (node: CanvasNodeData) => void;
+     onCrop: (node: CanvasNodeData) => void;
+     onSplit: (node: CanvasNodeData) => void;
+     onUpscale: (node: CanvasNodeData) => void;
+-    onSuperResolve: (node: CanvasNodeData) => void;
+     onAngle: (node: CanvasNodeData) => void;
+     onViewImage: (node: CanvasNodeData) => void;
+     onReversePrompt: (node: CanvasNodeData) => void;
++    onTranslatePrompt?: (node: CanvasNodeData, language: "en" | "zh") => void;
+     onRetry: (node: CanvasNodeData) => void;
+     onToggleFreeResize: (node: CanvasNodeData) => void;
+     onDelete: (node: CanvasNodeData) => void;
+@@ -64,14 +74,15 @@ export function CanvasNodeHoverToolbar({
+     onUpload,
+     onDownload,
+     onSaveAsset,
++    onUseAsGlobalReference,
+     onMaskEdit,
+     onCrop,
+     onSplit,
+     onUpscale,
+-    onSuperResolve,
+     onAngle,
+     onViewImage,
+     onReversePrompt,
++    onTranslatePrompt,
+     onRetry,
+     onToggleFreeResize,
+     onDelete,
+@@ -83,20 +94,21 @@ export function CanvasNodeHoverToolbar({
+     const [draftImageToolIds, setDraftImageToolIds] = useState<ImageQuickToolId[]>(defaultImageQuickToolIds);
+     const [draftShowImageToolLabels, setDraftShowImageToolLabels] = useState(false);
+     const [imageToolSettingsOpen, setImageToolSettingsOpen] = useState(false);
++    const productActive = useProductActive();
+     const { message } = App.useApp();
+     const { t } = useTranslation();
+     const copyText = useCopyText();
+ 
+     useEffect(() => {
+         try {
+-            const stored = window.localStorage.getItem(IMAGE_QUICK_TOOLS_STORAGE_KEY);
++            const stored = sqlitePreferences.getItem(IMAGE_QUICK_TOOLS_STORAGE_KEY);
+             if (!stored) return;
+             const parsed = JSON.parse(stored) as unknown;
+             const config = readImageQuickToolsConfig(parsed);
+             setQuickImageToolIds(config.ids);
+             setShowImageToolLabels(config.showLabels);
+         } catch {
+-            window.localStorage.removeItem(IMAGE_QUICK_TOOLS_STORAGE_KEY);
++            sqlitePreferences.removeItem(IMAGE_QUICK_TOOLS_STORAGE_KEY);
+         }
+     }, []);
+ 
+@@ -128,7 +140,7 @@ export function CanvasNodeHoverToolbar({
+         }
+         copyText(prompt, t("common.promptCopied"));
+     };
+-    const imageTools = buildImageToolbarTools(node, { onUpload, onToggleFreeResize, onMaskEdit, onCrop, onSplit, onUpscale, onSuperResolve, onAngle, onViewImage, onCopyPrompt: copyImagePrompt, onReversePrompt });
++    const imageTools = buildImageToolbarTools(node, { onUpload, onToggleFreeResize, onMaskEdit, onCrop, onSplit, onUpscale, onAngle, onViewImage, onCopyPrompt: copyImagePrompt, onReversePrompt });
+ 
+     function openImageToolSettings() {
+         onKeep(activeNode.id);
+@@ -146,10 +158,12 @@ export function CanvasNodeHoverToolbar({
+         ...(canQueryVideoTask ? [{ id: "queryVideoTask", title: t("canvas.nodeToolbar.queryVideoTaskTitle"), label: t("canvas.nodeToolbar.queryVideoTask"), icon: <RefreshCw className="size-4" />, onClick: () => onRetry(node) }] : []),
+         ...(canRetry ? [{ id: "retry", title: t("canvas.nodeToolbar.retryTitle"), label: t("canvas.node.retry"), icon: <RefreshCw className="size-4" />, onClick: () => onRetry(node) }] : []),
+         ...(hasImage || hasVideo || isText ? [{ id: "saveAsset", title: t("common.addToAssets"), label: t("canvas.nodeToolbar.saveAsset"), icon: <FolderPlus className="size-4" />, onClick: () => onSaveAsset(node) }] : []),
++        ...(hasImage ? [{ id: "globalReference", title: "设为全局参考图", label: "全局参考", icon: <Link2 className="size-4" />, onClick: () => onUseAsGlobalReference(node) }] : []),
+         ...(hasImage || hasVideo || hasAudio ? [{ id: "download", title: t(hasAudio ? "canvas.nodeToolbar.downloadAudio" : hasVideo ? "canvas.nodeToolbar.downloadVideo" : "canvas.nodeToolbar.downloadImage"), label: t("common.download"), icon: <Download className="size-4" />, onClick: () => onDownload(node) }] : []),
+         ...(isVideo ? [{ id: "edit", title: t("common.edit"), label: t("common.edit"), icon: <MessageSquare className="size-4" />, onClick: () => onToggleDialog(node) }] : []),
+         ...(isText ? [{ id: "generateImage", title: t("canvas.node.generateImage"), label: t("canvas.node.generate"), icon: <ImageIcon className="size-4" />, onClick: () => onGenerateImage(node) }] : []),
+         ...(isConfig ? [{ id: "config", title: t("canvas.configNode.title"), label: t("canvas.configNode.title"), icon: <Settings2 className="size-4" />, onClick: () => onToggleDialog(node) }] : []),
++        ...(isText && onTranslatePrompt ? [{ id: "translatePrompt", title: "翻译提示词", label: "翻译", icon: <Languages className="size-4" />, onClick: () => undefined }] : []),
+         ...(isText ? [{ id: "decreaseFont", title: t("canvas.nodeToolbar.decreaseFont"), label: t("canvas.nodeToolbar.zoomOut"), icon: <Minus className="size-4" />, onClick: () => onDecreaseFont(node) }] : []),
+         ...(isText ? [{ id: "increaseFont", title: t("canvas.nodeToolbar.increaseFont"), label: t("canvas.nodeToolbar.zoomIn"), icon: <Plus className="size-4" />, onClick: () => onIncreaseFont(node) }] : []),
+         ...(isImage && !hasImage ? [{ id: "uploadImage", title: t("canvas.nodeToolbar.uploadImage"), label: t("canvas.nodeToolbar.uploadImage"), icon: <Upload className="size-4" />, onClick: () => onUpload(node) }] : []),
+@@ -178,7 +192,7 @@ export function CanvasNodeHoverToolbar({
+         const config = { ids: draftImageToolIds, showLabels: draftShowImageToolLabels };
+         setQuickImageToolIds(config.ids);
+         setShowImageToolLabels(config.showLabels);
+-        window.localStorage.setItem(IMAGE_QUICK_TOOLS_STORAGE_KEY, JSON.stringify(config));
++        sqlitePreferences.setItem(IMAGE_QUICK_TOOLS_STORAGE_KEY, JSON.stringify(config));
+         closeImageToolSettings();
+     };
+ 
+@@ -195,14 +209,33 @@ export function CanvasNodeHoverToolbar({
+                 onMouseDown={(event) => event.stopPropagation()}
+                 onPointerDown={(event) => event.stopPropagation()}
+             >
+-                {toolbarTools.map((tool) => (
+-                    <ToolbarAction key={tool.id} {...tool} showLabel={isImage ? showImageToolLabels : true} />
+-                ))}
++                {toolbarTools.map((tool) =>
++                    tool.id === "translatePrompt" && onTranslatePrompt ? (
++                        <Dropdown
++                            key={tool.id}
++                            trigger={["click"]}
++                            getPopupContainer={(trigger) => trigger.parentElement!}
++                            menu={{
++                                items: [
++                                    { key: "en", label: "翻译成英文" },
++                                    { key: "zh", label: "翻译成中文" },
++                                ],
++                                onClick: ({ key }) => onTranslatePrompt(node, key as "en" | "zh"),
++                            }}
++                        >
++                            <span className="relative">
++                                <ToolbarAction {...tool} showLabel={isImage ? showImageToolLabels : true} />
++                            </span>
++                        </Dropdown>
++                    ) : (
++                        <ToolbarAction key={tool.id} {...tool} showLabel={isImage ? showImageToolLabels : true} />
++                    ),
++                )}
+                 {hasImage ? <ToolbarAction id="more" title={t("canvas.imageTools.configure")} label={t("canvas.imageTools.more")} icon={<Ellipsis className="size-4" />} active={imageToolSettingsOpen} onClick={openImageToolSettings} showLabel={showImageToolLabels} /> : null}
+             </div>
+             {hasImage ? (
+                 <ImageToolSettingsModal
+-                    open={imageToolSettingsOpen}
++                    open={productActive && imageToolSettingsOpen}
+                     tools={selectableImageToolbarTools}
+                     selectedIds={draftImageToolIds}
+                     showLabels={draftShowImageToolLabels}
+@@ -269,6 +302,25 @@ export function CanvasNodeInfoModal({ node, open, onClose }: { node: CanvasNodeD
+                             <InfoRow label={t("canvas.nodeToolbar.status")} value={node.metadata?.status || "idle"} />
+                             {batchCount > 1 ? <InfoRow label={t("canvas.nodeToolbar.imageGroup")} value={t("canvas.configNode.images", { count: batchCount })} /> : null}
+                             {node.metadata?.prompt ? <InfoRow label={t("canvas.configNode.prompt")} value={node.metadata.prompt} /> : null}
++                            {node.metadata?.generationType || node.metadata?.generationImageType ? (
++                                <div className="space-y-2 rounded-lg border p-3" style={{ borderColor: theme.node.stroke }}>
++                                    <div className="text-xs font-semibold opacity-60">生成参数</div>
++                                    <InfoRow label="生成来源" value="AI 生图" />
++                                    <InfoRow label="使用渠道" value={node.metadata.channel || "暂无记录"} />
++                                    <InfoRow label="使用模型" value={decodeChannelModel(node.metadata.model || "")?.model || node.metadata.model || "暂无记录"} />
++                                    <InfoRow label="生图类型" value={node.metadata.generationType || node.metadata.generationImageType} />
++                                    <InfoRow label="图片尺寸" value={node.metadata.naturalWidth && node.metadata.naturalHeight ? `${node.metadata.naturalWidth} × ${node.metadata.naturalHeight}` : "暂无记录"} />
++                                    {requestedImageSizeMatchesActual(node.metadata.size, node.metadata.naturalWidth, node.metadata.naturalHeight) ? null : <InfoRow label="请求尺寸" value={node.metadata.size || "暂无记录"} />}
++                                    {node.metadata.upstreamSize ? <InfoRow label="上游请求尺寸" value={node.metadata.upstreamSize} /> : null}
++                                    {node.metadata.originalImage ? <InfoRow label="上游原图尺寸" value={`${node.metadata.originalImage.width} × ${node.metadata.originalImage.height}`} /> : null}
++                                    {node.metadata.deliveryNote ? <InfoRow label="尺寸处理" value={node.metadata.deliveryNote} /> : null}
++                                    <InfoRow label="质量" value={node.metadata.quality || "auto"} />
++                                    <InfoRow label="审核级别" value={node.metadata.moderation === "low" ? "低" : "自动"} />
++                                    <InfoRow label="生成数量" value={String(node.metadata.count || 1)} />
++                                    <InfoRow label="背景设置" value={node.metadata.background || "自动"} />
++                                    {node.metadata.generationAttempts?.length ? <InfoRow label="渠道尝试记录" value={node.metadata.generationAttempts.map((attempt) => `${attempt.channel} · ${attempt.model}${attempt.error ? `：${attempt.error}` : "：请求中/已返回"}`).join("\n")} /> : null}
++                                </div>
++                            ) : null}
+                             {node.metadata?.videoTaskId ? <InfoRow label={t("canvas.nodeToolbar.videoTaskId")} value={node.metadata.videoTaskId} /> : null}
+                             {imageBytes ? <InfoRow label={t("canvas.nodeToolbar.imageSize")} value={formatBytes(imageBytes)} /> : null}
+                             {node.metadata?.errorDetails ? (

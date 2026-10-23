@@ -1,0 +1,46 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index e216f11..8892ac7 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -17,7 +17,7 @@ import { EXCEL_PROMPT_DRAG_TYPE } from "@/扩展功能/Excel画布/Excel拖入
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { ImageTaskConfirmation } from "@/扩展功能/画布生成/图片任务确认状态";
+ import { requestCanvasImage } from "@/扩展功能/画布生成/原画布图片调用";
+-import { saveProductCanvas, useProductCanvasSave } from "@/扩展功能/产品/产品操作";
++import { useProductCanvasSave } from "@/扩展功能/产品/产品操作";
+ import { flushSQLiteStorage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
+ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+@@ -106,7 +106,6 @@ import {
+     type CanvasAssistantSession,
+     type CanvasConnection,
+     type CanvasNodeData,
+-    type CanvasNodeImage,
+     type CanvasNodeText,
+     type CanvasNodeMetadata,
+     type CanvasNodeTypeId,
+@@ -3092,15 +3091,15 @@ function InfiniteCanvasPage() {
+                             mode: "retry", nodeId: node.id, slotId: gatewaySlotId, image, receipt, signal: controller.signal,
+                             imageId, prompt, requestedSize: generationConfig.size,
+                             generationMetadata: savedImageMetadata?.generationType
+-                        ? {
+-                              generationType: savedImageMetadata.generationType,
+-                              model: generationConfig.model,
+-                              size: generationConfig.size,
+-                              quality: generationConfig.quality,
+-                              ...(generationConfig.background ? { background: generationConfig.background } : {}),
+-                              count: savedImageMetadata.count || 1,
+-                              references: savedImageMetadata.references,
+-                          }
++                                ? {
++                                      generationType: savedImageMetadata.generationType,
++                                      model: generationConfig.model,
++                                      size: generationConfig.size,
++                                      quality: generationConfig.quality,
++                                      ...(generationConfig.background ? { background: generationConfig.background } : {}),
++                                      count: savedImageMetadata.count || 1,
++                                      references: savedImageMetadata.references,
++                                  }
+                                 : buildImageGenerationMetadata(useReferenceImages ? "edit" : "generation", generationConfig, 1, retryImages),
+                         }),
+                     });

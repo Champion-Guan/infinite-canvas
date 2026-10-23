@@ -1,0 +1,68 @@
+diff --git a/web/src/stores/use-asset-store.ts b/web/src/stores/use-asset-store.ts
+index 859a796..5012770 100644
+--- a/web/src/stores/use-asset-store.ts
++++ b/web/src/stores/use-asset-store.ts
+@@ -1,4 +1,8 @@
+ import { create } from "zustand";
++import { createRecoveryReadGate } from "@/扩展功能/安全与批量/recovery-read-gate";
++import { createPersistenceCheckpoint } from "@/扩展功能/安全与批量/persistence-checkpoint";
++import { settleActivityGroup } from "@/扩展功能/安全与批量/settle-activity-group";
++import { projectsWithRecycleMedia } from "@/扩展功能/产品/产品回收规则";
+ import { persist, type PersistStorage, type StorageValue } from "zustand/middleware";
+ 
+ import { nanoid } from "nanoid";
+@@ -44,8 +48,11 @@ export function assetCoverUrl(asset: Asset) {
+ 
+ const ASSET_STORE_KEY = "infinite-canvas:asset_store";
+ 
++const assetReadGate = createRecoveryReadGate();
++const assetCleanupCheckpoint = createPersistenceCheckpoint();
++
+ const assetStorage: PersistStorage<AssetStore> = {
+-    getItem: async (name) => {
++    getItem: async (name) => assetReadGate.read(name, async () => {
+         const value = await localForageStorage.getItem(name);
+         if (!value) return null;
+         const parsed = JSON.parse(value) as StorageValue<AssetStore>;
+@@ -67,9 +74,9 @@ const assetStorage: PersistStorage<AssetStore> = {
+             }),
+         );
+         return parsed;
+-    },
+-    setItem: (name, value) => localForageStorage.setItem(name, JSON.stringify(value)),
+-    removeItem: (name) => localForageStorage.removeItem(name),
++    }),
++    setItem: (name, value) => { assetReadGate.assertWritable(name); return localForageStorage.setItem(name, JSON.stringify(value)); },
++    removeItem: (name) => { assetReadGate.assertWritable(name); return localForageStorage.removeItem(name); },
+ };
+ 
+ export const useAssetStore = create<AssetStore>()(
+@@ -95,10 +102,12 @@ export const useAssetStore = create<AssetStore>()(
+                 }),
+             replaceAssets: (assets) => set({ assets }),
+             cleanupImages: (extra) => {
+-                window.setTimeout(async () => {
++                window.setTimeout(() => {
++                    void assetCleanupCheckpoint.run("cleanup", async () => {
+                     const { useCanvasStore } = await import("@/stores/canvas/use-canvas-store");
+-                    await cleanupUnusedImages({ assets: get().assets, projects: useCanvasStore.getState().projects, extra });
+-                    await cleanupUnusedMedia({ assets: get().assets, projects: useCanvasStore.getState().projects, extra });
++                    const projects = projectsWithRecycleMedia(useCanvasStore.getState());
++                    await settleActivityGroup([cleanupUnusedImages({ assets: get().assets, projects, extra }), cleanupUnusedMedia({ assets: get().assets, projects, extra })]);
++                    }).catch(() => undefined);
+                 }, 0);
+             },
+         }),
+@@ -106,8 +115,10 @@ export const useAssetStore = create<AssetStore>()(
+             name: ASSET_STORE_KEY,
+             storage: assetStorage,
+             partialize: (state) => ({ assets: state.assets }) as StorageValue<AssetStore>["state"],
+-            onRehydrateStorage: () => () => {
+-                useAssetStore.setState({ hydrated: true });
++            onRehydrateStorage: () => (_state, error) => {
++                // Failed recovery is not an empty, successfully loaded library.
++                // Don't persist default assets over an unreadable original.
++                if (_state !== undefined && error === undefined) useAssetStore.setState({ hydrated: true });
+             },
+         },
+     ),

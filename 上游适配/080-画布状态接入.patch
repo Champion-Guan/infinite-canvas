@@ -1,0 +1,157 @@
+diff --git a/web/src/stores/canvas/use-canvas-store.ts b/web/src/stores/canvas/use-canvas-store.ts
+index 9389f33..d6ff37d 100644
+--- a/web/src/stores/canvas/use-canvas-store.ts
++++ b/web/src/stores/canvas/use-canvas-store.ts
+@@ -1,13 +1,17 @@
++import { scheduleStateSave } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { create } from "zustand";
+ import { persist, type PersistStorage, type StorageValue } from "zustand/middleware";
+ 
+ import { nanoid } from "nanoid";
++import { assertWorkbookSnapshot, currentWorkbookId, normalizeExcelCanvasTitles, type ExcelWorkbooks } from "@/扩展功能/Excel/Excel产品归属";
++import { nextProductTitle } from "@/扩展功能/产品/产品规则";
+ import i18n from "@/i18n";
+ import { localForageStorage } from "@/lib/localforage-storage";
+ import type { CanvasBackgroundMode } from "@/lib/canvas-theme";
+ import type { CanvasAssistantSession, CanvasConnection, CanvasNodeData, ViewportTransform } from "@/types/canvas";
+ 
+ export type CanvasProject = {
++    productSetId?: string | null;
+     id: string;
+     title: string;
+     createdAt: string;
+@@ -19,14 +23,26 @@ export type CanvasProject = {
+     backgroundMode: CanvasBackgroundMode;
+     showImageInfo: boolean;
+     viewport: ViewportTransform;
++    deletedNodeBatches?: CanvasDeletedNodeBatch[];
++};
++
++export type CanvasDeletedNodeBatch = {
++    id: string;
++    nodes: CanvasNodeData[];
++    connections: CanvasConnection[];
++    relatedNodes?: CanvasNodeData[];
++    deletedAt: string;
+ };
+ 
+ export type CanvasDeletedProject = {
+     id: string;
+     deletedAt: string;
++    project?: CanvasProject;
++    nextProductId?: string;
+ };
+ 
+ type CanvasStore = {
++    guanWorkbooks: ExcelWorkbooks | null;
+     hydrated: boolean;
+     projects: CanvasProject[];
+     deletedProjects: CanvasDeletedProject[];
+@@ -36,13 +52,12 @@ type CanvasStore = {
+     renameProject: (id: string, title: string) => void;
+     deleteProjects: (ids: string[]) => void;
+     replaceProjects: (projects: CanvasProject[], deletedProjects?: CanvasDeletedProject[]) => void;
+-    updateProject: (id: string, patch: Partial<Pick<CanvasProject, "nodes" | "connections" | "chatSessions" | "activeChatId" | "backgroundMode" | "showImageInfo" | "viewport">>) => void;
++    updateProject: (id: string, patch: Partial<Pick<CanvasProject, "nodes" | "connections" | "chatSessions" | "activeChatId" | "backgroundMode" | "showImageInfo" | "viewport" | "deletedNodeBatches">>) => void;
+ };
+ 
+ const initialViewport: ViewportTransform = { x: 0, y: 0, k: 1 };
+ const CANVAS_STORE_KEY = "infinite-canvas:canvas_store";
+-type PersistedCanvasState = Pick<CanvasStore, "projects" | "deletedProjects">;
+-let saveTimer: ReturnType<typeof setTimeout> | null = null;
++type PersistedCanvasState = Pick<CanvasStore, "projects" | "deletedProjects" | "guanWorkbooks">;
+ let queuedPersistState: PersistedCanvasState | null = null;
+ 
+ const canvasStorage: PersistStorage<CanvasStore> = {
+@@ -50,18 +65,15 @@ const canvasStorage: PersistStorage<CanvasStore> = {
+         const value = await localForageStorage.getItem(name);
+         if (!value) return null;
+         const parsed = JSON.parse(value) as StorageValue<CanvasStore>;
++        assertWorkbookSnapshot(parsed.state);
+         queuedPersistState = parsed.state as PersistedCanvasState;
+-        return parsed;
++        return { ...parsed, state: { ...parsed.state, projects: normalizeExcelCanvasTitles(parsed.state) } };
+     },
+     setItem: (name, value) => {
+         const nextState = value.state as PersistedCanvasState;
+-        if (queuedPersistState && queuedPersistState.projects === nextState.projects && queuedPersistState.deletedProjects === nextState.deletedProjects) return;
++        if (queuedPersistState && queuedPersistState.projects === nextState.projects && queuedPersistState.deletedProjects === nextState.deletedProjects && queuedPersistState.guanWorkbooks === nextState.guanWorkbooks) return;
+         queuedPersistState = nextState;
+-        if (saveTimer) clearTimeout(saveTimer);
+-        saveTimer = setTimeout(() => {
+-            saveTimer = null;
+-            void localForageStorage.setItem(name, JSON.stringify(value));
+-        }, 400);
++        return scheduleStateSave(name, JSON.stringify(value));
+     },
+     removeItem: (name) => localForageStorage.removeItem(name),
+ };
+@@ -70,13 +82,15 @@ export const useCanvasStore = create<CanvasStore>()(
+     persist(
+         (set, get) => ({
+             hydrated: false,
++            guanWorkbooks: null,
+             projects: [],
+             deletedProjects: [],
+-            createProject: (title = i18n.t("canvas.project.untitled")) => {
++            createProject: (title = nextProductTitle(get().projects)) => {
+                 const now = new Date().toISOString();
+                 const id = nanoid();
+                 const project: CanvasProject = {
+                     id,
++                    ...(get().guanWorkbooks ? { productSetId: currentWorkbookId(get().guanWorkbooks) } : {}),
+                     title,
+                     createdAt: now,
+                     updatedAt: now,
+@@ -87,6 +101,7 @@ export const useCanvasStore = create<CanvasStore>()(
+                     backgroundMode: "lines",
+                     showImageInfo: false,
+                     viewport: initialViewport,
++                    deletedNodeBatches: [],
+                 };
+                 set((state) => ({ projects: [project, ...state.projects] }));
+                 return id;
+@@ -95,6 +110,7 @@ export const useCanvasStore = create<CanvasStore>()(
+                 const now = new Date().toISOString();
+                 const project: CanvasProject = {
+                     id: nanoid(),
++                    productSetId: currentWorkbookId(get().guanWorkbooks),
+                     title: source.title || i18n.t("canvas.project.imported"),
+                     createdAt: source.createdAt || now,
+                     updatedAt: now,
+@@ -105,6 +121,7 @@ export const useCanvasStore = create<CanvasStore>()(
+                     backgroundMode: source.backgroundMode || "lines",
+                     showImageInfo: source.showImageInfo || false,
+                     viewport: source.viewport || initialViewport,
++                    deletedNodeBatches: source.deletedNodeBatches || [],
+                 };
+                 set((state) => ({ projects: [project, ...state.projects] }));
+                 return project.id;
+@@ -126,9 +143,11 @@ export const useCanvasStore = create<CanvasStore>()(
+                 }),
+             replaceProjects: (projects, deletedProjects = []) => set({ projects, deletedProjects }),
+             updateProject: (id, patch) =>
+-                set((state) => ({
+-                    projects: state.projects.map((project) => (project.id === id ? { ...project, ...patch, updatedAt: new Date().toISOString() } : project)),
+-                })),
++                set((state) => {
++                    const current = state.projects.find((project) => project.id === id);
++                    if (!current || Object.entries(patch).every(([key, value]) => current[key as keyof CanvasProject] === value)) return state;
++                    return { projects: state.projects.map((project) => (project.id === id ? { ...project, ...patch, updatedAt: new Date().toISOString() } : project)) };
++                }),
+         }),
+         {
+             name: CANVAS_STORE_KEY,
+@@ -136,9 +155,11 @@ export const useCanvasStore = create<CanvasStore>()(
+             partialize: (state) =>
+                 ({
+                     projects: state.projects,
++                    guanWorkbooks: state.guanWorkbooks,
+                     deletedProjects: state.deletedProjects,
+                 }) as StorageValue<CanvasStore>["state"],
+-            onRehydrateStorage: () => () => {
++            onRehydrateStorage: () => (_state, error) => {
++                if (error) { console.error("产品数据加载失败，未作为空库继续。", error); return; }
+                 useCanvasStore.setState({ hydrated: true });
+             },
+         },

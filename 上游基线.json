@@ -1,0 +1,8 @@
+{
+  "仓库": "https://github.com/basketikun/infinite-canvas.git",
+  "目录": "../infinite-canvas-upstream",
+  "分支": "main",
+  "提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "版本": "v0.20.0",
+  "入口": "http://localhost:3100"
+}

@@ -27,7 +27,11 @@
     "secrets:history": "node scripts/scan-secrets.mjs --history",
     "secrets:install-hooks": "node scripts/install-git-hooks.mjs",
     "release": "node scripts/create-release.mjs",
-    "start:portable": "node scripts/start-portable.mjs"
+    "start:portable": "node scripts/start-portable.mjs",
+    "web:build": "node 开发工具/构建Web客户包.mjs",
+    "web:test-update": "node --test 开发工具/Web客户更新边界.test.mjs",
+    "web:sign": "node 开发工具/签名Web客户包.mjs",
+    "web:publish-preview": "node 开发工具/发布Web预览版.mjs"
   },
   "engines": {
     "node": ">=18"

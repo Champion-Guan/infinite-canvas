@@ -1,0 +1,26 @@
+diff --git a/web/src/components/canvas/canvas-prompt-library.tsx b/web/src/components/canvas/canvas-prompt-library.tsx
+index f07647d..595c7f0 100644
+--- a/web/src/components/canvas/canvas-prompt-library.tsx
++++ b/web/src/components/canvas/canvas-prompt-library.tsx
+@@ -1,3 +1,4 @@
++import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { useState } from "react";
+ import { Button, Tooltip } from "antd";
+ import { BookOpen } from "lucide-react";
+@@ -9,6 +10,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
+ 
+ export function CanvasPromptLibrary({ onSelect }: { onSelect: (prompt: string) => void }) {
+     const { t } = useTranslation();
++    const productActive = useProductActive();
+     const [open, setOpen] = useState(false);
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+ 
+@@ -24,7 +26,7 @@ export function CanvasPromptLibrary({ onSelect }: { onSelect: (prompt: string) =
+                     aria-label={t("navigation.prompts")}
+                 />
+             </Tooltip>
+-            <PromptSelectDialog open={open} onOpenChange={setOpen} onSelect={onSelect} />
++            <PromptSelectDialog open={productActive && open} onOpenChange={setOpen} onSelect={onSelect} />
+         </>
+     );
+ }
