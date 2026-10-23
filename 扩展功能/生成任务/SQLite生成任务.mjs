@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { requireValue, validHash, validId } from '../本机存储/协议.mjs';
 import { GENERATION_PROTOCOL, TASK_STATES, terminalState, validateSubmission, jobLike, exactKeys, bindingLike } from '../生成网关/生成协议.mjs';
+import { recordNoResultResolution } from './未决任务核实.mjs';
 
 const ledgerId = 'guan-generation-ledger-v1', format = 'guan-generation-ledger.v1';
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -131,6 +132,20 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
       return publicJob(read(id));
     },
     retryResultSave: persistResult,
+    updateBlockers() {
+      return ledger().jobs.filter(job => !(['failed', 'cancelled'].includes(job.state) || job.state === 'succeeded' && job.applied))
+        .map(job => ({ id: job.id, state: job.state, reason: job.reason, createdAt: job.createdAt,
+          canConfirmNoResult: !closed && !active.has(job.id) && !pendingResults.has(job.id) && job.state === 'uncertain' && job.result === null && job.reason === 'upstream_result_unknown' }));
+    },
+    async confirmNoResult(id, acknowledgement) {
+      requireValue(!closed && jobLike(id), 'generation_resolution_denied', '任务入口已关闭或任务ID无效。', 409);
+      await mutate(jobs => {
+        requireValue(!active.has(id) && !pendingResults.has(id), 'generation_resolution_denied', '任务仍在运行或存在待保存结果，不能人工收口。', 409);
+        const job = find(jobs, id), receipt = recordNoResultResolution(workspace, job, acknowledgement, clock());
+        job.state = 'cancelled'; job.reason = 'operator_confirmed_no_result'; job.updatedAt = Math.max(receipt.confirmedAt, job.updatedAt);
+      });
+      return publicJob(read(id));
+    },
     async cancel(id) {
       const job = read(id), entry = active.get(id);
       if (entry) { entry.controller.abort(); await entry.admitted; await entry.done; }

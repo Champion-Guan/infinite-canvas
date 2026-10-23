@@ -154,11 +154,15 @@ export class SoftwareUpdates {
     return this.status();
   }
   async approve(acknowledgement) {
-    if (this.stopped || !this.manager?.approve || !this.downloader?.stageIdentity || this.staging) throw new UpdateError('update_stage_unavailable');
+    if (this.stopped || !this.manager?.approve || this.staging) throw new UpdateError('update_stage_unavailable');
     const p = await this.preferences();
     if (!p.autoInstall) throw new UpdateError('install_disabled');
     if (acknowledgement !== 'saved-and-all-tasks-ended') throw new UpdateError('install_operator_confirmation_required');
-    const identity = this.downloader.stageIdentity(p.repository);
+    let identity;
+    try { identity = await this.manager.stagedIdentity?.(); }
+    catch (error) { if (error.code !== 'invalid_request') throw error; } // 已安装旧管理器的过渡兼容。
+    identity ||= this.downloader?.stageIdentity?.(p.repository);
+    if (!identity || identity.repository !== p.repository) throw new UpdateError('update_stage_unavailable');
     if (compareVersions(identity.version, this.currentVersion) <= 0) throw new UpdateError('version_not_newer');
     try { await this.manager.approve(identity, acknowledgement); }
     catch (e) { this.progress?.failed(); throw e; }

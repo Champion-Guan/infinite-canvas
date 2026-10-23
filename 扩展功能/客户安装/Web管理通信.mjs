@@ -18,7 +18,7 @@ export function createWebManagerClient(channel = process) {
     pending.set(id, { resolve, reject, timer });
     channel.send({ type: 'web-manager-request', id, operation, identity, acknowledgement });
   });
-  return { status: () => request('status'), stage: identity => request('stage', identity),
+  return { status: () => request('status'), stagedIdentity: () => request('staged-identity'), stage: identity => request('stage', identity),
     approve: (identity, acknowledgement) => request('approve', identity, acknowledgement), defer: () => request('defer'),
     close() { channel.off('message', receive); for (const item of pending.values()) { clearTimeout(item.timer); item.reject(new UpdateError('update_manager_unavailable')); } pending.clear(); } };
 }

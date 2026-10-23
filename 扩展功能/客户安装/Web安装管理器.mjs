@@ -1,12 +1,12 @@
 import { spawn, execFileSync } from 'node:child_process';
-import { open, unlink, lstat } from 'node:fs/promises';
+import { open, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { dailyWorkbenchPaths } from '../本机服务/日常数据根.mjs';
-import { compareVersions } from '../软件更新/stable-version.mjs';
-import { verifySignedWebDirectory, extractSignedWebPackage } from './Web安装包核验.mjs';
-import { webInstallPaths, privateDirectory, readState, writeState, versionPath, versionIdentity } from './Web安装目录.mjs';
-import { WEB_APP, WEB_REPOSITORY, exact, fail } from './Web发布协议.mjs';
+import { verifySignedWebDirectory } from './Web安装包核验.mjs';
+import { webInstallPaths, privateDirectory, readState, writeState, versionPath } from './Web安装目录.mjs';
+import { WEB_APP, fail } from './Web发布协议.mjs';
 import { switchWebVersion } from './Web版本事务.mjs';
+import { restoreWebStage, stageWebPackage, validateStageIdentity } from './Web暂存恢复.mjs';
 
 export function processIdentity(pid) {
   try { return { pid, command: execFileSync('/bin/ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8' }).trim(),
@@ -27,32 +27,28 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
   let phase = 'idle', reason = null, targetVersion = null, timer;
   const verify = identity => verifySignedWebDirectory(versionPath(paths, identity), { releaseVersion: identity.version });
   const save = async value => { state = { app: WEB_APP, ...value }; await writeState(paths.state, state); if (['committed', 'rolled-back'].includes(state.phase) && child?.connected) child.send({ type: 'web-service-activate' }); };
-  const status = () => ({ allowed: true, state: phase, currentVersion: current.version, targetVersion, reason });
+  const canApprove = () => Boolean(staged && !installing && ['staged', 'deferred', 'blocked'].includes(phase) &&
+    ['committed', 'rolled-back'].includes(state.phase));
+  const status = () => ({ allowed: true, state: phase, currentVersion: current.version, targetVersion, reason, canApprove: canApprove() });
   let stageJob = null;
   async function stage(identity) {
-    if (!exact(identity, ['repository', 'version', 'downloadId']) || identity.repository !== WEB_REPOSITORY ||
-      !/^verified-[a-f0-9-]{36}$/.test(identity.downloadId) || compareVersions(identity.version, current.version) <= 0) fail('update_stage_invalid');
-    if (installing) fail('update_stage_unavailable');
-    if (staged?.identity.downloadId === identity.downloadId) return;
+    validateStageIdentity(identity, current);
+    if (installing || !['committed', 'rolled-back'].includes(state.phase)) fail('update_stage_unavailable');
     const download = join(dailyWorkbenchPaths().dataRoot, 'software-updates/packages', identity.downloadId);
-    const info = await lstat(download);
-    if (!info.isDirectory() || info.isSymbolicLink() || info.uid !== process.getuid() || info.mode & 0o077) fail('update_stage_invalid');
-    const destination = join(paths.versions, '暂存-' + identity.downloadId);
-    const verified = await extractSignedWebPackage(download, destination, { repository: WEB_REPOSITORY, releaseVersion: identity.version, currentVersion: current.version });
-    const next = versionIdentity(verified.inventory);
-    // 实际路径由固定版本身份决定，暂存成功后移动；不执行新代码。
-    const { rename } = await import('node:fs/promises');
-    await rename(destination, versionPath(paths, next));
-    staged = { identity, next }; phase = 'staged'; targetVersion = next.version; reason = null; approved = false;
+    staged = await stageWebPackage({ paths, workspaceId: state.workspaceId, current, identity, download });
+    phase = 'staged'; targetVersion = staged.next.version; reason = null; approved = false;
   }
   async function managerRequest(message) {
     const { operation, identity, acknowledgement } = message;
     if (operation === 'status') return status();
+    if (operation === 'staged-identity') return canApprove() ? staged.identity : null;
     if (operation === 'stage') {
       if (stageJob) fail('update_stage_unavailable');
       stageJob = stage(identity); try { await stageJob; } finally { stageJob = null; }
     } else if (operation === 'approve') {
-      if (!staged || JSON.stringify(identity) !== JSON.stringify(staged.identity) || acknowledgement !== 'saved-and-all-tasks-ended' || installing) fail('install_operator_confirmation_required');
+      if (!canApprove() || JSON.stringify(identity) !== JSON.stringify(staged.identity) || acknowledgement !== 'saved-and-all-tasks-ended') fail('install_operator_confirmation_required');
+      const restored = await restoreWebStage(paths, state.workspaceId, current);
+      if (!restored || JSON.stringify(restored) !== JSON.stringify(staged)) fail('update_stage_invalid');
       approved = true; phase = 'awaiting-browser-exit'; reason = 'install_browsers_running';
     } else if (operation === 'defer') {
       if (installing) fail('update_stage_unavailable');
@@ -102,6 +98,10 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
     const ready = await start(current);
     if (state.workspaceId && state.workspaceId !== ready.workspaceId) fail('web_health_mismatch');
     await save({ ...state, workspaceId: ready.workspaceId });
+    try {
+      staged = await restoreWebStage(paths, ready.workspaceId, current);
+      if (staged) { phase = 'staged'; targetVersion = staged.next.version; }
+    } catch (error) { phase = 'blocked'; reason = error.code || 'update_stage_invalid'; }
     timer = setInterval(() => {
       if (!approved || installing || !staged || !childStatus?.ready || childStatus.authorization?.authorizedPages !== 0) return;
       installing = true; approved = false;

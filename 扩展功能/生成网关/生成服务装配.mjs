@@ -24,6 +24,8 @@ export async function assembleGenerationService({ workspace, vault, runTrustedWr
     // stop前先检查；业务未决时不得先拆其他服务/密钥再把close失败吞掉。
     assertCanClose() { const state = tasks.getStatus(); requireValue(state.running === 0 && state.unpersistedResults === 0, 'generation_busy', '仍有生成或未确认结果，不能关闭。', 409); },
     assertCanUpdate: () => tasks.assertCanUpdate(),
+    updateBlockers: () => tasks.updateBlockers(),
+    confirmNoResult: (id, acknowledgement) => tasks.confirmNoResult(id, acknowledgement),
     close: () => tasks.close(),
   });
 }

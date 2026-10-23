@@ -4,11 +4,13 @@ import { useVersionCheck } from "@/hooks/use-version-check";
 import { VersionReleaseModal } from "@/components/layout/version-release-modal";
 import { formatDisplayVersion } from "@/constant/env";
 import { updateMessages, installationMessages, updateRequest, type UpdatePreferences } from "./软件更新客户端";
+import { UpgradeTaskReview } from "./升级任务核实";
 
 export function ConfigSoftwareUpdates() {
     const { message, modal } = App.useApp();
     const { status, refresh, unavailable, currentVersion, checking, checkLatestRelease } = useVersionCheck();
     const [saving, setSaving] = useState(false);
+    const [operating, setOperating] = useState(false);
     const save = async (input: Partial<UpdatePreferences>) => {
         setSaving(true);
         try { await updateRequest("preferences", input); await refresh(); message.success("软件更新设置已保存"); }
@@ -20,14 +22,17 @@ export function ConfigSoftwareUpdates() {
     const staging = Boolean(status?.install.staging);
     const managed = Boolean(status?.install.allowed);
     const waiting = status?.install.state === "awaiting-browser-exit";
+    const installing = ["prepared", "stopping", "switching", "starting", "rolling-back"].includes(status?.install.state || "");
     useEffect(() => {
-        if (!downloading && !staging && !waiting) return;
+        if (!downloading && !staging && !waiting && !installing) return;
         const timer = setInterval(() => void refresh(), 2000);
         return () => clearInterval(timer);
-    }, [downloading, staging, waiting, refresh]);
+    }, [downloading, staging, waiting, installing, refresh]);
     const operate = async (operation: "stage" | "approve" | "defer") => {
+        setOperating(true);
         try { await updateRequest(operation); await refresh(); }
-        catch (e) { message.error(e instanceof Error ? e.message : "更新操作未完成"); }
+        catch (e) { message.error(e instanceof Error ? e.message : "更新操作未完成"); throw e; }
+        finally { setOperating(false); }
     };
     const approve = () => modal.confirm({ title: "准备安装更新", content: "请确认画布已经保存，所有生成任务已经结束。确认后请关闭工作台页面，安装器会备份数据并再次核实任务，其他网站可以继续使用。",
         okText: "已保存，任务已结束", cancelText: "暂不安装", onOk: () => operate("approve") });
@@ -48,8 +53,9 @@ export function ConfigSoftwareUpdates() {
             </div>
             <div className="flex items-center gap-3"><span>更新网络</span><Select aria-label="更新网络" className="min-w-44" value={prefs?.network || "auto"} disabled={!prefs || saving} options={[{ value: "auto", label: "自动（有代理则使用代理）" }, { value: "direct", label: "直连" }, { value: "proxy", label: "本地代理" }]} onChange={network => void save({ network })} /></div>
             <div className="flex items-center gap-3"><Button loading={checking} onClick={() => void checkLatestRelease(true)}>检查更新</Button><Button disabled={!status?.hasNewVersion || status?.download.state === "trust-not-configured" || status?.download.state === "verified" || downloading} onClick={() => void download()}>下载更新</Button><VersionReleaseModal label="更新日志" /></div>
-            <div className="flex items-center gap-3"><Button loading={staging} disabled={!managed || status?.download.state !== "verified" || staging || waiting} onClick={() => void operate("stage")}>暂存更新</Button><span className="text-xs text-stone-500 dark:text-stone-400">仅解包复核，不启动新版本或修改个人数据</span></div>
-            <div data-guan-updates-confirmation className="flex items-center gap-3"><Button disabled={!managed || !prefs?.autoInstall || status?.install.state !== "staged"} onClick={approve}>确认并准备安装</Button><Button disabled={!managed || !waiting} onClick={() => void operate("defer")}>稍后安装</Button></div>
+            <div className="flex items-center gap-3"><Button loading={staging} disabled={!managed || status?.download.state !== "verified" || staging || waiting || installing || operating} onClick={() => void operate("stage").catch(() => {})}>暂存更新</Button><span className="text-xs text-stone-500 dark:text-stone-400">仅解包复核，不启动新版本或修改个人数据</span></div>
+            <div data-guan-updates-confirmation className="flex items-center gap-3"><Button disabled={!managed || !prefs?.autoInstall || operating || !(status?.install.canApprove ?? status?.install.state === "staged")} onClick={approve}>确认并准备安装</Button><Button disabled={!managed || !waiting || operating} onClick={() => void operate("defer").catch(() => {})}>稍后安装</Button></div>
+            <UpgradeTaskReview blockers={status?.install.blockers || []} refresh={refresh} />
             <div role="status">{status ? updateMessages[status.state] || status.state : unavailable ? "本机更新服务不可用，请刷新页面后重试" : "本机更新服务读取中"}{status?.error ? `：${updateMessages[status.error] || "检查未完成，原版本保留"}` : ""}</div>
             <div role="status" className="text-xs text-stone-500 dark:text-stone-400">下载：{updateMessages[status?.download.state || "idle"] || "下载未完成"} · {status?.download.progress || 0}%{status?.download.error ? ` · ${updateMessages[status.download.error] || "下载未完成"}` : ""}。{managed ? "下载后需暂存并确认，关闭工作台页面后安装。" : "源码开发模式只检查及下载可信签名包；客户安装版支持升级。"}</div>
             <div role="status" className="text-xs text-stone-500 dark:text-stone-400">安装：{installationMessages[status?.install.state || "disabled"] || "状态尚未确认"}{status?.install.currentVersion ? ` · 受控版本 ${status.install.currentVersion}` : ""}{status?.install.targetVersion ? ` · 目标版本 ${status.install.targetVersion}` : ""}{status?.install.reason ? ` · ${updateMessages[status.install.reason] || "安装安全条件尚未满足"}` : ""}{status?.install.stageError ? ` · ${updateMessages[status.install.stageError] || "暂存未完成，原版本保留"}` : ""}</div>

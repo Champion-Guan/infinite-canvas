@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { generateKeyPairSync, sign } from 'node:crypto';
+import { generateKeyPairSync, sign, randomUUID } from 'node:crypto';
 import { mkdtemp, mkdir, writeFile, chmod, readFile, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -189,4 +189,40 @@ test('数据结构改变、Origin改变或降级在停止旧版前拒绝', async
   for (const target of [{ ...next, dataSchema: 2 }, { ...next, origin: 'http://localhost:8888' }, old]) {
     const t = transaction({ target }); await assert.rejects(switchWebVersion(t.args)); assert.equal(t.events.length, 0);
   }
+});
+
+test('暂存持久恢复重新验签，同包重复暂存安全复用；工作区变化和篡改拒绝', async () => {
+  const { stageWebPackage, restoreWebStage } = await import('../扩展功能/客户安装/Web暂存恢复.mjs');
+  const f = await fixture(), archive = join(f.parent, '暂存.zip');
+  execFileSync('/usr/bin/zip', ['-qr', archive, '包'], { cwd: f.parent });
+  const bytes = await readFile(archive); f.m.packages[0].sha256 = sha256(bytes); f.m.packages[0].size = bytes.length;
+  const download = join(f.parent, '下载'); await mkdir(download, { mode: 0o700 });
+  await writeFile(join(download, 'package.zip'), bytes, { mode: 0o600 });
+  const signedManifest = signed(f.m);
+  await writeFile(join(download, WEB_MANIFEST_NAMES[0]), signedManifest.bytes, { mode: 0o600 });
+  await writeFile(join(download, WEB_MANIFEST_NAMES[1]), signedManifest.signature, { mode: 0o600 });
+  const paths = { root: join(f.parent, '安装'), versions: join(f.parent, '安装/版本') };
+  await mkdir(paths.versions, { recursive: true, mode: 0o700 });
+  const identity = { repository: WEB_REPOSITORY, version: f.m.version, downloadId: 'verified-' + randomUUID() };
+  const args = { paths, workspaceId: 'original-workspace', current: old, identity, download, options: verifyOptions };
+  const staged = await stageWebPackage(args);
+  assert.deepEqual(await restoreWebStage(paths, args.workspaceId, old, verifyOptions), staged);
+  assert.deepEqual(await stageWebPackage(args), staged);
+  const identity2 = { ...identity, downloadId: 'verified-' + randomUUID() };
+  assert.equal((await stageWebPackage({ ...args, identity: identity2 })).identity.downloadId, identity2.downloadId);
+  await assert.rejects(restoreWebStage(paths, 'different-workspace', old, verifyOptions));
+  assert.equal(await restoreWebStage(paths, args.workspaceId, staged.next, verifyOptions), null);
+  await writeFile(join(paths.versions, staged.next.name, 'web/index.html'), 'tampered');
+  await assert.rejects(restoreWebStage(paths, args.workspaceId, old, verifyOptions));
+  await assert.rejects(stageWebPackage(args));
+});
+test('服务重启后确认安装取管理器已复核身份，不依赖下载器内存', async () => {
+  const { SoftwareUpdates } = await import('../扩展功能/软件更新/software-updates.mjs');
+  const directory = await mkdtemp(join(tmpdir(), '暂存确认-'));
+  const identity = { repository: WEB_REPOSITORY, version: '2.0.0-beta.2', downloadId: 'verified-' + randomUUID() };
+  let approved = 0;
+  const updates = new SoftwareUpdates({ directory, currentVersion: old.version, auth: {}, downloader: { status: () => ({ state: 'idle' }), stageIdentity() { throw Error('no in-memory download'); } },
+    manager: { status: async () => ({ allowed: true, state: 'staged', canApprove: true }), stagedIdentity: async () => identity,
+      approve: async (received, ack) => { assert.deepEqual(received, identity); assert.equal(ack, 'saved-and-all-tasks-ended'); approved++; } } });
+  await updates.configure({ autoInstall: true }); await updates.approve('saved-and-all-tasks-ended'); assert.equal(approved, 1);
 });

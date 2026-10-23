@@ -1,4 +1,5 @@
 export type UpdatePreferences = { version: 1; repository: string; autoCheck: boolean; autoDownload: boolean; autoInstall: boolean; network: "auto" | "direct" | "proxy" };
+export type UpdateBlocker = { id: string; state: string; reason: string; createdAt: number; canConfirmNoResult: boolean };
 export type SoftwareUpdateStatus = {
     currentVersion: string; channel: string; preferences: UpdatePreferences; state: string; checking: boolean;
     authorization: string; hasNewVersion: boolean; lastCheckedAt: string | null; error: string | null;
@@ -6,7 +7,7 @@ export type SoftwareUpdateStatus = {
     history: { at: string; state: string; version: string | null; error: string | null }[];
     download: { state: string; progress: number; error?: string | null };
     install: { allowed: boolean; state: string; currentVersion?: string | null; targetVersion?: string | null;
-        reason?: string | null; staging?: boolean; stageError?: string | null };
+        reason?: string | null; staging?: boolean; stageError?: string | null; canApprove?: boolean; blockers?: UpdateBlocker[] };
 };
 export const updateMessages: Record<string, string> = {
     web_manifest_invalid: "Web版签名清单无效，更新已停止",
@@ -47,6 +48,10 @@ export const updateMessages: Record<string, string> = {
     install_browsers_running: "请保存并关闭所有工作台页面，其他网站可以继续使用",
     install_page_inventory_unavailable: "无法核实工作台页面状态，请检查本机浏览器自动化授权或浏览器支持情况",
     install_evidence_changed: "确认之后活动或保存状态改变，请重新核实",
+    generation_confirmation_required: "请先在渠道端确认请求已结束且没有结果",
+    generation_resolution_denied: "任务仍在运行或已有结果，不能按无结果收口",
+    generation_resolution_conflict: "核实凭据与原任务不一致，记录已保留",
+    generation_save_unconfirmed: "核实记录尚未确认保存，请重试本机保存",
 };
 export const installationMessages: Record<string, string> = {
     "source-development": "源码开发模式，仅检查及下载",
@@ -56,8 +61,8 @@ export const installationMessages: Record<string, string> = {
     starting: "正在隔离启动", committed: "版本事务已提交", "rolling-back": "正在恢复旧版", "rolled-back": "已恢复旧版",
     "awaiting-browser-exit": "已确认，等待工作台页面关闭", "confirmation-required": "等待本次更新确认", deferred: "已选择稍后安装",
 };
-export async function updateRequest(operation: "status" | "check" | "download" | "preferences" | "stage" | "approve" | "defer", input?: Partial<UpdatePreferences>): Promise<SoftwareUpdateStatus> {
-    const host = (window as unknown as { __guanUpdateHost?: { request(operation: string, input?: Partial<UpdatePreferences>): Promise<SoftwareUpdateStatus> } }).__guanUpdateHost;
+export async function updateRequest(operation: "status" | "check" | "download" | "preferences" | "stage" | "approve" | "defer" | "confirm-no-result", input?: Partial<UpdatePreferences> | { taskId: string; acknowledgement: "upstream-ended-without-result" }): Promise<SoftwareUpdateStatus> {
+    const host = (window as unknown as { __guanUpdateHost?: { request(operation: string, input?: unknown): Promise<SoftwareUpdateStatus> } }).__guanUpdateHost;
     if (!host) throw new Error("本机更新服务未连接，请刷新工作台页面");
     try { return await host.request(operation, input); }
     catch (error) { throw new Error(updateMessages[(error as { code?: string }).code || ""] || "软件更新操作未完成，请重新读取状态"); }

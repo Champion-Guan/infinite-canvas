@@ -49,8 +49,8 @@ export async function authorizeLocalStorage({ code, origin = globalThis.location
   }
   return Object.freeze({
     url: exchange.dataURL,
-    updatePort: Object.freeze({ async request(operation, preferences) {
-      return (await businessCommand('software-updates', { operation, ...(preferences === undefined ? {} : { preferences }) })).result;
+    updatePort: Object.freeze({ async request(operation, input) {
+      return (await businessCommand('software-updates', { operation, ...(input === undefined ? {} : operation === 'confirm-no-result' ? { taskId: input.taskId, acknowledgement: input.acknowledgement } : { preferences: input }) })).result;
     } }),
     networkProxyPort: createNetworkProxyClient({ command(value) {
       return businessCommand('network-proxy', value);
