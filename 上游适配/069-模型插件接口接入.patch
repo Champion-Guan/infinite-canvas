@@ -1,0 +1,17 @@
+diff --git a/web/src/services/api/model-plugin.ts b/web/src/services/api/model-plugin.ts
+index f8998c8..d3ef676 100644
+--- a/web/src/services/api/model-plugin.ts
++++ b/web/src/services/api/model-plugin.ts
+@@ -1,3 +1,4 @@
++import { requireBusinessFeature } from "@/扩展功能/产品配置/脚本与提示词来源";
+ import axios, { type AxiosRequestConfig } from "axios";
+ 
+ import i18n from "@/i18n";
+@@ -111,6 +112,7 @@ function createPoll(signal?: AbortSignal) {
+  * The script still runs as an async function body and must `return` the result.
+  */
+ export async function runModelPlugin<T = unknown>(args: RunPluginArgs): Promise<T> {
++    requireBusinessFeature("modelScripts");
+     const { config } = args;
+     const http = createPluginHttp(config, { signal: args.signal });
+     const request = createPluginRequest(config, { signal: args.signal });

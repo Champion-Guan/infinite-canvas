@@ -1,0 +1,43 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index a808d90..05ea73e 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -44,7 +44,8 @@ import { useThemeStore } from "@/stores/use-theme-store";
+ import { cropDataUrl, splitDataUrl, upscaleDataUrl } from "@/lib/canvas/canvas-image-data";
+ import { fitNodeSize, nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
+ import { batchResultPosition, resizedResultPosition, type BatchResultPlacement } from "@/扩展功能/画布布局/批量结果排布";
+-import { arrangeOverlappingCanvasNodes, nextGenerationResultPosition, placeCanvasNode } from "@/扩展功能/画布布局/卡片自动避让";
++import { nextGenerationResultPosition, placeCanvasNode } from "@/扩展功能/画布布局/卡片自动避让";
++import { useCanvasNodeArrangement } from "@/扩展功能/画布布局/重叠卡片整理操作";
+ import { captureVideoFrame, type VideoFramePosition } from "@/lib/canvas/canvas-video-frame";
+ import { App, Button, Modal } from "antd";
+ import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
+@@ -1296,27 +1297,7 @@ function InfiniteCanvasPage() {
+         applyHistory(next);
+     }, [applyHistory]);
+ 
+-    const organizeOverlappingNodes = useCallback(() => {
+-        const before = createHistoryEntry();
+-        const arranged = arrangeOverlappingCanvasNodes(before.nodes);
+-        if (arranged === before.nodes) {
+-            message.info("没有需要整理的重叠卡片");
+-            return;
+-        }
+-        const moved = arranged.filter((node, index) => node.type !== CanvasNodeType.Group && node.position !== before.nodes[index].position).length;
+-        historyRef.current.past = [...historyRef.current.past.slice(-49), before];
+-        historyRef.current.future = [];
+-        applyHistory({ ...before, nodes: arranged });
+-        const visibleNodes = arranged.filter((node) => node.type !== CanvasNodeType.Group && Number.isFinite(node.position.x) && Number.isFinite(node.position.y) && Number.isFinite(node.width) && Number.isFinite(node.height));
+-        if (visibleNodes.length) {
+-            const bounds = nodeBounds(visibleNodes);
+-            const availableWidth = Math.max(100, size.width - 64);
+-            const availableHeight = Math.max(100, size.height - 180);
+-            const k = Math.max(0.05, Math.min(1, availableWidth / Math.max(1, bounds.right - bounds.left), availableHeight / Math.max(1, bounds.bottom - bounds.top)));
+-            setViewport({ x: 32 + availableWidth / 2 - (bounds.left + bounds.right) / 2 * k, y: 64 + availableHeight / 2 - (bounds.top + bounds.bottom) / 2 * k, k });
+-        }
+-        message.success(`已整理 ${moved} 张重叠卡片，可点击撤销恢复`);
+-    }, [applyHistory, createHistoryEntry, message, size.width, size.height]);
++    const organizeOverlappingNodes = useCanvasNodeArrangement({ historyRef, createHistoryEntry, applyHistory, message, size, setViewport });
+ 
+     const exportCurrentProject = useCallback(async () => {
+         const project = useCanvasStore.getState().projects.find((item) => item.id === projectId);

@@ -1,0 +1,13 @@
+diff --git a/web/src/pages/video/index.tsx b/web/src/pages/video/index.tsx
+index 39c87dc..a73febb 100644
+--- a/web/src/pages/video/index.tsx
++++ b/web/src/pages/video/index.tsx
+@@ -1,7 +1,7 @@
+ import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, LoaderCircle, Plus, SlidersHorizontal, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
+ import { useEffect, useRef, useState, useSyncExternalStore, type DragEvent } from "react";
+ import { App, Button, Checkbox, Drawer, Empty, Input, Modal, Tag, Typography } from "antd";
+-import localforage from "localforage";
++import { sqliteForage as localforage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { nanoid } from "nanoid";
+ import { saveAs } from "file-saver";
+ import { useTranslation } from "react-i18next";

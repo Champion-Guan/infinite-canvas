@@ -1,0 +1,13 @@
+diff --git a/web/src/components/image-settings-panel.tsx b/web/src/components/image-settings-panel.tsx
+index 4219001..6fdab65 100644
+--- a/web/src/components/image-settings-panel.tsx
++++ b/web/src/components/image-settings-panel.tsx
+@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
+ import i18n from "@/i18n";
+ import { darkSwitchTokens } from "@/lib/app-theme";
+ import { type CanvasTheme } from "@/lib/canvas-theme";
+-import { computeMediaSize, inferMediaRatio, inferMediaScale, mediaRatioOptions, mediaScaleOptions, readMediaDimensions } from "@/lib/media-size";
++import { computeMediaSize, inferMediaRatio, inferMediaScale, mediaRatioOptions, mediaScaleOptions, readMediaDimensions } from "@/扩展功能/图片设置/图片尺寸规则";
+ import { modelOptionName, type AiConfig } from "@/stores/use-config-store";
+ import { dimensionsFromAnchor } from "@/扩展功能/图片设置/尺寸比例锚点";
+ 

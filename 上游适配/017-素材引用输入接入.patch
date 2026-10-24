@@ -1,0 +1,21 @@
+diff --git a/web/src/components/canvas/canvas-resource-mention-textarea.tsx b/web/src/components/canvas/canvas-resource-mention-textarea.tsx
+index 0216b07..de92d51 100644
+--- a/web/src/components/canvas/canvas-resource-mention-textarea.tsx
++++ b/web/src/components/canvas/canvas-resource-mention-textarea.tsx
+@@ -1,6 +1,6 @@
+ import { forwardRef, useMemo, useRef, useState } from "react";
+ import type { CSSProperties, MouseEvent, PointerEvent, TextareaHTMLAttributes } from "react";
+-import { createPortal } from "react-dom";
++import { createProductPortal } from "@/扩展功能/产品/产品界面边界";
+ import { FileText, Image as ImageIcon, Music2, Video } from "lucide-react";
+ 
+ import { canvasThemes } from "@/lib/canvas-theme";
+@@ -241,7 +241,7 @@ function MentionMenu({ textarea, caretIndex, references, activeIndex, theme, onS
+         onSelect(reference);
+     };
+ 
+-    return createPortal(
++    return createProductPortal(
+         <div
+             data-canvas-resource-mention-menu="true"
+             className="fixed z-[120] max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md"

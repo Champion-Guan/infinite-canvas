@@ -1,0 +1,46 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 1f67946..280c463 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -12,7 +12,8 @@ import { registerExcelParameterNode } from "@/扩展功能/Excel画布/Excel参
+ import { PROMPT_VARIABLES_NODE_TYPE } from "@/扩展功能/Excel画布/旧版参数规则";
+ import { useExcelParameterOperations } from "@/扩展功能/Excel画布/Excel参数操作";
+ import { useExcelCanvasInsertion } from "@/扩展功能/Excel画布/Excel插入操作";
+-import { reconcileExcelPreviews, remapCopiedExcelRelations } from "@/扩展功能/Excel画布/Excel卡片事务";
++import { remapCopiedExcelRelations } from "@/扩展功能/Excel画布/Excel卡片事务";
++import { useCanvasNodeTransactions } from "@/扩展功能/画布生成/画布节点事务";
+ import { EXCEL_PROMPT_DRAG_TYPE } from "@/扩展功能/Excel画布/Excel拖入校验";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { ImageTaskConfirmation } from "@/扩展功能/画布生成/图片任务确认状态";
+@@ -43,7 +44,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
+ import { cropDataUrl, splitDataUrl, upscaleDataUrl } from "@/lib/canvas/canvas-image-data";
+ import { fitNodeSize, nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
+ import { batchResultPosition, resizedResultPosition, type BatchResultPlacement } from "@/扩展功能/画布布局/批量结果排布";
+-import { arrangeOverlappingCanvasNodes, nextGenerationResultPosition, placeCanvasNode, placeNewCanvasNodes } from "@/扩展功能/画布布局/卡片自动避让";
++import { arrangeOverlappingCanvasNodes, nextGenerationResultPosition, placeCanvasNode } from "@/扩展功能/画布布局/卡片自动避让";
+ import { captureVideoFrame, type VideoFramePosition } from "@/lib/canvas/canvas-video-frame";
+ import { App, Button, Modal } from "antd";
+ import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
+@@ -263,21 +264,7 @@ function InfiniteCanvasPage() {
+     const renameProject = useCanvasStore((state) => state.renameProject);
+     const currentProject = useCanvasStore((state) => state.projects.find((project) => project.id === projectId));
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+-    const [nodes, setNodeState] = useState<CanvasNodeData[]>([]);
+-    const nodesRef = useRef(nodes);
+-    const nodeTransactionRef = useRef(nodes);
+-    const getCurrentNode = useCallback((id: string) => nodesRef.current.find(node => node.id === id), []);
+-    const setRawNodes = useCallback((next: CanvasNodeData[]) => {
+-        nodeTransactionRef.current = next;
+-        nodesRef.current = next;
+-        setNodeState(next);
+-    }, []);
+-    // All creation paths (including plugins and async generation) pass through
+-    // the same pure transaction. Existing cards and user drag positions stay untouched.
+-    const setNodes = useCallback((update: CanvasNodeData[] | ((previous: CanvasNodeData[]) => CanvasNodeData[])) => {
+-        const previous = nodeTransactionRef.current;
+-        setRawNodes(placeNewCanvasNodes(previous, reconcileExcelPreviews(previous, typeof update === "function" ? update(previous) : update)));
+-    }, [setRawNodes]);
++    const { nodes, nodesRef, nodeTransactionRef, getCurrentNode, setRawNodes, setNodes } = useCanvasNodeTransactions();
+     const [connections, setConnections] = useState<CanvasConnection[]>([]);
+     const [chatSessions, setChatSessions] = useState<CanvasAssistantSession[]>([]);
+     const [activeChatId, setActiveChatId] = useState<string | null>(null);

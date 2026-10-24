@@ -1,0 +1,134 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 25cb5c5..7f38088 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,7 +1,8 @@
++import { useCanvasBatchGeneration } from "@/扩展功能/画布生成/批量生成操作";
+ import { useCanvasNodeRecycle } from "@/扩展功能/画布回收/节点回收操作";
+ import { useCanvasContentImport } from "@/扩展功能/画布导入/当前画布导入操作";
+ import { useCanvasTaskReceipts } from "@/扩展功能/画布生成/生成任务回执操作";
+-import { promptGenerationPatch, detectedPromptConfig, generationSettingsFromNode, generationNodeForExecution } from "@/扩展功能/画布生成/生成参数继承";
++import { promptGenerationPatch, detectedPromptConfig, generationNodeForExecution } from "@/扩展功能/画布生成/生成参数继承";
+ import { ExcelCanvasScope, useExcelPromptContext } from "@/扩展功能/Excel画布/Excel画布上下文";
+ import { registerExcelParameterNode } from "@/扩展功能/Excel画布/Excel参数节点注册";
+ import { PROMPT_VARIABLES_NODE_TYPE } from "@/扩展功能/Excel画布/旧版参数规则";
+@@ -13,7 +14,6 @@ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { ImageTaskConfirmation } from "@/扩展功能/画布生成/图片任务确认状态";
+ import { requestCanvasImage } from "@/扩展功能/画布生成/原画布图片调用";
+ import { saveProductCanvas, useProductCanvasSave } from "@/扩展功能/产品/产品操作";
+-import { observeActivity } from "@/扩展功能/安全与批量/update-activity";
+ import { flushSQLiteStorage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
+ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+@@ -27,9 +27,9 @@ import { useTranslation } from "react-i18next";
+ import { requestEdit, requestGeneration } from "@/services/api/image";
+ import { requestAudioGeneration, storeGeneratedAudio } from "@/services/api/audio";
+ import { createVideoGenerationTask, isVideoTaskFailed, storeGeneratedVideo, waitForVideoGenerationTask } from "@/services/api/video";
+-import { defaultConfig, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+-import { collectImageStorageKeys, deleteStoredImages, ensureImagePreview, getImageBlob, uploadImage } from "@/services/image-storage";
+-import { collectMediaStorageKeys, deleteStoredMedia, getMediaBlob, uploadMediaFile, type UploadedFile } from "@/services/file-storage";
++import { defaultConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
++import { ensureImagePreview, uploadImage } from "@/services/image-storage";
++import { uploadMediaFile, type UploadedFile } from "@/services/file-storage";
+ import { recycleCanvasNodes } from "@/扩展功能/画布回收/画布节点回收";
+ import { nanoid } from "nanoid";
+ import { getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
+@@ -3322,97 +3322,7 @@ function InfiniteCanvasPage() {
+         [effectiveConfig, message, setNodes, t],
+     );
+ 
+-    const addGenerationConfigsForPromptNodes = useCallback(() => {
+-        const promptNodes = nodesRef.current.filter((node) => node.type === CanvasNodeType.Text && Boolean((node.metadata?.content || node.metadata?.prompt || "").trim()));
+-        const connectedPromptIds = new Set(connectionsRef.current.map((connection) => connection.fromNodeId));
+-        const candidates = promptNodes.filter((node) => !connectedPromptIds.has(node.id));
+-        if (!candidates.length) {
+-            message.info("没有找到尚未连接生成配置的提示词卡片");
+-            return;
+-        }
+-        const configSpec = getNodeSpec(CanvasNodeType.Config);
+-        const occupied = [...nodesRef.current];
+-        const created: CanvasNodeData[] = [];
+-        const nextConnections = [...connectionsRef.current];
+-        candidates.forEach((sourceNode) => {
+-            const mode = promptGenerationMode(sourceNode, nodesRef.current, connectionsRef.current) || "image";
+-            const x = sourceNode.position.x + sourceNode.width + 96;
+-            const y = sourceNode.position.y;
+-            const configNode = placeCanvasNode(createCanvasNode(CanvasNodeType.Config, { x: x + configSpec.width / 2, y: y + configSpec.height / 2 }, {
+-                prompt: "",
+-                model: effectiveConfig.imageModel || effectiveConfig.model,
+-                size: effectiveConfig.size,
+-                count: getGenerationCount(effectiveConfig.canvasImageCount || effectiveConfig.count),
+-                // Excel prompt cards can contain image parameters in their
+-                // text rather than explicit metadata. Parse the same prompt
+-                // contract used by normal generation so the new config card
+-                // is a complete snapshot and does not fall back to globals.
+-                ...promptGenerationPatch(String(sourceNode.metadata?.content || sourceNode.metadata?.prompt || "")),
+-                ...generationSettingsFromNode(sourceNode),
+-                generationMode: mode,
+-                ...(mode !== "image" ? { model: mode === "video" ? effectiveConfig.videoModel : mode === "audio" ? effectiveConfig.audioModel : effectiveConfig.textModel } : {}),
+-            }), occupied);
+-            created.push(configNode);
+-            occupied.push(configNode);
+-            nextConnections.push({ id: nanoid(), fromNodeId: sourceNode.id, toNodeId: configNode.id });
+-        });
+-        const nextNodes = [...nodesRef.current, ...created];
+-        nodesRef.current = nextNodes;
+-        connectionsRef.current = nextConnections;
+-        setNodes(nextNodes);
+-        setConnections(nextConnections);
+-        setSelectedNodeIds(new Set(created.map((node) => node.id)));
+-        setSelectedConnectionId(null);
+-        message.success(`已补齐 ${created.length} 个生成配置`);
+-    }, [effectiveConfig.videoModel, effectiveConfig.audioModel, effectiveConfig.textModel, effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, message, setNodes]);
+-
+-    const batchGenerationRunning = useRef(false);
+-    const generateAllConfigNodes = useCallback(async () => {
+-        if (batchGenerationRunning.current) return;
+-        const configNodes = nodesRef.current.filter((node) => node.type === CanvasNodeType.Config && node.metadata?.status !== NODE_STATUS_LOADING);
+-        if (!configNodes.length) {
+-            message.info("画布上没有生成配置卡片");
+-            return;
+-        }
+-        batchGenerationRunning.current = true;
+-        message.info(`已加入 ${configNodes.length} 个生成任务，最多同时执行 3 个`);
+-        let cursor = 0;
+-        let failed = 0;
+-        const worker = async () => {
+-            while (cursor < configNodes.length) {
+-                const queued = configNodes[cursor++];
+-                const node = nodesRef.current.find((item) => item.id === queued.id);
+-                if (!node || node.metadata?.status === NODE_STATUS_LOADING) continue;
+-                try {
+-                    await handleGenerateNode(node.id, node.metadata?.generationMode || "image", node.metadata?.composerContent || node.metadata?.prompt || "");
+-                } catch {
+-                    failed++;
+-                }
+-            }
+-        };
+-        try {
+-            await settleActivityGroup(Array.from({ length: Math.min(3, configNodes.length) }, worker));
+-            if (failed) message.warning(`${failed} 个任务提交失败，其余任务已继续执行`);
+-        } finally {
+-            batchGenerationRunning.current = false;
+-        }
+-    }, [handleGenerateNode, message]);
+-
+-    const completeAndGenerateRunning = useRef(false);
+-    const completeAndGenerateAll = useCallback(async () => {
+-        if (completeAndGenerateRunning.current) return;
+-        completeAndGenerateRunning.current = true;
+-        try {
+-            // Completion updates nodesRef/connectionsRef synchronously, so
+-            // generation includes the new cards without waiting on a render.
+-            addGenerationConfigsForPromptNodes();
+-            await generateAllConfigNodes();
+-        } catch {
+-            message.error("批量生成未完成，请检查生成任务的错误信息后重试");
+-        } finally {
+-            completeAndGenerateRunning.current = false;
+-        }
+-    }, [addGenerationConfigsForPromptNodes, generateAllConfigNodes, message]);
++    const { addGenerationConfigsForPromptNodes, generateAllConfigNodes, completeAndGenerateAll } = useCanvasBatchGeneration({ nodesRef, connectionsRef, effectiveConfig, setNodes, setConnections, setSelectedNodeIds, setSelectedConnectionId, handleGenerateNode, message });
+ 
+     const insertAssistantImage = useCallback(
+         async (image: CanvasAssistantImage) => {

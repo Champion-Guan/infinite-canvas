@@ -1,0 +1,122 @@
+diff --git a/web/src/types/canvas.ts b/web/src/types/canvas.ts
+index 54d0b7d..ab54e69 100644
+--- a/web/src/types/canvas.ts
++++ b/web/src/types/canvas.ts
+@@ -27,14 +27,25 @@ export type CanvasImageGenerationType = "generation" | "edit";
+ 
+ export type CanvasNodeImage = {
+     id: string;
++    name?: string;
+     status: CanvasNodeStatus;
+     errorDetails?: string;
+     content: string;
+     storageKey?: string;
++    deliveryStorageKey?: string;
++    originalStorageKey?: string;
+     naturalWidth: number;
+     naturalHeight: number;
+     bytes: number;
+     mimeType: string;
++    deliveryWidth?: number;
++    deliveryHeight?: number;
++    deliveryBytes?: number;
++    deliveryMimeType?: string;
++    originalWidth?: number;
++    originalHeight?: number;
++    originalBytes?: number;
++    originalMimeType?: string;
+ };
+ 
+ export type CanvasNodeText = {
+@@ -45,11 +56,24 @@ export type CanvasNodeText = {
+ };
+ 
+ export type CanvasNodeMetadata = {
++    gatewayGenerationTasks?: Array<{ taskId: string; slotId: string; binding: string; requestHash: string }>;
++    gatewayGenerationReceipts?: Array<{ taskId: string; responseHash: string }>;
++    gatewayThemeCalibrationInput?: { taskId: string; input: Array<{ id: string; prompt: string; source: string }> };
+     content?: string;
+     composerContent?: string;
+     prompt?: string;
+     status?: CanvasNodeStatus;
+     errorDetails?: string;
++    generationStartedAt?: number;
++    generationNameBase?: string;
++    // Parameters parsed from an image prompt and copied to generated config cards.
++    generationAspectRatio?: string;
++    generationPixelWidth?: number;
++    generationPixelHeight?: number;
++    generationImageType?: string;
++    generationParamsDetected?: boolean;
++    generationParamsSourceNodeId?: string;
++
+     fontSize?: number;
+     generationMode?: CanvasGenerationMode;
+     generationType?: CanvasImageGenerationType;
+@@ -57,6 +81,7 @@ export type CanvasNodeMetadata = {
+     reasoningEffort?: "auto" | "low" | "medium" | "high" | "xhigh";
+     size?: string;
+     quality?: string;
++    moderation?: string;
+     background?: string;
+     count?: number;
+     textCount?: number;
+@@ -78,13 +103,58 @@ export type CanvasNodeMetadata = {
+     images?: CanvasNodeImage[];
+     primaryImageId?: string;
+     storageKey?: string;
++    deliveryStorageKey?: string;
++    originalStorageKey?: string;
+     mimeType?: string;
+     bytes?: number;
++    requestedSize?: string;
++    upstreamSize?: string;
++    deliverySize?: string;
++    originalWidth?: number;
++    originalHeight?: number;
++    originalBytes?: number;
++    originalMimeType?: string;
++    deliveryWidth?: number;
++    deliveryHeight?: number;
++    deliveryBytes?: number;
++    deliveryMimeType?: string;
+     durationMs?: number;
+     videoTaskId?: string;
+     videoTaskProvider?: "openai" | "gemini";
+     groupId?: string;
+     interactive?: boolean; // Plugin node interaction/move state; see CanvasNodeDefinition.interactionToggle.
++    // Values and source prompt used by the adaptive Excel prompt-variable node.
++    promptVariableTemplateId?: string;
++    promptVariablePromptKey?: string;
++    promptVariablePromptTheme?: string;
++    promptVariableCompositionLock?: string;
++    promptVariablePurpose?: string;
++    promptVariableSource?: "excel-marker" | "manual" | "ai";
++    promptVariableProductName?: string;
++    promptVariableFileName?: string;
++    promptVariableRawPrompt?: string;
++    promptVariableResolvedPrompt?: string;
++    promptVariableTokens?: string[];
++    promptVariableValues?: Record<string, string>;
++    promptVariablePreviewNodeId?: string;
++    promptVariableSourceNodeId?: string;
++    promptVariablePreviewOf?: string;
++    promptVariableEnglishPreviewOf?: string;
++    promptVariableTranslationOf?: string;
++    promptVariableTranslationLanguage?: "en" | "zh";
++    // Excel prompt-card metadata. The prompt card owns this schema; values
++    // are supplied by a connected adaptive product-parameter node.
++    excelPromptTemplateId?: string;
++    excelPromptKey?: string;
++    excelPromptLabel?: string;
++    excelPromptTheme?: string;
++    excelPromptCompositionLock?: string;
++    excelPromptPurpose?: string;
++    excelPromptTokens?: string[];
++    excelPromptRaw?: string;
++    excelPromptSkippedValue?: string;
++    excelPromptResolved?: string;
++    excelPromptBindingNodeId?: string;
+ };
+ 
+ export type CanvasNodeData = {

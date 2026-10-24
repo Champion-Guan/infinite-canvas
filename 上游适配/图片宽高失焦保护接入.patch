@@ -1,0 +1,14 @@
+diff --git a/web/src/components/image-settings-panel.tsx b/web/src/components/image-settings-panel.tsx
+index 6fdab65..13a618f 100644
+--- a/web/src/components/image-settings-panel.tsx
++++ b/web/src/components/image-settings-panel.tsx
+@@ -242,7 +242,8 @@ function DimensionInput({ prefix, value, disabled, theme, alignToStep, onChange
+     const commit = (input: HTMLInputElement) => {
+         const next = alignDimension(Math.max(1, Math.floor(Number(input.value) || value || 1024)), alignToStep);
+         input.value = String(next);
+-        onChange(next);
++        // 未改动的另一边仅失焦时不能覆盖用户手填的宽/高锚点。
++        if (next !== value) onChange(next);
+     };
+ 
+     return (

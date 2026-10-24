@@ -1,0 +1,16 @@
+diff --git a/web/src/lib/canvas/canvas-export.ts b/web/src/lib/canvas/canvas-export.ts
+index 2759f4e..cc20f84 100644
+--- a/web/src/lib/canvas/canvas-export.ts
++++ b/web/src/lib/canvas/canvas-export.ts
+@@ -66,7 +66,10 @@ export async function exportCanvasNodes(nodes: CanvasNodeData[], fileName = i18n
+ 
+ function collectStorageKeys(value: unknown, keys = new Set<string>()) {
+     if (!value || typeof value !== "object") return [...keys];
+-    if ("storageKey" in value && typeof value.storageKey === "string" && value.storageKey.includes(":")) keys.add(value.storageKey);
++    for (const [field, item] of Object.entries(value)) {
++        if (["storageKey", "originalStorageKey", "deliveryStorageKey"].includes(field) && typeof item === "string" && /^(image|video|audio|file):/.test(item)) keys.add(item);
++        if (field === "references" && Array.isArray(item)) for (const key of item) if (typeof key === "string" && /^(image|video|audio|file):/.test(key)) keys.add(key);
++    }
+     Object.values(value).forEach((item) => (Array.isArray(item) ? item.forEach((child) => collectStorageKeys(child, keys)) : collectStorageKeys(item, keys)));
+     return [...keys];
+ }

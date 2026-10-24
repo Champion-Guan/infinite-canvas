@@ -1,0 +1,16 @@
+diff --git a/web/src/services/image-storage.ts b/web/src/services/image-storage.ts
+index 1a2ea03..ca24699 100644
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -326,8 +326,10 @@ export async function cleanupUnusedImages(usedData: unknown) {
+ 
+ export function collectImageStorageKeys(value: unknown, keys = new Set<string>()) {
+     if (!value || typeof value !== "object") return keys;
++    const record = value as Record<string, unknown>;
+     for (const field of ["storageKey", "deliveryStorageKey", "originalStorageKey"]) {
+-        if (field in value && typeof value[field] === "string" && value[field].startsWith("image:")) keys.add(value[field]);
++        const key = record[field];
++        if (typeof key === "string" && key.startsWith("image:")) keys.add(key);
+     }
+     Object.values(value).forEach((item) => (Array.isArray(item) ? item.forEach((child) => collectImageStorageKeys(child, keys)) : collectImageStorageKeys(item, keys)));
+     return keys;

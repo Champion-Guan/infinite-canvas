@@ -1,0 +1,9 @@
+{
+  "name": "guan-web-workbench-runtime",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "undici": "6.29.0",
+    "yaml": "2.8.2"
+  }
+}

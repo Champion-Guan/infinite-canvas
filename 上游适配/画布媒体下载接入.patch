@@ -1,0 +1,59 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 4d2977b..4cf41f4 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,3 +1,4 @@
++import { useCanvasMediaDownloads } from "@/扩展功能/媒体交付/画布下载操作";
+ import { useCanvasBatchGeneration } from "@/扩展功能/画布生成/批量生成操作";
+ import { useCanvasNodeRecycle } from "@/扩展功能/画布回收/节点回收操作";
+ import { useCanvasContentImport } from "@/扩展功能/画布导入/当前画布导入操作";
+@@ -20,8 +21,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
+ import type { ChangeEvent as ReactChangeEvent, DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
+ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+ import { Group, Video } from "lucide-react";
+-import { saveAs } from "file-saver";
+-import { readDownloadBlob } from "@/扩展功能/画布迁移扩展/media-download";
+ import { useTranslation } from "react-i18next";
+ 
+ import { requestEdit, requestGeneration } from "@/services/api/image";
+@@ -63,7 +62,6 @@ import { CanvasToolbar } from "@/components/canvas/canvas-toolbar";
+ import { AssetPickerModal, type InsertAssetPayload } from "@/components/canvas/asset-picker-modal";
+ import { generatedImageName, numberGeneratedImages } from "@/扩展功能/媒体交付/生成图片命名";
+ import { generatedImageCardTitle, findGeneratedImageSourcePrompt, renameGeneratedImageNodes } from "@/扩展功能/媒体交付/生成图片来源";
+-import { mediaFileExtension } from "@/扩展功能/生成历史/媒体文件扩展";
+ import { CanvasSidePanel } from "@/components/canvas/canvas-side-panel";
+ import { CanvasZoomControls } from "@/components/canvas/canvas-zoom-controls";
+ import { productFeatures } from "@/扩展功能/产品配置/功能开关";
+@@ -76,7 +74,6 @@ import { exportCanvasProjects } from "@/lib/canvas/canvas-export";
+ import { applyNodeConfigPatch, audioMetadata, buildAudioGenerationMetadata, buildImageGenerationMetadata, createCanvasNode, imageMetadata, videoMetadata } from "@/lib/canvas/canvas-node-factory";
+ import { applyGroupSelection, applyUngroupSelection, canGroupSelectedNodes, canUngroupSelectedNodes, collectGroupMemberNodes, findContainingGroupId, findGroupDropTarget, focusViewportForNode, getConnectionTargetAnchor, getGroupWrapRect, normalizeConnection, nodeBounds, snapNodesIntoGroup } from "@/lib/canvas/canvas-node-geometry";
+ import {
+-    audioExtension,
+     buildAngleLabel,
+     buildAnglePrompt,
+     buildGenerationConfig,
+@@ -2014,23 +2011,7 @@ function InfiniteCanvasPage() {
+         setNodes((prev) => prev.map((node) => (node.id === nodeId ? applyNodeConfigPatch(node, patch) : node)));
+     }, []);
+ 
+-    const downloadNodeImage = useCallback(async (node: CanvasNodeData) => {
+-        if ((node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video && node.type !== CanvasNodeType.Audio) || (!node.metadata?.content && !node.metadata?.storageKey)) return;
+-        try {
+-            const blob = await readDownloadBlob({ kind: node.type === CanvasNodeType.Video ? "video" : node.type === CanvasNodeType.Audio ? "audio" : "image", storageKey: node.metadata.storageKey, url: node.metadata.content });
+-            const name = node.type === CanvasNodeType.Image ? generatedImageName(node, node.metadata.primaryImageId) : node.title || `canvas-${node.type}-${node.id}`;
+-            saveAs(blob, `${name.replace(/[\\/:*?"<>|]/g, "_")}.${node.type === CanvasNodeType.Audio ? audioExtension(blob.type) : mediaFileExtension(blob.type, node.type === CanvasNodeType.Video ? "video" : "image")}`);
+-        } catch (error) { message.error(error instanceof Error ? error.message : "下载失败"); }
+-    }, [message]);
+-
+-    const downloadBatchImage = useCallback(async (node: CanvasNodeData, imageId: string) => {
+-        const image = node.metadata?.images?.find((item) => item.id === imageId);
+-        if (!image?.content && !image?.storageKey) return;
+-        try {
+-            const blob = await readDownloadBlob({ kind: "image", storageKey: image.storageKey, url: image.content });
+-            saveAs(blob, `${generatedImageName(node, imageId).replace(/[\\/:*?"<>|]/g, "_")}.${mediaFileExtension(blob.type)}`);
+-        } catch (error) { message.error(error instanceof Error ? error.message : "下载失败"); }
+-    }, [message]);
++    const { downloadNodeImage, downloadBatchImage } = useCanvasMediaDownloads(message);
+ 
+     const captureVideoNodeFrame = useCallback(
+         async (nodeId: string, position: VideoFramePosition) => {

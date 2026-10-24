@@ -1,0 +1,153 @@
+diff --git a/web/src/components/canvas/canvas-toolbar.tsx b/web/src/components/canvas/canvas-toolbar.tsx
+index 75b7de5..2c3e0a8 100644
+--- a/web/src/components/canvas/canvas-toolbar.tsx
++++ b/web/src/components/canvas/canvas-toolbar.tsx
+@@ -1,7 +1,8 @@
+ import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from "react";
+ import { useEffect, useRef, useState } from "react";
+-import { Button, Segmented, Switch } from "antd";
+-import { CircleDot, Eraser, Grid2x2, Group, Hand, Image as ImageIcon, Info, LocateFixed, Moon, MousePointer2, Music2, Palette, Puzzle, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Upload, Video } from "lucide-react";
++import { productFeatures } from "@/扩展功能/产品配置/功能开关";
++import { Button, Dropdown, Segmented, Switch } from "antd";
++import { Braces, CircleDot, Eraser, Grid2x2, Group, Hand, Image as ImageIcon, Info, Link2, LocateFixed, Moon, MousePointer2, Music2, Palette, Play, Puzzle, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Upload, Video } from "lucide-react";
+ 
+ import { canvasThemes, type CanvasBackgroundMode, type CanvasColorTheme, type CanvasTheme } from "@/lib/canvas-theme";
+ import { getNodePluginId, listNodeDefinitions, useNodeRegistryVersion } from "@/lib/canvas/node-registry";
+@@ -21,8 +22,12 @@ export function CanvasToolbar({
+     onAddVideo,
+     onAddAudio,
+     onAddText,
++    onAddPromptVariables,
+     onAddConfig,
+     onAddGroup,
++    onAddGenerationConfigs,
++    onGenerateAllConfigs,
++    onCompleteAndGenerateAll,
+     onAddExtensionNode,
+     onUndo,
+     onRedo,
+@@ -44,8 +49,12 @@ export function CanvasToolbar({
+     onAddVideo: () => void;
+     onAddAudio: () => void;
+     onAddText: () => void;
++    onAddPromptVariables: () => void;
+     onAddConfig: () => void;
+     onAddGroup: () => void;
++    onAddGenerationConfigs: () => void;
++    onGenerateAllConfigs: () => void;
++    onCompleteAndGenerateAll: () => void;
+     onAddExtensionNode: (type: string) => void;
+     onUndo: () => void;
+     onRedo: () => void;
+@@ -69,26 +78,31 @@ export function CanvasToolbar({
+     const [panelX, setPanelX] = useState(0);
+     const [extensionsOpen, setExtensionsOpen] = useState(false);
+     const [extPanelX, setExtPanelX] = useState(0);
++    const [batchOpen, setBatchOpen] = useState(false);
++    const batchMenuRef = useRef<HTMLDivElement>(null);
+     // Keep extension plugin nodes synchronized with registry changes.
+     useNodeRegistryVersion();
+-    const extensionDefs = listNodeDefinitions().filter((def) => def.showInCreateMenu !== false && getNodePluginId(def.type) !== "builtin");
++    const extensionDefs = productFeatures.nodePlugins ? listNodeDefinitions().filter((def) => def.showInCreateMenu !== false && getNodePluginId(def.type) !== "builtin") : [];
+     const dockStyle = { background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item, boxShadow: colorTheme === "dark" ? "0 18px 45px rgba(0,0,0,.32)" : "0 16px 40px rgba(28,25,23,.12)" };
+     const hoverStyle = { background: theme.toolbar.itemHover, color: theme.toolbar.activeText };
+     const activeStyle = { background: theme.toolbar.activeBg, color: theme.toolbar.activeText };
+     const tip = hovered ? toolLabel(hovered, t) : "";
+ 
+-    // Close extension-node and canvas-appearance popovers when clicking outside the toolbar and its panels.
++    // Capture pointerdown before canvas pan handlers can consume the event.
++    // The batch menu is portalled, so it needs its own inside-click check.
+     useEffect(() => {
+-        if (!extensionsOpen && !appearanceOpen) return;
++        if (!extensionsOpen && !appearanceOpen && !batchOpen) return;
+         const handlePointerDown = (event: PointerEvent) => {
++            if (batchMenuRef.current?.contains(event.target as Node)) return;
+             if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+                 setExtensionsOpen(false);
+                 setAppearanceOpen(false);
++                setBatchOpen(false);
+             }
+         };
+         document.addEventListener("pointerdown", handlePointerDown, true);
+         return () => document.removeEventListener("pointerdown", handlePointerDown, true);
+-    }, [extensionsOpen, appearanceOpen]);
++    }, [extensionsOpen, appearanceOpen, batchOpen]);
+ 
+     return (
+         <div ref={rootRef} className="pointer-events-none absolute bottom-5 z-50 flex justify-center" style={{ left: 300, right: 16 }} data-canvas-bottom-toolbar>
+@@ -107,6 +121,9 @@ export function CanvasToolbar({
+                     <LocateFixed className="size-4.5" />
+                 </ToolbarButton>
+                 <Divider theme={theme} />
++                <ToolbarButton id="tool-prompt-variables" label={"产品参数设置"} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onAddPromptVariables}>
++                    <Braces className="size-4.5" />
++                </ToolbarButton>
+                 <ToolbarButton id="tool-text" label={t("canvas.toolbar.text")} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onAddText}>
+                     <Type className="size-4.5" />
+                 </ToolbarButton>
+@@ -122,6 +139,25 @@ export function CanvasToolbar({
+                 <ToolbarButton id="tool-config" label={t("canvas.toolbar.config")} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onAddConfig}>
+                     <Settings2 className="size-4.5" />
+                 </ToolbarButton>
++                <Dropdown
++                    open={batchOpen}
++                    trigger={["click"]}
++                    placement="top"
++                    popupRender={(menu) => <div ref={batchMenuRef}>{menu}</div>}
++                    menu={{ onClick: () => setBatchOpen(false), items: [
++                        { key: "auto-config", label: "一键为未连接提示词补齐配置卡片并连线", icon: <Link2 className="size-4" />, onClick: onAddGenerationConfigs },
++                        { key: "generate-all", label: "一键执行全部生成配置卡片", icon: <Play className="size-4" />, onClick: onGenerateAllConfigs },
++                        { type: "divider" },
++                        { key: "complete-and-generate", label: "一键补齐配置并执行全部生成任务", icon: <Play className="size-4" />, onClick: onCompleteAndGenerateAll },
++                    ] }}
++                    onOpenChange={(open) => { setBatchOpen(open); setHovered(null); setAppearanceOpen(false); setExtensionsOpen(false); }}
++                >
++                    <span>
++                        <ToolbarButton id="tool-batch-actions" label="批量操作" hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={() => {}}>
++                            <Link2 className="size-4.5" />
++                        </ToolbarButton>
++                    </span>
++                </Dropdown>
+                 <ToolbarButton id="tool-group" label={t("canvas.toolbar.group")} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onAddGroup}>
+                     <Group className="size-4.5" />
+                 </ToolbarButton>
+@@ -217,6 +253,7 @@ export function CanvasToolbar({
+                     style={{ left: panelX || "50%", background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
+                 >
+                     <div className="px-1 pb-2 text-sm font-medium opacity-65">{t("canvas.toolbar.appearance")}</div>
++                    {productFeatures.themeSwitch ? <>
+                     <div className="px-1 pb-1.5 text-[11px] font-medium opacity-50">{t("canvas.toolbar.themeMode")}</div>
+                     <div className="grid grid-cols-2 gap-1 rounded-lg p-1" style={{ background: theme.toolbar.itemHover }}>
+                         <CanvasThemeButton colorTheme={colorTheme} targetTheme="light" onThemeChange={setTheme}>
+@@ -228,6 +265,7 @@ export function CanvasToolbar({
+                             {t("canvas.toolbar.dark")}
+                         </CanvasThemeButton>
+                     </div>
++                    </> : null}
+                     <div className="mt-3 px-1 pb-1.5 text-[11px] font-medium opacity-50">{t("canvas.toolbar.gridStyle")}</div>
+                     <Segmented
+                         className="w-full !p-1 [&_.ant-segmented-group]:!flex [&_.ant-segmented-item]:!min-h-8 [&_.ant-segmented-item]:!flex-1 [&_.ant-segmented-item-label]:!min-h-8 [&_.ant-segmented-item-label]:!leading-8"
+@@ -351,13 +389,14 @@ function CanvasThemeButton({ colorTheme, targetTheme, onThemeChange, children }:
+ 
+ function DockTip({ label, x, theme }: { label: string; x: number; theme: CanvasTheme }) {
+     return (
+-        <span className="absolute bottom-[calc(100%+8px)] -translate-x-1/2 rounded-md px-2 py-1 text-xs shadow-lg" style={{ left: x, background: theme.node.text, color: theme.node.panel }}>
++        <span className="absolute bottom-[calc(100%+8px)] z-50 max-w-72 -translate-x-1/2 rounded-md px-2 py-1 text-center text-xs leading-5 shadow-lg" style={{ left: x, background: theme.node.text, color: theme.node.panel, ...(label === "整理重叠卡片 · 可撤销" ? { minWidth: 150 } : {}) }}>
+             {label}
+         </span>
+     );
+ }
+ 
+ function toolLabel(id: string, t: (key: string) => string) {
++    if (id === "tool-prompt-variables") return "产品参数设置";
+     if (id === "tool-select") return t("canvas.toolbar.select");
+     if (id === "tool-pan") return t("canvas.toolbar.pan");
+     if (id === "tool-undo") return t("canvas.undo");
+@@ -368,6 +407,7 @@ function toolLabel(id: string, t: (key: string) => string) {
+     if (id === "tool-video") return t("canvas.toolbar.video");
+     if (id === "tool-audio") return t("canvas.toolbar.audio");
+     if (id === "tool-config") return t("canvas.toolbar.config");
++    if (id === "tool-batch-actions") return "批量操作";
+     if (id === "tool-group") return t("canvas.toolbar.group");
+     if (id === "tool-extensions") return t("canvas.toolbar.extensions");
+     if (id === "tool-upload") return t("canvas.toolbar.upload");

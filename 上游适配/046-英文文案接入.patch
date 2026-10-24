@@ -1,0 +1,57 @@
+diff --git a/web/src/i18n/locales/en-US.ts b/web/src/i18n/locales/en-US.ts
+index cea8286..1bbb667 100644
+--- a/web/src/i18n/locales/en-US.ts
++++ b/web/src/i18n/locales/en-US.ts
+@@ -30,7 +30,8 @@ export default {
+     },
+     settingsPanels: {
+         common: { auto: "Auto", low: "Low", medium: "Medium", high: "High", xhigh: "Extra high", max: "Maximum" },
+-        image: { title: "Image settings", quality: "Quality", size: "Size", align16: "Align to multiples of 16", align16Hint: "Round dimensions up to the next multiple of 16 after input", resolution: "Resolution", aspectRatio: "Aspect ratio", transparent: "Transparent background", transparentHint: "Generate an image without a background when supported by the model", count: "Image count", images: "{{count}} images" },
++        image: {
++            moderation: "Moderation", title: "Image settings", quality: "Quality", size: "Size", align16: "Align to multiples of 16", align16Hint: "Round dimensions up to the next multiple of 16 after input", resolution: "Resolution", aspectRatio: "Aspect ratio", transparent: "Transparent background", transparentHint: "Generate an image without a background when supported by the model", count: "Image count", images: "{{count}} images" },
+         video: { title: "Video settings", quality: "Quality", size: "Size", seconds: "Seconds", mode: "Mode", modes: { frames: "First & last frame", reference: "General reference" }, resolution: "Resolution", ratio: "Aspect ratio", duration: "Duration", smart: "Smart", output: "Output", generateAudio: "Generate audio", watermark: "Add watermark", adaptive: "Adaptive", sizes: { landscape: "Landscape", portrait: "Portrait", square: "Square", widescreen: "Widescreen", tall: "Tall", auto: "Auto" }, ratios: { landscape: "Landscape", portrait: "Portrait", square: "Square", standardLandscape: "Standard landscape", standardPortrait: "Standard portrait", cinematic: "Cinematic", adaptive: "Adaptive" } },
+         audio: { title: "Audio settings", voice: "Voice", format: "Format", speed: "Speed", instructions: "Voice instructions", instructionsPlaceholder: "For example: natural, warm, and suitable for narration." },
+         text: { title: "Text settings", reasoning: "Reasoning effort", count: "Generation count" },
+@@ -273,7 +274,7 @@ export default {
+         sidePanel: {
+             canvas: "Canvas", assets: "Assets", prompts: "Prompt Library", resize: "Resize left panel", elements: "Canvas elements", select: "Select", searchNodes: "Search nodes", focusNode: "Focus node", preview: "Large preview", viewList: "Switch to list", viewGrid: "Switch to thumbnails", noNodes: "No nodes on this canvas", clearAll: "Clear all", selected: "{{count}} selected", exporting: "Exporting selected elements…", exportName: "canvas-elements-{{count}}", exported: "Exported {{count}} elements", exportFailed: "Export failed. Try again.",
+             addingAssets: "Adding assets…", addedAssets: "Added {{count}} assets", mediaOnly: "Only image and video files are supported", addFailed: "Failed to add assets. Try again.", searchAssets: "Search assets", add: "Add", noAssets: "No assets", inserted: "Insert into canvas", removeAssetTitle: "Remove this asset?", remove: "Remove", removeAsset: "Remove asset", assetRemoved: "Asset removed",
+-            searchPrompts: "Search prompts", noPrompts: "No prompts", promptCopied: "Prompt copied", copyFailed: "Copy failed", loadFailedRetry: "Load failed. Click to retry.", noMatchingPrompts: "No matching prompts", sourceEmpty: "No prompts from this source", viewDetails: "View details",
++            searchPrompts: "Search prompts", noPrompts: "No prompts", promptCopied: "Prompt copied", copyFailed: "Copy failed", loadFailedRetry: "Load failed. Click to retry.", noMatchingPrompts: "No matching prompts", sourceEmpty: "No prompts from this source", viewDetails: "View details", dragPrompt: "Drag to canvas to add prompt",
+             filter: { image: "Image", video: "Video", text: "Text", audio: "Audio", config: "Configuration", group: "Group" },
+         },
+         assetPicker: { title: "Select assets", insert: "Insert", search: "Search assets", empty: "No assets" },
+@@ -395,16 +396,16 @@ export default {
+         },
+         localStorage: {
+             title: "IndexedDB storage usage",
+-            description: "View browser data saved by Infinite Canvas, grouped by object store.",
+-            indexedDbUsage: "IndexedDB usage",
+-            siteUsage: "Total site usage",
+-            quota: "Available quota",
+-            contentEstimate: "Estimated from stored content",
+-            siteUsageHint: "Includes IndexedDB and other site data",
++            description: "Data is stored in local SQLite and media files, not browser storage.",
++            indexedDbUsage: "Data content",
++            siteUsage: "Database and media usage",
++            quota: "Browser quota",
++            contentEstimate: "Structured records and indexed media",
++            siteUsageHint: "Includes SQLite journals; excludes backups and unindexed files",
+             quotaHint: "Allocated dynamically by the browser",
+-            quotaUnavailable: "Quota estimation is unavailable in this browser",
++            quotaUnavailable: "Local storage does not use a browser quota",
+             quotaProgress: "Site quota usage",
+-            mainDatabase: "Infinite Canvas data",
++            mainDatabase: "Local workspace",
+             records: "{{count}} records",
+             refresh: "Refresh usage",
+             readFailed: "Failed to read local storage",
+@@ -467,7 +468,7 @@ export default {
+             },
+             runtime: { requestFailed: "Request failed ({{status}})", urlRequired: "JSON URL is required", fetchFailed: "Failed to fetch “{{name}}”: {{error}}", noPrompts: "No valid prompts were parsed from “{{name}}”", invalidRoot: "Invalid “{{name}}” format: the root value must be an array" },
+         },
+-        fileSecurity: "The JSON file contains API keys and WebDAV credentials. Keep it secure.",
++        fileSecurity: "Exported JSON omits API keys, WebDAV passwords and custom request scripts. Set them up again on the new computer.",
+         import: "Import settings",
+         export: "Export settings",
+         imported: "Settings and preferences imported",

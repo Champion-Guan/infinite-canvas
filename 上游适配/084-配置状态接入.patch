@@ -1,0 +1,165 @@
+diff --git a/web/src/stores/use-config-store.ts b/web/src/stores/use-config-store.ts
+index 6c989d7..270b6a6 100644
+--- a/web/src/stores/use-config-store.ts
++++ b/web/src/stores/use-config-store.ts
+@@ -1,6 +1,12 @@
++import { sqliteStateStorage, scheduleStateSave, flushSQLiteStorage } from "@/扩展功能/本机存储/上游浏览器存储桥";
++import { requireAuxiliaryFeature } from "@/扩展功能/产品配置/精简与离线策略";
++import { requireBusinessFeature } from "@/扩展功能/产品配置/脚本与提示词来源";
++import { productFeatures, requireProductFeature } from "@/扩展功能/产品配置/功能开关";
++import { FALLBACK_MODEL_OPTION, fallbackModelsByCapability, resolveFallbackModel } from "@/扩展功能/故障切换/浏览器状态";
++export { FALLBACK_MODEL_OPTION, fallbackModelsByCapability, hasEnabledFallback, resolveFallbackModel } from "@/扩展功能/故障切换/浏览器状态";
+ import { useMemo } from "react";
+ import { create } from "zustand";
+-import { persist } from "zustand/middleware";
++import { createJSONStorage, persist } from "zustand/middleware";
+ import { nanoid } from "nanoid";
+ 
+ import i18n from "@/i18n";
+@@ -13,6 +19,7 @@ export type ChannelModel = {
+     name: string;
+     capability: ModelCapability;
+     script?: string;
++    price?: number;
+ };
+ 
+ export type ModelChannel = {
+@@ -25,6 +32,8 @@ export type ModelChannel = {
+ };
+ 
+ export type AiConfig = {
++    fallbackRequested?: boolean;
++    fallbackCapability?: ModelCapability;
+     channelMode: "remote" | "local";
+     baseUrl: string;
+     apiKey: string;
+@@ -48,6 +57,7 @@ export type AiConfig = {
+     reasoningEffort: ReasoningEffort;
+     models: string[];
+     quality: string;
++    moderation: "auto" | "low";
+     size: string;
+     background: string;
+     count: string;
+@@ -65,7 +75,7 @@ export type WebdavSyncConfig = {
+     directory: string;
+     lastSyncedAt: string;
+ };
+-export type ConfigTabKey = "channels" | "local-proxy" | "preferences" | "prompt-sources" | "webdav" | "local-storage";
++export type ConfigTabKey = "software-updates" | "fallback" | "channels" | "local-proxy" | "preferences" | "prompt-sources" | "webdav" | "local-storage";
+ 
+ export type ChannelCredentialsImportResult = {
+     status: "created" | "updated" | "missing-base-url" | "invalid-base-url";
+@@ -117,6 +127,7 @@ export const defaultConfig: AiConfig = {
+     reasoningEffort: "auto",
+     models: ["default::gpt-image-2", "default::grok-imagine-video", "default::gpt-5.5", "default::gpt-4o-mini-tts"],
+     quality: "auto",
++    moderation: "auto",
+     size: "1:1",
+     background: "",
+     count: "1",
+@@ -146,6 +157,7 @@ type ConfigStore = {
+     updateWebdavConfig: <K extends keyof WebdavSyncConfig>(key: K, value: WebdavSyncConfig[K]) => void;
+     isAiConfigReady: (config: AiConfig, model: string) => boolean;
+     openConfigDialog: (shouldPromptContinue?: boolean, tab?: ConfigTabKey) => void;
++    setConfigTab: (tab: ConfigTabKey) => void;
+     setConfigDialogOpen: (isOpen: boolean) => void;
+     clearPromptContinue: () => void;
+ };
+@@ -187,6 +199,7 @@ export function modelMatchesCapability(config: AiConfig, value: string, capabili
+ export function resolveModelForCapability(config: AiConfig, currentModel: string | undefined, capability: ModelCapability) {
+     const defaultModel = capability === "image" ? config.imageModel : capability === "video" ? config.videoModel : capability === "audio" ? config.audioModel : config.textModel;
+     const fallbackModel = capability === "image" ? defaultConfig.imageModel : capability === "video" ? defaultConfig.videoModel : capability === "audio" ? defaultConfig.audioModel : defaultConfig.textModel;
++    if (currentModel === FALLBACK_MODEL_OPTION || !currentModel && defaultModel === FALLBACK_MODEL_OPTION) return resolveFallbackModel(config, capability) || FALLBACK_MODEL_OPTION;
+     for (const model of [currentModel, defaultModel]) {
+         if (!model) continue;
+         const configuredCapability = modelCapabilityOf(config, model);
+@@ -204,10 +217,13 @@ export function selectableModelsByCapability(config: AiConfig, capability?: Mode
+ 
+ /** The user script (if any) attached to a model; empty string means use the system default call. */
+ export function resolveModelScript(config: AiConfig, value: string) {
+-    return findChannelModel(config, value)?.model.script?.trim() || "";
++    const script = findChannelModel(config, value)?.model.script?.trim() || "";
++    if (script) requireBusinessFeature("modelScripts");
++    return script;
+ }
+ 
+-function isAiConfigReady(config: AiConfig, model: string) {
++function isAiConfigReady(config: AiConfig, model: string): boolean {
++    if (model === FALLBACK_MODEL_OPTION) return fallbackModelsByCapability(config, "image").some(candidate => isAiConfigReady(config, candidate));
+     const match = findChannelModel(config, model);
+     return Boolean(match && match.channel.baseUrl.trim() && match.channel.apiKey.trim());
+ }
+@@ -228,6 +244,7 @@ export const useConfigStore = create<ConfigStore>()(
+                     },
+                 })),
+             importChannelCredentials: (input) => {
++                requireAuxiliaryFeature("urlCredentials");
+                 const currentConfig = get().config;
+                 const result = upsertChannelCredentials(currentConfig, input);
+                 if (result.config !== currentConfig) set({ config: result.config });
+@@ -241,12 +258,21 @@ export const useConfigStore = create<ConfigStore>()(
+                     },
+                 })),
+             isAiConfigReady: (config, model) => isAiConfigReady(config, model),
+-            openConfigDialog: (shouldPromptContinue = false, configTab = "channels") => set({ isConfigOpen: true, shouldPromptContinue, configTab }),
++            openConfigDialog: (shouldPromptContinue = false, configTab) => set((state) => ({ isConfigOpen: true, shouldPromptContinue, configTab: configTab || state.configTab })),
++            setConfigTab: (configTab) => set({ configTab }),
+             setConfigDialogOpen: (isConfigOpen) => set({ isConfigOpen }),
+             clearPromptContinue: () => set({ shouldPromptContinue: false }),
+         }),
+         {
+             name: CONFIG_STORE_KEY,
++            storage: createJSONStorage(() => ({
++                getItem: sqliteStateStorage.getItem,
++                setItem: scheduleStateSave,
++                async removeItem(key) {
++                    await flushSQLiteStorage();
++                    await sqliteStateStorage.removeItem(key);
++                },
++            })),
+             partialize: (state) => ({ config: state.config, webdav: state.webdav }),
+             merge: (persisted, current) => {
+                 const persistedState = (persisted || {}) as Partial<ConfigStore>;
+@@ -274,6 +300,7 @@ export const useConfigStore = create<ConfigStore>()(
+                         audioSpeed: config.audioSpeed || defaultConfig.audioSpeed,
+                         audioInstructions: config.audioInstructions || "",
+                         reasoningEffort: config.reasoningEffort || "auto",
++                        moderation: config.moderation === "low" ? "low" : "auto",
+                         videoSeconds: config.videoSeconds || "6",
+                         vquality: config.vquality || "720",
+                         videoGenerateAudio: config.videoGenerateAudio || "true",
+@@ -306,7 +333,8 @@ export function normalizeChannelModels(models: Array<string | ChannelModel> | un
+         seen.add(name);
+         const capability = typeof item === "string" ? guessCapability(name) : item.capability || guessCapability(name);
+         const script = typeof item === "string" ? undefined : item.script?.trim() || undefined;
+-        result.push({ name, capability, script });
++        const price = typeof item === "string" || item.price == null || item.price === 0 ? undefined : Number(item.price);
++        result.push({ name, capability, script, ...(Number.isFinite(price) ? { price } : {}) });
+     }
+     return result;
+ }
+@@ -406,6 +434,7 @@ export function modelOptionName(value: string) {
+ }
+ 
+ export function modelOptionLabel(config: AiConfig, value: string) {
++    if (value === FALLBACK_MODEL_OPTION) return "按 Fallback 自动选择";
+     const decoded = decodeChannelModel(value);
+     if (!decoded) return value;
+     const channel = config.channels.find((item) => item.id === decoded.channelId);
+@@ -418,6 +447,7 @@ export function modelOptionsFromChannels(channels: ModelChannel[]) {
+ 
+ export function normalizeModelOptionValue(value: string | undefined, channels: ModelChannel[]) {
+     const model = (value || "").trim();
++    if (model === FALLBACK_MODEL_OPTION) return model;
+     if (!model) return "";
+     const decoded = decodeChannelModel(model);
+     if (decoded) {
+@@ -501,6 +531,7 @@ export function normalizeLocalProxyUrl(value: string) {
+ export function withLocalProxy(url: string) {
+     const { proxyEnabled, proxyUrl } = useConfigStore.getState().config;
+     if (!proxyEnabled || !/^https?:\/\//i.test(url)) return url;
++    if (!productFeatures.localProxy) requireProductFeature("localProxy");
+     const base = normalizeLocalProxyUrl(proxyUrl);
+     if (!base || url.startsWith(`${base}/`)) return url;
+     return `${base}/${url}`;

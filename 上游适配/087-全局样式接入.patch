@@ -1,0 +1,939 @@
+diff --git a/web/src/styles/globals.css b/web/src/styles/globals.css
+index 7dd9298..57d5772 100644
+--- a/web/src/styles/globals.css
++++ b/web/src/styles/globals.css
+@@ -5,6 +5,11 @@
+ 
+ @custom-variant dark (&:is(.dark *));
+ 
++/* Match the compact switch treatment used by the dark-theme settings UI. */
++.dark .ant-switch-checked .ant-switch-handle::before {
++    background: #18181b;
++}
++
+ @theme inline {
+     --color-background: var(--background);
+     --color-foreground: var(--foreground);
+@@ -138,9 +143,488 @@
+     html {
+         @apply font-sans;
+     }
++
++    /* Apple-like motion: short, springy and disabled for reduced-motion users. */
++    :root {
++        --guan-motion-fast: 140ms;
++        --guan-motion-normal: 220ms;
++        --guan-motion-panel: 320ms;
++        --guan-motion-slow: 460ms;
++        --guan-motion-stagger: 28ms;
++        --guan-motion-distance: 6px;
++        --guan-motion-spring: cubic-bezier(0.22, 1, 0.36, 1);
++        --guan-motion-gentle: cubic-bezier(0.25, 0.8, 0.25, 1);
++        --guan-motion-shadow: 0 12px 34px rgb(28 25 23 / 12%);
++        --guan-motion-shadow-dark: 0 16px 42px rgb(0 0 0 / 28%);
++    }
++
++    @media (prefers-reduced-motion: reduce) {
++        *,
++        *::before,
++        *::after {
++            scroll-behavior: auto !important;
++            animation-duration: 1ms !important;
++            animation-iteration-count: 1 !important;
++            transition-duration: 1ms !important;
++        }
++    }
+ }
+ 
+ @layer utilities {
++    .guan-motion-interactive {
++        transition:
++            transform var(--guan-motion-normal) var(--guan-motion-spring),
++            opacity var(--guan-motion-fast) var(--guan-motion-gentle),
++            background-color var(--guan-motion-fast) var(--guan-motion-gentle),
++            border-color var(--guan-motion-fast) var(--guan-motion-gentle),
++            box-shadow var(--guan-motion-normal) var(--guan-motion-gentle);
++        will-change: transform;
++    }
++
++    .guan-motion-interactive:hover {
++        transform: translateY(-1px);
++    }
++
++    .guan-motion-interactive:active {
++        transform: scale(0.98);
++        transition-duration: var(--guan-motion-fast);
++    }
++
++    /* Global Apple-style primitives. Components should compose these classes
++     * instead of inventing independent durations or easing curves. */
++    .guan-apple-transition {
++        transition:
++            transform var(--guan-motion-normal) var(--guan-motion-spring),
++            opacity var(--guan-motion-fast) var(--guan-motion-gentle),
++            color var(--guan-motion-fast) var(--guan-motion-gentle),
++            background-color var(--guan-motion-fast) var(--guan-motion-gentle),
++            border-color var(--guan-motion-fast) var(--guan-motion-gentle),
++            box-shadow var(--guan-motion-normal) var(--guan-motion-gentle);
++    }
++
++    .guan-apple-press:active {
++        transform: scale(.97);
++        transition-duration: var(--guan-motion-fast);
++    }
++
++    .guan-apple-enter {
++        animation: guan-apple-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
++    }
++
++    .guan-apple-fade {
++        animation: guan-apple-fade var(--guan-motion-normal) var(--guan-motion-gentle) both;
++    }
++
++    .guan-apple-status {
++        animation: guan-apple-status var(--guan-motion-slow) var(--guan-motion-gentle) both;
++    }
++
++    .guan-apple-stagger > * {
++        animation: guan-apple-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
++    }
++
++    .guan-apple-stagger > *:nth-child(2) { animation-delay: calc(var(--guan-motion-stagger) * 1); }
++    .guan-apple-stagger > *:nth-child(3) { animation-delay: calc(var(--guan-motion-stagger) * 2); }
++    .guan-apple-stagger > *:nth-child(4) { animation-delay: calc(var(--guan-motion-stagger) * 3); }
++    .guan-apple-stagger > *:nth-child(5) { animation-delay: calc(var(--guan-motion-stagger) * 4); }
++
++    .guan-apple-scroll {
++        scroll-behavior: smooth;
++        overscroll-behavior: contain;
++    }
++
++    .guan-motion-panel {
++        transform-origin: var(--guan-motion-origin, center top);
++        animation: guan-panel-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
++    }
++
++    .guan-motion-pop {
++        animation: guan-pop-in var(--guan-motion-normal) var(--guan-motion-spring) both;
++    }
++
++    .guan-content-visibility-auto {
++        content-visibility: auto;
++        contain-intrinsic-size: auto 176px;
++    }
++
++    /* Apple-style interaction primitives used by the canvas and workbench
++     * surfaces. They animate opacity, paint and transforms only, so canvas
++     * geometry remains on the compositor during pointer interactions. */
++    .guan-node-settle {
++        animation: guan-node-settle 420ms var(--guan-motion-spring) both;
++        transform-origin: center;
++        will-change: transform, filter;
++    }
++
++    .guan-layout-transition {
++        animation: guan-layout-transition 420ms var(--guan-motion-spring) both;
++    }
++
++    .guan-history-replay {
++        animation: guan-history-replay 360ms var(--guan-motion-spring) both;
++    }
++
++    .guan-connection-flow {
++        stroke-dasharray: 1 18;
++        stroke-linecap: round;
++        animation: guan-connection-flow 760ms linear infinite;
++        opacity: .78;
++        pointer-events: none;
++    }
++
++    .guan-drop-magnet {
++        /* Canvas nodes carry their world position in an inline translate().
++         * Never animate transform on the node itself: replacing that inline
++         * transform makes the snap target visibly jump. The target highlight
++         * is handled by the shadow animation below. */
++        animation: guan-drop-magnet-shadow 520ms var(--guan-motion-spring) both;
++    }
++
++    .guan-node-drop-target {
++        box-shadow: 0 0 0 2px rgb(47 128 255 / 30%), 0 14px 38px rgb(47 128 255 / 16%);
++        transition: box-shadow var(--guan-motion-normal) var(--guan-motion-spring), background-color var(--guan-motion-normal) var(--guan-motion-gentle);
++    }
++
++    .guan-connection-target > div {
++        box-shadow: 0 0 0 3px rgb(47 128 255 / 28%), 0 12px 36px rgb(47 128 255 / 18%);
++        transition: box-shadow var(--guan-motion-normal) var(--guan-motion-spring);
++    }
++
++    .guan-history-list-card,
++    .guan-history-selection-footer,
++    [data-canvas-save-status],
++    .guan-canvas-save-status {
++        transition: opacity var(--guan-motion-fast) var(--guan-motion-gentle), background-color var(--guan-motion-normal) var(--guan-motion-gentle), color var(--guan-motion-fast) var(--guan-motion-gentle), transform var(--guan-motion-normal) var(--guan-motion-spring);
++    }
++
++    .guan-history-list-card:active { transform: scale(.992); }
++
++    .guan-download-action .guan-download-icon { transition: transform var(--guan-motion-normal) var(--guan-motion-spring), opacity var(--guan-motion-fast) var(--guan-motion-gentle); }
++    .guan-download-action.is-loading .guan-download-icon { animation: guan-download-spin 780ms linear infinite; }
++    .guan-download-action:not(.is-loading):focus-visible .guan-download-icon { animation: guan-download-confirm 360ms var(--guan-motion-spring) both; }
++
++    [data-canvas-save-status="saving"] > span:first-child {
++        animation: guan-save-pulse 1.15s ease-in-out infinite;
++    }
++
++    [data-canvas-save-status="saved"] > span:first-child {
++        animation: guan-save-confirm 360ms var(--guan-motion-spring) both;
++    }
++
++    [data-update-stage],
++    [data-agent-message],
++    [data-onboarding-step] {
++        animation: guan-apple-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
++    }
++
++    [data-error-state] { animation: guan-error-recover 360ms var(--guan-motion-spring) both; }
++
++    .guan-scroll-edge-top,
++    .guan-scroll-edge-bottom {
++        box-shadow: 0 -8px 16px rgb(0 0 0 / 7%);
++        transition: box-shadow var(--guan-motion-normal) var(--guan-motion-gentle);
++    }
++
++    .guan-scroll-edge-top { box-shadow: 0 8px 16px rgb(0 0 0 / 7%); }
++
++    .guan-guided-step-line {
++        transform-origin: left center;
++        animation: guan-step-line 560ms var(--guan-motion-spring) both;
++    }
++
++    .guan-focus-ring {
++        /* The node owns an inline translate() for canvas coordinates. A scale
++         * animation here overwrote that transform and made snap targets jump. */
++        animation: guan-focus-ring-paint 240ms var(--guan-motion-gentle) both;
++    }
++
++    .guan-canvas-viewport[data-panning="true"] [data-canvas-grid] {
++        opacity: .28;
++        transition: opacity 180ms var(--guan-motion-gentle);
++    }
++
++    [data-canvas-grid] {
++        transition: opacity 320ms var(--guan-motion-gentle), filter 320ms var(--guan-motion-gentle);
++    }
++
++    .guan-apple-glow {
++        position: relative;
++        isolation: isolate;
++    }
++
++    .guan-apple-glow::after {
++        position: absolute;
++        inset: -8px;
++        z-index: -1;
++        border-radius: inherit;
++        background: radial-gradient(circle at var(--guan-pointer-x, 50%) var(--guan-pointer-y, 50%), rgb(255 255 255 / 22%), transparent 58%);
++        content: "";
++        opacity: 0;
++        pointer-events: none;
++        transition: opacity var(--guan-motion-normal) var(--guan-motion-gentle);
++    }
++
++    .guan-apple-glow:hover::after,
++    .guan-apple-glow:focus-visible::after { opacity: 1; }
++
++    .guan-shared-product-capsule {
++        view-transition-name: guan-product-capsule;
++    }
++
++    ::view-transition-group(guan-product-capsule) {
++        animation-duration: 360ms;
++        animation-timing-function: var(--guan-motion-spring);
++    }
++
++    .guan-toolbar-focus:focus-visible {
++        animation: guan-toolbar-focus 360ms var(--guan-motion-spring) both;
++    }
++
++    .guan-update-timeline > * {
++        animation: guan-apple-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
++    }
++
++    .guan-update-timeline > *:nth-child(2) { animation-delay: 45ms; }
++    .guan-update-timeline > *:nth-child(3) { animation-delay: 90ms; }
++    .guan-update-timeline > *:nth-child(4) { animation-delay: 135ms; }
++    .guan-update-timeline > *:nth-child(5) { animation-delay: 180ms; }
++
++    .guan-touch-follow {
++        touch-action: pan-y;
++        will-change: transform;
++    }
++
++    .guan-card-surface {
++        transition: transform var(--guan-motion-normal) var(--guan-motion-spring), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle), border-color var(--guan-motion-fast) var(--guan-motion-gentle);
++    }
++
++    .guan-card-surface:hover {
++        transform: translateY(-2px);
++        box-shadow: var(--guan-motion-shadow);
++    }
++
++    .dark .guan-card-surface:hover { box-shadow: var(--guan-motion-shadow-dark); }
++
++    .guan-card-surface:active { transform: translateY(0) scale(.992); transition-duration: var(--guan-motion-fast); }
++
++    .guan-option-pill {
++        transition: transform var(--guan-motion-normal) var(--guan-motion-spring), opacity var(--guan-motion-fast) var(--guan-motion-gentle), background-color var(--guan-motion-fast) var(--guan-motion-gentle), border-color var(--guan-motion-fast) var(--guan-motion-gentle), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle);
++    }
++
++    .guan-option-pill:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 16px rgb(28 25 23 / 10%); }
++    .guan-option-pill:active:not(:disabled) { transform: scale(.96); }
++
++    .guan-result-grid > * {
++        animation: guan-apple-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
++    }
++
++    .guan-result-grid > *:nth-child(2) { animation-delay: 36ms; }
++    .guan-result-grid > *:nth-child(3) { animation-delay: 72ms; }
++    .guan-result-grid > *:nth-child(4) { animation-delay: 108ms; }
++
++    /* Cross-page surfaces that are outside the canvas geometry hot path. */
++    .guan-page-transition { animation: guan-page-transition 300ms var(--guan-motion-spring) both; }
++    .guan-language-transition { animation: guan-language-transition 220ms var(--guan-motion-gentle) both; }
++    .guan-drop-zone { transition: border-color var(--guan-motion-normal) var(--guan-motion-spring), background-color var(--guan-motion-normal) var(--guan-motion-gentle), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle), transform var(--guan-motion-normal) var(--guan-motion-spring); }
++    .guan-drop-zone[data-drag-active="true"] { border-color: currentColor; box-shadow: 0 0 0 4px rgb(47 128 255 / 12%), 0 14px 34px rgb(47 128 255 / 12%); transform: scale(1.005); }
++    .guan-drop-preview { animation: guan-drop-preview 420ms var(--guan-motion-spring) both; }
++    .guan-dc-excel-import-backdrop { animation: guan-backdrop-in 220ms var(--guan-motion-gentle) both; }
++    .guan-dc-excel-import-card { animation: guan-dialog-in 320ms var(--guan-motion-spring) both; }
++    .guan-dc-excel-import-progress { animation: guan-apple-enter 280ms var(--guan-motion-spring) both; }
++    .guan-dc-excel-import-summary,
++    .guan-dc-excel-import-actions { animation: guan-apple-enter 320ms var(--guan-motion-spring) 60ms both; }
++    .guan-dc-import-product { transition: transform var(--guan-motion-normal) var(--guan-motion-spring), background-color var(--guan-motion-fast) var(--guan-motion-gentle), border-color var(--guan-motion-fast) var(--guan-motion-gentle); }
++    .guan-dc-import-product:hover { transform: translateX(2px); }
++    .guan-dc-import-product.is-selected { animation: guan-selection-confirm 260ms var(--guan-motion-spring) both; }
++    .guan-product-trash-row { animation: guan-apple-enter 300ms var(--guan-motion-spring) both; }
++    .guan-product-trash-row button { transition: transform var(--guan-motion-normal) var(--guan-motion-spring), background-color var(--guan-motion-fast) var(--guan-motion-gentle), opacity var(--guan-motion-fast) var(--guan-motion-gentle); }
++    .guan-product-trash-row button:active { transform: scale(.95); }
++    .guan-notification-enter { animation: guan-notification-in 300ms var(--guan-motion-spring) both; }
++    .ant-message-notice-content { animation: guan-message-in 260ms var(--guan-motion-spring) both; }
++    .guan-context-menu,
++    [data-canvas-context-menu] { transform-origin: var(--guan-menu-origin, top left); animation: guan-menu-in 220ms var(--guan-motion-spring) both; }
++    .guan-scroll-shadow { transition: box-shadow var(--guan-motion-normal) var(--guan-motion-gentle); }
++    .guan-responsive-layout { transition: grid-template-columns var(--guan-motion-panel) var(--guan-motion-spring), width var(--guan-motion-panel) var(--guan-motion-spring), gap var(--guan-motion-panel) var(--guan-motion-spring); }
++    .guan-status-transition { animation: guan-status-transition 360ms var(--guan-motion-spring) both; }
++    .guan-progress-stage { animation: guan-apple-enter 300ms var(--guan-motion-spring) both; }
++    .guan-progress-stage + .guan-progress-stage { animation-delay: 42ms; }
++    .guan-progress-stage + .guan-progress-stage + .guan-progress-stage { animation-delay: 84ms; }
++    .guan-nav-item::after { transform: scaleX(0); transform-origin: center; transition: transform var(--guan-motion-normal) var(--guan-motion-spring), background-color var(--guan-motion-fast) var(--guan-motion-gentle); }
++    .guan-nav-item:hover::after,
++    .guan-nav-item[aria-current="page"]::after { transform: scaleX(1); }
++    .guan-model-picker { transition: transform var(--guan-motion-normal) var(--guan-motion-spring), border-color var(--guan-motion-fast) var(--guan-motion-gentle), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle); }
++    .guan-model-picker:hover { transform: translateY(-1px); box-shadow: 0 7px 18px rgb(28 25 23 / 10%); }
++    .guan-model-picker-menu { animation: guan-menu-in 220ms var(--guan-motion-spring) both; transform-origin: top left; }
++    .guan-agent-composer { transition: border-color var(--guan-motion-fast) var(--guan-motion-gentle), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle), transform var(--guan-motion-normal) var(--guan-motion-spring); }
++    .guan-agent-composer:focus-within { box-shadow: 0 14px 36px rgb(28 25 23 / 14%); transform: translateY(-1px); }
++    .guan-agent-attachment { transition: transform var(--guan-motion-normal) var(--guan-motion-spring), opacity var(--guan-motion-fast) var(--guan-motion-gentle); }
++    .guan-agent-attachment:hover { transform: translateY(-2px) scale(1.03); }
++    .guan-plugin-row { animation: guan-apple-enter 280ms var(--guan-motion-spring) both; }
++    .guan-plugin-row:nth-child(2) { animation-delay: 32ms; }
++    .guan-plugin-row:nth-child(3) { animation-delay: 64ms; }
++    .ant-tabs-ink-bar { transition: transform var(--guan-motion-normal) var(--guan-motion-spring), width var(--guan-motion-normal) var(--guan-motion-spring); }
++    .ant-collapse-item,
++    .ant-form-item,
++    .ant-input-affix-wrapper,
++    .ant-select-selector,
++    .ant-switch { transition: border-color var(--guan-motion-fast) var(--guan-motion-gentle), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle), background-color var(--guan-motion-fast) var(--guan-motion-gentle); }
++    .ant-input-affix-wrapper:focus-within,
++    .ant-select-focused .ant-select-selector { box-shadow: 0 0 0 3px rgb(47 128 255 / 12%) !important; }
++
++    @keyframes guan-node-settle {
++        0% { filter: saturate(.82) brightness(.98); opacity: .78; }
++        58% { filter: saturate(1.08) brightness(1.02); opacity: 1; }
++        100% { filter: saturate(1) brightness(1); opacity: 1; }
++    }
++
++    @keyframes guan-layout-transition {
++        from { opacity: .72; filter: saturate(.85); }
++        to { opacity: 1; filter: saturate(1); }
++    }
++
++    @keyframes guan-history-replay {
++        from { opacity: .56; filter: blur(1px); transform: scale(.985); }
++        to { opacity: 1; filter: blur(0); transform: scale(1); }
++    }
++
++    @keyframes guan-connection-flow {
++        to { stroke-dashoffset: -38; }
++    }
++
++    @keyframes guan-drop-magnet {
++        0% { opacity: .65; transform: scale(.98); }
++        65% { opacity: 1; transform: scale(1.02); }
++        100% { opacity: 1; transform: scale(1); }
++    }
++
++    @keyframes guan-drop-magnet-shadow {
++        0% { box-shadow: 0 0 0 0 rgb(47 128 255 / 0%); }
++        65% { box-shadow: 0 0 0 5px rgb(47 128 255 / 20%), 0 14px 34px rgb(47 128 255 / 14%); }
++        100% { box-shadow: 0 0 0 3px rgb(47 128 255 / 16%), 0 12px 30px rgb(47 128 255 / 10%); }
++    }
++
++    @keyframes guan-drop-target-pulse {
++        from { box-shadow: 0 0 0 0 rgb(47 128 255 / 10%), 0 8px 20px rgb(47 128 255 / 8%); }
++        60% { box-shadow: 0 0 0 5px rgb(47 128 255 / 22%), 0 14px 38px rgb(47 128 255 / 16%); }
++        to { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 30%, transparent), 0 16px 36px color-mix(in srgb, var(--ring) 16%, transparent); }
++    }
++
++    @keyframes guan-focus-ring {
++        from { opacity: 0; transform: scale(.94); }
++        55% { opacity: 1; transform: scale(1.015); }
++        to { opacity: 1; transform: scale(1); }
++    }
++
++    @keyframes guan-focus-ring-paint {
++        from { opacity: .78; }
++        to { opacity: 1; }
++    }
++
++    @keyframes guan-toolbar-focus {
++        from { box-shadow: 0 0 0 0 rgb(47 128 255 / 0); }
++        45% { box-shadow: 0 0 0 5px rgb(47 128 255 / 18%); }
++        to { box-shadow: 0 0 0 2px rgb(47 128 255 / 12%); }
++    }
++
++    @keyframes guan-save-pulse {
++        0%, 100% { opacity: .55; transform: scale(.85); }
++        50% { opacity: 1; transform: scale(1.15); }
++    }
++
++    @keyframes guan-download-spin { to { transform: rotate(360deg); } }
++    @keyframes guan-download-confirm { from { transform: scale(.72); opacity: .55; } 65% { transform: scale(1.2); opacity: 1; } to { transform: scale(1); opacity: 1; } }
++    @keyframes guan-page-transition { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
++    @keyframes guan-language-transition { from { opacity: .25; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
++    @keyframes guan-drop-preview { from { opacity: 0; transform: translateY(4px) scale(.94); } 70% { opacity: 1; transform: translateY(-1px) scale(1.02); } to { opacity: 1; transform: translateY(0) scale(1); } }
++    @keyframes guan-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
++    @keyframes guan-dialog-in { from { opacity: 0; transform: translateY(8px) scale(.97); } 65% { opacity: 1; transform: translateY(-1px) scale(1.005); } to { opacity: 1; transform: translateY(0) scale(1); } }
++    @keyframes guan-selection-confirm { from { transform: scale(.98); } 65% { transform: scale(1.012); } to { transform: scale(1); } }
++    @keyframes guan-notification-in { from { opacity: 0; transform: translate3d(18px, -4px, 0) scale(.96); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
++    @keyframes guan-message-in { from { opacity: 0; transform: translateY(-3px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
++    @keyframes guan-menu-in { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
++    @keyframes guan-status-transition { from { opacity: .5; transform: scale(.9); } 65% { opacity: 1; transform: scale(1.04); } to { opacity: 1; transform: scale(1); } }
++
++    @keyframes guan-save-confirm {
++        from { opacity: .5; transform: scale(.6); }
++        65% { opacity: 1; transform: scale(1.25); }
++        to { opacity: 1; transform: scale(1); }
++    }
++
++    @keyframes guan-error-recover {
++        0%, 100% { transform: translateX(0); }
++        25% { transform: translateX(-3px); }
++        75% { transform: translateX(3px); }
++    }
++
++    @keyframes guan-step-line {
++        from { opacity: 0; transform: scaleX(0); }
++        to { opacity: 1; transform: scaleX(1); }
++    }
++
++    @keyframes guan-panel-enter {
++        from { opacity: 0; transform: translateY(-6px) scale(0.985); }
++        to { opacity: 1; transform: translateY(0) scale(1); }
++    }
++
++    @keyframes guan-pop-in {
++        from { opacity: 0; transform: translateY(4px) scale(0.97); }
++        to { opacity: 1; transform: translateY(0) scale(1); }
++    }
++
++    @keyframes guan-apple-enter {
++        from { opacity: 0; transform: translateY(var(--guan-motion-distance)) scale(.985); }
++        to { opacity: 1; transform: translateY(0) scale(1); }
++    }
++
++    @keyframes guan-apple-fade {
++        from { opacity: 0; }
++        to { opacity: 1; }
++    }
++
++    @keyframes guan-apple-status {
++        0% { opacity: .65; transform: scale(.96); }
++        55% { opacity: 1; transform: scale(1.02); }
++        100% { opacity: 1; transform: scale(1); }
++    }
++
++    @media (prefers-reduced-motion: reduce) {
++        .guan-motion-interactive,
++        .guan-motion-panel,
++        .guan-motion-pop,
++        .guan-apple-transition,
++        .guan-apple-enter,
++        .guan-apple-fade,
++        .guan-apple-status,
++        .guan-apple-stagger > * {
++            animation: none !important;
++            transform: none !important;
++            will-change: auto;
++            transition: none !important;
++        }
++        .guan-node-settle,
++        .guan-layout-transition,
++        .guan-history-replay,
++        .guan-connection-flow,
++        .guan-drop-magnet,
++        .guan-focus-ring,
++        .guan-update-timeline > *,
++        .guan-page-transition,
++        .guan-language-transition,
++        .guan-drop-preview,
++        .guan-dc-excel-import-backdrop,
++        .guan-dc-excel-import-card,
++        .guan-dc-excel-import-progress,
++        .guan-dc-excel-import-summary,
++        .guan-dc-excel-import-actions,
++        .guan-dc-import-product.is-selected,
++        .guan-product-trash-row,
++        .guan-notification-enter,
++        .ant-message-notice-content,
++        .guan-context-menu,
++        [data-canvas-context-menu],
++        .guan-progress-stage { animation: none !important; }
++    }
++
+     .ai-title-aurora {
+         background: linear-gradient(90deg, #111827 0%, #111827 36%, #6b7280 54%, #111827 72%, #111827 100%);
+         background-size: 220% 100%;
+@@ -455,6 +939,423 @@
+ 
+ }
+ 
++/* Shared Apple-style interaction language for the application chrome. Keep
++ * canvas geometry itself free of implicit transforms so dragging stays precise. */
++@layer components {
++    .ant-btn,
++    header a,
++    header button,
++    aside button,
++    [role="dialog"] button {
++        transition:
++            transform var(--guan-motion-fast) var(--guan-motion-spring),
++            background-color var(--guan-motion-fast) var(--guan-motion-gentle),
++            border-color var(--guan-motion-fast) var(--guan-motion-gentle),
++            color var(--guan-motion-fast) var(--guan-motion-gentle),
++            box-shadow var(--guan-motion-normal) var(--guan-motion-gentle),
++            opacity var(--guan-motion-fast) var(--guan-motion-gentle);
++    }
++
++    .ant-btn:not(:disabled):hover,
++    header a:hover,
++    header button:hover,
++    aside button:hover,
++    [role="dialog"] button:hover {
++        transform: translateY(-1px);
++    }
++
++    .ant-btn:not(:disabled):active,
++    header a:active,
++    header button:active,
++    aside button:active,
++    [role="dialog"] button:active {
++        transform: scale(0.97);
++        transition-duration: var(--guan-motion-fast);
++    }
++
++    .ant-card,
++    [data-guan-card] {
++        transition:
++            transform var(--guan-motion-normal) var(--guan-motion-spring),
++            box-shadow var(--guan-motion-normal) var(--guan-motion-gentle),
++            border-color var(--guan-motion-fast) var(--guan-motion-gentle);
++    }
++
++    .ant-card:hover,
++    [data-guan-card]:hover {
++        transform: translateY(-2px);
++        box-shadow: 0 12px 30px color-mix(in srgb, currentColor 10%, transparent);
++    }
++
++    .guan-route-enter,
++    .guan-route-loading {
++        animation: guan-route-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
++    }
++
++    .guan-history-list-card,
++    .guan-history-retry-all,
++    .guan-history-select,
++    .guan-history-selection-footer,
++    .guan-apple-action {
++        transition:
++            transform var(--guan-motion-normal) var(--guan-motion-spring),
++            opacity var(--guan-motion-fast) var(--guan-motion-gentle),
++            background-color var(--guan-motion-fast) var(--guan-motion-gentle),
++            box-shadow var(--guan-motion-normal) var(--guan-motion-gentle);
++        view-transition-name: match-element;
++    }
++
++    .guan-history-list-card:hover,
++    .guan-apple-action:hover {
++        transform: translateY(-1px);
++    }
++
++    .guan-history-list-card:active,
++    .guan-apple-action:active {
++        transform: scale(0.98);
++    }
++
++    .guan-image-detail-shell {
++        animation: guan-surface-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
++    }
++
++    .guan-image-detail-preview {
++        animation: guan-image-reveal 420ms var(--guan-motion-spring) both;
++    }
++
++    .guan-image-detail-row,
++    .guan-image-detail-grid-cell {
++        animation: guan-detail-row-in 280ms var(--guan-motion-spring) both;
++    }
++
++    .guan-image-detail-row:nth-child(2), .guan-image-detail-grid-cell:nth-child(2) { animation-delay: 25ms; }
++    .guan-image-detail-row:nth-child(3), .guan-image-detail-grid-cell:nth-child(3) { animation-delay: 50ms; }
++    .guan-image-detail-row:nth-child(4), .guan-image-detail-grid-cell:nth-child(4) { animation-delay: 75ms; }
++
++    .guan-image-detail-download {
++        border-color: rgb(124 58 237 / 28%);
++        background: linear-gradient(135deg, rgb(124 58 237 / 14%), rgb(59 130 246 / 12%));
++        color: rgb(109 40 217);
++        white-space: nowrap;
++    }
++    .guan-image-detail-download:hover { border-color: rgb(124 58 237 / 50%); box-shadow: 0 6px 18px rgb(124 58 237 / 18%); }
++    .dark .guan-image-detail-download { color: rgb(221 214 254); border-color: rgb(167 139 250 / 35%); }
++    .guan-image-detail-original-download { background: color-mix(in srgb, currentColor 7%, transparent); }
++
++    .guan-canvas-zoom-dock,
++    .guan-canvas-minimap {
++        animation: guan-surface-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
++        transition: box-shadow var(--guan-motion-normal) var(--guan-motion-gentle), transform var(--guan-motion-normal) var(--guan-motion-spring);
++    }
++
++    .guan-canvas-zoom-dock:hover,
++    .guan-canvas-minimap:hover {
++        box-shadow: 0 18px 45px color-mix(in srgb, currentColor 14%, transparent);
++    }
++
++    .ant-collapse-item,
++    .ant-tabs-tab,
++    .ant-switch {
++        transition: background-color var(--guan-motion-fast) var(--guan-motion-gentle), color var(--guan-motion-fast) var(--guan-motion-gentle), transform var(--guan-motion-fast) var(--guan-motion-spring);
++    }
++
++    .ant-collapse-item:hover,
++    .ant-tabs-tab:hover {
++        transform: translateX(1px);
++    }
++
++    .guan-node-drop-target {
++        animation: guan-drop-target-pulse 320ms var(--guan-motion-gentle) both;
++        box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 30%, transparent), 0 16px 36px color-mix(in srgb, var(--ring) 16%, transparent) !important;
++    }
++
++    .guan-node-drop-target.guan-drop-magnet {
++        animation: guan-drop-target-pulse 320ms var(--guan-motion-gentle) both;
++    }
++
++    .guan-connection-active {
++        animation: guan-connection-flash 420ms var(--guan-motion-gentle) both;
++        stroke-dasharray: 8 6;
++    }
++
++    .guan-agent-timeline-entry {
++        animation: guan-timeline-entry 320ms var(--guan-motion-spring) both;
++    }
++
++    .guan-canvas-save-status {
++        transition: color var(--guan-motion-normal) var(--guan-motion-gentle), opacity var(--guan-motion-fast) var(--guan-motion-gentle);
++    }
++
++    .guan-canvas-save-status[data-canvas-save-status="saving"] > :first-child {
++        animation: guan-status-pulse 1.4s ease-in-out infinite;
++    }
++
++    .guan-canvas-save-status[data-canvas-save-status="saved"] > :first-child,
++    .guan-canvas-save-status[data-canvas-save-status="error"] > :first-child {
++        animation: guan-status-settle 280ms var(--guan-motion-spring) both;
++    }
++
++    /* Form controls use the same restrained spring language as native macOS
++     * controls. Geometry updates remain CSS-only and never touch canvas nodes. */
++    .ant-input,
++    .ant-input-affix-wrapper,
++    .ant-select-selector,
++    .ant-picker,
++    input:not([type="range"]):not([type="checkbox"]),
++    textarea,
++    select {
++        transition: border-color var(--guan-motion-fast) var(--guan-motion-gentle), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle), background-color var(--guan-motion-fast) var(--guan-motion-gentle);
++    }
++
++    .ant-input:focus,
++    .ant-input-affix-wrapper:focus-within,
++    .ant-select-focused .ant-select-selector,
++    .ant-picker-focused,
++    input:not([type="range"]):not([type="checkbox"]):focus,
++    textarea:focus,
++    select:focus {
++        box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 18%, transparent);
++    }
++
++    .ant-empty,
++    .ant-empty-image,
++    .ant-result,
++    .ant-spin-container,
++    .ant-progress,
++    .ant-alert {
++        animation: guan-soft-enter var(--guan-motion-panel) var(--guan-motion-spring) both;
++    }
++
++    /* 消息/通知外层由 Ant Design 管理定位与退出动效，不能被自定义入场动画覆盖。 */
++
++    .ant-spin-dot-item {
++        animation-duration: 1s !important;
++    }
++
++    .ant-progress-bg,
++    .ant-progress-success-bg {
++        transition: width .45s var(--guan-motion-spring), background-color var(--guan-motion-normal) var(--guan-motion-gentle);
++    }
++
++    /* Press feedback on portal controls used to read as a flash when a
++     * modal/drawer was opening in the same frame. Keep the controls stable;
++     * their colour and shadow transitions still communicate interaction. */
++    .ant-modal-root button,
++    .ant-drawer-root button,
++    .ant-popover button,
++    .ant-dropdown button {
++        transform: none !important;
++        transition-property: background-color, border-color, color, box-shadow, opacity !important;
++    }
++
++    .ant-upload-drag,
++    [data-upload-dropzone],
++    .guan-history-list-card {
++        transition: border-color var(--guan-motion-fast) var(--guan-motion-gentle), background-color var(--guan-motion-fast) var(--guan-motion-gentle), transform var(--guan-motion-normal) var(--guan-motion-spring), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle);
++    }
++
++    .ant-upload-drag:hover,
++    .ant-upload-drag.ant-upload-drag-hover,
++    [data-upload-dropzone]:hover {
++        transform: translateY(-1px);
++        box-shadow: 0 10px 28px color-mix(in srgb, currentColor 10%, transparent);
++    }
++
++    .ant-switch-checked .ant-switch-handle {
++        animation: guan-switch-pop var(--guan-motion-normal) var(--guan-motion-spring) both;
++    }
++
++    ::view-transition-group(*) {
++        animation-duration: var(--guan-motion-panel);
++        animation-timing-function: var(--guan-motion-spring);
++    }
++
++    .ant-form-item-has-error .ant-input,
++    .ant-form-item-has-error .ant-select-selector,
++    input[aria-invalid="true"],
++    textarea[aria-invalid="true"] {
++        animation: guan-validation-shake 320ms var(--guan-motion-gentle) both;
++    }
++
++    .ant-form-item-has-success .ant-input,
++    .ant-form-item-has-success .ant-select-selector,
++    [data-save-success="true"] {
++        animation: guan-save-flash 520ms var(--guan-motion-gentle) both;
++    }
++
++    .ant-upload-list-item,
++    .ant-image,
++    .ant-image-mask {
++        animation: guan-apple-enter var(--guan-motion-normal) var(--guan-motion-spring) both;
++    }
++
++    .ant-slider-track,
++    .ant-slider-handle,
++    .ant-progress-bg {
++        transition: all var(--guan-motion-normal) var(--guan-motion-spring);
++    }
++
++    .guan-task-stage,
++    .guan-generation-stage,
++    .guan-performance-progress {
++        animation: guan-timeline-entry var(--guan-motion-normal) var(--guan-motion-spring) both;
++    }
++
++    [data-status="loading"],
++    .guan-status-loading,
++    .guan-task-loading {
++        animation: guan-status-pulse 1.8s ease-in-out infinite;
++    }
++
++    .guan-task-success,
++    .guan-task-error,
++    [data-status="success"],
++    [data-status="error"] {
++        animation: guan-status-settle 320ms var(--guan-motion-spring) both;
++    }
++
++    @keyframes guan-surface-enter {
++        from { opacity: 0; transform: translateY(8px) scale(0.985); }
++        to { opacity: 1; transform: translateY(0) scale(1); }
++    }
++
++    @keyframes guan-route-enter {
++        from { opacity: 0; transform: translateY(5px); }
++        to { opacity: 1; transform: translateY(0); }
++    }
++
++    @keyframes guan-image-reveal {
++        from { opacity: 0; transform: scale(0.96); }
++        to { opacity: 1; transform: scale(1); }
++    }
++
++    @keyframes guan-detail-row-in {
++        from { opacity: 0; transform: translateX(8px); }
++        to { opacity: 1; transform: translateX(0); }
++    }
++
++    @keyframes guan-soft-enter {
++        from { opacity: 0; transform: translateY(4px) scale(.99); }
++        to { opacity: 1; transform: translateY(0) scale(1); }
++    }
++
++    @keyframes guan-switch-pop {
++        from { transform: scale(.86); }
++        70% { transform: scale(1.08); }
++        to { transform: scale(1); }
++    }
++
++    @keyframes guan-status-pulse {
++        0%, 100% { opacity: .72; }
++        50% { opacity: 1; }
++    }
++
++    @keyframes guan-status-settle {
++        from { opacity: 0; transform: scale(.9); }
++        to { opacity: 1; transform: scale(1); }
++    }
++
++    @keyframes guan-drop-magnet {
++        from { transform: translateY(3px) scale(.985); }
++        65% { transform: translateY(-1px) scale(1.012); }
++        to { transform: translateY(0) scale(1); }
++    }
++
++    @keyframes guan-connection-flash {
++        from { stroke-opacity: .45; stroke-width: 2; }
++        45% { stroke-opacity: 1; stroke-width: 4; }
++        to { stroke-opacity: .95; stroke-width: 3; }
++    }
++
++    @keyframes guan-timeline-entry {
++        from { opacity: 0; transform: translateY(7px) scale(.99); }
++        to { opacity: 1; transform: translateY(0) scale(1); }
++    }
++
++    @keyframes guan-validation-shake {
++        0%, 100% { transform: translateX(0); }
++        30% { transform: translateX(-3px); }
++        65% { transform: translateX(3px); }
++    }
++
++    @keyframes guan-save-flash {
++        0% { box-shadow: 0 0 0 0 color-mix(in srgb, #22c55e 0%, transparent); }
++        45% { box-shadow: 0 0 0 4px color-mix(in srgb, #22c55e 20%, transparent); }
++        100% { box-shadow: 0 0 0 0 color-mix(in srgb, #22c55e 0%, transparent); }
++    }
++
++    @media (prefers-reduced-motion: reduce) {
++        .ant-btn,
++        header a,
++        header button,
++        aside button,
++        [role="dialog"] button,
++        .ant-modal-content,
++        .ant-drawer-content,
++        .ant-popover,
++        .ant-dropdown,
++        .ant-tooltip,
++        .ant-card,
++        [data-guan-card],
++        .guan-route-enter,
++        .guan-route-loading,
++        .guan-history-list-card,
++        .guan-history-retry-all,
++        .guan-history-select,
++        .guan-history-selection-footer,
++        .guan-apple-action,
++        .guan-image-detail-shell,
++        .guan-image-detail-preview,
++        .guan-image-detail-row,
++        .guan-image-detail-grid-cell,
++        .guan-canvas-zoom-dock,
++        .guan-canvas-minimap,
++        .ant-collapse-item,
++        .ant-tabs-tab,
++        .ant-switch,
++        .ant-input,
++        .ant-input-affix-wrapper,
++        .ant-select-selector,
++        .ant-picker,
++        input,
++        textarea,
++        select,
++        .ant-empty,
++        .ant-empty-image,
++        .ant-result,
++        .ant-spin-container,
++        .ant-progress,
++        .ant-alert,
++        .ant-upload-drag,
++        [data-upload-dropzone],
++        .guan-status-loading,
++        .guan-task-loading,
++        .guan-task-success,
++        .guan-task-error,
++        .guan-node-drop-target,
++        .guan-connection-active,
++        .guan-agent-timeline-entry,
++        .guan-canvas-save-status,
++        .ant-form-item-has-error .ant-input,
++        .ant-form-item-has-error .ant-select-selector,
++        input[aria-invalid="true"],
++        textarea[aria-invalid="true"],
++        .ant-form-item-has-success .ant-input,
++        .ant-form-item-has-success .ant-select-selector,
++        [data-save-success="true"],
++        .ant-upload-list-item,
++        .ant-image,
++        .ant-image-mask,
++        .guan-task-stage,
++        .guan-generation-stage,
++        .guan-performance-progress {
++            animation: none !important;
++            transform: none !important;
++            transition: none !important;
++        }
++    }
++}
++
+ ::view-transition-old(root),
+ ::view-transition-new(root) {
+     animation: none;
+@@ -607,3 +1508,9 @@
+     border-radius: 0.6rem;
+     font-size: 0.75rem;
+ }
++/* Cached product frames keep saving and generating; only visual animation rests. */
++[data-product-active="false"] *,
++[data-product-active="false"] *::before,
++[data-product-active="false"] *::after {
++    animation-play-state: paused !important;
++}

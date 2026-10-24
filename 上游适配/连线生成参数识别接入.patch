@@ -1,0 +1,46 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index f339fc5..4d2977b 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -2,7 +2,7 @@ import { useCanvasBatchGeneration } from "@/扩展功能/画布生成/批量生
+ import { useCanvasNodeRecycle } from "@/扩展功能/画布回收/节点回收操作";
+ import { useCanvasContentImport } from "@/扩展功能/画布导入/当前画布导入操作";
+ import { useCanvasTaskReceipts } from "@/扩展功能/画布生成/生成任务回执操作";
+-import { promptGenerationPatch, detectedPromptConfig, generationNodeForExecution } from "@/扩展功能/画布生成/生成参数继承";
++import { applyConnectedPromptConfig, detectedPromptConfig, generationNodeForExecution } from "@/扩展功能/画布生成/生成参数继承";
+ import { ExcelCanvasScope, useExcelPromptContext } from "@/扩展功能/Excel画布/Excel画布上下文";
+ import { registerExcelParameterNode } from "@/扩展功能/Excel画布/Excel参数节点注册";
+ import { PROMPT_VARIABLES_NODE_TYPE } from "@/扩展功能/Excel画布/旧版参数规则";
+@@ -119,7 +119,6 @@ import {
+ import type { ReferenceImage } from "@/types/image";
+ import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
+ 
+-import { promptGenerationMode } from "@/扩展功能/安全与批量/prompt-generation-mode";
+ 
+ // Register built-in nodes in the shared registry once when the module loads.
+ registerBuiltinNodes();
+@@ -742,23 +741,7 @@ function InfiniteCanvasPage() {
+             const exists = connectionsRef.current.some((conn) => conn.fromNodeId === fromNodeId && conn.toNodeId === toNodeId);
+             if (!exists) {
+                 try {
+-                let nextNodes = nodesRef.current;
+-                const promptNode = nextNodes.find((node) => node.id === fromNodeId && node.type === CanvasNodeType.Text) || nextNodes.find((node) => node.id === toNodeId && node.type === CanvasNodeType.Text);
+-                const configNode = nextNodes.find((node) => node.id === fromNodeId && node.type === CanvasNodeType.Config) || nextNodes.find((node) => node.id === toNodeId && node.type === CanvasNodeType.Config);
+-                if (promptNode && configNode) {
+-                    const rawPrompt = (promptNode.metadata?.content || promptNode.metadata?.prompt || "").trim();
+-                    const generationPatch = promptGenerationPatch(rawPrompt);
+-                    const mode = promptGenerationMode(promptNode, nextNodes, connectionsRef.current);
+-                    if (mode) {
+-                        generationPatch.generationMode = mode;
+-                        if (mode !== (configNode.metadata?.generationMode || "image")) {
+-                            generationPatch.model = mode === "video" ? effectiveConfig.videoModel : mode === "audio" ? effectiveConfig.audioModel : mode === "text" ? effectiveConfig.textModel : effectiveConfig.imageModel;
+-                        }
+-                    }
+-                    if (mode || generationPatch.generationParamsDetected) {
+-                        nextNodes = nextNodes.map((node) => node.id === configNode.id ? { ...node, metadata: { ...node.metadata, ...generationPatch, generationParamsSourceNodeId: promptNode.id } } : node);
+-                    }
+-                }
++                const nextNodes = applyConnectedPromptConfig(nodesRef.current, connectionsRef.current, fromNodeId, toNodeId, effectiveConfig);
+                 if (nextNodes !== nodesRef.current) setNodes(nextNodes);
+                 if (!bindParameterConnection(fromNodeId, toNodeId, nextNodes)) setConnections((prev) => [...prev, { id: nanoid(), fromNodeId, toNodeId }]);
+                 } catch (error) { message.warning(error instanceof Error ? error.message : "参数连接失败"); }

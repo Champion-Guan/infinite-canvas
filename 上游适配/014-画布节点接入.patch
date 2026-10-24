@@ -1,0 +1,97 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 0c03fc9..2f340ac 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -1,3 +1,5 @@
++import { promptHighlightSegments } from "@/扩展功能/画布迁移扩展/prompt-variable-highlight.js";
++import { localizePromptTheme } from "@/扩展功能/画布迁移扩展/prompt-theme-labels.js";
+ import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+ import type { ReactNode } from "react";
+ import { ChevronRight, Copy, Download, Group, Image as ImageIcon, Music2, Puzzle, RefreshCw, Star, Trash2, Video } from "lucide-react";
+@@ -31,6 +33,9 @@ type CanvasNodeProps = {
+     showImageInfo: boolean;
+     mentionReferences?: CanvasResourceReference[];
+     pluginHost?: CanvasPluginHost;
++    promptHighlightSource?: CanvasNodeData;
++    promptHighlightParameters?: CanvasNodeData;
++
+     registryVersion?: number;
+     renderPanel?: (node: CanvasNodeData) => ReactNode;
+     renderNodeContent?: (node: CanvasNodeData) => ReactNode;
+@@ -70,6 +75,9 @@ type NodeContentRendererProps = {
+     scale: number;
+     renderNodeContent?: (node: CanvasNodeData) => ReactNode;
+     pluginContext?: CanvasNodeContext | null;
++    promptHighlightSource?: CanvasNodeData;
++    promptHighlightParameters?: CanvasNodeData;
++
+     onContentChange: (nodeId: string, content: string) => void;
+     onStopEditing: () => void;
+     mentionReferences: CanvasResourceReference[];
+@@ -97,6 +105,8 @@ export const CanvasNode = React.memo(function CanvasNode({
+     showImageInfo,
+     mentionReferences = [],
+     pluginHost,
++    promptHighlightSource,
++    promptHighlightParameters,
+     renderPanel,
+     renderNodeContent,
+     groupChildCount = 0,
+@@ -403,6 +413,8 @@ export const CanvasNode = React.memo(function CanvasNode({
+                 >
+                     <NodeContent
+                         node={data}
++                        promptHighlightSource={promptHighlightSource}
++                        promptHighlightParameters={promptHighlightParameters}
+                         theme={theme}
+                         isEditingContent={isEditingContent}
+                         textareaRef={textareaRef}
+@@ -542,7 +554,7 @@ function MissingPluginContent({ theme, type }: Pick<NodeContentRendererProps, "t
+     );
+ }
+ 
+-function TextContent({ node, theme, isEditingContent, textareaRef, mentionReferences, batchExpanded, onContentChange, onStopEditing, onToggleBatch, onSetBatchPrimary }: NodeContentRendererProps) {
++function TextContent({ node, theme, promptHighlightSource: source, promptHighlightParameters: parameters, isEditingContent, textareaRef, mentionReferences, batchExpanded, onContentChange, onStopEditing, onToggleBatch, onSetBatchPrimary }: NodeContentRendererProps) {
+     const { t } = useTranslation();
+     const fontSize = node.metadata?.fontSize || 14;
+     const textStyle = { fontSize: `${fontSize}px`, lineHeight: `${Math.round(fontSize * 1.65)}px`, color: theme.node.text, boxSizing: "border-box" } as React.CSSProperties;
+@@ -551,8 +563,14 @@ function TextContent({ node, theme, isEditingContent, textareaRef, mentionRefere
+     const isBatchRoot = batchCount > 1;
+     const primaryTextId = node.metadata?.primaryTextId || texts[0]?.id;
+     const primaryText = texts.find((text) => text.id === primaryTextId);
+-    const content = primaryText?.content || node.metadata?.content || "";
++    // Excel cards are source templates; parameter substitution belongs to final preview cards only.
++    const content = primaryText?.content ?? node.metadata?.content ?? node.metadata?.excelPromptRaw ?? "";
++    const isExcelPrompt = Boolean(node.metadata?.excelPromptLabel || node.metadata?.excelPromptTheme || node.metadata?.excelPromptTokens?.length || node.metadata?.excelPromptTemplateId || node.metadata?.excelPromptRaw);
+     const paddingClass = isBatchRoot ? "px-4 pb-4 pt-14" : "p-4";
++    const isFinalPrompt = Boolean(node.metadata?.promptVariablePreviewOf);
++    const highlighted: Array<{ text: string; token?: string }> = isExcelPrompt || isFinalPrompt
++        ? promptHighlightSegments(content, source?.metadata?.content ?? source?.metadata?.excelPromptRaw, parameters?.metadata?.promptVariableValues)
++        : [{ text: content }];
+ 
+     return (
+         <BatchFrame batchCount={batchCount} batchExpanded={batchExpanded}>
+@@ -580,8 +598,21 @@ function TextContent({ node, theme, isEditingContent, textareaRef, mentionRefere
+                         onWheel={(event) => event.stopPropagation()}
+                     />
+                 ) : content ? (
+-                    <div className={`thin-scrollbar block h-full w-full overflow-y-auto whitespace-pre-wrap break-words bg-transparent font-mono ${paddingClass}`} style={textStyle} onWheel={(event) => event.stopPropagation()}>
+-                        {content}
++                    <div className="flex h-full w-full min-h-0 flex-col overflow-hidden" style={textStyle}>
++                        {isExcelPrompt ? (
++                            <div className="shrink-0 border-b px-4 pb-2 pt-3 font-sans text-[11px]" style={{ borderColor: theme.node.stroke, color: theme.node.muted }}>
++                                <div className="flex flex-wrap items-center gap-1.5">
++                                    <span className="rounded-md px-1.5 py-0.5 font-semibold" style={{ background: theme.toolbar.itemHover, color: theme.toolbar.activeText }}>{node.metadata?.excelPromptLabel || "Excel 提示词"}</span>
++                                    {node.metadata?.excelPromptTheme ? <span className="truncate opacity-75" title={node.metadata.excelPromptTheme}>主题：{localizePromptTheme(node.metadata.excelPromptTheme)}</span> : null}
++                                </div>
++                                {node.metadata?.excelPromptTokens?.length ? <div className="mt-1 truncate opacity-65" title={node.metadata.excelPromptTokens.join("、")}>变量：{node.metadata.excelPromptTokens.map((token) => token.replace(/^\[|\]$/g, "")).join("、")}</div> : null}
++                            </div>
++                        ) : null}
++                        <div className={`thin-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain whitespace-pre-wrap break-words bg-transparent font-mono ${isExcelPrompt ? "px-4 pb-4 pt-3" : paddingClass}`} onWheelCapture={(event) => event.stopPropagation()}>
++                            {highlighted.map((part, index) => part.token ? (
++                                <mark key={index} className="guan-prompt-variable-highlight" title={`变量 ${part.token}`} style={{ color: "inherit", background: "rgba(47,128,255,.18)", borderRadius: 3, boxShadow: "inset 0 -1px rgba(47,128,255,.5)", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>{part.text}</mark>
++                            ) : <React.Fragment key={index}>{part.text}</React.Fragment>)}
++                        </div>
+                     </div>
+                 ) : primaryText ? (
+                     <TextSlotStatus text={primaryText} />

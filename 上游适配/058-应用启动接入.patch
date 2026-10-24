@@ -1,0 +1,43 @@
+diff --git a/web/src/main.tsx b/web/src/main.tsx
+index ca044f4..ff51c59 100644
+--- a/web/src/main.tsx
++++ b/web/src/main.tsx
+@@ -1,23 +1,15 @@
+-import React from "react";
+-import { createRoot } from "react-dom/client";
+-import "antd/dist/reset.css";
+-import "streamdown/styles.css";
+-import "./styles/globals.css";
+-import { RouterProvider } from "react-router-dom";
+-
+-import { AppProviders } from "@/components/layout/app-providers";
+-import "@/i18n";
+-import { initAnalytics } from "@/lib/analytics";
+-import { router } from "@/router";
+-
+-initAnalytics();
+-
+-document.body.style.fontFamily = '"SF Pro Display","SF Pro Text","PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
+-
+-createRoot(document.getElementById("root")!).render(
+-    <React.StrictMode>
+-        <AppProviders>
+-            <RouterProvider router={router} />
+-        </AppProviders>
+-    </React.StrictMode>,
+-);
++import { initializeSQLiteApplication } from "@/扩展功能/本机存储/上游浏览器存储桥";
++
++async function start() {
++    try {
++        await initializeSQLiteApplication();
++        await import("@/扩展功能/存储界面/SQLite应用入口");
++    } catch {
++        const root = document.getElementById("root");
++        if (root) {
++            root.setAttribute("role", "alert");
++            root.textContent = "本机SQLite存储未就绪。为保护数据，工作台没有加载空画布。请检查本机服务和授权后刷新；浏览器旧数据保持不变。";
++        }
++    }
++}
++void start();

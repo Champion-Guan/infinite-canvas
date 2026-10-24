@@ -1,0 +1,66 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 4cf41f4..846b9b9 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,3 +1,4 @@
++import { useSinglePromptConfig } from "@/扩展功能/画布生成/单卡配置创建";
+ import { useCanvasMediaDownloads } from "@/扩展功能/媒体交付/画布下载操作";
+ import { useCanvasBatchGeneration } from "@/扩展功能/画布生成/批量生成操作";
+ import { useCanvasNodeRecycle } from "@/扩展功能/画布回收/节点回收操作";
+@@ -41,7 +42,7 @@ import { fitNodeSize, nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
+ import { arrangeOverlappingCanvasNodes, nextGenerationResultPosition, placeCanvasNode, placeNewCanvasNodes } from "@/扩展功能/画布布局/卡片自动避让";
+ import { captureVideoFrame, type VideoFramePosition } from "@/lib/canvas/canvas-video-frame";
+ import { App, Button, Modal } from "antd";
+-import { NODE_DEFAULT_SIZE, getNodeSpec } from "@/constant/canvas";
++import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
+ import { ActiveConnectionPath, ConnectionPath } from "@/components/canvas/canvas-connections";
+ import { CanvasConfigComposer } from "@/components/canvas/canvas-config-composer";
+ import { CanvasConfigNodePanel } from "@/components/canvas/canvas-config-node-panel";
+@@ -3229,43 +3230,10 @@ function InfiniteCanvasPage() {
+ 
+     const retryBatchImage = useCallback((node: CanvasNodeData, imageId: string) => void handleRetryNode(node, imageId), [handleRetryNode]);
+ 
+-    const generateImageFromTextNode = useCallback(
+-        (node: CanvasNodeData) => {
+-            const prompt = (node.metadata?.content || node.metadata?.prompt || "").trim();
+-            if (!prompt) {
+-                message.warning(t("canvas.projectPage.emptyTextImage"));
+-                return;
+-            }
+-            const sourceNode = nodesRef.current.find((item) => item.id === node.id);
+-            if (!sourceNode) return;
+-            const nodeSize = getNodeSpec(CanvasNodeType.Config);
+-            const configNode = createCanvasNode(
+-                CanvasNodeType.Config,
+-                {
+-                    x: sourceNode.position.x + sourceNode.width + 96 + nodeSize.width / 2,
+-                    y: sourceNode.position.y + sourceNode.height / 2,
+-                },
+-                {
+-                    prompt: "",
+-                    model: effectiveConfig.imageModel || effectiveConfig.model,
+-                    size: effectiveConfig.size,
+-                    count: getGenerationCount(effectiveConfig.canvasImageCount || effectiveConfig.count),
+-                    ...detectedPromptConfig(sourceNode, nodesRef.current, connectionsRef.current, effectiveConfig),
+-                },
+-            );
+-            const connection = { id: nanoid(), fromNodeId: sourceNode.id, toNodeId: configNode.id };
+-            const nextNodes = nodesRef.current.map((item) => (item.id === sourceNode.id ? { ...item, metadata: { ...item.metadata, content: prompt, prompt, status: NODE_STATUS_SUCCESS } } : item)).concat(configNode);
+-            const nextConnections = [...connectionsRef.current, connection];
+-            nodesRef.current = nextNodes;
+-            connectionsRef.current = nextConnections;
+-            setNodes(nextNodes);
+-            setConnections(nextConnections);
+-            setSelectedNodeIds(new Set([configNode.id]));
+-            setSelectedConnectionId(null);
+-            setDialogNodeId(configNode.id);
+-        },
+-        [effectiveConfig, message, setNodes, t],
+-    );
++    const generateImageFromTextNode = useSinglePromptConfig({
++        nodesRef, connectionsRef, effectiveConfig, setNodes, setConnections, setSelectedNodeIds, setSelectedConnectionId,
++        setDialogNodeId, message, emptyPromptMessage: t("canvas.projectPage.emptyTextImage"),
++    });
+ 
+     const { addGenerationConfigsForPromptNodes, generateAllConfigNodes, completeAndGenerateAll } = useCanvasBatchGeneration({ nodesRef, connectionsRef, effectiveConfig, setNodes, setConnections, setSelectedNodeIds, setSelectedConnectionId, handleGenerateNode, message });
+ 

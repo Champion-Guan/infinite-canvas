@@ -1,0 +1,162 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 84fb356..e216f11 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,3 +1,4 @@
++import { useCanvasImageResults } from "@/扩展功能/媒体交付/图片结果保存操作";
+ import { usePromptTranslation } from "@/扩展功能/画布生成/提示词翻译操作";
+ import { useSinglePromptConfig } from "@/扩展功能/画布生成/单卡配置创建";
+ import { useCanvasMediaDownloads } from "@/扩展功能/媒体交付/画布下载操作";
+@@ -628,6 +629,7 @@ function InfiniteCanvasPage() {
+         }, () => generationRequestsRef.current.size === 0 && runningNodeId === null);
+ 
+     const { clearConfirmedImageError, recordImageGatewayTask, requestNodeText } = useCanvasTaskReceipts({ projectId, nodesRef, restoredProjectIdRef, setNodes });
++    const saveCanvasImageResult = useCanvasImageResults({ projectId, nodesRef, restoredProjectIdRef, surfaceRef, setNodes });
+ 
+     useEffect(() => {
+         if (!dialogNodeId) setNodeImageSettingsOpen(false);
+@@ -2718,52 +2720,11 @@ function InfiniteCanvasPage() {
+                                     config: generationConfig, prompt: effectivePrompt, references: referenceImages,
+                                     scope: { productId: projectId, nodeId: rootId, slotId: imageId }, signal: controller.signal,
+                                     recordTask: task => recordImageGatewayTask(rootId, task),
+-                                    applyAndSave: async (image, receipt) => {
+-                                const uploaded = await uploadImage(image.dataUrl, { signal: controller.signal });
+-                                const deliveryMetadata = { requestedSize: image.deliverySize, upstreamSize: image.upstreamSize, deliverySize: `${uploaded.width}x${uploaded.height}` };
+-                                const imageSize = fitNodeSize(uploaded.width, uploaded.height, imageConfig.width, imageConfig.height);
+-                                const item: CanvasNodeImage = { id: imageId, status: NODE_STATUS_SUCCESS, content: uploaded.url, storageKey: uploaded.storageKey, deliveryStorageKey: uploaded.deliveryStorageKey, originalStorageKey: uploaded.originalStorageKey, naturalWidth: uploaded.width, naturalHeight: uploaded.height, bytes: uploaded.bytes, mimeType: uploaded.mimeType, originalWidth: uploaded.originalWidth, originalHeight: uploaded.originalHeight, originalBytes: uploaded.originalBytes, originalMimeType: uploaded.originalMimeType, deliveryWidth: uploaded.deliveryWidth, deliveryHeight: uploaded.deliveryHeight, deliveryBytes: uploaded.deliveryBytes, deliveryMimeType: uploaded.deliveryMimeType };
+-                                setNodes((prev) =>
+-                                    prev.map((node) => {
+-                                        if (node.id !== rootId) return node;
+-                                        const images = node.metadata?.images?.map((image) => (image.id === imageId ? { ...image, ...item, errorDetails: undefined } : image)) || [];
+-                                        if (node.metadata?.primaryImageId) return { ...node, metadata: { ...node.metadata, images, status: NODE_STATUS_SUCCESS, errorDetails: undefined, gatewayGenerationReceipts: [...(node.metadata?.gatewayGenerationReceipts || []).filter(item => item.taskId !== receipt.taskId), receipt] } };
+-                                        const center = { x: node.position.x + node.width / 2, y: node.position.y + node.height / 2 };
+-                                        return {
+-                                            ...node,
+-                                            position: { x: center.x - imageSize.width / 2, y: center.y - imageSize.height / 2 },
+-                                            ...imageSize,
+-                                            metadata: {
+-                                                ...node.metadata,
+-                                                status: NODE_STATUS_SUCCESS,
+-                                                gatewayGenerationReceipts: [...(node.metadata?.gatewayGenerationReceipts || []).filter(item => item.taskId !== receipt.taskId), receipt],
+-                                                content: item.content,
+-                                                storageKey: item.storageKey,
+-                                                naturalWidth: item.naturalWidth,
+-                                                naturalHeight: item.naturalHeight,
+-                                                bytes: item.bytes,
+-                                                mimeType: item.mimeType,
+-                                                deliveryStorageKey: item.deliveryStorageKey,
+-                                                originalStorageKey: item.originalStorageKey,
+-                                                originalWidth: item.originalWidth,
+-                                                originalHeight: item.originalHeight,
+-                                                originalBytes: item.originalBytes,
+-                                                originalMimeType: item.originalMimeType,
+-                                                deliveryWidth: item.deliveryWidth,
+-                                                deliveryHeight: item.deliveryHeight,
+-                                                deliveryBytes: item.deliveryBytes,
+-                                                deliveryMimeType: item.deliveryMimeType,
+-                                                ...deliveryMetadata,
+-                                                images,
+-                                                primaryImageId: imageId,
+-                                            },
+-                                        };
++                                    applyAndSave: (image, receipt) => saveCanvasImageResult({
++                                        mode: "batch", nodeId: rootId, slotId: imageId, image, receipt, signal: controller.signal,
++                                        sourceConfigId: isConfigNode ? nodeId : undefined,
++                                        onApplied: () => { hasSuccess = true; },
+                                     }),
+-                                );
+-                                hasSuccess = true;
+-                                if (isConfigNode) setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_SUCCESS, errorDetails: undefined } } : node)));
+-                                        await saveProductCanvas(projectId);
+-                                    },
+                                 });
+                                 return true;
+                             } catch (error) {
+@@ -3025,7 +2986,7 @@ function InfiniteCanvasPage() {
+                 setRunningNodeId(null);
+             }
+         },
+-        [completeVideoNodeTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, projectId, recordImageGatewayTask, requestNodeText, setNodes, startGenerationRequest, t],
++        [completeVideoNodeTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, projectId, recordImageGatewayTask, requestNodeText, saveCanvasImageResult, setNodes, startGenerationRequest, t],
+     );
+     useEffect(() => {
+         generateNodeRef.current = handleGenerateNode;
+@@ -3127,31 +3088,10 @@ function InfiniteCanvasPage() {
+                         previous: node.metadata?.gatewayGenerationTasks?.find(item => item.slotId === gatewaySlotId),
+                         retry: true, signal: controller.signal,
+                         recordTask: task => recordImageGatewayTask(node.id, task),
+-                        applyAndSave: async (image, receipt) => {
+-                    const uploadedImage = await uploadImage(image.dataUrl, { signal: controller.signal });
+-                    const deliveryMetadata = { requestedSize: image.deliverySize || generationConfig.size, upstreamSize: image.upstreamSize, deliverySize: `${uploadedImage.width}x${uploadedImage.height}` };
+-                    const imageConfig = NODE_DEFAULT_SIZE[CanvasNodeType.Image];
+-                    const retryImage: CanvasNodeImage = {
+-                        id: gatewaySlotId,
+-                        status: NODE_STATUS_SUCCESS,
+-                        content: uploadedImage.url,
+-                        storageKey: uploadedImage.storageKey,
+-                        naturalWidth: uploadedImage.width,
+-                        naturalHeight: uploadedImage.height,
+-                        bytes: uploadedImage.bytes,
+-                        mimeType: uploadedImage.mimeType,
+-                        deliveryStorageKey: uploadedImage.deliveryStorageKey,
+-                        originalStorageKey: uploadedImage.originalStorageKey,
+-                        originalWidth: uploadedImage.originalWidth,
+-                        originalHeight: uploadedImage.originalHeight,
+-                        originalBytes: uploadedImage.originalBytes,
+-                        originalMimeType: uploadedImage.originalMimeType,
+-                        deliveryWidth: uploadedImage.deliveryWidth,
+-                        deliveryHeight: uploadedImage.deliveryHeight,
+-                        deliveryBytes: uploadedImage.deliveryBytes,
+-                        deliveryMimeType: uploadedImage.deliveryMimeType,
+-                    };
+-                    const generationMetadata = savedImageMetadata?.generationType
++                        applyAndSave: (image, receipt) => saveCanvasImageResult({
++                            mode: "retry", nodeId: node.id, slotId: gatewaySlotId, image, receipt, signal: controller.signal,
++                            imageId, prompt, requestedSize: generationConfig.size,
++                            generationMetadata: savedImageMetadata?.generationType
+                         ? {
+                               generationType: savedImageMetadata.generationType,
+                               model: generationConfig.model,
+@@ -3161,32 +3101,8 @@ function InfiniteCanvasPage() {
+                               count: savedImageMetadata.count || 1,
+                               references: savedImageMetadata.references,
+                           }
+-                        : buildImageGenerationMetadata(useReferenceImages ? "edit" : "generation", generationConfig, 1, retryImages);
+-                    setNodes((prev) =>
+-                        prev.map((item) => {
+-                            if (item.id !== node.id) return item;
+-                            const makePrimary = !imageId || !item.metadata?.content;
+-                            const edge = imageId ? Math.max(item.width, item.height) : 0;
+-                            const imageSize = imageId && item.metadata?.freeResize ? { width: item.width, height: item.height } : imageId ? fitNodeSize(uploadedImage.width, uploadedImage.height, edge, edge) : fitNodeSize(uploadedImage.width, uploadedImage.height, imageConfig.width, imageConfig.height);
+-                            return {
+-                                ...item,
+-                                type: CanvasNodeType.Image,
+-                                ...(makePrimary ? { width: imageSize.width, height: imageSize.height, ...(imageId ? { position: { x: item.position.x + item.width / 2 - imageSize.width / 2, y: item.position.y + item.height / 2 - imageSize.height / 2 } } : {}) } : {}),
+-                                metadata: {
+-                                    ...item.metadata,
+-                                    gatewayGenerationReceipts: [...(item.metadata?.gatewayGenerationReceipts || []).filter(entry => entry.taskId !== receipt.taskId), receipt],
+-                                    ...(makePrimary ? imageMetadata(uploadedImage, deliveryMetadata) : { status: NODE_STATUS_SUCCESS }),
+-                                    errorDetails: undefined,
+-                                    images: item.metadata?.images?.map((current) => (current.id === retryImage.id ? { ...current, ...retryImage, errorDetails: undefined } : current)),
+-                                    primaryImageId: makePrimary ? retryImage.id : item.metadata?.primaryImageId,
+-                                    prompt,
+-                                    ...generationMetadata,
+-                                },
+-                            };
++                                : buildImageGenerationMetadata(useReferenceImages ? "edit" : "generation", generationConfig, 1, retryImages),
+                         }),
+-                    );
+-                            await saveProductCanvas(projectId);
+-                        },
+                     });
+                 } catch (error) {
+                     if (isGenerationCanceled(error)) return;
+@@ -3214,7 +3130,7 @@ function InfiniteCanvasPage() {
+                 }
+             } finally { retryingNodeIdsRef.current.delete(node.id); }
+         },
+-        [completeVideoNodeTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, pollVideoNodeTask, projectId, recordImageGatewayTask, requestNodeText, setNodes, startGenerationRequest, t],
++        [completeVideoNodeTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, pollVideoNodeTask, projectId, recordImageGatewayTask, requestNodeText, saveCanvasImageResult, setNodes, startGenerationRequest, t],
+     );
+ 
+     const deleteBatchImage = useCallback((nodeId: string, imageId: string) => {

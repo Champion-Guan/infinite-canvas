@@ -1,0 +1,86 @@
+diff --git a/web/src/components/layout/model-select-modal.tsx b/web/src/components/layout/model-select-modal.tsx
+index 82545b6..38dd716 100644
+--- a/web/src/components/layout/model-select-modal.tsx
++++ b/web/src/components/layout/model-select-modal.tsx
+@@ -1,21 +1,24 @@
+-import { App, Button, Checkbox, Input, Modal, Tabs } from "antd";
++import { useSettingsViewport } from "@/扩展功能/存储界面/设置视区";
++import { App, Button, Checkbox, Input, InputNumber, Modal, Tabs } from "antd";
+ import { RefreshCw, Search } from "lucide-react";
+ import { useEffect, useMemo, useState } from "react";
+ import { useTranslation } from "react-i18next";
+ 
+ import { fetchChannelModels } from "@/services/api/image";
+-import type { ModelChannel } from "@/stores/use-config-store";
++import { guessCapability, type ChannelModel, type ModelChannel } from "@/stores/use-config-store";
+ 
+ // Channel model selector: fetch upstream models or add them manually, then include checked models in the channel list.
+-export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onClose }: { open: boolean; channel: ModelChannel | null; selectedNames: string[]; onConfirm: (names: string[]) => void; onClose: () => void }) {
++export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onClose }: { open: boolean; channel: ModelChannel | null; selectedNames: string[]; onConfirm: (models: ChannelModel[]) => void; onClose: () => void }) {
+     const { message } = App.useApp();
+     const { t } = useTranslation();
++    const viewport = useSettingsViewport();
+     const [existing, setExisting] = useState<string[]>([]);
+     const [fetched, setFetched] = useState<string[]>([]);
+     const [selected, setSelected] = useState<Set<string>>(new Set());
+     const [activeTab, setActiveTab] = useState("new");
+     const [search, setSearch] = useState("");
+     const [manual, setManual] = useState("");
++    const [prices, setPrices] = useState<Record<string, number | undefined>>({});
+     const [loading, setLoading] = useState(false);
+ 
+     useEffect(() => {
+@@ -26,7 +29,8 @@ export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onCl
+         setActiveTab(selectedNames.length ? "existing" : "new");
+         setSearch("");
+         setManual("");
+-    }, [open, selectedNames]);
++        setPrices(Object.fromEntries((channel?.models || []).map((model) => [model.name, model.price])));
++    }, [open, selectedNames, channel]);
+ 
+     const currentList = activeTab === "new" ? fetched : existing;
+     const visibleList = useMemo(() => {
+@@ -80,7 +84,11 @@ export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onCl
+ 
+     const confirm = () => {
+         const ordered = [...existing, ...fetched].filter((name, index, list) => list.indexOf(name) === index).filter((name) => selected.has(name));
+-        onConfirm(ordered);
++        onConfirm(ordered.map((name) => {
++            const existingModel = channel?.models.find((model) => model.name === name);
++            const price = prices[name];
++            return { ...(existingModel || { name, capability: guessCapability(name) }), price };
++        }));
+         onClose();
+     };
+ 
+@@ -95,7 +103,11 @@ export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onCl
+                     {t("config.modelSelect.title")} <span className="ml-2 text-xs font-normal text-stone-500">{t("config.modelSelect.selected", { selected: selected.size, total: new Set([...existing, ...fetched]).size })}</span>
+                 </span>
+             }
+-            styles={{ body: { maxHeight: "62vh", overflowY: "auto" } }}
++            getContainer={viewport ?? undefined}
++            styles={{
++                ...(viewport ? { wrapper: { position: "absolute" }, mask: { position: "absolute" } } : {}),
++                body: { maxHeight: viewport ? "62cqh" : "62vh", overflowY: "auto" },
++            }}
+             footer={[
+                 <Button key="cancel" onClick={onClose}>
+                     {t("common.cancel")}
+@@ -140,11 +152,12 @@ export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onCl
+             {visibleList.length ? (
+                 <div className="grid grid-cols-1 gap-x-8 gap-y-3 md:grid-cols-2">
+                     {visibleList.map((name) => (
+-                        <Checkbox key={name} checked={selected.has(name)} onChange={(event) => toggle(name, event.target.checked)}>
+-                            <span className="truncate" title={name}>
+-                                {name}
+-                            </span>
+-                        </Checkbox>
++                        <div key={name} className="flex items-center gap-2">
++                            <Checkbox checked={selected.has(name)} onChange={(event) => toggle(name, event.target.checked)}>
++                                <span className="truncate" title={name}>{name}</span>
++                            </Checkbox>
++                            <InputNumber size="small" min={0} precision={6} disabled={!selected.has(name)} value={prices[name]} onChange={(value) => setPrices((current) => ({ ...current, [name]: typeof value === "number" ? value : undefined }))} placeholder="价格（可选）" />
++                        </div>
+                     ))}
+                 </div>
+             ) : (

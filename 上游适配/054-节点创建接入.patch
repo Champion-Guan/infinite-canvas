@@ -1,0 +1,42 @@
+diff --git a/web/src/lib/canvas/canvas-node-factory.ts b/web/src/lib/canvas/canvas-node-factory.ts
+index 1693cc9..19bd9d7 100644
+--- a/web/src/lib/canvas/canvas-node-factory.ts
++++ b/web/src/lib/canvas/canvas-node-factory.ts
+@@ -24,8 +24,27 @@ export function createCanvasNode(type: CanvasNodeTypeId, position: Position, met
+     };
+ }
+ 
+-export function imageMetadata(image: UploadedImage): CanvasNodeMetadata {
+-    return { content: image.url, storageKey: image.storageKey, status: "success", naturalWidth: image.width, naturalHeight: image.height, bytes: image.bytes, mimeType: image.mimeType };
++export function imageMetadata(image: UploadedImage, details?: { requestedSize?: string; upstreamSize?: string; deliverySize?: string }): CanvasNodeMetadata {
++    return {
++        content: image.url,
++        storageKey: image.deliveryStorageKey || image.storageKey,
++        deliveryStorageKey: image.deliveryStorageKey || image.storageKey,
++        originalStorageKey: image.originalStorageKey,
++        status: "success",
++        naturalWidth: image.width,
++        naturalHeight: image.height,
++        bytes: image.bytes,
++        mimeType: image.mimeType,
++        originalWidth: image.originalWidth || image.width,
++        originalHeight: image.originalHeight || image.height,
++        originalBytes: image.originalBytes || image.bytes,
++        originalMimeType: image.originalMimeType || image.mimeType,
++        deliveryWidth: image.deliveryWidth || image.width,
++        deliveryHeight: image.deliveryHeight || image.height,
++        deliveryBytes: image.deliveryBytes || image.bytes,
++        deliveryMimeType: image.deliveryMimeType || image.mimeType,
++        ...details,
++    };
+ }
+ 
+ export function videoMetadata(video: UploadedFile): CanvasNodeMetadata {
+@@ -46,6 +65,7 @@ export function buildImageGenerationMetadata(type: CanvasImageGenerationType, co
+         model: config.model,
+         size: config.size,
+         quality: config.quality,
++        moderation: config.moderation,
+         ...(config.background ? { background: config.background } : {}),
+         count,
+         references: references.map(referenceUrl).filter((url): url is string => Boolean(url)),

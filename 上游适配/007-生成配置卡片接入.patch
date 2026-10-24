@@ -1,0 +1,63 @@
+diff --git a/web/src/components/canvas/canvas-config-node-panel.tsx b/web/src/components/canvas/canvas-config-node-panel.tsx
+index 2ee9533..4db8f52 100644
+--- a/web/src/components/canvas/canvas-config-node-panel.tsx
++++ b/web/src/components/canvas/canvas-config-node-panel.tsx
+@@ -1,10 +1,11 @@
++import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
+ import type { CSSProperties } from "react";
+ import { Image as ImageIcon, LoaderCircle, MessageSquare, Music2, Play, Settings2, Square, Video } from "lucide-react";
+ import { Button, Segmented } from "antd";
+ import { useTranslation } from "react-i18next";
+ 
+ import { ModelPicker } from "@/components/model-picker";
+-import { defaultConfig, resolveModelForCapability, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
++import { defaultConfig, FALLBACK_MODEL_OPTION, resolveModelForCapability, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+ import { canvasThemes } from "@/lib/canvas-theme";
+ import { useThemeStore } from "@/stores/use-theme-store";
+ import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
+@@ -82,7 +83,7 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
+                                     </span>
+                                 ),
+                             },
+-                        ]}
++                        ].filter((option) => isGenerationModeEnabled(option.value))}
+                     />
+                 </div>
+             </div>
+@@ -98,7 +99,7 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
+                 </button>
+             </div>
+ 
+-            <div className="mb-2 grid min-w-0 cursor-default grid-cols-[minmax(0,1fr)_148px] items-center gap-2" onMouseDown={(event) => event.stopPropagation()}>
++            {isGenerationModeEnabled(mode) ? <div className="mb-2 grid min-w-0 cursor-default grid-cols-[minmax(0,1fr)_148px] items-center gap-2" onMouseDown={(event) => event.stopPropagation()}>
+                 <ModelPicker className="canvas-compact-control h-10" config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability={mode} onMissingConfig={() => openConfigDialog(true)} fullWidth />
+                 {mode === "video" ? (
+                     <CanvasVideoSettingsPopover config={config} placement="topRight" buttonClassName="canvas-compact-control !h-10 !w-full !justify-start !rounded-lg !px-2" onConfigChange={(key, value) => onConfigChange(node.id, videoConfigPatch(key, value))} />
+@@ -109,13 +110,13 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
+                 ) : (
+                     <CanvasTextSettingsPopover config={config} count={node.metadata?.textCount || 1} placement="topRight" buttonClassName="canvas-compact-control !h-10 !w-full !justify-start !rounded-lg !px-2" onConfigChange={(_, value) => onConfigChange(node.id, { reasoningEffort: value })} onCountChange={(textCount) => onConfigChange(node.id, { textCount })} />
+                 )}
+-            </div>
++            </div> : <div role="status" className="mb-2 text-xs opacity-60">此卡片的视频/语音生成已关闭，原参数保留；可切换图片或文本。</div>}
+ 
+             <Button
+                 type="primary"
+                 className="mt-auto !h-9 !w-full !cursor-pointer !rounded-lg"
+                 danger={isRunning}
+-                disabled={!isRunning && !canGenerate}
++                disabled={!isRunning && (!isGenerationModeEnabled(mode) || !canGenerate)}
+                 onMouseDown={(event) => event.stopPropagation()}
+                 onClick={() => (isRunning ? onStop(node.id) : onGenerate(node.id))}
+             >
+@@ -151,8 +152,11 @@ function buildNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mode: Can
+     return {
+         ...globalConfig,
+         model: resolveModelForCapability(globalConfig, node.metadata?.model, mode),
++        fallbackRequested: mode === "image" && (node.metadata?.model === FALLBACK_MODEL_OPTION || !node.metadata?.model && globalConfig.imageModel === FALLBACK_MODEL_OPTION),
++        fallbackCapability: mode,
+         reasoningEffort: node.metadata?.reasoningEffort || globalConfig.reasoningEffort || defaultConfig.reasoningEffort,
+         quality: node.metadata?.quality || globalConfig.quality || defaultConfig.quality,
++        moderation: node.metadata?.moderation === "auto" ? "auto" : node.metadata?.moderation === "low" ? "low" : globalConfig.moderation || defaultConfig.moderation,
+         size: node.metadata?.size || globalConfig.size || defaultConfig.size,
+         background: node.metadata?.background ?? globalConfig.background ?? defaultConfig.background,
+         videoSeconds: node.metadata?.seconds || globalConfig.videoSeconds || defaultConfig.videoSeconds,
