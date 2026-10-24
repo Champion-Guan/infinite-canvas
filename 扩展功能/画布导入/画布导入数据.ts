@@ -4,7 +4,7 @@ import type { CanvasExportFile } from "@/types/canvas-export";
 const storageFields = new Set(["storageKey", "originalStorageKey", "deliveryStorageKey", "references"]);
 
 // Validate the entire package before writing files. Imported media always gets new keys.
-export function prepareCanvasExport(data: unknown, zip: Map<string, Blob>) {
+export function prepareCanvasExport(data: unknown, zip: Map<string, Blob>, missingMedia: ReadonlyMap<string, string> = new Map()) {
     const document = data as Partial<CanvasExportFile> | null;
     if (!document || document.app !== "infinite-canvas" || document.version !== 3 || !Array.isArray(document.projects) || !document.projects.length) throw new Error("请选择有效的画布 ZIP 文件");
     const media: Array<{ key: string; blob: Blob }> = [];
@@ -38,7 +38,11 @@ export function prepareCanvasExport(data: unknown, zip: Map<string, Blob>) {
         const remap = (value: unknown, field = ""): unknown => {
             if (typeof value === "string" && storageFields.has(field) && /^(image|video|audio|file):/.test(value)) {
                 const key = keys.get(value);
-                if (!key) throw new Error("画布引用的媒体未包含在 ZIP 中");
+                if (!key) {
+                    const missing = missingMedia.get(value);
+                    if (missing) return missing;
+                    throw new Error("画布引用的媒体未包含在 ZIP 中");
+                }
                 return key;
             }
             if (Array.isArray(value)) return value.map((entry) => remap(entry, field));

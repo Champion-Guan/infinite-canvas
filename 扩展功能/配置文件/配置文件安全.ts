@@ -9,7 +9,7 @@ import { usePromptSourceStore, type PromptSourceSchedule } from "@/stores/use-pr
 import { filterWorkbenchPromptSources, type PromptSource } from "@/services/api/prompt-source-presets";
 import { flushSQLiteStorage } from "../本机存储/上游浏览器存储桥";
 
-type AppConfigFile = {
+export type AppConfigFile = {
     app: "infinite-canvas";
     version: 1;
     exportedAt: string;
@@ -96,7 +96,7 @@ export function assertPortableCredentialBindings(config: unknown, webdav: unknow
     }
 }
 
-function parseConfigFile(value: unknown): AppConfigFile {
+export function parseConfigFile(value: unknown): AppConfigFile {
     if (!record(value) || value.app !== "infinite-canvas" || value.version !== 1 ||
         (value.credentialsOmitted !== undefined && value.credentialsOmitted !== true) ||
         !record(value.config) || !record(value.webdav) || !record(value.promptSources) ||

@@ -18,6 +18,7 @@ import { workbookDeletionGate } from "../Excel删除/工作簿删除门禁";
 import { commitWorkbookChange } from "../Excel/Excel保存导航";
 import { visibleWorkbookId, withVisibleSelection, planExcelImport, rememberWorkbookProduct, selectWorkbook as planWorkbookSelection, workbookEntry, workbookProjects, type ExcelImportInput, type WorkbookSnapshot } from "../Excel/Excel产品归属";
 import { productRestoreMountGate } from "./产品恢复挂载门禁";
+import { commitLegacyTransfer, finishLegacyTransfer, type LegacyTransfer } from "../整批迁移/整批迁移操作";
 
 export const ACTIVE_PRODUCT_KEY = "guan-products:active:v1";
 const operations = new ProductOperationGate();
@@ -123,6 +124,9 @@ export function useProductNavigation() {
       }),
     [activeId, commitCurrent, enter],
   );
+  const importLegacyProducts = useCallback((plan: LegacyTransfer, preferLegacy: boolean, progress: (value: string) => void, preserveMissingMedia = false) =>
+    operations.run(() => commitLegacyTransfer(plan, preferLegacy, commitCurrent, progress, preserveMissingMedia)), [commitCurrent]);
+  const retryLegacyProducts = useCallback((keepCurrentFallback = false) => operations.run(() => finishLegacyTransfer(true, keepCurrentFallback)), []);
   const createProduct = useCallback(
     () =>
       operations.run(async () => {
@@ -256,5 +260,5 @@ export function useProductNavigation() {
       },
     });
   }), [activeId, commitCurrent, finishWorkbook]);
-  return { activeId, busy, operationBusy, pendingWorkbookDeletion, createProduct, importProduct, selectProduct, recycleProduct, restoreProduct, selectWorkbook, importWorkbook, deleteWorkbook };
+  return { activeId, busy, operationBusy, pendingWorkbookDeletion, createProduct, importProduct, importLegacyProducts, retryLegacyProducts, selectProduct, recycleProduct, restoreProduct, selectWorkbook, importWorkbook, deleteWorkbook };
 }
