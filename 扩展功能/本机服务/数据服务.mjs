@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { createWriteCoordinator } from './写入协调.mjs';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { COLLECTIONS, MAX_DOCUMENT_BYTES, MAX_MEDIA_BYTES, PROTOCOL, StorageError, requireValue, validHash, validId, validUUID } from '../本机存储/协议.mjs';
+import { readNamespaceSnapshot } from '../本机存储/命名空间快照.mjs';
 
 const MAX_JSON_BODY = MAX_DOCUMENT_BYTES + 64 * 1024;
 const ALLOWED_HEADERS = ['authorization', 'content-type', 'x-guan-csrf'];
@@ -73,10 +74,16 @@ export async function startDataService({ workspace, allowedOrigins, port = 0, se
       }
       if (rawPath === '/health' && request.method === 'GET') { json(200, { protocol: PROTOCOL, workspaceId: workspace.workspaceId }); return; }
       if (rawPath === '/usage' && request.method === 'GET') { const usage = await workspace.readDetailedUsage(); requireValue(sessions.get(token) === session && session.expiresAt > now(), 'session_denied', '统计期间会话已失效，请重新授权。', 401); json(200, usage); return; }
-      const match = rawPath.match(/^\/v1\/workspaces\/([^/]+)\/(documents|media)(?:\/([^/]+))?(?:\/([^/]+))?$/);
+      const match = rawPath.match(/^\/v1\/workspaces\/([^/]+)\/(documents|media|namespace-snapshots)(?:\/([^/]+))?(?:\/([^/]+))?$/);
       requireValue(match, 'route_not_found', '接口不存在。', 404);
       const [, workspaceId, resource, first, second] = match;
       requireValue(validUUID(workspaceId) && workspaceId === workspace.workspaceId, 'workspace_denied', '工作区未授权。', 403);
+      if (resource === 'namespace-snapshots') {
+        requireValue(request.method === 'GET' && !second, 'method_denied', '命名空间快照只支持读取。', 405);
+        const snapshot = await readNamespaceSnapshot(first, (...args) => workspace.readDocument(...args));
+        requireValue(sessions.get(token) === session && session.expiresAt > now(), 'session_denied', '读取期间会话已失效。', 401);
+        json(200, { ...snapshot, protocol: PROTOCOL, workspaceId }); return;
+      }
       if (resource === 'documents') {
         requireValue(COLLECTIONS.includes(first) && (!second || validId(second)), 'invalid_document', '文档路径无效。');
         if (request.method === 'GET') {

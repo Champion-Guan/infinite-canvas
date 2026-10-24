@@ -5,6 +5,7 @@ import type { CanvasBackgroundMode } from "@/lib/canvas-theme";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useProductCanvasSave } from "./产品操作";
 import { flushSQLiteStorage } from "../本机存储/上游浏览器存储桥";
+import { retainCanvasReferences } from "./画布保存判定";
 
 type CanvasSavePort = {
     projectId: string;
@@ -33,7 +34,7 @@ type CanvasSavePort = {
 export function useCanvasPersistence({ projectId, nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport, projectLoaded, restoredProjectIdRef, nodeTransactionRef, historyPausedRef, dragRef, isNodeDragging, isNodeResizing, focusAnimRef, viewportRef, viewportSaveTimerRef, generationRequestsRef, runningNodeId, updateProject }: CanvasSavePort) {
     useEffect(() => {
         if (!projectLoaded || historyPausedRef.current || isNodeDragging || isNodeResizing) return;
-        updateProject(projectId, { nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo });
+        updateProject(projectId, retainCanvasReferences(useCanvasStore.getState().projects.find(project => project.id === projectId), { nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo }));
     }, [activeChatId, backgroundMode, chatSessions, connections, nodes, projectId, projectLoaded, showImageInfo, updateProject, isNodeDragging, isNodeResizing, historyPausedRef]);
 
     const snapshot = useMemo(() => ({ projectId, nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport }),
@@ -45,7 +46,7 @@ export function useCanvasPersistence({ projectId, nodes, connections, chatSessio
             const { projectId: id, ...patch } = committed;
             if (restoredProjectIdRef.current !== id || committed.nodes !== nodeTransactionRef.current) throw new Error("Canvas commit invalidated");
             if (!useCanvasStore.getState().projects.some(project => project.id === id)) throw new Error("Canvas unavailable");
-            updateProject(id, patch);
+            updateProject(id, retainCanvasReferences(useCanvasStore.getState().projects.find(project => project.id === id), patch));
             await flushSQLiteStorage();
             // 完整快照实际保存后才取消同一视区的延迟写入；保留更新视区的计时器。
             if (viewportRef.current === committed.viewport) {
@@ -58,7 +59,7 @@ export function useCanvasPersistence({ projectId, nodes, connections, chatSessio
         if (!projectLoaded) return;
         if (viewportSaveTimerRef.current) clearTimeout(viewportSaveTimerRef.current);
         viewportSaveTimerRef.current = setTimeout(() => {
-            updateProject(projectId, { viewport: viewportRef.current });
+            updateProject(projectId, retainCanvasReferences(useCanvasStore.getState().projects.find(project => project.id === projectId), { viewport: viewportRef.current }));
             viewportSaveTimerRef.current = null;
         }, 500);
         return () => {

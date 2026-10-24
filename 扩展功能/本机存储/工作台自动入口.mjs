@@ -25,14 +25,15 @@ export function mountAutomaticWorkbench({ root, origin = location.origin, loadAp
       authorization = await authorize({ code: value, origin, prepareSession: () => client.ensureSession() });
       unbind = bindPageAuthorization(document.defaultView, authorization.host);
       client = createRenewingDataClient({ ...authorization, origin, autoReconnect: true });
-      const app = createApplicationStorage({ client, secretPort: authorization.secretPort, readBlobUrl: async value => {
+      const app = createApplicationStorage({ client, namespaceSnapshots: true, secretPort: authorization.secretPort, readBlobUrl: async value => {
         const url = new URL(value);
         if (url.protocol !== 'blob:' || url.origin !== origin) throw Error('只允许当前工作台的临时媒体。');
         const response = await fetch(url);
         if (!response.ok) throw Error('临时媒体读取失败。');
         return response.blob();
       } });
-      await client.readUsage();
+      // 首屏只建立并核验现有会话；整库容量扫描留到用户打开存储面板。
+      await client.ensureSession();
       const view = document.defaultView;
       if (Object.getOwnPropertyDescriptor(view, '__guanSQLiteHost')) throw Error('本页面已安装存储入口。');
       // 恢复只替换client内的会话；app、React根、页内队列及编辑缓存保持同一个实例。

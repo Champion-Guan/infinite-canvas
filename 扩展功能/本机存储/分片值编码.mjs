@@ -21,7 +21,36 @@ function shallow(value, depth = 0) {
 // 只接收应用值编码器产生的普通JSON，不用于绕过凭据检测。
 // 固定数组分页保持局部修改的块边界；先生成完整计划，后由应用适配器提交根目录。
 export async function buildFragmentPlan(value) {
-  const logicalBytes = bytes(value), fragments = new Map();
+  // 同一快照的子树会在分片判定中反复经过；大小与可内联深度只计算一次。
+  // 缓存仅活在本次计划内，不跨可变对象复用，也不改变内容寻址格式。
+  const sizes = new WeakMap(), depths = new WeakMap(), stringSizes = new Map();
+  function sizeOf(item) {
+    if (typeof item === 'string') {
+      if (stringSizes.has(item)) return stringSizes.get(item);
+      const size = bytes(item);
+      if (stringSizes.size < 8192) stringSizes.set(item, size);
+      return size;
+    }
+    if (item === null || typeof item !== 'object') return bytes(item);
+    if (!sizes.has(item)) {
+      const entries = Array.isArray(item) ? item : Object.entries(item);
+      let size = 2 + Math.max(0, entries.length - 1);
+      for (const entry of entries) size += Array.isArray(item) ? sizeOf(entry) : sizeOf(entry[0]) + 1 + sizeOf(entry[1]);
+      sizes.set(item, size);
+    }
+    return sizes.get(item);
+  }
+  function inlineDepth(item) {
+    if (item === null || typeof item !== 'object') return 0;
+    if (!depths.has(item)) {
+      let depth = 0;
+      if (typedObject(item) && sizeOf(item) > FIELD_BYTES) depth = Infinity;
+      else for (const child of Object.values(item)) depth = Math.max(depth, 1 + inlineDepth(child));
+      depths.set(item, depth);
+    }
+    return depths.get(item);
+  }
+  const logicalBytes = sizeOf(value), fragments = new Map();
   requireValue(logicalBytes <= MAX_LOGICAL_BYTES, 'logical_value_too_large', '逻辑命名空间超过当前32MiB分片验收范围。', 413);
   async function save(body) {
     const value = { format: FRAGMENT_FORMAT, ...body }, text = JSON.stringify(value), size = utf8.encode(text).length;
@@ -34,15 +63,15 @@ export async function buildFragmentPlan(value) {
   }
   async function pack(value, depth = 0) {
     requireValue(depth <= MAX_GRAPH_DEPTH, 'fragment_depth_exceeded', '分片结构层级超过安全范围。');
-    if (typedObject(value) && bytes(value) > FIELD_BYTES) {
+    if (typedObject(value) && sizeOf(value) > FIELD_BYTES) {
       const entries = [];
       for (const pair of value[1]) {
         requireValue(Array.isArray(pair) && pair.length === 2 && typeof pair[0] === 'string', 'invalid_fragment_value', '带类型对象字段无效。');
-        entries.push([pair[0], bytes(pair[1]) > FIELD_BYTES ? ['ref', await pack(pair[1], depth + 1)] : ['inline', pair[1]]]);
+        entries.push([pair[0], sizeOf(pair[1]) > FIELD_BYTES ? ['ref', await pack(pair[1], depth + 1)] : ['inline', pair[1]]]);
       }
       return save({ kind: 'typed-object', entries: await pack(entries, depth + 1) });
     }
-    if (bytes(value) <= INLINE_BYTES && shallow(value)) return save({ kind: 'json', data: value });
+    if (sizeOf(value) <= INLINE_BYTES && inlineDepth(value) <= INLINE_DEPTH) return save({ kind: 'json', data: value });
     if (typeof value === 'string') {
       let parts = [];
       // 按UTF-16固定位置切分，重组后保留原字符（含跨块代理对及孤立代理项）。

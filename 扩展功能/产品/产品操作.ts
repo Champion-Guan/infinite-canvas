@@ -89,11 +89,11 @@ export function useProductNavigation() {
       if (!useCanvasStore.getState().openProject(id))
         throw new Error("目标产品不存在，未切换画布。");
       const remembered = rememberWorkbookProduct(useCanvasStore.getState(), id);
-      if (remembered) useCanvasStore.setState({ guanWorkbooks: remembered });
-      await flushSQLiteStorage();
       const previous = sqlitePreferences.getItem(ACTIVE_PRODUCT_KEY);
       try {
+        if (remembered) useCanvasStore.setState({ guanWorkbooks: remembered });
         sqlitePreferences.setItem(ACTIVE_PRODUCT_KEY, id);
+        // 两个独立命名空间同时提交，仍等两者真实ACK后才导航。
         await flushSQLiteStorage();
         if (!useCanvasStore.getState().openProject(id))
           throw new Error("保存期间目标产品已删除，未切换画布。");

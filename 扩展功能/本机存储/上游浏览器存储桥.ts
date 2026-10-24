@@ -24,14 +24,15 @@ let runtime: SQLiteRuntime | null = null;
 let appState: SQLiteInstance, preferencesStore: SQLiteInstance;
 const stateCache = new Map<string, string>(), preferencesCache = new Map<string, string>(), sessionCache = new Map<string, string>();
 const writes = new Set<Promise<unknown>>(), failed = new Map<string, unknown>();
-const scheduled = new Map<string, { value: string; timer: ReturnType<typeof setTimeout>; resolve: () => void; reject: (reason: unknown) => void; promise: Promise<void> }>();
+const scheduled = new Map<string, { value: string; queuedAt: number; timer: ReturnType<typeof setTimeout>; resolve: () => void; reject: (reason: unknown) => void; promise: Promise<void> }>();
+const activeSaves = new Set<string>();
 let retryFlight: Promise<void> | null = null;
 let reconnecting = false, reconnectError: string | null = null;
 function ready() { if (!runtime) throw new Error("本机存储尚未初始化，不允许退回浏览器数据库。"); return runtime; }
 export function storageStatus() {
     const current = runtime?.getStatus();
     const codes = [...(current?.failures?.map(item => item.code) ?? []), ...[...failed.values()].map(error => (error as { code?: string } | null)?.code)];
-    return { state: failed.size || current?.state === "error" ? "error" : writes.size || scheduled.size || current?.pending ? "saving" : current?.state ?? "idle",
+    return { state: failed.size || current?.state === "error" ? "error" : writes.size || scheduled.size || current?.pending ? "saving" : current?.state === "idle" && stateCache.size > 0 ? "saved" : current?.state ?? "idle",
         pending: Math.max(writes.size, current?.pending ?? 0) + scheduled.size, retrying: !!retryFlight || !!current?.retrying,
         conflict: codes.includes("revision_conflict"), reconnectRequired: codes.includes("session_expired"), reconnecting,
         failure: current?.failures?.[0] ?? null,
@@ -78,20 +79,26 @@ export const sqlitePreferences = {
 export const sessionMemory = { getItem: (key: string) => sessionCache.get(key) ?? null, setItem: (key: string, value: string) => { sessionCache.set(key, value); } };
 export const sqliteForage = { createInstance(options: { name?: string; storeName?: string }) { return ready().createInstance(options); } };
 function startScheduled(key: string) {
-    const entry = scheduled.get(key); if (!entry) return;
-    clearTimeout(entry.timer); scheduled.delete(key); sqliteStateStorage.setItem(key, entry.value).then(entry.resolve, entry.reject);
+    const entry = scheduled.get(key); if (!entry || activeSaves.has(key)) return;
+    clearTimeout(entry.timer); scheduled.delete(key); activeSaves.add(key);
+    const finish = () => { activeSaves.delete(key); startScheduled(key); };
+    // 只合并尚未发送的完整快照；在途及失败操作保留原恢复队列和operationId。
+    sqliteStateStorage.setItem(key, entry.value).then(() => { finish(); entry.resolve(); }, error => { finish(); entry.reject(error); });
 }
 export function scheduleStateSave(key: string, value: string) {
     ready(); const existing = scheduled.get(key);
-    if (existing) { existing.value = value; clearTimeout(existing.timer); existing.timer = setTimeout(() => startScheduled(key), 400); return existing.promise; }
+    // 空闲时短暂停笔80ms提交，持续输入最迟250ms启动；在途期间只保留最新候选。
+    if (existing) { existing.value = value; clearTimeout(existing.timer); existing.timer = setTimeout(() => startScheduled(key), Math.max(0, Math.min(80, 250 - (performance.now() - existing.queuedAt)))); return existing.promise; }
     let resolve!: () => void, reject!: (reason: unknown) => void;
     const promise = new Promise<void>((success, failure) => { resolve = success; reject = failure; });
-    scheduled.set(key, { value, timer: setTimeout(() => startScheduled(key), 400), resolve, reject, promise });
+    scheduled.set(key, { value, queuedAt: performance.now(), timer: setTimeout(() => startScheduled(key), 80), resolve, reject, promise });
     promise.catch(() => {}); statusChanged(); return promise;
 }
 export async function flushSQLiteStorage() {
-    ready(); for (const key of [...scheduled.keys()]) startScheduled(key);
-    await Promise.all([...writes]); await runtime!.flush();
+    ready();
+    do { for (const key of [...scheduled.keys()]) startScheduled(key); await Promise.all([...writes]); }
+    while (writes.size || scheduled.size);
+    await runtime!.flush();
     if (failed.size || writes.size || scheduled.size) throw new Error("本机保存尚未确认，不能继续关闭或切换服务。");
 }
 function retryStorage(reconnect: boolean): Promise<void> {

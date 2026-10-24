@@ -1,4 +1,5 @@
 import { MAX_MEDIA_BYTES, PROTOCOL, StorageError, requireValue, serializeDocument, validHash, validId, validUUID } from './协议.mjs';
+import { APP_NAMESPACES, NAMESPACE_SNAPSHOT_FORMAT, MAX_NAMESPACE_SNAPSHOT_BYTES } from './命名空间快照.mjs';
 
 const digest = async bytes => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(byte => byte.toString(16).padStart(2, '0')).join('');
 
@@ -34,6 +35,23 @@ export function createDataClient({ url, session, fetchImpl = globalThis.fetch, o
   }
   return {
     getStatus: status,
+    readNamespace(namespace) {
+      return operation(`namespace:${namespace}`, async () => {
+        requireValue(APP_NAMESPACES.includes(namespace), 'namespace_denied', '未声明的应用存储命名空间。');
+        const text = await (await request(`${base}/namespace-snapshots/${namespace}`)).text();
+        requireValue(new TextEncoder().encode(text).length <= MAX_NAMESPACE_SNAPSHOT_BYTES + 64 * 1024, 'invalid_response', '命名空间响应超过上限。');
+        const snapshot = JSON.parse(text);
+        requireValue(snapshot.protocol === PROTOCOL && snapshot.workspaceId === authorization.workspaceId && snapshot.format === NAMESPACE_SNAPSHOT_FORMAT && snapshot.namespace === namespace && Array.isArray(snapshot.fragments) && snapshot.fragments.length <= 4096 && (snapshot.root === null ? snapshot.fragments.length === 0 : snapshot.root?.value?.namespace === namespace), 'invalid_response', '命名空间快照身份或目录无效。');
+        const ids = new Set();
+        for (const document of [snapshot.root, ...snapshot.fragments].filter(Boolean)) {
+          requireValue(document.workspaceId === authorization.workspaceId && document.collection === 'extension' && validId(document.id) && !ids.has(document.id) && Number.isSafeInteger(document.revision) && document.revision > 0, 'invalid_response', '命名空间文档身份或版本无效。');
+          const body = serializeDocument('extension', document.id, document.value, document.mediaIds);
+          requireValue(await digest(new TextEncoder().encode(body)) === document.hash, 'invalid_response', '命名空间文档校验失败。');
+          ids.add(document.id);
+        }
+        return snapshot;
+      });
+    },
     readUsage() {
       return operation('read:usage', async () => {
         const usage = await (await request('/usage')).json();

@@ -2,34 +2,17 @@ import { createValueCodec } from './应用值编码.mjs';
 import { APP_NAMESPACES, APPLICATION_STORAGE_FORMAT } from './应用存储适配.mjs';
 import { StorageError, requireValue, serializeDocument, validHash } from './协议.mjs';
 import { buildFragmentPlan, readFragmentGraph, verifyFragment } from './分片值编码.mjs';
+import { createPacedDataClient } from './请求调度.mjs';
+import { retainUnchangedCanvasTimestamps } from './画布时间去重.mjs';
 
 export const SHARDED_APPLICATION_FORMAT = 'guan-app-storage.v2';
 const jsonStores = new Set(['infinite-canvas:canvas_store', 'infinite-canvas:asset_store', 'infinite-canvas:plugin_store', 'infinite-canvas:ai_config_store', 'infinite-canvas:theme_store', 'infinite-canvas:prompt_source_store_v2']);
 const sha = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))].map(byte => byte.toString(16).padStart(2, '0')).join('');
 const mediaRefs = entries => [...new Set([...entries.values()].flatMap(entry => entry.mediaIds))].sort();
-const requestWindows = new WeakMap();
 function saveFailure(error, stage) {
   if (!(error instanceof Error)) error = new StorageError('connection_failed', '保存响应未确认，请保留页面并重试。', 503);
   error.saveStage = stage;
   return error;
-}
-// 原服务每会话120次/10秒保持不变；应用分片最多96次/10.05秒，为其他状态请求留余量。
-// 同一客户端跨namespace/恢复实例共享窗口。等待不是丢弃或重发，写入仍保留原operationId。
-function pacedClient(client) {
-  requireValue(client && typeof client.readDocument === 'function', 'invalid_client', '分片客户端缺少读取端口。');
-  if (requestWindows.has(client)) return requestWindows.get(client);
-  const starts = [];
-  async function request(method, args) {
-    requireValue(typeof client[method] === 'function', 'storage_port_denied', '当前存储端口未开放此操作。');
-    while (true) {
-      const time = performance.now();
-      while (starts.length && time - starts[0] >= 10_050) starts.shift();
-      if (starts.length < 96) { starts.push(time); return client[method](...args); }
-      await new Promise(resolve => setTimeout(resolve, Math.ceil(10_050 - (time - starts[0]))));
-    }
-  }
-  const port = Object.fromEntries(['readDocument', 'writeDocument', 'readMedia', 'writeMedia', 'readUsage'].map(method => [method, (...args) => request(method, args)]));
-  requestWindows.set(client, port); return port;
 }
 function parseEntries(value) {
   requireValue(Array.isArray(value), 'invalid_namespace', '命名空间记录目录格式无效。');
@@ -44,23 +27,27 @@ function parseEntries(value) {
 
 // 新模块，不修改已批准v1适配器。不可变块先ACK，再以原根ID+revision CAS发布完整一代。
 // 当前无块GC；失败块和旧代保留，不能借清理删除仍被其他会话/备份使用的数据。
-export function createShardedApplicationStorage({ client, secretPort, readBlobUrl, onStatus = () => {} }) {
-  client = pacedClient(client);
+export function createShardedApplicationStorage({ client, secretPort, readBlobUrl, namespaceSnapshots = false, onStatus = () => {} }) {
+  client = createPacedDataClient(client, { reserveWrites: namespaceSnapshots });
   const codec = createValueCodec({ client, secretPort, readBlobUrl }), spaces = new Map(), known = new Set(), errors = new Map();
-  let pending = 0, closed = false, hasSaved = false;
-  const status = () => ({ state: errors.size ? 'error' : pending ? 'saving' : hasSaved ? 'saved' : 'idle', pending, errors: [...errors.keys()],
+  let pending = 0, pendingWrites = 0, closed = false, hasSaved = false;
+  const status = () => ({ state: errors.size ? 'error' : pendingWrites ? 'saving' : hasSaved ? 'saved' : 'idle', pending: pendingWrites, reads: pending - pendingWrites, errors: [...errors.keys()],
     failures: [...errors].map(([namespace, error]) => ({ namespace, code: /^[a-z_]{3,64}$/.test(error?.code) ? error.code : 'connection_failed',
       stage: error?.saveStage ?? 'prepare', status: Number.isInteger(error?.status) ? error.status : null })) });
   function notify() { try { onStatus(status()); } catch { /* UI观察器不决定持久化结果。 */ } }
   function state(name) {
     requireValue(!closed && APP_NAMESPACES.includes(name), 'namespace_denied', '未声明的应用存储命名空间。');
-    if (!spaces.has(name)) spaces.set(name, { name, loaded: false, revision: 0, entries: new Map(), tail: Promise.resolve(), blocked: null });
+    if (!spaces.has(name)) spaces.set(name, { name, loaded: false, revision: 0, entries: new Map(), tail: Promise.resolve(), writeTail: Promise.resolve(), blocked: null });
     return spaces.get(name);
   }
   async function load(space) {
     if (space.loaded) return;
+    const started = performance.now();
     space.id = 'app-' + await sha(space.name);
-    const document = await client.readDocument('extension', space.id, { allowMissing: true });
+    const snapshot = namespaceSnapshots && typeof client.readNamespace === 'function' ? await client.readNamespace(space.name) : null;
+    const document = snapshot ? snapshot.root : await client.readDocument('extension', space.id, { allowMissing: true });
+    requireValue(!document || document.collection === 'extension' && document.id === space.id, 'invalid_namespace', '命名空间根身份不符。');
+    const parts = snapshot ? new Map(snapshot.fragments.map(part => [part.id, part])) : null;
     if (document) {
       const value = document.value;
       requireValue(value?.namespace === space.name && Number.isSafeInteger(document.revision) && document.revision > 0, 'invalid_namespace', '命名空间或版本不符，没有作为空库启动。');
@@ -69,7 +56,7 @@ export function createShardedApplicationStorage({ client, secretPort, readBlobUr
       else {
         requireValue(value.format === SHARDED_APPLICATION_FORMAT && Object.keys(value).length === 4 && Number.isSafeInteger(value.entryCount) && value.entryCount >= 0, 'invalid_namespace', '未知分片命名空间格式，没有降级或覆盖。');
         entries = parseEntries(await readFragmentGraph({ head: value.head, readDocument: async (...args) => {
-          const part = await client.readDocument(...args); verified.add(args[1]); return part;
+          const part = parts ? parts.get(args[1]) : await client.readDocument(...args); verified.add(args[1]); return part;
         } }));
         requireValue(entries.size === value.entryCount, 'invalid_namespace', '分片记录数量不符，没有跳过缺失记录。');
       }
@@ -77,19 +64,22 @@ export function createShardedApplicationStorage({ client, secretPort, readBlobUr
       // 整张图和根媒体目录全部验证后，才复用刚读取的不可变块，避免刷新后首笔编辑再读全库。
       for (const id of verified) known.add(id);
       space.entries = entries; space.revision = document.revision;
+      space.committedHead = value.format === SHARDED_APPLICATION_FORMAT ? value.head.id : null;
     }
     space.loaded = true;
+    if (performance.now() - started > 500) console.debug('[存储性能] 读取目录 ' + JSON.stringify({ namespace: space.name, elapsedMs: Math.round(performance.now() - started), entries: space.entries.size }));
   }
-  function queue(space, fn, { retry = false } = {}) {
-    pending++; notify();
+  function queue(space, fn, { retry = false, write = false } = {}) {
+    pending++; if (write) pendingWrites++; notify();
     const result = space.tail.then(async () => {
       requireValue(!closed, 'client_closed', '应用存储已关闭。');
       if (space.blocked && !retry) throw new StorageError('pending_write_unresolved', '上一笔分片保存尚未确认，请重试原操作。', 409);
       await load(space); return fn();
     });
     // 先完成计数/错误状态，再向调用方交付结果，避免await读取后立即close仍被误判忙碌。
-    const tracked = result.then(value => { if (!space.blocked) errors.delete(space.name); pending--; notify(); return value; }, error => { errors.set(space.name, error); pending--; notify(); throw error; });
+    const tracked = result.then(value => { if (!space.blocked) errors.delete(space.name); pending--; if (write) pendingWrites--; notify(); return value; }, error => { errors.set(space.name, error); pending--; if (write) pendingWrites--; notify(); throw error; });
     space.tail = tracked.then(() => {}, () => {});
+    if (write) space.writeTail = space.tail;
     return tracked;
   }
   async function confirmed(write) {
@@ -100,7 +90,7 @@ export function createShardedApplicationStorage({ client, secretPort, readBlobUr
   async function savePart(step) {
     if (known.has(step.id)) return;
     if (!step.write) {
-      const existing = await client.readDocument('extension', step.id, { allowMissing: true });
+      const existing = await client.readForWrite('extension', step.id, { allowMissing: true });
       if (existing) { await verifyFragment(existing, { id: step.id }); known.add(step.id); return; }
       step.write = { collection: 'extension', id: step.id, value: step.value, expectedRevision: 0, operationId: crypto.randomUUID(), mediaIds: [] };
     }
@@ -108,7 +98,7 @@ export function createShardedApplicationStorage({ client, secretPort, readBlobUr
     catch (error) {
       if (error.code !== 'revision_conflict') throw error;
       // 仅内容寻址块可接受另一会话写入的相同内容；根目录冲突绝不覆盖。
-      await verifyFragment(await client.readDocument('extension', step.id), { id: step.id });
+      await verifyFragment(await client.readForWrite('extension', step.id), { id: step.id });
     }
     known.add(step.id);
   }
@@ -116,19 +106,29 @@ export function createShardedApplicationStorage({ client, secretPort, readBlobUr
     requireValue(space.blocked, 'nothing_to_retry', '没有待确认的分片保存。');
     const plan = space.blocked;
     while (plan.index < plan.parts.length) {
-      try { await savePart(plan.parts[plan.index]); plan.index++; }
-      catch (error) { throw saveFailure(error, 'fragment'); }
+      // 不可变内容块可限量并发，根目录仍等待全部ACK后才CAS发布。
+      // 一批全部收口再报告失败；重试复用已确认块及未确认块原operationId。
+      const batch = plan.parts.slice(plan.index, plan.index + 4);
+      const results = await Promise.allSettled(batch.map(savePart));
+      const failure = results.find(result => result.status === 'rejected');
+      if (failure) throw saveFailure(failure.reason, 'fragment');
+      plan.index += batch.length;
     }
     let ack;
     try { ack = await confirmed(plan.root); }
     catch (error) { throw saveFailure(error, 'root'); }
-    space.entries = plan.entries; space.revision = ack.revision; space.blocked = null; hasSaved = true; return ack;
+    space.entries = plan.entries; space.revision = ack.revision; space.committedHead = plan.root.value.head.id; space.blocked = null; hasSaved = true; return ack;
   }
   async function commit(space, entries) {
+    const started = performance.now();
     const plan = await buildFragmentPlan([...entries]), value = { format: SHARDED_APPLICATION_FORMAT, namespace: space.name, head: plan.head, entryCount: entries.size }, mediaIds = mediaRefs(entries);
+    if (space.committedHead === plan.head.id) { space.entries = entries; hasSaved = true; return; }
     serializeDocument('extension', space.id, value, mediaIds);
     space.blocked = { entries, index: 0, parts: [...plan.fragments.values()], root: { collection: 'extension', id: space.id, value, mediaIds, expectedRevision: space.revision, operationId: crypto.randomUUID() } };
-    return retryWrite(space);
+    const newParts = [...plan.fragments.keys()].filter(id => !known.has(id)).length;
+    const result = await retryWrite(space);
+    if (performance.now() - started > 500) console.debug('[存储性能] 提交 ' + JSON.stringify({ namespace: space.name, elapsedMs: Math.round(performance.now() - started), parts: plan.fragments.size, newParts }));
+    return result;
   }
   function createInstance({ name = 'infinite-canvas', storeName = 'app_state' } = {}) {
     requireValue(name === 'infinite-canvas', 'namespace_denied', '插件和其他数据库未获准接入。');
@@ -148,12 +148,17 @@ export function createShardedApplicationStorage({ client, secretPort, readBlobUr
             requireValue(typeof snapshot === 'string', 'invalid_state', 'Zustand状态必须为JSON字符串。');
             try { decoded = JSON.parse(snapshot); } catch { throw new StorageError('invalid_state', '应用状态不是有效JSON。'); }
           }
+          const started = performance.now();
           const encoded = await codec.encode(decoded, { credential: /(?:^|[:-])(?:api[_-]?key|password|token|secret)$/i.test(key) }), entries = new Map(space.entries);
+          if (storeName === 'app_state' && key === 'infinite-canvas:canvas_store') retainUnchangedCanvasTimestamps(space.entries.get(key), encoded);
+          if (performance.now() - started > 500) console.debug('[存储性能] 编码 ' + JSON.stringify({ namespace: space.name, store: json(key) ? key : '非状态记录', elapsedMs: Math.round(performance.now() - started) }));
+          // 仅比较已经读验/确认的当前代；失败时仍被原blocked门禁拦住，不能假报ACK。
+          if (space.entries.has(key) && JSON.stringify(encoded) === JSON.stringify(space.entries.get(key))) return value;
           entries.set(key, encoded); await commit(space, entries); return value;
-        });
+        }, { write: true });
       },
-      removeItem(key) { return queue(space, () => { const entries = new Map(space.entries); entries.delete(key); return commit(space, entries); }); },
-      clear() { return queue(space, () => commit(space, new Map())); },
+      removeItem(key) { return queue(space, () => { const entries = new Map(space.entries); entries.delete(key); return commit(space, entries); }, { write: true }); },
+      clear() { return queue(space, () => commit(space, new Map()), { write: true }); },
       keys() { return queue(space, () => [...space.entries.keys()]); },
       length() { return queue(space, () => space.entries.size); },
       async iterate(callback) {
@@ -165,10 +170,12 @@ export function createShardedApplicationStorage({ client, secretPort, readBlobUr
   }
   return {
     createInstance, getStatus: status, readUsage: () => client.readUsage(),
-    retry(name) { const space = state(name); return queue(space, () => retryWrite(space), { retry: true }); },
+    retry(name) { const space = state(name); return queue(space, () => retryWrite(space), { retry: true, write: true }); },
     async flush() {
-      await Promise.all([...spaces.values()].map(space => space.tail));
-      requireValue(!pending && !errors.size && ![...spaces.values()].some(space => space.blocked), 'save_not_confirmed', '仍有未确认分片或根提交，不能报告已保存。', 409);
+      // 保存排空只等待写入；后台历史/缩略图读取不应拖住产品切换。
+      // 同命名空间中先读后写仍按原FIFO执行，且持续纳入排空期间新入队的写操作。
+      while (pendingWrites) await Promise.all([...spaces.values()].map(space => space.writeTail));
+      requireValue(!errors.size && ![...spaces.values()].some(space => space.blocked), 'save_not_confirmed', '仍有未确认分片或根提交，不能报告已保存。', 409);
       return status();
     },
     close() { requireValue(!pending && !errors.size, 'save_not_confirmed', '未确认保存不能关闭客户端。'); closed = true; codec.close(); },

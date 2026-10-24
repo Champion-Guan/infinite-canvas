@@ -1,8 +1,7 @@
 import { createValueCodec } from './应用值编码.mjs';
-import { StorageError, requireValue, serializeDocument } from './协议.mjs';
+import { APP_NAMESPACES, APPLICATION_STORAGE_FORMAT, StorageError, requireValue, serializeDocument } from './协议.mjs';
 
-export const APPLICATION_STORAGE_FORMAT = 'guan-app-storage.v1';
-export const APP_NAMESPACES = Object.freeze(['app_state', 'image_files', 'image_previews', 'image_generation_logs', 'video_generation_logs', 'media_files', 'prompt_cache', 'preferences']);
+export { APP_NAMESPACES, APPLICATION_STORAGE_FORMAT };
 const jsonStores = new Set(['infinite-canvas:canvas_store', 'infinite-canvas:asset_store', 'infinite-canvas:plugin_store', 'infinite-canvas:ai_config_store', 'infinite-canvas:theme_store', 'infinite-canvas:prompt_source_store_v2']);
 const sha = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))].map(byte => byte.toString(16).padStart(2, '0')).join('');
 

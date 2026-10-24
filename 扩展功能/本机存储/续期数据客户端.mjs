@@ -115,6 +115,7 @@ export function createRenewingDataClient({ url, host, origin = globalThis.locati
       return reconnectFlight;
     },
     readUsage: () => run('read:usage', 'readUsage', []),
+    readNamespace: namespace => run(`namespace:${namespace}`, 'readNamespace', [namespace]),
     readDocument: (collection, id, options) => run(`read:${collection}:${id}`, 'readDocument', [collection, id, options]),
     writeDocument: input => run(`write:${input?.collection}:${input?.id}`, 'writeDocument', () => {
       try { return [structuredClone(input)]; } catch { throw new StorageError('invalid_document', '保存内容不可快照，没有发送保存请求。'); }

@@ -1,0 +1,21 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 25a19b5..d52c277 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -23,6 +23,7 @@ import { ImageTaskConfirmation } from "@/扩展功能/画布生成/图片任务
+ import { requestCanvasImage } from "@/扩展功能/画布生成/原画布图片调用";
+ import { readProtectedRetryPrompt } from "@/扩展功能/提示词/生成文本读取";
+ import { useCanvasPersistence } from "@/扩展功能/产品/画布保存接线";
++import { canvasHasPendingChanges } from "@/扩展功能/产品/画布保存判定";
+ import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
+ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+ import type { ChangeEvent as ReactChangeEvent, DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
+@@ -3074,7 +3075,7 @@ function InfiniteCanvasPage() {
+             <section className="relative min-w-0 flex-1 overflow-hidden">
+                 <CanvasTopBar
+                     title={currentProject?.title || t("canvas.projectPage.untitledCanvas")}
+-                    savePending={currentProject?.nodes !== nodes || currentProject?.connections !== connections || currentProject?.chatSessions !== chatSessions || currentProject?.activeChatId !== activeChatId || currentProject?.backgroundMode !== backgroundMode || currentProject?.showImageInfo !== showImageInfo || currentProject?.viewport !== viewport}
++                    savePending={canvasHasPendingChanges(currentProject, { nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport })}
+                     titleDraft={titleDraft}
+                     isTitleEditing={titleEditing}
+                     onTitleDraftChange={setTitleDraft}

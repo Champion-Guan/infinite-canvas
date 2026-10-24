@@ -1,4 +1,6 @@
 export const PROTOCOL = 'guan-local-data.v1';
+export const APPLICATION_STORAGE_FORMAT = 'guan-app-storage.v1';
+export const APP_NAMESPACES = Object.freeze(['app_state', 'image_files', 'image_previews', 'image_generation_logs', 'video_generation_logs', 'media_files', 'prompt_cache', 'preferences']);
 export const SCHEMA_VERSION = 1;
 export const MAX_DOCUMENT_BYTES = 2 * 1024 * 1024;
 export const MAX_MEDIA_BYTES = 32 * 1024 * 1024;
