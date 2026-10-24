@@ -1,6 +1,6 @@
 # Web客户安装与升级
 
-仓库固定为`Champion-Guan/infinite-canvas`。本轮发布候选为 Web 2.0.0-beta.6，包含保存、刷新和产品切换提速，沿用原可信签名和Web预览升级链，仅支持Apple Silicon macOS。默认从`http://localhost:3000`启动，占用时自动顺延；旧Stable和个人工作区保持。beta.5及更早版本的已完成实机验收记录保留，beta.6的构建、发布与下载核验另记。
+仓库固定为`Champion-Guan/infinite-canvas`。当前公开预览版为[Web 2.0.0-beta.6](https://github.com/Champion-Guan/infinite-canvas/releases/tag/web-v2.0.0-beta.6)，包含保存、刷新和产品切换提速，沿用原可信签名和Web预览升级链，仅支持Apple Silicon macOS。默认从`http://localhost:3000`启动，占用时自动顺延；旧Stable和个人工作区保持。beta.5及更早版本的已完成实机验收记录保留，beta.6已完成构建、公开资产下载验签及工作台更新检查，详见[第六预览版发布验收20261024](第六预览版发布验收20261024.md)。
 
 ## 客户使用
 
@@ -37,7 +37,7 @@ node 开发工具/签名Web客户包.mjs /绝对路径/构建结果.json /既有
 node 开发工具/发布Web预览版.mjs /绝对路径/构建结果.json RELEASE-WEB-PREVIEW
 ```
 
-入口限定GitHub所有者Champion-Guan（87700227）、干净提交和标签，复用原固定公钥及Keychain保护的原加密签名材料。不得换密钥、降低验签或将私钥放参数/聊天/环境。先上传Draft并下载复核，再公开预发布，不替换Stable。已发布beta.3、beta.4和beta.5标签及签名包固定；后续文档提交不覆盖它们，代码修复另发新版本。
+入口限定GitHub所有者Champion-Guan（87700227）、干净提交和标签，复用原固定公钥及Keychain保护的原加密签名材料。不得换密钥、降低验签或将私钥放参数/聊天/环境。先上传Draft并下载复核，再公开预发布，不替换Stable。已发布beta.3至beta.6标签及签名包固定；后续文档提交不覆盖它们，代码修复另发新版本。
 
 ## 验收边界
 
