@@ -153,10 +153,10 @@ export class SoftwareUpdates {
     }).finally(() => { this.staging = null; });
     return this.status();
   }
-  async approve(acknowledgement) {
+  async approve(acknowledgement, { manual = false } = {}) {
     if (this.stopped || !this.manager?.approve || this.staging) throw new UpdateError('update_stage_unavailable');
     const p = await this.preferences();
-    if (!p.autoInstall) throw new UpdateError('install_disabled');
+    if (!p.autoInstall && !manual) throw new UpdateError('install_disabled');
     if (acknowledgement !== 'saved-and-all-tasks-ended') throw new UpdateError('install_operator_confirmation_required');
     let identity;
     try { identity = await this.manager.stagedIdentity?.(); }

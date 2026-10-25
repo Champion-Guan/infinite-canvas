@@ -1,0 +1,34 @@
+diff --git a/web/src/components/layout/version-release-modal.tsx b/web/src/components/layout/version-release-modal.tsx
+index 9f9658a..1b89e4b 100644
+--- a/web/src/components/layout/version-release-modal.tsx
++++ b/web/src/components/layout/version-release-modal.tsx
+@@ -4,8 +4,9 @@ import type { TFunction } from "i18next";
+ import { useTranslation } from "react-i18next";
+ import { useVersionCheck } from "@/hooks/use-version-check";
+ import { formatDisplayVersion } from "@/constant/env";
+-import { installationMessages, updateMessages, updateRequest } from "@/扩展功能/软件更新/软件更新客户端";
++import { updateMessages, updateRequest } from "@/扩展功能/软件更新/软件更新客户端";
+ import { useSettingsViewport } from "@/扩展功能/存储界面/设置视区";
++import { OnlineInstallActions } from "@/扩展功能/软件更新/在线安装操作";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+
+ function getTagColor(type: string) {
+@@ -79,15 +80,11 @@ export function VersionReleaseModal({ className, style, label }: VersionReleaseM
+                 </div>
+                 <div data-guan-version-update-actions className="guan-update-timeline mb-5 space-y-2">
+                     <div className="flex flex-wrap gap-2">
+-                        <Button loading={downloading} disabled={!hasNewVersion || downloading || status?.download.state === "verified" || status?.download.state === "trust-not-configured"} onClick={() => void download()}>下载更新</Button>
+-                        <Button type="primary" disabled title="当前源码开发模式尚不支持 Web 自动安装">安装更新</Button>
++                        <Button loading={downloading} disabled={!hasNewVersion || downloading || status?.download.state === "verified" || status?.download.state === "trust-not-configured"} onClick={() => void download()}>{status?.download.state === "verified" ? "已下载并验证" : "下载更新"}</Button>
+                     </div>
+                     {downloading ? <Progress percent={status?.download.progress || 0} size="small" /> : null}
+-                    <div role="status" className="text-xs leading-5 text-stone-600 dark:text-stone-300">
+-                        下载：{updateMessages[status?.download.error || status?.download.state || "idle"] || "下载未完成"} · 安装：{installationMessages[status?.install.state || "unavailable"] || "状态尚未确认"}
+-                        {status?.install.reason || status?.install.stageError ? <div>{updateMessages[status.install.stageError || status.install.reason || ""] || "安装条件尚未满足，原版本保留"}</div> : null}
+-                    </div>
+-                    <div className="text-xs leading-5 text-stone-500 dark:text-stone-400">当前源码开发模式只检查及下载可信签名包；Web 自动安装尚未支持。</div>
++                    <div role="status" className="text-xs leading-5 text-stone-600 dark:text-stone-300">下载：{updateMessages[status?.download.error || status?.download.state || "idle"] || "下载未完成"}</div>
++                    <OnlineInstallActions status={status} refresh={refresh} />
+                     {status?.latest?.publishedAt ? <div className="text-xs text-stone-500 dark:text-stone-400">发布时间：{new Date(status.latest.publishedAt).toLocaleString()}</div> : null}
+                 </div>
+                 <div className="overflow-y-auto pr-2" style={{ maxHeight: viewport ? "56cqh" : "56vh" }}>

@@ -58,7 +58,7 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
       let input; try { input = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new UpdateError('invalid_request'); }
       if (!input || typeof input !== 'object' || Array.isArray(input)) throw new UpdateError('invalid_request');
       const { operation, preferences, taskId, acknowledgement, ...extra } = input;
-      if (Object.keys(extra).length || !['status', 'check', 'download', 'preferences', 'stage', 'approve', 'defer', 'confirm-no-result'].includes(operation) ||
+      if (Object.keys(extra).length || !['status', 'check', 'download', 'preferences', 'stage', 'approve', 'approve-manual', 'defer', 'confirm-no-result'].includes(operation) ||
         (operation !== 'preferences' && preferences !== undefined) || (operation !== 'confirm-no-result' && (taskId !== undefined || acknowledgement !== undefined)) ||
         operation === 'confirm-no-result' && (!jobLike(taskId) || acknowledgement !== NO_RESULT_ACK || !generation?.confirmNoResult)) throw new UpdateError('invalid_request');
       await authorize(request);
@@ -70,6 +70,7 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
       else if (operation === 'download') await updates.download();
       else if (operation === 'stage') await updates.stage();
       else if (operation === 'approve') await updates.approve('saved-and-all-tasks-ended');
+      else if (operation === 'approve-manual') await updates.approve('saved-and-all-tasks-ended', { manual: true });
       else if (operation === 'defer') await updates.defer();
       else if (operation === 'confirm-no-result') await generation.confirmNoResult(taskId, acknowledgement);
       await authorize(request);

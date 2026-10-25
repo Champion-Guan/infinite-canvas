@@ -886,7 +886,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/components/layout/config-software-updates.tsx",
       "原SHA256": "ea23272cddcb7651b63debcc4b6f08bd32046c9df038a8d7eb2e5004275a46e6",
       "类型": "前端",
-      "SHA256": "6b7b22c4bc53a614419123017efd91762969f85eea72e7d70ab45eb833df31ab"
+      "SHA256": "35c3cb9f26bc2808c50152c1b90882862ec93e915762bc5bf5aeb1749926b6d1"
     },
     {
       "来源": "扩展功能/生成历史/生成历史页签.tsx",
@@ -966,7 +966,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/services/software-updates.ts",
       "原SHA256": "989457a1f608e4d5c27ce19308cf2ed5d26cabfe63dbc4595851778073b24f23",
       "类型": "前端",
-      "SHA256": "84f73ce4a74c0e07a7a297bac0928c2433540a43acb61c02ea09fd771bd35cad"
+      "SHA256": "abec062f57a66410d2b29e48610645618875fab16deea96aee4df2b281f2c6ef"
     },
     {
       "来源": "扩展功能/生成历史/媒体文件扩展.js",
@@ -1454,7 +1454,7 @@
       "原位置": ".运行/3100源/画布副本/扩展功能/软件更新/software-updates.mjs",
       "原SHA256": "31fb881528a914d90f0a04f1bfc65b869c2384b63577081a82eb55a8bc08b052",
       "类型": "服务",
-      "SHA256": "c9ff7e182819c5156b2d0a4d8557b5741e668a62217f80b9d392fc3398b5f1e3"
+      "SHA256": "afd90299f9179eb1357bb55eedb08f43fc1a9f974a5ca5fa7ff51fdd59283e0f"
     },
     {
       "来源": "扩展功能/软件更新/stable-download.mjs",
@@ -1510,7 +1510,7 @@
       "原位置": ".运行/3100源/画布副本/扩展功能/软件更新/更新服务装配.mjs",
       "原SHA256": "3cef3ac1126e071479e35e69fc8e2e282609d3c127cd497b67e4413f4f0d1512",
       "类型": "服务",
-      "SHA256": "2172fe198a888ee874f1bd17b9fba5a0214c609925c94d9247cc2d9cfffc5e42"
+      "SHA256": "61212db569276da3b1e7b6c687eb2836aaddf2f62ccc0e9cb0321cac3e9de69c"
     },
     {
       "来源": "扩展功能/本机存储/SQLite工作区.mjs",
@@ -2317,6 +2317,13 @@
       "原位置": "新增画布等值保存模块",
       "类型": "前端",
       "SHA256": "4ef172faa7fcccb3e4ac737fa16c36c348560fab2b2693118a7cf6024a267a5a"
+    },
+    {
+      "来源": "扩展功能/软件更新/在线安装操作.tsx",
+      "目标": "画布副本/web/src/扩展功能/软件更新/在线安装操作.tsx",
+      "原位置": "新增共享在线安装操作模块",
+      "类型": "前端",
+      "SHA256": "2a874a08abbdfea4d4ef7af3dcf919e365f480154f881b71932a898e766bd6fc"
     }
   ],
   "接入差异": [
@@ -3608,6 +3615,14 @@
       "SHA256": "53ec3ef92b4b0f945cf8a1df13af930040bad77139897f13ec6184c338b924b0",
       "前态SHA256": "f7a1906d1f6b095862e0c6fb6b8225f67733204aa29e533b008e41a4e7263ec2",
       "后态SHA256": "7b3fde5c03c030aeefda165a25e955cf5274c309b650963b1855e2e8cd472ea8"
+    },
+    {
+      "文件": "上游适配/版本弹窗在线安装接入.patch",
+      "目标": "web/src/components/layout/version-release-modal.tsx",
+      "职责": "版本弹窗在线安装接入",
+      "SHA256": "47a6978b00f3d1400f0c3a16aef4048ce1d6fef6b84784b5bc7dabb11f52f711",
+      "前态SHA256": "dbd2313f95032125b05368a004163e5b82224e0705ce01b10582fdfb64a0337d",
+      "后态SHA256": "f68c5a09cd6815dcdb417df6d7c59dec5571a9353f4c572bbe4a5ecc60fe91bf"
     }
   ]
 }

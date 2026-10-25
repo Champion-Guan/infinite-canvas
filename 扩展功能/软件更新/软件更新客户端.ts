@@ -61,7 +61,7 @@ export const installationMessages: Record<string, string> = {
     starting: "正在隔离启动", committed: "版本事务已提交", "rolling-back": "正在恢复旧版", "rolled-back": "已恢复旧版",
     "awaiting-browser-exit": "已确认，等待工作台页面关闭", "confirmation-required": "等待本次更新确认", deferred: "已选择稍后安装",
 };
-export async function updateRequest(operation: "status" | "check" | "download" | "preferences" | "stage" | "approve" | "defer" | "confirm-no-result", input?: Partial<UpdatePreferences> | { taskId: string; acknowledgement: "upstream-ended-without-result" }): Promise<SoftwareUpdateStatus> {
+export async function updateRequest(operation: "status" | "check" | "download" | "preferences" | "stage" | "approve" | "approve-manual" | "defer" | "confirm-no-result", input?: Partial<UpdatePreferences> | { taskId: string; acknowledgement: "upstream-ended-without-result" }): Promise<SoftwareUpdateStatus> {
     const host = (window as unknown as { __guanUpdateHost?: { request(operation: string, input?: unknown): Promise<SoftwareUpdateStatus> } }).__guanUpdateHost;
     if (!host) throw new Error("本机更新服务未连接，请刷新工作台页面");
     try { return await host.request(operation, input); }
