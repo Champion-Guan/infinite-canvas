@@ -45,7 +45,7 @@ function readStaticBundle(directory) {
 
 // 日常入口从3000顺延；保留旧客户管理器要求的固定3100兼容入口。
 // storage由可信启动工具装配同一个已批准的四文件包，避免跨模块StorageError身份漂移。
-export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, initialize = false, storage, credentialKeyProvider, endpoint = { hostname: '127.0.0.1', port: 0 }, networkProxyOptions = {}, softwareUpdateOptions = {}, deferActivation = false } = {}) {
+export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, initialize = false, storage, credentialKeyProvider, endpoint = { hostname: '127.0.0.1', port: 0 }, networkProxyOptions = {}, initialProxyConfiguration, softwareUpdateOptions = {}, deferActivation = false, onWorkspaceReady } = {}) {
   requireValue(typeof webRoot === 'string' && typeof dataRoot === 'string' && isAbsolute(dataRoot) && typeof initialize === 'boolean' &&
     typeof storage?.openWorkspace === 'function' && typeof storage?.startDataService === 'function' && typeof credentialKeyProvider?.read === 'function' && typeof credentialKeyProvider?.create === 'function', 'invalid_launcher_config', '必须明确传入静态产物、独立数据根及完整存储装配。');
   requireValue(endpoint && typeof endpoint === 'object' && !Array.isArray(endpoint) &&
@@ -123,17 +123,18 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
     await listenWorkbench(server, port, { automatic: port === DEFAULT_WORKBENCH_PORT });
     const origin = 'http://' + hostname + ':' + server.address().port;
     workspace = storage.openWorkspace({ dataRoot, initialize });
+    if (onWorkspaceReady) await onWorkspaceReady(workspace);
     credentialPort = await openSQLiteCredentialVault({ workspace, keyProvider: credentialKeyProvider, initialize });
     service = await storage.startDataService({ workspace, allowedOrigins: [origin] });
     requireValue(typeof service.createBackup === 'function', 'write_coordination_required', '必须装配已批准的写入/备份协调服务。');
-    backup = createBackupCoordinator({ workspaceId: workspace.workspaceId, createBackup: () => service.createBackup() });
-    // 首份真实快照失败就拒绝启动，不给浏览器授权，也不渲染默认空画布。
+    backup = createBackupCoordinator({ workspaceId: workspace.workspaceId, automatic: false, createBackup: () => service.createBackup() });
+    // 用户关闭自动备份；启动、定时及升级均不自动复制工作区。
     await backup.start();
     controller = createSessionController({ service, origin });
     gateway = createLocalAuthorizationGateway({ origin, dataURL: service.url, controller, credentialPort });
     requireValue(typeof service.runTrustedWrite === 'function', 'generation_write_coordination_required', '生成任务需要同一写入协调。');
     networkProxy = await assembleNetworkProxyService({ workspace, vault: credentialPort, origin, runTrustedWrite: operation => service.runTrustedWrite(operation), authorize: request => gateway.assertGenerationPage(request),
-      runtimeOptions: { runtimeParent: join(realpathSync(tmpdir()), 'ai-workbench-proxy-' + workspace.workspaceId), ...networkProxyOptions } });
+      runtimeOptions: { runtimeParent: join(realpathSync(tmpdir()), 'ai-workbench-proxy-' + workspace.workspaceId), ...networkProxyOptions }, initialConfiguration: initialProxyConfiguration });
     generation = await assembleGenerationService({ workspace, networkProxy, vault: credentialPort, origin, runTrustedWrite: operation => service.runTrustedWrite(operation), authorize: request => gateway.assertGenerationPage(request) });
     updates = assembleSoftwareUpdates({ ...softwareUpdateOptions, dataRoot, origin, networkProxy, generation, authorize: request => gateway.assertGenerationPage(request) });
     updates.start();
@@ -157,7 +158,7 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
           requireValue(status.authorizedPages === 0 && status.pendingTickets === 0 && status.activeRequests === 0,
             'install_browsers_running', '请保存并关闭工作台页面，其他网站可继续使用。', 409);
           generation.assertCanUpdate(); networkProxy.assertCanClose();
-          await service.createBackup();
+          await backup.request('before-maintenance');
           if (!closing) closing = cleanup();
           await closing;
         } catch (error) { if (server.listening) { ready = true; closing = null; updates?.start(); } throw error; }

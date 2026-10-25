@@ -1,9 +1,10 @@
 import { homedir } from 'node:os';
-import { join, dirname } from 'node:path';
-import { lstat, mkdir, readFile, open, rename, cp, readdir, unlink } from 'node:fs/promises';
-import { randomUUID } from 'node:crypto';
+import { join } from 'node:path';
+import { lstat, mkdir, readFile, cp, readdir, rm } from 'node:fs/promises';
 import { verifySignedWebDirectory } from './Web安装包核验.mjs';
 import { WEB_APP, WEB_ORIGIN, fail } from './Web发布协议.mjs';
+import { 检查目录容量, 读取目录字节 } from '../本机服务/目录容量限制.mjs';
+import { writePrivateFile } from '../软件更新/runtime-paths.mjs';
 
 export const webInstallPaths = () => {
   const root = join(homedir(), 'Library/Application Support/AI-Workbench-Web安装');
@@ -15,17 +16,9 @@ export async function privateDirectory(path) {
   if (!s.isDirectory() || s.isSymbolicLink() || s.uid !== process.getuid() || s.mode & 0o077) fail('web_install_root_invalid');
 }
 export async function writeState(file, value) {
-  const temporary = file + '.' + randomUUID();
-  const handle = await open(temporary, 'wx', 0o600);
-  try {
-    await handle.writeFile(JSON.stringify(value, null, 2) + '\n');
-    await handle.sync();
-  } finally { await handle.close(); }
-  try {
-    await rename(temporary, file);
-    const directory = await open(dirname(file), 'r');
-    try { await directory.sync(); } finally { await directory.close(); }
-  } finally { await unlink(temporary).catch(error => { if (error.code !== 'ENOENT') throw error; }); }
+  const serialized = JSON.stringify(value, null, 2) + '\n';
+  if (Buffer.byteLength(serialized) > 16384) fail('update_state_invalid');
+  await writePrivateFile(file, serialized);
 }
 export async function readState(file) {
   try {
@@ -47,13 +40,20 @@ export async function installWebDirectory(source, paths = webInstallPaths(), opt
   const verified = await verifySignedWebDirectory(source, options);
   await privateDirectory(paths.root); await privateDirectory(paths.versions);
   if (await readState(paths.lock)) fail('web_service_running');
-  // 首次安装不替换旧指针；升级必须经过独立管理器和关闭/备份事务。
+  // 首次安装不替换旧指针；升级必须经过独立管理器和安全停服事务。
   if (await readState(paths.state)) fail('web_use_update_flow');
   const identity = versionIdentity(verified.inventory), destination = versionPath(paths, identity);
+  检查目录容量(paths.versions, { maxBytes: 2 * 1024 ** 3, incomingBytes: 读取目录字节(source, { maxBytes: 512 * 1024 ** 2 }), reserveBytes: 1024 ** 3 });
+  // 只删除本次独占创建且尚未提交指针的目录，不碰已有版本。
+  await mkdir(destination, { mode: 0o700 });
+  let committed = false;
+  try {
   await cp(source, destination, { recursive: true, force: false, errorOnExist: true, dereference: false });
   await verifySignedWebDirectory(destination, options);
   await writeState(paths.state, { app: WEB_APP, phase: 'committed', current: identity, workspaceId: null });
+  committed = true;
   return { identity, destination };
+  } finally { if (!committed) await rm(destination, { recursive: true, force: true }); }
 }
 export async function copyStableHelper(packageRoot, inventory) {
   const parent = join(homedir(), 'Library/Application Support/AI-Workbench-Web系统助手');

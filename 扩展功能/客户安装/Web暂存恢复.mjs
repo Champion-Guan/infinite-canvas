@@ -1,10 +1,11 @@
-import { lstat, rename } from 'node:fs/promises';
+import { lstat, rename, rm } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { compareVersions } from '../软件更新/stable-version.mjs';
 import { extractSignedWebPackage, verifySignedWebDirectory } from './Web安装包核验.mjs';
 import { readState, writeState, versionIdentity, versionPath } from './Web安装目录.mjs';
 import { WEB_APP, WEB_REPOSITORY, exact, fail, sha256 } from './Web发布协议.mjs';
+import { 检查目录容量 } from '../本机服务/目录容量限制.mjs';
 
 const file = paths => join(paths.root, '待安装版本.json');
 const manifestHash = verified => sha256(Buffer.from(JSON.stringify(verified.manifest)));
@@ -29,8 +30,10 @@ export async function stageWebPackage({ paths, workspaceId, current, identity, d
   if (typeof workspaceId !== 'string' || !workspaceId) fail('update_stage_invalid');
   const info = await lstat(download);
   if (!info.isDirectory() || info.isSymbolicLink() || info.uid !== process.getuid() || info.mode & 0o077) fail('update_stage_invalid');
-  // 失败残留保留供追溯；随机暂存路径允许安全重试，禁止覆盖既有版本。
+  // 安装版本总量有上限，失败或重复暂存的解压副本立即回收。
+  检查目录容量(paths.versions, { maxBytes: 2 * 1024 ** 3, incomingBytes: 512 * 1024 ** 2, reserveBytes: 1024 ** 3 });
   const destination = join(paths.versions, '暂存-' + randomUUID());
+  try {
   const verifyOptions = { ...options, repository: WEB_REPOSITORY, releaseVersion: identity.version, currentVersion: current.version };
   const verified = await extractSignedWebPackage(download, destination, verifyOptions), next = versionIdentity(verified.inventory);
   const target = versionPath(paths, next);
@@ -42,4 +45,5 @@ export async function stageWebPackage({ paths, workspaceId, current, identity, d
   } else await rename(destination, target);
   await writeState(file(paths), { app: WEB_APP, workspaceId, identity, next, manifestHash: manifestHash(verified) });
   return { identity, next };
+  } finally { await rm(destination, { recursive: true, force: true }); }
 }

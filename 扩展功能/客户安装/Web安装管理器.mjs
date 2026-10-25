@@ -8,6 +8,8 @@ import { WEB_APP, fail } from './Web发布协议.mjs';
 import { switchWebVersion } from './Web版本事务.mjs';
 import { restoreWebStage, stageWebPackage, validateStageIdentity } from './Web暂存恢复.mjs';
 import { isWorkbenchOrigin } from '../本机服务/工作台端口.mjs';
+import { 清理过期安装版本, 清理已完成Web安装 } from './安装版本清理.mjs';
+import { 创建有界日志流 } from '../本机服务/有界运行日志.mjs';
 
 export function processIdentity(pid) {
   try { return { pid, command: execFileSync('/bin/ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8' }).trim(),
@@ -20,6 +22,7 @@ export function ownedProcess(record) {
 }
 export async function runWebSupervisor(paths = webInstallPaths()) {
   await privateDirectory(paths.root); await privateDirectory(paths.versions);
+  const log = 创建有界日志流(paths.log);
   let state = await readState(paths.state);
   if (state?.app !== WEB_APP || !['committed', 'rolled-back'].includes(state.phase)) fail('update_recovery_required');
   const owner = processIdentity(process.pid), lock = await open(paths.lock, 'wx', 0o600);
@@ -66,7 +69,8 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
     const verified = await verify(identity), packageRoot = versionPath(paths, identity);
     childStatus = null; childStopped = false;
     const proc = spawn(join(packageRoot, 'runtime/node'), [join(packageRoot, '扩展功能/客户安装/Web客户服务.mjs')], {
-      cwd: packageRoot, stdio: ['ignore', 'inherit', 'inherit', 'ipc'], env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8', GUAN_WEB_PORT_POLICY: 'automatic-v1' } });
+      cwd: packageRoot, stdio: ['ignore', 'pipe', 'pipe', 'ipc'], env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8', GUAN_WEB_PORT_POLICY: 'automatic-v1' } });
+    proc.stdout.pipe(log, { end: false }); proc.stderr.pipe(log, { end: false });
     child = proc;
     return await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(Error('web_start_timeout')), 60000);
@@ -101,9 +105,15 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
     });
   }
   try {
+    await 清理过期安装版本(paths, { clearInterrupted: true });
     const ready = await start(current);
     if (state.workspaceId && state.workspaceId !== ready.workspaceId) fail('web_health_mismatch');
     await save({ ...state, workspaceId: ready.workspaceId });
+    const cleanupDownloads = async () => {
+      try { await 清理已完成Web安装(paths, join(dailyWorkbenchPaths().dataRoot, 'software-updates/packages')); }
+      catch (error) { log.write('更新包清理未完成：' + (error.code || 'download_storage_failed') + '\n'); }
+    };
+    await cleanupDownloads();
     try {
       staged = await restoreWebStage(paths, ready.workspaceId, current);
       if (staged) { phase = 'staged'; targetVersion = staged.next.version; }
@@ -113,7 +123,12 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
       installing = true; approved = false;
       void switchWebVersion({ previous: current, target: staged.next, workspaceId: state.workspaceId, verify, save,
         stop: () => stop(true), start, report: next => { phase = next; reason = null; } })
-        .then(result => { current = result.current; reason = result.error || null; staged = null; })
+        .then(async result => {
+          current = result.current; reason = result.error || null; staged = null;
+          if (!result.rolledBack) {
+            await cleanupDownloads();
+          }
+        })
         .catch(error => { phase = 'blocked'; reason = error.code || 'update_activation_unconfirmed'; })
         .finally(() => { installing = false; });
     }, 1000);
@@ -124,6 +139,7 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
     };
     for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(signal, () => void shutdown());
   } catch (error) {
+    log.write('安装管理器停止：' + (error.code || 'web_start_failed') + '\n');
     try { await stop(false); await unlink(paths.lock); } catch { /* 未确认退出时保留锁与事务 */ }
     throw error;
   }

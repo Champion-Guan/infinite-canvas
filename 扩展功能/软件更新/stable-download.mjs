@@ -1,11 +1,12 @@
 import path from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
-import { open, rename, unlink, statfs } from 'node:fs/promises';
+import { open, rename, rm, statfs } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { privateDirectory, writePrivateFile } from './runtime-paths.mjs';
 import { verifyStableManifest } from './stable-manifest.mjs';
 import { STABLE_TRUSTED_KEYS } from './stable-trust.mjs';
 import { UpdateError } from './update-auth.mjs';
+import { 检查更新缓存, 查找已验证更新缓存, 清理更新缓存 } from './更新缓存限制.mjs';
 
 // 注入下载端口时无需装载网络客户端；真实下载仍使用同一个受限实现。
 const readReleaseAsset = async options => (await import('./github-assets.mjs')).readReleaseAsset(options);
@@ -22,6 +23,7 @@ export class StableDownload {
     if (this.state.state !== 'verified' || this.state.repository !== repository || !this.verified) throw new UpdateError('update_stage_unavailable');
     return { repository, version: this.verified.manifest.version, downloadId: path.basename(this.verified.directory) };
   }
+  cleanup(currentVersion) { return 清理更新缓存(this.directory, { currentVersion, manifestNames: this.manifestNames }); }
   cancel() { this.controller?.abort(); }
   failure(repository, error) { if (!this.pending) this.state = { repository, state: 'error', progress: 0, error }; }
   download(options) {
@@ -61,12 +63,21 @@ export class StableDownload {
     const packageAsset = asset(selected.name);
     if (packageAsset.size !== selected.size) throw new UpdateError('release_assets_invalid');
     await privateDirectory(this.directory);
+    const cached = await 查找已验证更新缓存(this.directory, selected, bytes, signature, this.manifestNames);
+    // 换版本前回收旧包；同版本只复用这一份，不再为每次点击新建缓存。
+    await 清理更新缓存(this.directory, { keep: cached ? path.basename(cached) : null });
+    if (cached) {
+      this.verified = { directory: cached, manifest, selected };
+      this.state.state = 'verified'; this.state.progress = 100;
+      return;
+    }
+    检查更新缓存(this.directory, selected.size + bytes.length + signature.length);
     const space = await this.freeSpace();
     if (!Number.isFinite(space) || space < selected.size + 32 * 1024 * 1024) throw new UpdateError('disk_space_insufficient');
     const destination = path.join(this.directory, 'verified-' + randomUUID());
     await privateDirectory(destination);
     const part = path.join(destination, 'package.part'), final = path.join(destination, 'package.zip');
-    let handle;
+    let handle, completed = false;
     try {
       handle = await open(part, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
       const hash = createHash('sha256'); let count = 0;
@@ -88,6 +99,10 @@ export class StableDownload {
       // No install permit or browser-visible filesystem path. Phase 5 must
       // reverify bytes and archive structure immediately before installation.
       this.verified = { directory: destination, manifest, selected };
-    } finally { await handle?.close(); await unlink(part).catch(e => { if (e.code !== 'ENOENT') throw e; }); }
+      completed = true;
+    } finally {
+      try { await handle?.close(); }
+      finally { if (!completed) await rm(destination, { recursive: true, force: true }); }
+    }
   }
 }

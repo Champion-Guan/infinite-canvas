@@ -8,7 +8,7 @@ export async function switchWebVersion({ previous, target, workspaceId, save, st
     target.dataSchema !== 1 || target.origin !== WEB_ORIGIN || previous.origin !== WEB_ORIGIN) fail('web_migration_required');
   await verify(target);
   await save({ phase: 'prepared', current: previous, target, workspaceId });
-  // stop须原子冻结新授权、核实零页面和原生任务、完成备份并释放SQLite锁。
+  // stop须原子冻结新授权、核实零页面和原生任务，排空保存并释放SQLite锁；遵循自动备份开关。
   try { await stop(); }
   catch (error) {
     if (['install_browsers_running', 'install_tasks_pending', 'generation_busy', 'proxy_busy'].includes(error.code)) {

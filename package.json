@@ -31,7 +31,8 @@
     "web:build": "node 开发工具/构建Web客户包.mjs",
     "web:test-update": "node --test 开发工具/Web客户更新边界.test.mjs",
     "web:sign": "node 开发工具/签名Web客户包.mjs",
-    "web:publish-preview": "node 开发工具/发布Web预览版.mjs"
+    "web:publish-preview": "node 开发工具/发布Web预览版.mjs",
+    "test:disk-guards": "node --test 开发工具/磁盘写入保护.test.mjs 开发工具/Web客户更新边界.test.mjs 开发工具/Web构建缓存清理.test.mjs 开发工具/自动备份.test.mjs 开发工具/本机存储.test.mjs 开发工具/异常退出写盘.test.mjs 开发工具/升级遗留清理.test.mjs"
   },
   "engines": {
     "node": ">=18"

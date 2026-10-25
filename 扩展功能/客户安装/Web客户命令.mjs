@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { readFile, writeFile, chmod, open } from 'node:fs/promises';
+import { readFile, writeFile, chmod } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { webInstallPaths, readState, versionPath, installWebDirectory } from './Web安装目录.mjs';
@@ -46,10 +46,9 @@ export async function customerCommand(operation) {
     if (!state?.current) fail('web_install_required');
     const packageRoot = versionPath(paths, state.current);
     await verifySignedWebDirectory(packageRoot, { releaseVersion: state.current.version });
-    const log = await open(paths.log, 'a', 0o600);
     const child = spawn(join(packageRoot, 'runtime/node'), [join(packageRoot, '扩展功能/客户安装/Web客户命令.mjs'), 'supervisor'], {
-      cwd: packageRoot, detached: true, stdio: ['ignore', log.fd, log.fd], env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8' } });
-    child.unref(); await log.close();
+      cwd: packageRoot, detached: true, stdio: 'ignore', env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8' } });
+    child.unref();
     return waitWebAddress(paths, ownedProcess);
   }
   if (operation === 'stop') {

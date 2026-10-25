@@ -3,12 +3,15 @@ import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, cpSync, chmodSync, rmSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { 装配开发源码 } from './装配开发源码.mjs';
 import { inventoryWebFiles } from '../扩展功能/客户安装/Web安装包核验.mjs';
 import { WEB_APP, WEB_REPOSITORY, WEB_ORIGIN, packageName, sha256 } from '../扩展功能/客户安装/Web发布协议.mjs';
 import { readWebArchive } from '../扩展功能/客户安装/Web压缩包读取.mjs';
 import { webSourceSnapshot, assertWebReleaseSource } from './Web发布源码核对.mjs';
+import { 执行有界构建命令 } from './有界构建进程.mjs';
+import { 占用Web构建目录 } from './Web构建占用保护.mjs';
+import { 清理Web构建缓存, 清理Web构建临时依赖, 清理Web失败构建 } from './清理Web构建缓存.mjs';
 
 const sourceRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const json = file => JSON.parse(readFileSync(file, 'utf8'));
@@ -22,7 +25,12 @@ export async function buildWebPackage({ root = sourceRoot, runtimeDirectory, ups
   let releaseReady = true;
   try { assertWebReleaseSource(root, commit, sourceSHA256); } catch { releaseReady = false; }
   const outputParent = join(root, '.运行/Web客户包'); mkdirSync(outputParent, { recursive: true, mode: 0o700 });
-  const output = mkdtempSync(join(outputParent, '构建-')), source = join(output, '装配来源'), active = join(source, '画布副本');
+  const releaseBuild = 占用Web构建目录(outputParent);
+  let output;
+  try { output = mkdtempSync(join(outputParent, '构建-')); } catch (error) { releaseBuild(); throw error; }
+  try {
+  const buildEnv = { ...process.env, npm_config_cache: join(output, '构建缓存/npm'), npm_config_update_notifier: 'false', npm_config_logs_max: '0' };
+  const source = join(output, '装配来源'), active = join(source, '画布副本');
   mkdirSync(active, { recursive: true, mode: 0o700 });
   if (!upstreamDirectory) {
     upstreamDirectory = resolve(root, baseline.目录);
@@ -50,18 +58,13 @@ export async function buildWebPackage({ root = sourceRoot, runtimeDirectory, ups
   const assembled = 装配开发源码({ root, activeDirectory: source, runtimeDirectory: record, upstreamDirectory });
   const web = join(active, 'web');
   for (const [name, target] of [['Web前端依赖.json', 'package.json'], ['Web前端依赖锁.json', 'package-lock.json']]) cpSync(join(root, '开发工具', name), join(web, target));
-  execFileSync('npm', ['ci', '--legacy-peer-deps', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: web, stdio: 'pipe', timeout: 300000 });
+  await 执行有界构建命令('npm', ['ci', '--legacy-peer-deps', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: web, env: buildEnv, budgetDirectory: outputParent, timeout: 300000 });
   const require = createRequire(join(web, 'package.json'));
-  execFileSync(process.execPath, [require.resolve('typescript/bin/tsc'), '--noEmit', '--incremental', 'false'], { cwd: web, stdio: 'pipe', timeout: 120000 });
-  const { build } = await import(pathToFileURL(require.resolve('vite')).href);
+  await 执行有界构建命令(process.execPath, [require.resolve('typescript/bin/tsc'), '--noEmit', '--incremental', 'false'], { cwd: web, budgetDirectory: outputParent, timeout: 120000 });
   writeFileSync(join(active, 'VERSION'), release.版本 + '\n');
   const stage = join(output, packageName(release.版本).replace(/\.zip$/, ''));
   mkdirSync(stage, { mode: 0o700 });
-  const oldBase = process.env.VITE_BASE; process.env.VITE_BASE = '/';
-  try { await build({ root: web, configFile: join(web, 'vite.config.ts'), envDir: false, envPrefix: '__GUAN_NO_PUBLIC_ENV__',
-    cacheDir: join(output, '构建缓存'), logLevel: 'warn', build: { outDir: join(stage, 'web'), emptyOutDir: false },
-    css: { postcss: { plugins: [require('@tailwindcss/postcss')({ base: join(web, 'src') })] } } }); }
-  finally { if (oldBase === undefined) delete process.env.VITE_BASE; else process.env.VITE_BASE = oldBase; }
+  await 执行有界构建命令(process.execPath, [join(root, '开发工具/构建Web前端.mjs'), '客户', web, join(output, '构建缓存'), join(stage, 'web')], { budgetDirectory: outputParent, timeout: 120000 });
   const copied = new Set();
   // 后端以完成替换的装配结果为准；目标路径必须位于固定扩展目录。
   for (const item of json(join(root, '上游适配/开发源码映射.json')).文件) {
@@ -73,7 +76,7 @@ export async function buildWebPackage({ root = sourceRoot, runtimeDirectory, ups
     cpSync(join(source, item.目标), target); chmodSync(target, 0o600);
   }
   for (const [name, target] of [['Web运行依赖.json', 'package.json'], ['Web运行依赖锁.json', 'package-lock.json']]) cpSync(join(root, '开发工具', name), join(stage, target));
-  execFileSync('npm', ['ci', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: stage, stdio: 'pipe', timeout: 300000 });
+  await 执行有界构建命令('npm', ['ci', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: stage, env: buildEnv, budgetDirectory: outputParent, timeout: 300000 });
   rmSync(join(stage, 'node_modules/.bin'), { recursive: true, force: true });
   cpSync(join(active, 'LICENSE'), join(stage, '上游许可.txt'));
   writeFileSync(join(stage, '扩展功能/VERSION'), release.版本 + '\n', { mode: 0o600 });
@@ -87,7 +90,7 @@ export async function buildWebPackage({ root = sourceRoot, runtimeDirectory, ups
   chmodSync(join(stage, 'runtime/node'), 0o700);
   const helper = join(stage, '系统助手/系统钥匙串'), swift = join(root, '扩展功能/本机凭据/系统钥匙串.swift');
   mkdirSync(dirname(helper), { mode: 0o700 });
-  execFileSync('/usr/bin/swiftc', ['-warnings-as-errors', '-O', '-module-cache-path', join(root, '.运行/WebSwift缓存'), '-o', helper, swift], { timeout: 300000, stdio: 'pipe' });
+  await 执行有界构建命令('/usr/bin/swiftc', ['-warnings-as-errors', '-O', '-module-cache-path', join(output, 'Swift缓存'), '-o', helper, swift], { budgetDirectory: outputParent, timeout: 300000 });
   chmodSync(helper, 0o700);
   // 链接自检只加载服务模块，不打开端口、数据库或Keychain。
   execFileSync(join(stage, 'runtime/node'), ['--input-type=module', '-e', "await Promise.all([import('./扩展功能/本机服务/日常工作台.mjs'), import('./扩展功能/客户安装/Web安装管理器.mjs')]); try { await import('./扩展功能/客户安装/Web客户服务.mjs'); throw Error('服务绕过管理器运行'); } catch(e) { if(e.message !== 'Web客户服务必须由独立管理器启动。') throw e; }"], { cwd: stage, stdio: 'pipe', timeout: 30000 });
@@ -106,7 +109,7 @@ export async function buildWebPackage({ root = sourceRoot, runtimeDirectory, ups
     dataSchema: 1, origin: WEB_ORIGIN, helper: { sha256: sha256(readFileSync(helper)), sourceSHA256: sha256(readFileSync(swift)) }, files: await inventoryWebFiles(stage) };
   save(join(stage, '工作台发布.json'), inventory);
   const archiveFile = join(output, packageName(release.版本));
-  execFileSync('/usr/bin/zip', ['-qr', archiveFile, dirname(stage) === output ? stage.slice(output.length + 1) : ''], { cwd: output, stdio: 'pipe' });
+  await 执行有界构建命令('/usr/bin/zip', ['-qr', archiveFile, dirname(stage) === output ? stage.slice(output.length + 1) : ''], { cwd: output, budgetDirectory: outputParent, timeout: 120000 });
   const bytes = readFileSync(archiveFile); readWebArchive(bytes, { trustedRuntime: runtime });
   assert.deepEqual(webSourceSnapshot(root), sourceSHA256, '构建期间源码发生变化，请重新构建');
   if (releaseReady) assertWebReleaseSource(root, commit, sourceSHA256);
@@ -114,7 +117,15 @@ export async function buildWebPackage({ root = sourceRoot, runtimeDirectory, ups
     nodeVersion: runtime.nodeVersion, runtimeSha256: runtime.runtimeSha256, runtimeSize: runtime.runtimeSize };
   const result = { archive: archiveFile, stage, version: release.版本, commit, inventorySHA256: sha256(readFileSync(join(stage, '工作台发布.json'))),
     descriptor, sourceFingerprint: assembled.指纹, sourceSHA256, releaseReady, signed: false };
-  save(join(output, '构建结果.json'), result); return result;
+  save(join(output, '构建结果.json'), result);
+  清理Web构建缓存(output);
+  return result;
+  } finally {
+    try {
+      if (existsSync(join(output, '构建结果.json'))) 清理Web构建临时依赖(output);
+      else 清理Web失败构建(output);
+    } finally { releaseBuild(); }
+  }
 }
 if (resolve(process.argv[1] || '') === fileURLToPath(import.meta.url)) {
   assert.equal(process.argv.length, 3, '传入已经核验的官方Node运行时目录。');

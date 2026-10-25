@@ -1,3 +1,4 @@
+import { 准备私人暂存 } from '../本机服务/私人暂存保护.mjs';
 import { constants } from 'node:fs';
 import { chmod, link, lstat, mkdir, open, rename, unlink } from 'node:fs/promises';
 import { homedir, platform } from 'node:os';
@@ -74,7 +75,8 @@ export async function writePrivateFile(file, value, { exclusive = false } = {}) 
     if (!existing.isFile() || existing.isSymbolicLink()) throw new Error('私人配置文件类型异常');
     if (exclusive) return false;
   } catch (error) { if (error.code !== 'ENOENT') throw error; }
-  const temporary = path.join(path.dirname(file), `.private-write-${randomUUID()}`);
+  准备私人暂存(path.dirname(file), Buffer.isBuffer(value) ? value.length : Buffer.byteLength(value, 'utf8'));
+  const temporary = path.join(path.dirname(file), `.private-write-${process.pid}-${randomUUID()}`);
   try {
     const handle = await open(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
     try { await handle.writeFile(value, 'utf8'); await handle.sync(); }

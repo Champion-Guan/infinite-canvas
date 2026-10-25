@@ -7,6 +7,8 @@ import { startDataService } from '../本机服务/数据服务.mjs';
 import { openWorkspace } from '../本机存储/SQLite工作区.mjs';
 import { copyStableHelper } from './Web安装目录.mjs';
 import { createWebManagerClient } from './Web管理通信.mjs';
+import { 清理更新缓存 } from '../软件更新/更新缓存限制.mjs';
+import { WEB_MANIFEST_NAMES } from './Web发布协议.mjs';
 
 if (!process.connected || process.argv.length !== 2) throw Error('Web客户服务必须由独立管理器启动。');
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -30,7 +32,16 @@ try {
       process.disconnect();
     } catch (e) { stopping = false; send({ type: 'web-service-stop-blocked', error: e.code || 'install_tasks_pending' }); }
   };
-  process.on('message', value => { if (value?.type === 'web-service-stop') void stop(value.update === true); else if (value?.type === 'web-service-activate') { app.activate(); send({ type: 'web-service-status', status: status() }); } });
+  let cacheCleaned = false;
+  process.on('message', value => { if (value?.type === 'web-service-stop') void stop(value.update === true); else if (value?.type === 'web-service-activate') {
+    app.activate(); send({ type: 'web-service-status', status: status() });
+    // 旧版管理器在线升级后仍在内存中运行；新服务收到提交后的激活消息即可补清下载包。
+    if (!cacheCleaned) {
+      cacheCleaned = true;
+      void 清理更新缓存(join(dailyWorkbenchPaths().dataRoot, 'software-updates/packages'), { currentVersion: inventory.version, manifestNames: WEB_MANIFEST_NAMES, installedOnly: true })
+        .catch(error => { cacheCleaned = false; console.error('已安装更新包清理未完成：' + (error.code || 'download_storage_failed')); });
+    }
+  } });
   for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(signal, () => void stop(false));
   process.on('disconnect', () => { void stop(false); });
 } catch (e) {

@@ -118,6 +118,9 @@ export class SoftwareUpdates {
   async beginDownload(p) {
     if (this.stopped) throw new UpdateError('update_service_stopped');
     if (!this.downloader) throw new UpdateError('download_unavailable');
+    if (this.staging) throw new UpdateError('update_stage_unavailable');
+    const install = await this.manager?.status?.();
+    if (install?.canApprove || ['awaiting-browser-exit', 'starting', 'rolling-back'].includes(install?.state)) return;
     const release = this.result.latest;
     const current = await this.preferences();
     if (current.repository !== p.repository || this.result.repository !== p.repository || this.result.state !== 'available') throw new UpdateError('release_not_available');
@@ -181,7 +184,12 @@ export class SoftwareUpdates {
   start({ setIntervalFn = setInterval } = {}) {
     if (this.timer) return;
     this.stopped = false;
-    void this.check({ automatic: true });
+    void Promise.resolve().then(() => this.downloader?.cleanup?.(this.currentVersion))
+      .then(() => { if (!this.stopped) return this.check({ automatic: true }); })
+      .catch(async error => {
+        const p = await this.preferences().catch(() => defaults());
+        this.result = { ...this.result, repository: p.repository, state: 'error', error: error.code || 'download_storage_failed' };
+      });
     this.timer = setIntervalFn(() => { void this.check({ automatic: true }); }, UPDATE_INTERVAL_MS);
     this.timer.unref?.();
   }

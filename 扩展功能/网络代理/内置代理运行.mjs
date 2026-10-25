@@ -5,6 +5,9 @@ import { lstat, readFile, realpath, mkdir, mkdtemp, writeFile, rm } from 'node:f
 import { isAbsolute, join } from 'node:path';
 import { spawnProxyProcess, stopProxyProcess } from './旧版进程管理.mjs';
 import { buildIsolatedProxyConfig } from './配置边界.mjs';
+import { 清理中断代理目录, 记录代理目录所有者 } from './代理运行目录保护.mjs';
+import { 开始目录写入监测 } from '../本机服务/目录写入监测.mjs';
+import { 诊断代理连接, 检测全部代理节点 } from './代理节点诊断.mjs';
 import { StorageError, requireValue } from '../本机存储/协议.mjs';
 
 export async function assertProxyPortsAvailable(port) {
@@ -22,20 +25,28 @@ async function verifyCore(core) {
   const digest = createHash('sha256').update(await readFile(core.path)).digest('hex');
   requireValue(timingSafeEqual(Buffer.from(digest), Buffer.from(core.sha256)), 'proxy_core_invalid', '代理核心指纹不匹配，未执行。', 503);
 }
-export function createMihomoRuntime({ core, runtimeParent, port = 23210, coreArguments = [], startupTimeout = 15_000 } = {}) {
+export function createMihomoRuntime({ core, runtimeParent, port = 23210, coreArguments = [], startupTimeout = 15_000, requestProbe } = {}) {
   requireValue(typeof runtimeParent === 'string' && isAbsolute(runtimeParent) && Array.isArray(coreArguments) && coreArguments.every(value => typeof value === 'string') &&
     Number.isInteger(startupTimeout) && startupTimeout >= 100 && startupTimeout <= 120_000, 'proxy_runtime_invalid', '代理运行目录或启动参数无效。');
-  let active = null;
+  let active = null, starting = false;
   return Object.freeze({
     async start(source) {
-      requireValue(!active, 'proxy_already_running', '代理已经运行。', 409);
+      requireValue(!active && !starting, 'proxy_already_running', '代理已经运行。', 409);
+      starting = true;
+      try {
       await verifyCore(core); await assertProxyPortsAvailable(port);
       await mkdir(runtimeParent, { recursive: true, mode: 0o700 });
       requireValue(await realpath(runtimeParent) === runtimeParent && (await lstat(runtimeParent)).isDirectory(), 'proxy_runtime_invalid', '代理运行目录不能使用链接。');
+      await 清理中断代理目录(runtimeParent);
       const directory = await mkdtemp(join(runtimeParent, 'workbench-proxy-'));
       const token = randomBytes(32).toString('hex'), password = randomBytes(32).toString('hex');
-      let child, stopping = null;
+      let child, monitor, writeFailure = null, cleaning = null, stopping = null;
+      const cleanup = () => {
+        if (!cleaning) cleaning = (async () => { monitor?.stop(); await rm(directory, { recursive: true, force: true }); active = null; })();
+        return cleaning;
+      };
       try {
+        await 记录代理目录所有者(directory);
         const config = buildIsolatedProxyConfig(source, { port, controllerToken: token, proxyPassword: password });
         const file = join(directory, 'config.yaml'); await writeFile(file, config, { mode: 0o600, flag: 'wx' });
         child = spawnProxyProcess(core.path, [...coreArguments, '-d', directory, '-f', file], {
@@ -43,7 +54,14 @@ export function createMihomoRuntime({ core, runtimeParent, port = 23210, coreArg
           // 不继承用户的代理、自动下载或私人路径环境设置。
           env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8', TMPDIR: directory },
         });
+        await 记录代理目录所有者(directory, child.pid || null);
+        child.once('exit', () => { void cleanup().catch(() => {}); });
+        monitor = 开始目录写入监测(directory, { maxBytes: 256 * 1024 ** 2, reserveBytes: 1024 ** 3 }, error => {
+          writeFailure = error.code || 'proxy_disk_limit';
+          void stopProxyProcess(child).then(cleanup).catch(() => {});
+        });
         const api = (path, { method = 'GET', value } = {}) => new Promise((resolve, reject) => {
+          if (writeFailure) { reject(new StorageError('proxy_disk_limit', '代理缓存达到限制，已停止代理并保留工作台数据。', 503)); return; }
           if (child.exitCode !== null || child.signalCode !== null) { reject(new StorageError('proxy_core_exited', '内置代理进程已退出。', 503)); return; }
           const bytes = value === undefined ? undefined : Buffer.from(JSON.stringify(value));
           const req = request({ hostname: '127.0.0.1', port: port + 1, path, method, agent: false,
@@ -56,7 +74,7 @@ export function createMihomoRuntime({ core, runtimeParent, port = 23210, coreArg
               catch { reject(new StorageError('proxy_controller_failed', '代理控制请求失败。', 503)); }
             });
           });
-          req.setTimeout(5000, () => req.destroy()); req.once('error', () => reject(new StorageError('proxy_controller_failed', '代理控制连接失败。', 503))); req.end(bytes);
+          req.setTimeout(6500, () => req.destroy()); req.once('error', () => reject(new StorageError('proxy_controller_failed', '代理控制连接失败。', 503))); req.end(bytes);
         });
         const until = Date.now() + startupTimeout;
         for (;;) {
@@ -64,7 +82,7 @@ export function createMihomoRuntime({ core, runtimeParent, port = 23210, coreArg
           catch { requireValue(child.exitCode === null && child.signalCode === null && Date.now() < until, 'proxy_start_failed', '代理启动未通过认证健康检查。', 503); await new Promise(done => setTimeout(done, 50)); }
         }
         const handle = Object.freeze({
-          running: () => child.exitCode === null && child.signalCode === null,
+          running: () => !writeFailure && child.exitCode === null && child.signalCode === null,
           route: () => ({ proxyURL: 'http://127.0.0.1:' + port, username: 'workbench', password }),
           async inspect() {
             const data = await api('/proxies'), entries = Object.entries(data.proxies || {}).slice(0, 2048);
@@ -77,15 +95,14 @@ export function createMihomoRuntime({ core, runtimeParent, port = 23210, coreArg
             await api('/proxies/' + encodeURIComponent(group), { method: 'PUT', value: { name } }); return handle.inspect();
           },
           async diagnose() {
-            const nodes = await handle.inspect(), node = nodes.find(value => value.choices.length && !['GLOBAL', 'DIRECT', 'REJECT'].includes(value.name)) || nodes.find(value => !value.choices.length && !['DIRECT', 'REJECT'].includes(value.name));
-            requireValue(node, 'proxy_probe_failed', '没有可以诊断的节点。', 502);
-            const result = await api('/proxies/' + encodeURIComponent(node.name) + '/delay?url=https%3A%2F%2Fwww.gstatic.com%2Fgenerate_204&timeout=5000');
-            requireValue(Number.isFinite(result.delay) && result.delay >= 0, 'proxy_probe_failed', '代理节点连通诊断未通过。', 502); return { node: node.name, delay: result.delay };
+            return 诊断代理连接({ api, route: handle.route(), probe: requestProbe });
           },
-          stop() { if (!stopping) stopping = (async () => { await stopProxyProcess(child); await rm(directory, { recursive: true, force: true }); if (active === handle) active = null; })(); return stopping; },
+          testAll: () => 检测全部代理节点({ api, route: handle.route(), probe: requestProbe }),
+          stop() { if (!stopping) stopping = (async () => { await stopProxyProcess(child); await cleanup(); if (active === handle) active = null; })(); return stopping; },
         });
         active = handle; return handle;
-      } catch (error) { if (child) await stopProxyProcess(child); await rm(directory, { recursive: true, force: true }); throw error; }
+      } catch (error) { if (child) await stopProxyProcess(child); await cleanup(); throw error; }
+      } finally { starting = false; }
     },
   });
 }

@@ -29,6 +29,8 @@ export const updateMessages: Record<string, string> = {
     signing_trust_not_configured: "尚未配置内置可信公钥，已安全停止下载", signing_key_untrusted: "签名公钥不可信，已拒绝更新",
     signature_invalid: "数字签名验证失败", stable_manifest_invalid: "稳定版清单无效", release_identity_mismatch: "清单与仓库或版本不匹配",
     version_not_newer: "禁止降级或重复更新", architecture_unsupported: "没有适合本机架构的更新包",
+    download_cache_limit: "更新缓存达到单包上限，请清理异常文件后重试", download_cache_unsafe: "更新缓存目录异常，已停止写入",
+    disk_budget_exceeded: "安装版本或构建目录容量已达上限，请清理旧版本后重试", disk_budget_unsafe_path: "目录包含异常链接，已停止写入",
     package_integrity_failed: "更新包损坏或不完整", disk_space_insufficient: "暂存更新的磁盘空间不足",
     release_assets_invalid: "稳定版文件缺失或尺寸不匹配", asset_download_failed: "更新下载失败，请稍后重试",
     asset_redirect_rejected: "下载重定向不受信任", asset_access_denied: "更新文件访问失败或受到限流",

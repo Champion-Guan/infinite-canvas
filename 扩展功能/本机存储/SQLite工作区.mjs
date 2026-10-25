@@ -1,18 +1,21 @@
 import { DatabaseSync, backup } from 'node:sqlite';
-import { constants, chmodSync, closeSync, existsSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, statfsSync, unlinkSync, writeFileSync } from 'node:fs';
+import { constants, chmodSync, closeSync, existsSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, statfsSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { COLLECTIONS, MAX_MEDIA_BYTES, MEDIA_TYPES, PROTOCOL, SCHEMA_VERSION, StorageError, requireValue, serializeDocument, validHash, validId, validUUID } from './协议.mjs';
 
+import { 清理独占暂存文件 } from '../本机服务/中断文件清理.mjs';
+import { 数据磁盘保留字节, 配置SQLite日志, 检查SQLite写入空间 } from './写入空间保护.mjs';
 import { readCategorizedUsage } from './分类容量统计.mjs';
+import { 复制独立备份文件, 复用相同数据库快照 } from './备份节省空间.mjs';
 
 const DB_NAME = '工作台.sqlite';
 const MARKER = '.工作区.json';
 const LOCK = '.实例锁.json';
 const APPLICATION_ID = 0x47574149;
-const RESERVE = 64 * 1024 * 1024;
+const RESERVE = 数据磁盘保留字节;
 const sourceRoot = fileURLToPath(new URL('../../', import.meta.url));
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const within = (child, parent) => child === parent || (!relative(parent, child).startsWith('..') && !isAbsolute(relative(parent, child)));
@@ -81,6 +84,7 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
   }
   const markerPath = join(root, MARKER), dbPath = join(root, DB_NAME);
   let workspaceId, db, lockOwned = false, closed = false, maintenance = false;
+  let previousBackupDatabase = null;
   const nonce = randomUUID();
   if (!existsSync(markerPath)) {
     requireValue(initialize && readdirSync(root).length === 0, 'unknown_data_root', '拒绝接管未知非空目录。');
@@ -112,6 +116,9 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
       syncDirectory(root);
     } else { db = new DatabaseSync(dbPath); }
     db.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=3000;');
+    配置SQLite日志(db);
+    // 数据库锁已经取得，旧进程不可能仍写本目录；只清理未发布的媒体暂存名。
+    清理独占暂存文件(join(root, '媒体'), /^\.暂存-[a-f0-9-]{36}$/);
   } catch (error) { db?.close(); if (lockOwned) unlinkSync(lockPath); throw error; }
 
   let usagePending;
@@ -122,8 +129,7 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
     for (const suffix of ['-wal', '-shm']) safePath(dbPath + suffix, false, false);
   }
   function space(bytes = 0) {
-    const free = availableBytes ? availableBytes() : (() => { const fs = statfsSync(root); return fs.bavail * fs.bsize; })();
-    requireValue(Number.isFinite(free) && free >= RESERVE + bytes * 2, 'insufficient_space', '磁盘可用空间不足，未报告保存成功。', 507);
+    检查SQLite写入空间(db, dbPath, root, bytes, availableBytes);
   }
   function transaction(fn) {
     db.exec('BEGIN IMMEDIATE');
@@ -203,39 +209,58 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
       if (row) { checkMedia(root, row); return row; }
       const folder = join(root, '媒体'); safePath(folder, true);
       const target = join(folder, id), staging = join(folder, `.暂存-${randomUUID()}`);
-      durableWrite(staging, bytes);
+      let created = false;
       try {
-        try { linkSync(staging, target); } catch (error) { if (error.code !== 'EEXIST') throw error; }
-      } finally { unlinkSync(staging); }
-      syncDirectory(folder);
-      checkMedia(root, { id, mime, size: bytes.length });
-      transaction(() => db.prepare('INSERT INTO media VALUES (?,?,?)').run(id, mime, bytes.length));
+        // 已有相同字节时直接验证并建索引，避免重复写出一整份媒体。
+        if (!existsSync(target)) {
+          try {
+            durableWrite(staging, bytes);
+            try { linkSync(staging, target); created = true; } catch (error) { if (error.code !== 'EEXIST') throw error; }
+          } finally { if (lstatIfPresent(staging)) unlinkSync(staging); }
+          syncDirectory(folder);
+        }
+        checkMedia(root, { id, mime, size: bytes.length });
+        transaction(() => db.prepare('INSERT INTO media VALUES (?,?,?)').run(id, mime, bytes.length));
+      } catch (error) {
+        // 仅回收本次创建且索引未提交的文件；不触碰之前已有的媒体。
+        if (created && !db.prepare('SELECT 1 FROM media WHERE id=?').get(id)) { unlinkSync(target); syncDirectory(folder); }
+        throw error;
+      }
       return { id, mime, size: bytes.length };
     },
     readMedia(id) { active(); requireValue(validHash(id), 'invalid_media', '媒体标识无效。'); return checkMedia(root, db.prepare('SELECT * FROM media WHERE id=?').get(id)); },
     async createBackup() {
       active(true); space(); maintenance = true;
+      let backupTarget = null, backupComplete = false;
       try {
         const parent = join(root, '备份');
         if (!existsSync(parent)) mkdirSync(parent, { mode: 0o700 });
         safePath(parent, true);
-        const target = join(parent, randomUUID()); mkdirSync(target, { mode: 0o700 }); mkdirSync(join(target, '媒体'), { mode: 0o700 });
+        const target = join(parent, randomUUID()); mkdirSync(target, { mode: 0o700 }); backupTarget = target; mkdirSync(join(target, '媒体'), { mode: 0o700 });
         const media = db.prepare('SELECT * FROM media ORDER BY id').all();
         space(media.reduce((sum, row) => sum + row.size, lstatSync(dbPath).size));
         await backup(db, join(target, DB_NAME));
         // SQLite备份创建权限跟随umask，收紧为0600再发布备份清单。
         chmodSync(join(target, DB_NAME), 0o600);
         const snapshot = readFileSync(join(target, DB_NAME));
+        const snapshotHash = sha(snapshot);
+        复用相同数据库快照(previousBackupDatabase, join(target, DB_NAME), snapshotHash, snapshot.length);
         const dbFd = openSync(join(target, DB_NAME), constants.O_RDONLY); try { fsyncSync(dbFd); } finally { closeSync(dbFd); }
-        const files = [{ path: DB_NAME, hash: sha(snapshot), size: snapshot.length }];
+        const files = [{ path: DB_NAME, hash: snapshotHash, size: snapshot.length }];
         for (const row of media) {
-          const { bytes } = checkMedia(root, row); durableWrite(join(target, '媒体', row.id), bytes);
+          checkMedia(root, row);
+          复制独立备份文件(join(root, '媒体', row.id), join(target, '媒体', row.id), row.id, row.size);
           files.push({ path: `媒体/${row.id}`, hash: row.id, size: row.size });
         }
         const manifest = { protocol: PROTOCOL, schemaVersion: SCHEMA_VERSION, workspaceId, createdAt: new Date().toISOString(), documentCount: db.prepare('SELECT COUNT(*) AS count FROM documents').get().count, mediaCount: media.length, files };
         durableWrite(join(target, '清单.json'), JSON.stringify(manifest, null, 2)); syncDirectory(join(target, '媒体')); syncDirectory(target); syncDirectory(parent);
+        previousBackupDatabase = { path: join(target, DB_NAME), hash: snapshotHash, size: snapshot.length };
+        backupComplete = true;
         return { path: target, workspaceId, documentCount: manifest.documentCount, mediaCount: media.length };
-      } finally { maintenance = false; }
+      } finally {
+        try { if (backupTarget && !backupComplete) rmSync(backupTarget, { recursive: true, force: true }); }
+        finally { maintenance = false; }
+      }
     },
     close() {
       if (closed) return;
