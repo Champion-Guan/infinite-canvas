@@ -32,7 +32,13 @@ export function prepareDailyDataRoot({ applicationSupport, initialize = false } 
     mkdirSync(paths.container, { mode: 0o700 });
   }
   privateDirectory(paths.container);
-  requireValue(readdirSync(paths.container).every(name => name === '工作区'), 'unknown_daily_root', '日常目录包含未知文件，未接管或清理。');
+  requireValue(readdirSync(paths.container).every(name => {
+    if (name === '工作区') return true;
+    if (name !== '.DS_Store') return false;
+    // Finder目录显示元数据不是工作区数据；仅接受本用户的普通小文件，原样保留。
+    const metadata = lstatSync(join(paths.container, name));
+    return metadata.isFile() && !metadata.isSymbolicLink() && metadata.nlink === 1 && metadata.uid === process.getuid() && metadata.size <= 1024 * 1024;
+  }), 'unknown_daily_root', '日常目录包含未知文件，未接管或清理。');
   if (present(paths.dataRoot)) {
     privateDirectory(paths.dataRoot);
     requireValue(!initialize || readdirSync(paths.dataRoot).length === 0, 'daily_initialization_denied', '已有工作区不能再次初始化；请正常重开。');
