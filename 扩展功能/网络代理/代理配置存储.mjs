@@ -27,10 +27,10 @@ export function createProxyConfigurationStore({ workspace, vault, runTrustedWrit
     if (!doc) return { revision: 0, value: empty() };
     const v = doc.value;
     requireValue(doc.workspaceId === workspace.workspaceId && doc.mediaIds.length === 0 &&
-      exact(v, ['format', 'enabled', 'sourceKind', 'source', 'config', 'configName']) && v.format === format &&
+      (exact(v, ['format', 'enabled', 'relayEnabled', 'sourceKind', 'source', 'config', 'configName']) && typeof v.relayEnabled === 'boolean' || exact(v, ['format', 'enabled', 'sourceKind', 'source', 'config', 'configName'])) && v.format === format &&
       typeof v.enabled === 'boolean' && ['text', 'url'].includes(v.sourceKind) && typeof v.configName === 'string' && v.configName.length <= 200 &&
-      validSeal(v.source) && validSeal(v.config), 'proxy_state_corrupt', '代理配置记录损坏，未初始化或覆盖。', 409);
-    return { revision: doc.revision, value: structuredClone(v) };
+      (validSeal(v.source) && validSeal(v.config) || v.source === null && v.config === null && v.sourceKind === 'text' && v.configName === ''), 'proxy_state_corrupt', '代理配置记录损坏，未初始化或覆盖。', 409);
+    return { revision: doc.revision, value: { ...structuredClone(v), relayEnabled: v.relayEnabled ?? true } };
   }
   async function unseal(value) {
     requireValue(validSeal(value), 'proxy_state_corrupt', '代理配置密文索引无效。', 409);
