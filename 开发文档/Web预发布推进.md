@@ -1,3 +1,5 @@
+2026-10-25最新：Web **2.0.0-beta.9** 已公开发布，集中修复自动备份、日志轮换、更新下载和异常写盘；签名客户包已在原数据及3001启动。详细证据与beta.6在线事务未完成的限制见[紧急存储发布验收](Web紧急存储发布验收20261025.md)。下文为此前迁移记录。
+
 # Web预发布推进
 
 更新至2026-10-23。指定仓库`Champion-Guan/infinite-canvas`的[Web 2.0.0-beta.3](https://github.com/Champion-Guan/infinite-canvas/releases/tag/web-v2.0.0-beta.3)已公开预发布；旧Stable v1.2.8未替换。[草稿PR #1](https://github.com/Champion-Guan/infinite-canvas/pull/1)继续同分支，未返回CI结果。
