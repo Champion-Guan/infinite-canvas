@@ -27,9 +27,13 @@ export async function serveWebUpdateProgress({ target, readStatus, lifetimeMs = 
     const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer',
       'content-security-policy': "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" };
     const send = (code, type, body) => { if (!response.destroyed) { response.writeHead(code, { ...headers, 'content-type': type }); response.end(body); } };
-    if (request.method !== 'GET' || request.headers.host !== host || request.headers.origin && request.headers.origin !== `http://${host}` ||
-        request.headers['sec-fetch-site'] === 'cross-site') return send(403, 'text/plain', 'Forbidden');
     const prefix = `/${capability}/`;
+    // 当前工作台转入独立回环端口，浏览器会标为cross-site；仅放行持有随机地址的顶层导航。
+    // 状态接口、脚本、样式及iframe仍要求同源，页面本身不含安装/写入能力。
+    const navigation = request.url === prefix && request.headers['sec-fetch-mode'] === 'navigate' && request.headers['sec-fetch-dest'] === 'document' &&
+      (!request.headers.origin || isWorkbenchOrigin(request.headers.origin));
+    if (request.method !== 'GET' || request.headers.host !== host || request.headers.origin && request.headers.origin !== `http://${host}` && !navigation ||
+        request.headers['sec-fetch-site'] === 'cross-site' && !navigation) return send(403, 'text/plain', 'Forbidden');
     if (request.url === prefix) return send(200, 'text/html; charset=utf-8', 更新进度页面);
     if (request.url === prefix + 'style.css') return send(200, 'text/css; charset=utf-8', 更新进度样式);
     if (request.url === prefix + 'app.js') return send(200, 'text/javascript; charset=utf-8', 更新进度脚本);

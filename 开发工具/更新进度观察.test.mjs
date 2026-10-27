@@ -48,6 +48,10 @@ test('独立只读服务随状态更新，拒绝写入、跨站、错误Host及�
   assert.match(monitor.url, /^http:\/\/127\.0\.0\.1:\d+\/[a-f0-9]{48}\/$/);
   assert.match((await get(monitor.url)).body, /工作台更新进度/);
   assert.match((await get(monitor.url)).headers['content-security-policy'], /frame-ancestors 'none'/);
+  const navigation = { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document', origin: 'http://localhost:3001' };
+  assert.equal((await get(monitor.url, { headers: navigation })).code, 200);
+  for (const headers of [{ ...navigation, 'sec-fetch-dest': 'iframe' }, { ...navigation, 'sec-fetch-mode': 'cors' }, { ...navigation, origin: 'https://foreign.example' }]) assert.equal((await get(monitor.url, { headers })).code, 403);
+  assert.equal((await get(monitor.url + 'status', { headers: navigation })).code, 403);
   assert.equal(JSON.parse((await get(monitor.url + 'status')).body).state, phase);
   // 模拟业务服务停服和重启，观察HTTP服务自身始终可读。
   phase = 'stopping'; assert.equal(JSON.parse((await get(monitor.url + 'status')).body).state, 'stopping');
