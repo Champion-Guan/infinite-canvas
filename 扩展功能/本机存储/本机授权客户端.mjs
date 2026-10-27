@@ -2,6 +2,7 @@ import { StorageError, requireValue } from './协议.mjs';
 import { createCredentialClient } from '../本机凭据/凭据客户端.mjs';
 import { createGenerationClient } from '../生成任务/生成任务客户端.mjs';
 import { createNetworkProxyClient } from '../网络代理/代理客户端.mjs';
+import { createMediaConversionClient } from '../媒体交付/HEIC转换客户端.mjs';
 
 const protocol = 'guan-local-authorization.v1';
 function localOrigin(value, data = false) {
@@ -71,6 +72,15 @@ export async function authorizeLocalStorage({ code, origin = globalThis.location
       return businessCommand('network-proxy', value, options);
     } }),
     generationPort,
+    mediaPort: createMediaConversionClient({ async send(path, blob, { signal, protocol: mediaProtocol }) {
+      requireValue(!closed && now() < exchange.expiresAt, 'authorization_expired', '页面授权已结束。', 401);
+      await prepareSession();
+      signal?.throwIfAborted();
+      requireValue(!closed && now() < exchange.expiresAt, 'authorization_expired', '页面授权已结束。', 401);
+      return fetchImpl(origin + path, { method: 'POST', credentials: 'omit', redirect: 'error', cache: 'no-store', referrerPolicy: 'no-referrer',
+        headers: { 'Content-Type': 'application/octet-stream', 'X-Guan-Local-Protocol': protocol, 'X-Guan-Media-Protocol': mediaProtocol, Authorization: 'Bearer ' + capability },
+        body: blob, signal: AbortSignal.any([AbortSignal.timeout(180_000), ...(signal ? [signal] : [])]) });
+    } }),
     secretPort: createCredentialClient({ command: credentialCommand, generationPort }),
     host: Object.freeze({
       initialize: () => command({ operation: 'initialize' }),

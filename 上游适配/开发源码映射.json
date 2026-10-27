@@ -462,7 +462,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/sqlite/工作台自动入口.mjs",
       "原SHA256": "dc05972321c906e73b2e219f8194e9547e9139465e238d0a612299100d244d90",
       "类型": "前端",
-      "SHA256": "27bbaf72f3e9153869fb143f6ad7800f54774952f214919ab84a5bbf019d7eed"
+      "SHA256": "29a4a1d2f53dc1da80a2f8a8a1b3cc9d4c61cbd923eb9b08614992c6b9e108f1"
     },
     {
       "来源": "扩展功能/本机存储/应用值编码.mjs",
@@ -486,7 +486,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/sqlite/本机授权客户端.mjs",
       "原SHA256": "c0b6fd42db3dee9be580150432a264dc0a5c676cc83666d4ea9d2ea9248600ea",
       "类型": "前端",
-      "SHA256": "1363b0ecd1d165df45a730d3790e8cae35758ddea2c619194f9dd304e66ef572"
+      "SHA256": "c137a5a38c9bf5c5b69140bf0c56ff30dfe227e44d7f0a3c673321640de8d6f6"
     },
     {
       "来源": "扩展功能/本机存储/浏览器适配.mjs",
@@ -974,7 +974,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/lib/canvas/media-file-extension.js",
       "原SHA256": "29e09b871da8274b75ae8ab9f1baa4c865cbe7f60418c55f422f47894ed17597",
       "类型": "前端",
-      "SHA256": "29e09b871da8274b75ae8ab9f1baa4c865cbe7f60418c55f422f47894ed17597"
+      "SHA256": "7f7b92648b63fb4446010858ace895758fb17be8edd43d3c8e2240b9cb589446"
     },
     {
       "来源": "扩展功能/生成历史/媒体文件扩展.d.ts",
@@ -1190,7 +1190,7 @@
       "原位置": ".运行/3100源/画布副本/扩展功能/本机服务/受限工作台启动器.mjs",
       "原SHA256": "22c5354898ef7750d9c1ea05ddb1d3ae1e5bfab1fc2b581c8b4df8ceb60e2562",
       "类型": "服务",
-      "SHA256": "d4b5887e03f081951384f8d985b3f393d187ab7fac9e876acc614aef46053d72"
+      "SHA256": "a7156ddab0617c9f62df2bb867592b358441957abf8c40c9609210f673788110"
     },
     {
       "来源": "扩展功能/本机服务/日常工作台.mjs",
@@ -3113,6 +3113,48 @@
       "目标": "画布副本/扩展功能/生成任务/未提交任务重试收口.mjs",
       "类型": "服务",
       "SHA256": "3955a5e9f1c74801d59b6a653ee3862a47ef2ffdacdc7ed4ab2bd956823a13d4"
+    },
+    {
+      "来源": "扩展功能/媒体交付/HEIC格式识别.mjs",
+      "目标": "画布副本/web/src/扩展功能/媒体交付/HEIC格式识别.mjs",
+      "原位置": "新增功能模块",
+      "类型": "前端",
+      "SHA256": "aff4bef1700a35ae0674694361228ed50a3afa05e89340b96b30ecea6ea9acce"
+    },
+    {
+      "来源": "扩展功能/媒体交付/HEIC上传兼容.mjs",
+      "目标": "画布副本/web/src/扩展功能/媒体交付/HEIC上传兼容.mjs",
+      "原位置": "新增功能模块",
+      "类型": "前端",
+      "SHA256": "844c5a5a4c25f3d24f2c47e653bf465c1b064dcee0497888b050ee58c790c6c3"
+    },
+    {
+      "来源": "扩展功能/媒体交付/HEIC转换客户端.mjs",
+      "目标": "画布副本/web/src/扩展功能/媒体交付/HEIC转换客户端.mjs",
+      "原位置": "新增功能模块",
+      "类型": "前端",
+      "SHA256": "350981008033ef3dc966681fec22cca2152774aed53af491e4e42b81a78cff31"
+    },
+    {
+      "来源": "扩展功能/媒体交付/HEIC格式识别.mjs",
+      "目标": "画布副本/扩展功能/媒体交付/HEIC格式识别.mjs",
+      "原位置": "新增功能模块",
+      "类型": "服务",
+      "SHA256": "aff4bef1700a35ae0674694361228ed50a3afa05e89340b96b30ecea6ea9acce"
+    },
+    {
+      "来源": "扩展功能/媒体交付/HEIC本机转换.mjs",
+      "目标": "画布副本/扩展功能/媒体交付/HEIC本机转换.mjs",
+      "原位置": "新增功能模块",
+      "类型": "服务",
+      "SHA256": "8a8a3ebe9ac15d5dcbc1eb1f5fb5bdfa947fa2bfb63f1d8c40eccdc4dc3cf3d0"
+    },
+    {
+      "来源": "扩展功能/媒体交付/HEIC转换HTTP入口.mjs",
+      "目标": "画布副本/扩展功能/媒体交付/HEIC转换HTTP入口.mjs",
+      "原位置": "新增功能模块",
+      "类型": "服务",
+      "SHA256": "b4bf806ecebcab30765a58a4c36d74143fa5b9e1e298f2652dc2882929b96a80"
     }
   ],
   "接入差异": [
@@ -4887,6 +4929,30 @@
       "SHA256": "cb037a021f7059dc19fdeeef04052aa74d1a885658dcf0f5a13ccbff8b528010",
       "前态SHA256": "397794f9154bd37fbd445b3b0cd8ee3ebc8d29561fca678283be27b7bd2f4621",
       "后态SHA256": "69224fbb9e7eba4b0ce424da166ad8d844e362ad2fd05ce61a1c9b9bc9e5bd0e"
+    },
+    {
+      "文件": "上游适配/HEIC本机转换与原图分离接入.patch",
+      "目标": "web/src/services/image-storage.ts",
+      "职责": "HEIC本机转换与原图分离接入",
+      "SHA256": "085c96730bd70f8cf8e3ff52cb59aa3ecb7b747a5f28ff7aecadfbaf392c21fd",
+      "前态SHA256": "e0c6dd28c6afa0872de806c2ca4c4a9c95b4e626173e65a9639af3ab61a6070f",
+      "后态SHA256": "5b759f54fa744fb7a8f1f919b0ac6e1d89f7473bcced67c41100616054712091"
+    },
+    {
+      "文件": "上游适配/HEIC素材选择与原图信息保留接入.patch",
+      "目标": "web/src/components/canvas/canvas-side-panel.tsx",
+      "职责": "HEIC素材选择与原图信息保留接入",
+      "SHA256": "e490fb987dba167d45544f689ac4c9d5265020d74912f6bb2811b787c9a7b0bc",
+      "前态SHA256": "80f3bf87f4185292ab1d212494951b4872b0e529dac55b54f30858cd980fd9b9",
+      "后态SHA256": "90312934f5c6bab9e5bab7e03b7c5775ae3cf39552f4d97417171b0cdb0facf8"
+    },
+    {
+      "文件": "上游适配/HEIC无类型文件选择与拖入接入.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "HEIC无类型文件选择与拖入接入",
+      "SHA256": "df5016a6f292534ddd80bc45fdac36999b089b02fd11040bad0caacabedcf263",
+      "前态SHA256": "69224fbb9e7eba4b0ce424da166ad8d844e362ad2fd05ce61a1c9b9bc9e5bd0e",
+      "后态SHA256": "f77dc21420afb6f6b1ad36b9335c29f32a52aedf07a24a7aa7d51ce656023d34"
     }
   ]
 }

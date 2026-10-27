@@ -1,0 +1,45 @@
+diff --git a/web/src/services/image-storage.ts b/web/src/services/image-storage.ts
+index 22f8735..1b66749 100644
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -9,6 +9,7 @@ import { settleActivityGroup } from "@/扩展功能/安全与批量/settle-activ
+ const previewCheckpoint = createPersistenceCheckpoint();
+ import i18n from "@/i18n";
+ import { preflightImageUpload } from "@/扩展功能/媒体交付/图片上传预检.mjs";
++import { prepareCompatibleImage } from "@/扩展功能/媒体交付/HEIC上传兼容.mjs";
+ import { withLocalProxy } from "@/stores/use-config-store";
+ import { createImageThumbnail } from "@/lib/image-thumbnail";
+ 
+@@ -73,6 +74,8 @@ export async function uploadImage(input: string | Blob, options?: ImageReadOptio
+ }
+ 
+ async function storeImage(blob: Blob, options?: ImageReadOptions): Promise<UploadedImage> {
++    const { original, delivery } = await prepareCompatibleImage(blob, options);
++    blob = delivery;
+     const storageKey = `image:${nanoid()}`;
+     const originalStorageKey = `${storageKey}:original`;
+     const url = URL.createObjectURL(blob);
+@@ -82,10 +85,9 @@ async function storeImage(blob: Blob, options?: ImageReadOptions): Promise<Uploa
+         const meta = await preflightImageUpload(blob, () => loadImageMeta(url, options));
+         throwIfAborted(options?.signal);
+         submitted = true;
+-        // 原图与交付图分开落盘。当前管线未做转码时写入相同字节，
+-        // 但保留两个稳定主键，后续裁剪/适配尺寸不会覆盖原始结果。
++        // HEIC 原始字节独立保留，预览、编辑和生图只读取兼容交付图。
+         await store.setItem(storageKey, blob);
+-        await store.setItem(originalStorageKey, blob);
++        await store.setItem(originalStorageKey, original);
+         throwIfAborted(options?.signal);
+         objectUrls.set(storageKey, url);
+         // The original is ready now; thumbnail work must not delay success/download.
+@@ -106,8 +108,8 @@ async function storeImage(blob: Blob, options?: ImageReadOptions): Promise<Uploa
+             deliveryMimeType: mimeType,
+             originalWidth: meta.width,
+             originalHeight: meta.height,
+-            originalBytes: blob.size,
+-            originalMimeType: mimeType,
++            originalBytes: original.size,
++            originalMimeType: original.type,
+         };
+     } catch (error) {
+         URL.revokeObjectURL(url);

@@ -53,6 +53,7 @@ export function mountAutomaticWorkbench({ root, origin = location.origin, loadAp
       if (Object.getOwnPropertyDescriptor(view, '__guanNetworkProxyHost')) throw Error('本页面已安装网络代理端口。');
       Object.defineProperty(view, '__guanNetworkProxyHost', { value: authorization.networkProxyPort, configurable: false, writable: false });
       Object.defineProperty(view, '__guanUpdateHost', { value: authorization.updatePort, configurable: false, writable: false });
+      Object.defineProperty(view, '__guanMediaHost', { value: authorization.mediaPort, configurable: false, writable: false });
       if (Object.getOwnPropertyDescriptor(view, '__guanFallbackHost')) throw Error('本页面已安装Fallback端口。');
       const fallback = createFallbackClient({ command: value => authorization.generationPort.fallbackCommand(value), notify: event => view.dispatchEvent(new view.CustomEvent(event)) });
       await fallback.read();

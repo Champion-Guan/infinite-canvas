@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { assembleNetworkProxyService } from '../网络代理/代理服务装配.mjs';
 import { assembleGenerationService } from '../生成网关/生成服务装配.mjs';
 import { assembleSoftwareUpdates } from '../软件更新/更新服务装配.mjs';
+import { createMediaConversionService } from '../媒体交付/HEIC转换HTTP入口.mjs';
 import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { extname, isAbsolute, join } from 'node:path';
@@ -56,7 +57,7 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
   // 复制值，避免等待期间调用方修改endpoint导致Host/Origin错配；监听始终仅127.0.0.1。
   const { hostname, port } = endpoint;
   let { files, scriptHashes } = readStaticBundle(webRoot);
-  let ready = false, gateway, controller, service, workspace, backup, credentialPort, generation, networkProxy, updates, closing = null;
+  let ready = false, gateway, controller, service, workspace, backup, credentialPort, generation, networkProxy, updates, mediaConversion, closing = null;
   const server = createServer(async (req, res) => {
     res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
@@ -65,6 +66,7 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
     if (await networkProxy.handle(req, res)) return;
     if (await generation.handle(req, res)) return;
     if (await updates.handle(req, res)) return;
+    if (await mediaConversion.handle(req, res)) return;
     if (await gateway.handle(req, res)) return;
     const expected = `${hostname}:${server.address().port}`;
     // 普通链接及Chrome错误页重载也可能标成cross-site；只允许顶层GET导航。
@@ -114,7 +116,7 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
       throw error;
     }
     const errors = [];
-    for (const action of [() => networkProxy?.close(), () => generation?.close(), () => backup?.stop(), () => gateway?.close(), () => controller?.close(),
+    for (const action of [() => mediaConversion?.close(), () => networkProxy?.close(), () => generation?.close(), () => backup?.stop(), () => gateway?.close(), () => controller?.close(),
       () => server.listening ? closeHTTP() : undefined, () => service?.close(), () => credentialPort?.close(), () => workspace?.close()]) {
       try { await action(); } catch (error) { errors.push(error); }
     }
@@ -141,6 +143,7 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
       runtimeOptions: { runtimeParent: join(realpathSync(tmpdir()), 'ai-workbench-proxy-' + workspace.workspaceId), ...networkProxyOptions }, initialConfiguration: initialProxyConfiguration, resourceUpdateOptions: proxyResourceUpdateOptions });
     generation = await assembleGenerationService({ workspace, networkProxy, vault: credentialPort, origin, runTrustedWrite: operation => service.runTrustedWrite(operation), authorize: request => gateway.assertGenerationPage(request) });
     updates = assembleSoftwareUpdates({ ...softwareUpdateOptions, dataRoot, origin, networkProxy, generation, authorize: request => gateway.assertGenerationPage(request) });
+    mediaConversion = createMediaConversionService({ origin, authorize: request => gateway.assertGenerationPage(request) });
     updates.start();
     ready = !deferActivation;
     return Object.freeze({ origin, workspaceId: workspace.workspaceId,
