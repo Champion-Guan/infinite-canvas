@@ -45,7 +45,7 @@ function readStaticBundle(directory) {
 
 // 日常入口从3000顺延；保留旧客户管理器要求的固定3100兼容入口。
 // storage由可信启动工具装配同一个已批准的四文件包，避免跨模块StorageError身份漂移。
-export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, initialize = false, storage, credentialKeyProvider, endpoint = { hostname: '127.0.0.1', port: 0 }, networkProxyOptions = {}, initialProxyConfiguration, softwareUpdateOptions = {}, deferActivation = false, onWorkspaceReady } = {}) {
+export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, initialize = false, storage, credentialKeyProvider, endpoint = { hostname: '127.0.0.1', port: 0 }, networkProxyOptions = {}, proxyResourceUpdateOptions, initialProxyConfiguration, softwareUpdateOptions = {}, deferActivation = false, onWorkspaceReady } = {}) {
   requireValue(typeof webRoot === 'string' && typeof dataRoot === 'string' && isAbsolute(dataRoot) && typeof initialize === 'boolean' &&
     typeof storage?.openWorkspace === 'function' && typeof storage?.startDataService === 'function' && typeof credentialKeyProvider?.read === 'function' && typeof credentialKeyProvider?.create === 'function', 'invalid_launcher_config', '必须明确传入静态产物、独立数据根及完整存储装配。');
   requireValue(endpoint && typeof endpoint === 'object' && !Array.isArray(endpoint) &&
@@ -106,10 +106,11 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
     try {
       // 更新请求会持有代理租约，先停止检查并排空下载，再核实实际代理活动。
       await updates?.close();
+      await networkProxy?.pauseUpdates();
       networkProxy?.assertCanClose();
       generation?.assertCanClose();
     } catch (error) {
-      if (wasReady) { updates?.start(); ready = true; }
+      if (wasReady) { updates?.start(); networkProxy?.resumeUpdates(); ready = true; }
       throw error;
     }
     const errors = [];
@@ -137,7 +138,7 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
     gateway = createLocalAuthorizationGateway({ origin, dataURL: service.url, controller, credentialPort, rateLimit: 0 });
     requireValue(typeof service.runTrustedWrite === 'function', 'generation_write_coordination_required', '生成任务需要同一写入协调。');
     networkProxy = await assembleNetworkProxyService({ workspace, vault: credentialPort, origin, deferStartup: true, runTrustedWrite: operation => service.runTrustedWrite(operation), authorize: request => gateway.assertGenerationPage(request),
-      runtimeOptions: { runtimeParent: join(realpathSync(tmpdir()), 'ai-workbench-proxy-' + workspace.workspaceId), ...networkProxyOptions }, initialConfiguration: initialProxyConfiguration });
+      runtimeOptions: { runtimeParent: join(realpathSync(tmpdir()), 'ai-workbench-proxy-' + workspace.workspaceId), ...networkProxyOptions }, initialConfiguration: initialProxyConfiguration, resourceUpdateOptions: proxyResourceUpdateOptions });
     generation = await assembleGenerationService({ workspace, networkProxy, vault: credentialPort, origin, runTrustedWrite: operation => service.runTrustedWrite(operation), authorize: request => gateway.assertGenerationPage(request) });
     updates = assembleSoftwareUpdates({ ...softwareUpdateOptions, dataRoot, origin, networkProxy, generation, authorize: request => gateway.assertGenerationPage(request) });
     updates.start();
@@ -160,11 +161,11 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
           const status = gateway.getStatus();
           requireValue(status.authorizedPages === 0 && status.pendingTickets === 0 && status.activeRequests === 0,
             'install_browsers_running', '请保存并关闭工作台页面，其他网站可继续使用。', 409);
-          await generation.assertCanUpdate(); networkProxy.assertCanClose();
+          await generation.assertCanUpdate(); await networkProxy.pauseUpdates(); networkProxy.assertCanClose();
           await backup.request('before-maintenance');
           if (!closing) closing = cleanup();
           await closing;
-        } catch (error) { if (server.listening) { ready = true; closing = null; updates?.start(); } throw error; }
+        } catch (error) { if (server.listening) { ready = true; closing = null; updates?.start(); networkProxy?.resumeUpdates(); } throw error; }
       },
       async close() {
         // 此函数不证明页面已保存。可信调用者必须先完成维护确认；本实现只用于新建隔离工作区。

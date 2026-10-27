@@ -3,13 +3,15 @@ import { createProxyConfigurationStore } from './代理配置存储.mjs';
 import { buildIsolatedProxyConfig, subscriptionURL, validateSourceText } from './配置边界.mjs';
 import { readProxySubscription } from './订阅读取.mjs';
 import { 代理配置来源显示 } from './内置订阅设置.mjs';
+import { createSmartResourceUpdater } from './Smart资源自动更新.mjs';
 
 // 只管理自己的实例。状态查询不发起网络探测；配置/启停串行，路由租约阻止中途换代理。
-export async function openNetworkProxyService({ workspace, vault, runTrustedWrite, runtime, readSubscription = readProxySubscription, initialConfiguration, deferStartup = false } = {}) {
+export async function openNetworkProxyService({ workspace, vault, runTrustedWrite, runtime, readSubscription = readProxySubscription, initialConfiguration, deferStartup = false, resourceUpdateOptions } = {}) {
   requireValue(typeof runtime?.start === 'function' && typeof readSubscription === 'function', 'proxy_runtime_invalid', '代理服务需要可信进程内运行器。');
   const store = createProxyConfigurationStore({ workspace, vault, runTrustedWrite });
   let state = store.read(), handle = null, closed = false, pending = 0, leases = 0, tail = Promise.resolve(), lastError = null;
   let currentNode = null, delayResults = [], configInput = '';
+  let resourceUpdater, activeRuntime = runtime, activeCore = resourceUpdateOptions?.bundledCore;
   async function updateSourceDisplay() {
     configInput = '';
     if (state.value.config) {
@@ -20,7 +22,7 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
   }
   const status = () => ({ configured: !!state.value.config, enabled: state.value.enabled, relayEnabled: state.value.relayEnabled, running: !!handle?.running(), currentNode, delayResults,
     configName: state.value.configName, configInput, source: state.value.config ? state.value.sourceKind === 'url' ? 'subscription' : 'uploaded' : null,
-    smart: handle?.running() ? handle.smartStatus?.() || null : null, busy: pending > 0, activeRequests: leases, lastError });
+    smart: handle?.running() ? { ...handle.smartStatus?.(), version: activeCore?.version, update: resourceUpdater?.status() } : null, resourceUpdate: resourceUpdater?.status() || null, busy: pending > 0, activeRequests: leases, lastError });
   const run = operation => {
     requireValue(!closed, 'proxy_closed', '代理服务已关闭。', 503);
     pending++;
@@ -32,19 +34,30 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
     tail = flight.then(() => {}, () => {}); return flight;
   };
   async function stop() { if (handle) { await handle.stop(); handle = null; } }
+  async function startCore(source) {
+    const candidate = await resourceUpdater?.candidate();
+    if (!candidate) { handle = await activeRuntime.start(source); return; }
+    try {
+      const nextRuntime = resourceUpdateOptions.runtimeFactory(candidate); handle = await nextRuntime.start(source);
+      requireValue(handle.smartStatus?.().enabled && handle.smartStatus().modelBundled, 'proxy_resource_activation_failed', 'Smart资源健康检查未通过。', 503);
+      await resourceUpdater.accept(candidate); activeRuntime = nextRuntime; activeCore = candidate;
+    } catch {
+      await stop(); await resourceUpdater.reject(candidate); handle = await activeRuntime.start(source);
+    }
+  }
   async function transition(next) {
     const before = state;
     lastError = null;
     await stop();
     try {
-      if (next.enabled && next.config) handle = await runtime.start(await store.unseal(next.config));
+      if (next.enabled && next.config) await startCore(await store.unseal(next.config));
       state = await store.save(next, before.revision); await updateSourceDisplay(); return status();
     } catch (error) {
       await stop();
       // 丢ACK可能已经提交。只按重新读到的真实落盘状态恢复，不伪称旧配置已回滚。
       state = store.read();
       await updateSourceDisplay();
-      if (state.value.enabled && state.value.config) { try { handle = await runtime.start(await store.unseal(state.value.config)); } catch { lastError = 'proxy_restore_failed'; } }
+      if (state.value.enabled && state.value.config) { try { await startCore(await store.unseal(state.value.config)); } catch { lastError = 'proxy_restore_failed'; } }
       throw error;
     }
   }
@@ -76,13 +89,38 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
     }
     await updateSourceDisplay();
     if (state.value.enabled && state.value.config) {
-      try { handle = await runtime.start(await store.unseal(state.value.config)); }
+      try { await startCore(await store.unseal(state.value.config)); }
       catch { lastError = 'proxy_restore_failed'; } // 无代理不阻止打开画布，但后续代理请求必须失败，不能偷偷直连。
     }
   };
-  if (deferStartup) void run(restore).catch(() => {});
-  else await restore();
-  return Object.freeze({ status,
+  if (resourceUpdateOptions) {
+    try {
+      resourceUpdater = await createSmartResourceUpdater({ ...resourceUpdateOptions, proxy: { status, acquireRoute: () => port.acquireRoute(), core: () => activeCore },
+        onPending: async () => {
+          if (closed || pending || leases || !state.value.enabled || !state.value.config || !resourceUpdater.status().autoUpdate || resourceUpdater.status().state !== 'pending') return;
+          await run(async () => {
+            const source = await store.unseal(state.value.config);
+            const selections = (await handle?.inspect?.() || []).filter(group => group.type === 'Selector' && group.selected);
+            await stop(); await startCore(source);
+            const groups = await handle.inspect?.() || [];
+            for (const selection of selections) {
+              const group = groups.find(item => item.name === selection.name && item.type === 'Selector');
+              if (group?.choices.includes(selection.selected)) await handle.select(selection.name, selection.selected);
+            }
+          });
+        } });
+    } catch {
+      // 保留异常状态文件供定位；更新器故障不能阻断原核心、画布或保存。
+      const unavailable = () => { throw new StorageError('proxy_resource_state_invalid', '核心更新状态异常，已暂停资源更新；当前代理和工作台仍可使用。', 503); };
+      resourceUpdater = { status: () => ({ autoUpdate: false, state: 'error', checkedAt: null, error: 'proxy_resource_state_invalid', model: 'large' }),
+        candidate: async () => null, check: unavailable, configure: unavailable, start() {}, async close() {} };
+    }
+  }
+  const port = Object.freeze({ status,
+    resourceCheck: async () => { await resourceUpdater?.check(true); return status(); },
+    configureResourceUpdates: async enabled => { await resourceUpdater?.configure(enabled); return status(); },
+    pauseUpdates: () => resourceUpdater?.close(),
+    resumeUpdates: () => resourceUpdater?.start(),
     configure: value => run(() => configure(value)),
     toggle: enabled => run(async () => {
       requireValue(typeof enabled === 'boolean', 'proxy_source_invalid', '代理开关无效。');
@@ -113,6 +151,10 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
       return Object.freeze({ ...(transport === 'proxy' ? handle.route() : {}), release() { if (!released) { released = true; leases--; } } });
     },
     assertCanClose() { requireValue(pending === 0 && leases === 0, 'proxy_busy', '仍有代理配置或请求未结束，不能关闭。', 409); },
-    async close() { this.assertCanClose(); closed = true; await stop(); },
+    async close() { await resourceUpdater?.close(); this.assertCanClose(); closed = true; await stop(); },
   });
+  if (deferStartup) void run(restore).catch(() => {});
+  else await restore();
+  resourceUpdater?.start();
+  return port;
 }

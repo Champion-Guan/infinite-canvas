@@ -3,9 +3,9 @@ import { ownedProcess } from './管理进程身份.mjs';
 import { prepareManagerHandoff } from './管理器版本接续.mjs';
 
 export function continueLegacyManager({ app, manager, inventory, packageRoot, paths, stop }) {
-  let flight = false, done = false;
+  let flight = false, done = false, retryAt = 0;
   const timer = setInterval(async () => {
-    if (flight || done || !app.getStatus().ready) return;
+    if (flight || done || Date.now() < retryAt || !app.getStatus().ready) return;
     const authorization = app.getStatus().authorization;
     if (authorization?.authorizedPages !== 0 || authorization.pendingTickets !== 0 || authorization.activeRequests !== 0) return;
     flight = true;
@@ -24,6 +24,7 @@ export function continueLegacyManager({ app, manager, inventory, packageRoot, pa
       done = true; clearInterval(timer); watcher.commit(); await stop(false);
     } catch (error) {
       watcher?.cancel();
+      retryAt = Date.now() + 30000;
       console.error('管理器接续暂未完成：' + (error.code || 'update_manager_handoff_failed'));
     } finally { flight = false; }
   }, 1000);

@@ -3,7 +3,7 @@ import { createMacOSMasterKeyProvider } from '../本机凭据/钥匙串主密钥
 import { startIsolatedAuthorizedWorkbench } from './受限工作台启动器.mjs';
 import { dailyWorkbenchPaths, prepareDailyDataRoot } from './日常数据根.mjs';
 import { DEFAULT_WORKBENCH_PORT } from './工作台端口.mjs';
-import { 定位代理核心 } from '../网络代理/代理核心定位.mjs';
+import { 定位代理核心, 稳定代理核心目录 } from '../网络代理/代理核心定位.mjs';
 import { 读取旧代理配置 } from '../网络代理/旧代理配置接续.mjs';
 import { 读取默认代理配置 } from '../网络代理/默认代理配置.mjs';
 import { 清理升级历史备份 } from './升级遗留清理.mjs';
@@ -26,7 +26,7 @@ export async function startDailyWorkbench({ webRoot, storage, helperPath, helper
   // 启动器先独占监听端口，再调用openWorkspace。端口冲突不创建数据、不读钥匙串。
   const app = await startIsolatedAuthorizedWorkbench({ webRoot, dataRoot: paths.dataRoot, initialize,
     storage: guardedStorage, credentialKeyProvider: provider, endpoint, softwareUpdateOptions, deferActivation,
-    networkProxyOptions: { core: await 定位代理核心() }, initialProxyConfiguration: async () => await 读取旧代理配置() || 读取默认代理配置(),
+    networkProxyOptions: { core: await 定位代理核心() }, proxyResourceUpdateOptions: { cacheRoot: 稳定代理核心目录() }, initialProxyConfiguration: async () => await 读取旧代理配置() || 读取默认代理配置(),
     async onWorkspaceReady(workspace) {
       try {
         const result = await 清理升级历史备份({ dataRoot: paths.dataRoot, workspaceId: workspace.workspaceId });

@@ -6,6 +6,7 @@ import { constants } from 'node:fs';
 import { privateDirectory } from '../软件更新/runtime-paths.mjs';
 import { 检查目录容量 } from '../本机服务/目录容量限制.mjs';
 import { StorageError, requireValue } from '../本机存储/协议.mjs';
+import { 回收退出核心 } from './核心缓存回收.mjs';
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const allowed = /^[a-f0-9]{64}$/;
@@ -15,7 +16,7 @@ async function readChecked(path, limit) {
     'proxy_core_invalid', '内置代理核心文件不符合校验要求。', 503);
   return readFile(path);
 }
-export async function installBundledProxyCore(directory, cacheRoot) {
+export async function installBundledProxyCore(directory, cacheRoot, { retainHashes = [] } = {}) {
   const manifest = JSON.parse(await readChecked(join(directory, '核心清单.json'), 8192));
   requireValue(allowed.test(manifest.sha256) && allowed.test(manifest.archiveSha256) && manifest.platform === process.platform && manifest.arch === process.arch &&
     Number.isSafeInteger(manifest.size) && manifest.size >= 8 && manifest.size <= 128 * 1024 ** 2 && Number.isSafeInteger(manifest.archiveSize) && manifest.archiveSize > 0 && manifest.archiveSize <= 32 * 1024 ** 2,
@@ -42,9 +43,9 @@ export async function installBundledProxyCore(directory, cacheRoot) {
   requireValue(manifest.variant !== 'Mihomo Smart' || manifest.model, 'proxy_core_invalid', 'Smart核心缺少内置模型。', 503);
   let modelPath;
   if (manifest.model) {
-    requireValue(manifest.model.file === '智能选路模型.bin' && allowed.test(manifest.model.sha256) && Number.isSafeInteger(manifest.model.size) && manifest.model.size > 0 && manifest.model.size <= 16 * 1024 ** 2,
+    requireValue(manifest.model.file === '智能选路模型.bin' && allowed.test(manifest.model.sha256) && Number.isSafeInteger(manifest.model.size) && manifest.model.size > 0 && manifest.model.size <= 32 * 1024 ** 2,
       'proxy_core_invalid', 'Smart模型清单无效。', 503);
-    const model = await readChecked(join(directory, manifest.model.file), 16 * 1024 ** 2);
+    const model = await readChecked(join(directory, manifest.model.file), 32 * 1024 ** 2);
     requireValue(model.length === manifest.model.size && digest(model) === manifest.model.sha256, 'proxy_core_invalid', 'Smart模型校验失败。', 503);
     modelPath = join(directory, manifest.model.file);
   }
@@ -52,7 +53,7 @@ export async function installBundledProxyCore(directory, cacheRoot) {
   try { existing = await readChecked(path, 128 * 1024 ** 2); } catch (error) { if (error.code !== 'ENOENT') throw error; }
   if (existing) requireValue(existing.length === manifest.size && digest(existing) === manifest.sha256 && (await lstat(path)).mode & 0o100, 'proxy_core_invalid', '已安装代理核心校验失败。', 503);
   else {
-    检查目录容量(cacheRoot, { maxBytes: 256 * 1024 ** 2, incomingBytes: manifest.size, reserveBytes: 1024 ** 3 });
+    检查目录容量(cacheRoot, { maxBytes: 512 * 1024 ** 2, incomingBytes: manifest.size, reserveBytes: 1024 ** 3 });
     const archive = await readChecked(join(directory, '代理核心.gz'), 32 * 1024 ** 2);
     requireValue(archive.length === manifest.archiveSize && digest(archive) === manifest.archiveSha256, 'proxy_core_invalid', '内置代理核心压缩包校验失败。', 503);
     let binary;
@@ -70,14 +71,6 @@ export async function installBundledProxyCore(directory, cacheRoot) {
     } finally { await rm(temporary, { force: true }); }
   }
   // 仅清理本模块的旧核心缓存，保留当前和最近上一份；不触碰配置和其他进程目录。
-  const candidates = [];
-  for (const name of await readdir(versions)) {
-    if (!allowed.test(name) || name === manifest.sha256) continue;
-    const folder = join(versions, name), stat = await lstat(folder);
-    if (!stat.isDirectory() || stat.isSymbolicLink() || stat.uid !== process.getuid() || stat.mode & 0o077 || (await readdir(folder)).join(',') !== 'mihomo') continue;
-    candidates.push({ folder, modified: stat.mtimeMs });
-  }
-  candidates.sort((a, b) => b.modified - a.modified);
-  for (const item of candidates.slice(1)) await rm(item.folder, { recursive: true });
-  return { path, sha256: manifest.sha256, ...(modelPath ? { model: { path: modelPath, sha256: manifest.model.sha256, size: manifest.model.size } } : {}) };
+  await 回收退出核心(versions, manifest.sha256, retainHashes);
+  return { path, sha256: manifest.sha256, version: manifest.version, archiveSha256: manifest.archiveSha256, ...(modelPath ? { model: { path: modelPath, sha256: manifest.model.sha256, size: manifest.model.size } } : {}) };
 }

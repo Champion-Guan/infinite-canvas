@@ -34,6 +34,8 @@ export function createNetworkProxyHTTPHandler({ origin, authorize, proxy, relay,
       else if (exact(value, ['operation']) && value.operation === 'nodes') result = await proxy.nodes();
       else if (exact(value, ['operation']) && value.operation === 'diagnose') result = await proxy.diagnose();
       else if (exact(value, ['operation']) && value.operation === 'test-all') result = await proxy.testAll();
+      else if (exact(value, ['operation']) && value.operation === 'check-resources') result = await proxy.resourceCheck();
+      else if (exact(value, ['operation', 'enabled']) && value.operation === 'resource-auto-update') result = await proxy.configureResourceUpdates(value.enabled);
       else if (exact(value, ['operation', 'group', 'name']) && value.operation === 'select' && typeof value.group === 'string' && typeof value.name === 'string' && value.group.length <= 256 && value.name.length <= 256) result = await proxy.select(value.group, value.name);
       else requireValue(false, 'proxy_command_denied', '代理操作不受支持。');
       await authorize(request); json(200, { result });

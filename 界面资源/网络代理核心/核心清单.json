@@ -13,8 +13,9 @@
   "upstreamDigest": "GitHub Release资产digest",
   "model": {
     "file": "智能选路模型.bin",
-    "size": 9345218,
-    "sha256": "23633022a815fb34e510befe1c176ba50af3ced48f08b172454f4cd6b8327788",
-    "source": "https://github.com/vernesong/mihomo/releases/download/LightGBM-Model/Model.bin"
+    "variant": "large",
+    "size": 26787747,
+    "sha256": "832920df1290454710dd04aa4c7d4b5324edfd7816a7c9ad2272708b5d5a13a8",
+    "source": "https://github.com/vernesong/mihomo/releases/download/LightGBM-Model/Model-large.bin"
   }
 }

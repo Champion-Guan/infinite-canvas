@@ -9,5 +9,6 @@ export function createNetworkProxyClient({ command }) {
   return Object.freeze({ status: () => call({ operation: 'status' }), configure: value => call({ operation: 'configure', ...value }),
     toggle: enabled => call({ operation: 'toggle', enabled }), refresh: () => call({ operation: 'refresh' }),
     toggleRelay: enabled => call({ operation: 'toggle-relay', enabled }), relay: (request, options) => call({ operation: 'relay', request }, options), testAll: () => call({ operation: 'test-all' }),
+    checkResources: () => call({ operation: 'check-resources' }), configureResourceUpdates: enabled => call({ operation: 'resource-auto-update', enabled }),
     nodes: () => call({ operation: 'nodes' }), diagnose: () => call({ operation: 'diagnose' }), select: (group, name) => call({ operation: 'select', group, name }) });
 }

@@ -51,7 +51,7 @@ export function createMihomoRuntime({ core, runtimeParent, port = 23210, coreArg
         const file = join(directory, 'config.yaml'); await writeFile(file, config, { mode: 0o600, flag: 'wx' });
         if (core.model) {
           const info = await lstat(core.model.path);
-          requireValue(info.isFile() && !info.isSymbolicLink() && info.nlink === 1 && !(info.mode & 0o022) && info.size === core.model.size && info.size <= 16 * 1024 ** 2,
+          requireValue(info.isFile() && !info.isSymbolicLink() && info.nlink === 1 && !(info.mode & 0o022) && info.size === core.model.size && info.size <= 32 * 1024 ** 2,
             'proxy_core_invalid', 'Smart模型文件无效。', 503);
           const model = await readFile(core.model.path);
           requireValue(createHash('sha256').update(model).digest('hex') === core.model.sha256, 'proxy_core_invalid', 'Smart模型指纹无效。', 503);
