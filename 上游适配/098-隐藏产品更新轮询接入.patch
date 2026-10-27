@@ -1,0 +1,38 @@
+diff --git a/web/src/hooks/use-version-check.ts b/web/src/hooks/use-version-check.ts
+index 51981f4..ad91fdc 100644
+--- a/web/src/hooks/use-version-check.ts
++++ b/web/src/hooks/use-version-check.ts
+@@ -1,4 +1,5 @@
+ import { useCallback, useEffect, useMemo, useState } from "react";
++import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { App } from "antd";
+ import { APP_VERSION } from "@/constant/env";
+ import type { ReleaseInfo } from "@/lib/release";
+@@ -10,6 +11,7 @@ export function resolveCurrentWorkbenchVersion(serverVersion: string | null | un
+ 
+ export function useVersionCheck() {
+     const { message } = App.useApp();
++    const productActive = useProductActive();
+     const localReleases = useMemo<ReleaseInfo[]>(() => __APP_RELEASES__ || [], []);
+     const [status, setStatus] = useState<SoftwareUpdateStatus | null>(null);
+     const [checking, setChecking] = useState(false);
+@@ -43,11 +45,14 @@ export function useVersionCheck() {
+     );
+ 
+     useEffect(() => {
+-        // Backend owns startup and six-hour polling; cached iframes cannot multiply GitHub requests.
+-        void refresh();
+-        const timer = setInterval(() => void refresh(), 30000);
+-        return () => clearInterval(timer);
+-    }, [refresh]);
++        // 缓存产品继续保存任务，但不可见页面不重复轮询更新状态。
++        if (!productActive) return;
++        const refreshVisible = () => { if (document.visibilityState === "visible") void refresh(); };
++        refreshVisible();
++        document.addEventListener("visibilitychange", refreshVisible);
++        const timer = setInterval(refreshVisible, 30000);
++        return () => { clearInterval(timer); document.removeEventListener("visibilitychange", refreshVisible); };
++    }, [productActive, refresh]);
+ 
+     const openReleaseModal = useCallback(() => {
+         setOpen(true);

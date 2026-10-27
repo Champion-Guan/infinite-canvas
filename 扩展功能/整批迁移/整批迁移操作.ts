@@ -36,10 +36,10 @@ export function currentTransferSettings(): AppConfigFile {
   const { sources, schedule } = usePromptSourceStore.getState();
   return { app: "infinite-canvas", version: 1, exportedAt: "", config, webdav, promptSources: { sources, schedule } };
 }
-export function previewLegacyTransfer(plan: LegacyTransfer, useLegacyPreferences: boolean) {
-  const merge = mergeLegacyProducts(useCanvasStore.getState(), plan.products.snapshot);
-  const settings = mergeLegacySettings(currentTransferSettings(), plan.settings.data, plan.products.sourceId, useLegacyPreferences);
-  return { added: merge.added, recycled: merge.recycled, skipped: merge.skipped, channels: settings.addedChannels, conflicts: settings.conflicts };
+export function previewLegacyTransfer(plan: LegacyTransfer, useLegacyPreferences: boolean, canvas: Parameters<typeof mergeLegacyProducts>[0] = useCanvasStore.getState(), settings: AppConfigFile = currentTransferSettings()) {
+  const merge = mergeLegacyProducts(canvas, plan.products.snapshot);
+  const mergedSettings = mergeLegacySettings(settings, plan.settings.data, plan.products.sourceId, useLegacyPreferences);
+  return { added: merge.added, recycled: merge.recycled, skipped: merge.skipped, channels: mergedSettings.addedChannels, conflicts: mergedSettings.conflicts };
 }
 let pending: { result: TransferResult; ids: string[]; fallback: { value: FallbackConfig; revision: number } | null; fallbackSaved: boolean } | null = null;
 export async function commitLegacyTransfer(plan: LegacyTransfer, useLegacyPreferences: boolean, saveCurrent: () => Promise<void>, progress: (value: string) => void, preserveMissingMedia = false) {

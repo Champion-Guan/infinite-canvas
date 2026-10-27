@@ -162,7 +162,7 @@ test('参数卡移除AI入口和请求依赖后，填写仍同步原卡和关联
         './Excel参数记忆': { saveProductParameterValues: (...args) => remembered.push(args) },
     });
     const { PromptVariablesContent } = await load('Excel画布/旧版参数卡片.tsx', {
-        react: { useMemo: compute => compute(), useEffect: () => {} }, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': { Braces: 'icon' },
+        react: { useMemo: compute => compute(), useEffect: () => {}, useRef: current => ({ current }) }, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': { Braces: 'icon' },
         '@/lib/canvas-theme': { canvasThemes: { light: { node: {}, toolbar: {} } } }, '@/stores/use-theme-store': { useThemeStore: selector => selector({ theme: 'light' }) },
         './产品参数编辑操作': editing, './旧版参数规则': rules, './Excel画布上下文': { useExcelProductId: () => 'a', useExcelPromptContext: () => ({ templates: [], fileName: '测试.xlsx' }) },
         './Excel参数记忆': { readProductParameterValues: () => ({}), saveProductParameterValues: (...args) => remembered.push(args) },

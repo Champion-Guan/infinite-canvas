@@ -1,0 +1,11 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -403,6 +403,7 @@ export function AppConfigModal() {
+                 </div>
+             }
+             open={isConfigOpen}
++            destroyOnHidden
+             width={980}
+             centered
+             onCancel={() => setConfigDialogOpen(false)}

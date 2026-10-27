@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/canvas-toolbar.tsx b/web/src/components/canvas/canvas-toolbar.tsx
+index db9effe..10362bf 100644
+--- a/web/src/components/canvas/canvas-toolbar.tsx
++++ b/web/src/components/canvas/canvas-toolbar.tsx
+@@ -389,7 +389,7 @@ function CanvasThemeButton({ colorTheme, targetTheme, onThemeChange, children }:
+ 
+ function DockTip({ label, x, theme }: { label: string; x: number; theme: CanvasTheme }) {
+     return (
+-        <span className="absolute bottom-[calc(100%+8px)] z-50 max-w-72 -translate-x-1/2 rounded-md px-2 py-1 text-center text-xs leading-5 shadow-lg" style={{ left: x, background: theme.node.text, color: theme.node.panel, ...(label === "整理重叠卡片 · 可撤销" ? { minWidth: 150 } : {}) }}>
++        <span className="absolute bottom-[calc(100%+8px)] z-50 max-w-72 -translate-x-1/2 rounded-md px-2 py-1 text-center text-xs leading-5 shadow-lg" style={{ left: x, background: theme.node.text, color: theme.node.panel, ...(label === "整理卡片 · 可撤销" ? { minWidth: 150 } : {}) }}>
+             {label}
+         </span>
+     );

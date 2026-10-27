@@ -52,7 +52,7 @@ export function useCanvasNodeRecycle<T extends CanvasHistorySnapshot>({ projectI
         } catch (error) {
             message.error(`${applied ? "节点已恢复，但保存未确认：" : "恢复失败："}${error instanceof Error ? error.message : String(error)}`);
         } finally { recycleBusyRef.current.delete(batchId); }
-    }, [applyHistory, assertImportTarget, createHistoryEntry, message, pollVideoNodeTask, projectId, updateProject]);
+    }, [applyHistory, assertImportTarget, createHistoryEntry, message, pollVideoNodeTask, projectId, updateProject, historyRef, nodesRef, setSelectedNodeIds]);
 
     const permanentlyDeleteNodeBatch = useCallback(async (batchId: string) => {
         if (recycleBusyRef.current.has(batchId)) return;
@@ -77,7 +77,7 @@ export function useCanvasNodeRecycle<T extends CanvasHistorySnapshot>({ projectI
         } catch (error) {
             message.error(`${applied ? "记录已移除，但保存未确认：" : "永久删除失败："}${error instanceof Error ? error.message : String(error)}`);
         } finally { recycleBusyRef.current.delete(batchId); }
-    }, [assertImportTarget, cleanupCanvasFiles, message, projectId, updateProject]);
+    }, [assertImportTarget, cleanupCanvasFiles, message, projectId, updateProject, historyRef, lastHistoryRef, nodesRef]);
 
     return { restoreDeletedNodeBatch, permanentlyDeleteNodeBatch };
 }

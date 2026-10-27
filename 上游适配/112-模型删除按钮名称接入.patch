@@ -1,0 +1,13 @@
+diff --git a/web/src/components/layout/channel-editor-drawer.tsx b/web/src/components/layout/channel-editor-drawer.tsx
+index 0da1526..e1f90b1 100644
+--- a/web/src/components/layout/channel-editor-drawer.tsx
++++ b/web/src/components/layout/channel-editor-drawer.tsx
+@@ -111,7 +111,7 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open:
+                                 {businessFeatures.modelScripts ? <Button size="small" type={model.script ? "primary" : "default"} ghost={Boolean(model.script)} onClick={() => setScriptTarget({ name: model.name, capability: model.capability, value: model.script || "" })}>
+                                     {t(model.script ? "config.channelEditor.scriptReady" : "config.channelEditor.script")}
+                                 </Button> : model.script ? <span className="text-xs text-amber-600 dark:text-amber-400" title="原有脚本已保留，生成时会停止，不会改用其他调用方式">自定义脚本已停用</span> : null}
+-                                <Button size="small" danger type="text" icon={<Trash2 className="size-3.5" />} onClick={() => removeModel(model.name)} />
++                                <Button size="small" danger type="text" icon={<Trash2 className="size-3.5" />} aria-label={`${t("common.delete")} ${model.name}`} title={`${t("common.delete")} ${model.name}`} onClick={() => removeModel(model.name)} />
+                             </div>
+                         </div>
+                     ))

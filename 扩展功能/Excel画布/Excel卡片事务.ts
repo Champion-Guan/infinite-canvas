@@ -95,15 +95,15 @@ export function clearDeletedExcelRelations(node: CanvasNodeData, ids: Set<string
   return changed ? { ...node, metadata } : node;
 }
 
-export function disconnectExcelParameters(nodes: CanvasNodeData[], connections: CanvasConnection[], id: string) {
-  const edge = connections.find(item => item.id === id);
+export function disconnectExcelParameters(nodes: CanvasNodeData[], connections: CanvasConnection[], id: string, matches = (item: CanvasConnection) => item.id === id) {
+  const edge = connections.find(matches);
   if (!edge) return null;
   const pair = nodes.filter(node => node.id === edge.fromNodeId || node.id === edge.toNodeId);
   const parameter = pair.find(node => node.type === PROMPT_VARIABLES_NODE_TYPE);
   const source = pair.find(node => node.metadata?.excelPromptBindingNodeId === parameter?.id);
   if (!parameter || !source) return null;
   // 两个方向均存在时只移除用户指定的边，剩余边仍维持绑定。
-  const rest = connections.filter(item => item.id !== id);
+  const rest = connections.filter(item => !matches(item));
   if (rest.some(item => [item.fromNodeId, item.toNodeId].includes(parameter.id) && [item.fromNodeId, item.toNodeId].includes(source.id))) return { nodes, connections: rest };
   const previews = new Set(nodes.filter(node => node.metadata?.promptVariablePreviewOf === parameter.id && node.metadata?.promptVariableSourceNodeId === source.id).map(node => node.id));
   return { nodes: nodes.filter(node => !previews.has(node.id)).map(node => {

@@ -30,11 +30,15 @@ export const useThemeStore = create<ThemeStore>()(
             mode: "system",
             theme: systemTheme(),
             setTheme: (theme) => {
-                if (theme === "light" || theme === "dark") set({ mode: theme, theme });
+                if (theme !== "light" && theme !== "dark") return;
+                if (get().mode === theme && get().theme === theme) return;
+                set({ mode: theme, theme });
             },
             setMode: (mode) => {
                 if (mode !== "system" && mode !== "light" && mode !== "dark") return;
-                set({ mode, theme: mode === "system" ? systemTheme() : mode });
+                const nextTheme = mode === "system" ? systemTheme() : mode;
+                if (get().mode === mode && get().theme === nextTheme) return;
+                set({ mode, theme: nextTheme });
             },
             syncSystemTheme: (dark) => {
                 const theme = dark ? "dark" : "light";

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { openWorkspace } from '../扩展功能/本机存储/SQLite工作区.mjs';
@@ -186,7 +186,7 @@ test('续期客户端本机Origin和无效时钟在请求前阻断', async () =>
   } finally { await f.close(); }
 });
 
-test.after(() => console.log(JSON.stringify({ syntheticSessionRoots: roots, retainedForInspection: true })));
+test.after(() => { for (const root of roots) rmSync(root, { recursive: true, force: true }); });
 
 
 test('续期重试不延长绝对期限，更旧请求与已过期结果不能复活', async () => {

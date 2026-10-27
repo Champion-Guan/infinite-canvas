@@ -1,20 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./原版网络代理.css";
+import { 内置网络代理订阅 } from "./内置订阅设置.mjs";
+import { useProductActive } from "../产品/产品界面边界";
 
-type Status = { configured: boolean; enabled: boolean; running: boolean; configName: string; source: string | null; busy: boolean; activeRequests: number; lastError: string | null };
-type ProxyHost = { status(): Promise<Status>; configure(value: { configText: string; subscriptionUrl: string; fileName: string }): Promise<Status>; toggle(enabled: boolean): Promise<Status>; diagnose(): Promise<{ node: string; delay: number }> };
+type NodeInfo = { name: string; latencyMs: number | null; testedAt?: number; error?: string | null };
+type Status = { configured: boolean; enabled: boolean; running: boolean; configName: string; configInput: string; source: string | null; busy: boolean; activeRequests: number; lastError: string | null; currentNode?: NodeInfo | null; delayResults?: NodeInfo[] };
+type ProxyHost = { status(): Promise<Status>; configure(value: { configText: string; subscriptionUrl: string; fileName: string }): Promise<Status>; toggle(enabled: boolean): Promise<Status>; diagnose(): Promise<Status & { reachable: boolean }>; testAll(): Promise<Status> };
 function host() { return (window as unknown as { __guanNetworkProxyHost?: ProxyHost }).__guanNetworkProxyHost; }
 
 // 迁入旧版makeNetworkPanel的真实结构、文案、尺寸与样式；只替换事件/状态出口，不注入DOM。
 export function OriginalNetworkProxyPanel() {
+    const productActive = useProductActive();
     const [status, setStatus] = useState<Status | null>(null);
-    const [input, setInput] = useState("");
+    const [input, setInput] = useState(内置网络代理订阅);
     const [fileText, setFileText] = useState("");
     const [fileName, setFileName] = useState("");
     const [busy, setBusy] = useState(false);
     const [frozen, setFrozen] = useState(false);
     const [notice, setNotice] = useState("");
     const [error, setError] = useState("");
+    const [connection, setConnection] = useState("");
     const fileRef = useRef<HTMLInputElement>(null);
     const mounted = useRef(false), flight = useRef(false), polling = useRef(false), revision = useRef(0), fileRevision = useRef(0), unlocked = useRef(false);
     const invalidateRequests = useCallback(() => { revision.current++; fileRevision.current++; }, []);
@@ -26,30 +31,43 @@ export function OriginalNetworkProxyPanel() {
         finally { polling.current = false; }
     }, []);
     useEffect(() => {
-        mounted.current = true; void refresh();
-        const timer = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 10000);
-        return () => { mounted.current = false; invalidateRequests(); window.clearInterval(timer); };
-    }, [refresh, invalidateRequests]);
+        if (!productActive) return;
+        mounted.current = true;
+        const visibleRefresh = () => { if (document.visibilityState === "visible") void refresh(); };
+        visibleRefresh();
+        document.addEventListener("visibilitychange", visibleRefresh);
+        const timer = window.setInterval(visibleRefresh, 10000);
+        return () => { mounted.current = false; invalidateRequests(); window.clearInterval(timer); document.removeEventListener("visibilitychange", visibleRefresh); };
+    }, [productActive, refresh, invalidateRequests]);
     useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(""), 10000); return () => window.clearTimeout(timer); }, [notice]);
     const act = async (operation: (port: ProxyHost) => Promise<Status>, success: string, clearInput = false) => {
         const port = host(); if (!port || flight.current) return;
         flight.current = true; revision.current++; fileRevision.current++; setBusy(true); setError(""); setNotice("切换中…");
         try {
             const next = await operation(port);
-            if (mounted.current) { setStatus(next); unlocked.current = !next.running; setFrozen(next.running); setNotice(success); if (clearInput) { setFileText(""); setFileName(""); setInput(""); } }
+            if (mounted.current) { setStatus(next); unlocked.current = !next.running; setFrozen(next.running); setNotice(success); if (clearInput) { setFileText(""); setFileName(""); setInput(next.configInput === 内置网络代理订阅 ? next.configInput : 内置网络代理订阅); } }
         } catch { if (mounted.current) { setNotice(""); setError("代理操作未完成，配置保留。请检查状态、代理核心及端口。"); } }
         finally { flight.current = false; if (mounted.current) { setBusy(false); void refresh(); } }
     };
     const unavailable = !host();
+    const displayedInput = frozen && status?.configured ? status.configInput || status.configName : fileName || input;
     const state = busy ? "pending" : status?.running ? "active" : status?.lastError ? "error" : "inactive";
     return <div className="guan-network-proxy"><div className="local-canvas-settings-tabpanel local-canvas-proxy-section">
         <section className="local-canvas-settings-card">
             <div className="local-canvas-settings-header"><h4>设置网络代理</h4>
-                <label className="local-canvas-settings-toggle"><input data-canvas-proxy-toggle type="checkbox" checked={status?.running === true} disabled={busy || unavailable || !status?.configured} onChange={event => { const enabled = event.currentTarget.checked; void act(port => port.toggle(enabled), enabled ? "代理启动成功" : "代理已停止"); }} />启用网络代理</label>
+                <label className="local-canvas-settings-toggle"><input data-canvas-proxy-toggle type="checkbox" checked={status?.enabled === true} disabled={busy || unavailable || !status} onChange={event => { const enabled = event.currentTarget.checked; void act(port => port.toggle(enabled), enabled ? status?.configured ? "代理启动成功" : "已开启，等待配置代理" : "代理已停止"); }} />启用网络代理</label>
             </div>
-            <div className="local-canvas-proxy-state" data-status={state} role="status" aria-live="polite">{busy ? "网络代理：切换中…" : status?.running ? "网络代理：已启动" : unavailable ? "网络代理：本机端口尚未接入" : "网络代理：未启动"}</div>
+            <div className="local-canvas-proxy-state" data-status={state} role="status" aria-live="polite">{busy ? "网络代理：切换中…" : status?.running ? "网络代理：已启动" : unavailable ? "网络代理：本机端口尚未接入" : status?.enabled && !status.configured ? "网络代理：已开启，等待配置" : "网络代理：未启动"}</div>
+            {status?.running && <div className="local-canvas-settings-note">
+                <div>当前测试实际节点：{status.currentNode?.name || "未读取"} · HTTP 实测延迟：{status.currentNode?.latencyMs ? `${status.currentNode.latencyMs} ms` : status.currentNode?.error || "尚未测试"} · 配置文件：{status.configName || "未配置"}{status.currentNode?.testedAt ? ` · 测试时间：${new Date(status.currentNode.testedAt).toLocaleTimeString()}` : ""}</div>
+                <div className="local-canvas-settings-actions"><button type="button" disabled={busy} onClick={() => void act(async port => {
+                    const next = await port.diagnose(); if (mounted.current) setConnection(next.reachable ? "外网访问正常（通过网络代理）" : "外网访问失败"); return next;
+                }, "网络代理测试完成")}>测试连接</button><button type="button" disabled={busy} onClick={() => void act(port => port.testAll(), "节点延迟测试完成")}>测试所有服务器延迟</button></div>
+                <div role="status">{connection}</div>
+                {!!status.delayResults?.length && <div style={{ maxHeight: 220, overflowY: "auto" }}>{status.delayResults.map(item => <div key={item.name} style={{ padding: "5px 0" }}>{item.name}：{item.latencyMs ? `${item.latencyMs} ms` : item.error || "不可用"}</div>)}</div>}
+            </div>}
             <div className="local-canvas-settings-field"><label htmlFor="guan-network-proxy-input">代理配置文件或远端订阅地址</label>
-                <div className="local-canvas-settings-input-row"><input id="guan-network-proxy-input" className="local-canvas-settings-input" data-canvas-proxy-input type="text" placeholder="https://example.com/your-subscription" autoComplete="off" spellCheck={false} disabled={busy || frozen || unavailable} value={fileName || input} onChange={event => { setInput(event.currentTarget.value); setFileText(""); setFileName(""); fileRevision.current++; }} />
+                <div className="local-canvas-settings-input-row"><input id="guan-network-proxy-input" className="local-canvas-settings-input" data-canvas-proxy-input type="text" placeholder={内置网络代理订阅} autoComplete="off" spellCheck={false} disabled={busy || frozen || unavailable} value={displayedInput} onChange={event => { setInput(event.currentTarget.value); setFileText(""); setFileName(""); fileRevision.current++; }} />
                     <button type="button" className="local-canvas-settings-file" data-canvas-proxy-file disabled={busy || frozen || unavailable} onClick={() => fileRef.current?.click()}>选择文件</button>
                     <input ref={fileRef} data-canvas-proxy-file-input type="file" accept=".yaml,.yml,.txt,text/plain,application/yaml" hidden onChange={async event => {
                         const file = event.currentTarget.files?.[0]; event.currentTarget.value = ""; const snapshot = ++fileRevision.current;

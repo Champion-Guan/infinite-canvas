@@ -12,7 +12,7 @@ export function prepareTextRequest(config: TextConfig, messages: AiTextMessage[]
         const model = config.model.trim().replace(/^models\//, "");
         if (!/^[\w.:-]+$/.test(model)) throw Error("Gemini模型名称无效");
         const version = new URL(config.baseUrl).pathname.replace(/\/+$/, "").endsWith("/v1") ? "v1" : "v1beta";
-        path = `/${version}/models/${model}:generateContent`;
+        path = `/${version}/models/${model}:streamGenerateContent?alt=sse`;
         const systems = input.filter(item => item.role === "system").map(item => typeof item.content === "string" ? item.content : item.content.filter(part => part.type === "text").map(part => part.text).join("\n"));
         payload = {
             ...(systems.length ? { systemInstruction: { parts: [{ text: systems.join("\n\n") }] } } : {}),
@@ -31,7 +31,7 @@ export function prepareTextRequest(config: TextConfig, messages: AiTextMessage[]
             model: config.model,
             input: input.map(item => ({ role: item.role, content: typeof item.content === "string" ? item.content : item.content.map(part => part.type === "text" ? { type: "input_text", text: part.text } : { type: "input_image", image_url: part.image_url.url }) })),
             ...(config.reasoningEffort === "auto" ? {} : { reasoning: { effort: config.reasoningEffort } }),
-            stream: false,
+            stream: true,
         };
     }
     const bytes = new TextEncoder().encode(JSON.stringify(payload));

@@ -69,7 +69,7 @@ export function useCanvasBatchGeneration({ nodesRef, connectionsRef, effectiveCo
         setSelectedNodeIds(new Set(created.map((node) => node.id)));
         setSelectedConnectionId(null);
         message.success(`已补齐 ${created.length} 个生成配置`);
-    }, [effectiveConfig.videoModel, effectiveConfig.audioModel, effectiveConfig.textModel, effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, message, setNodes]);
+    }, [effectiveConfig.videoModel, effectiveConfig.audioModel, effectiveConfig.textModel, effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, message, setNodes, nodesRef, connectionsRef, setConnections, setSelectedNodeIds, setSelectedConnectionId]);
 
     const batchGenerationRunning = useRef(false);
     const generateAllConfigNodes = useCallback(async () => {
@@ -113,7 +113,7 @@ export function useCanvasBatchGeneration({ nodesRef, connectionsRef, effectiveCo
         } finally {
             batchGenerationRunning.current = false;
         }
-    }, [handleGenerateNode, message]);
+    }, [handleGenerateNode, message, nodesRef]);
 
     const completeAndGenerateRunning = useRef(false);
     const completeAndGenerateAll = useCallback(async () => {

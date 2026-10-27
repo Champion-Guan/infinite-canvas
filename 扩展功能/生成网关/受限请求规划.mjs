@@ -4,7 +4,7 @@ import { requireValue } from '../本机存储/协议.mjs';
 // 来源：旧项目src/server/secure-provider-proxy.mjs的planSecureProviderRequest。
 // 仅迁入OpenAI/Gemini白名单；Agent、WebDAV、GitHub和任意插件不属于生成网关。
 const openAIPath = /^\/v1\/(?:models(?:\/[\w.-]+)?|images\/(?:generations|edits|variations)|chat\/completions|responses(?:\/[\w-]+)?|audio\/(?:speech|transcriptions|translations)|videos(?:\/[\w-]+(?:\/content)?)?)$/;
-const geminiPath = /^\/v1(?:beta)?\/(?:models(?:\/[\w.:-]+)?|operations\/[\w.-]+|files\/[\w.-]+(?::download)?)$/;
+const geminiPath = /^\/v1(?:beta)?\/(?:models(?:\/[\w.:-]+(?:\/operations\/[\w.-]+)?)?|operations\/[\w.-]+|files\/[\w.-]+(?::download)?)$/;
 const unsafeCharacters = value => [...value].some(character => character === '\\' || character.charCodeAt(0) <= 0x20);
 
 export function normalizeEndpoint(value, { testOrigins = [] } = {}) {
@@ -29,7 +29,7 @@ export function planProviderRequest(profile, suffix, method, contentType = '') {
   const allowedMethod = profile.kind === 'openai'
     ? method === 'GET' ? /^\/v1\/(?:models(?:\/[\w.-]+)?|responses\/[\w-]+|videos\/[\w-]+(?:\/content)?)$/.test(parsed.pathname)
       : /^\/v1\/(?:images\/(?:generations|edits|variations)|chat\/completions|responses|audio\/(?:speech|transcriptions|translations)|videos)$/.test(parsed.pathname)
-    : method === 'GET' ? !parsed.pathname.includes(':') || /:download$/.test(parsed.pathname)
+    : method === 'GET' ? /^\/v1(?:beta)?\/(?:models(?:\/[\w.:-]+)?|(?:models\/[\w.:-]+\/)?operations\/[\w.-]+|files\/[\w.-]+(?::download)?)$/.test(parsed.pathname)
       : /^\/v1(?:beta)?\/models\/[\w.:-]+:(?:generateContent|streamGenerateContent|predictLongRunning)$/.test(parsed.pathname);
   requireValue(allowedMethod && (method === 'GET' ? !contentType : !!contentType), 'provider_request_denied', '请求方法与资源操作不匹配。');
   let path = parsed.pathname;

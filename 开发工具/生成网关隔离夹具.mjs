@@ -1,6 +1,7 @@
+import { after } from 'node:test';
 import { createServer } from 'node:http';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { openWorkspace } from '../扩展功能/本机存储/SQLite工作区.mjs';
@@ -10,10 +11,12 @@ import { createProviderCredentialGateway } from '../扩展功能/生成网关/�
 import { openGenerationTasks } from '../扩展功能/生成任务/SQLite生成任务.mjs';
 
 export const roots = [];
+// 冷重开验证结束之后统一回收，不能在 fixture.close 时删除。
+after(() => { for (const root of roots) rmSync(root, { recursive: true, force: true }); });
 const listen = server => new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', () => resolve('http://127.0.0.1:' + server.address().port)); });
 export const closeServer = server => new Promise((resolve, reject) => { server.closeAllConnections(); server.close(error => error ? reject(error) : resolve()); });
 export { listen };
-export async function generationFixture({ maxTasks = 256, maxConcurrent = 4, wrapWorkspace = value => value, beforeReply } = {}) {
+export async function generationFixture({ maxTasks = 256, maxConcurrent = 4, wrapWorkspace = value => value, beforeReply, respond } = {}) {
   const parent = mkdtempSync(join(tmpdir(), 'guan-generation-test-')), dataRoot = join(parent, '工作区'); roots.push(parent);
   const workspace = openWorkspace({ dataRoot, initialize: true }), key = randomBytes(32);
   const keyProvider = { create: async () => Buffer.from(key), read: async () => Buffer.from(key) };
@@ -23,6 +26,7 @@ export async function generationFixture({ maxTasks = 256, maxConcurrent = 4, wra
     const chunks = []; for await (const chunk of req) chunks.push(chunk);
     requests.push({ method: req.method, path: req.url, headers: { ...req.headers }, bytes: Buffer.concat(chunks) });
     await beforeReply?.(requests.at(-1));
+    if (respond) { await respond(req, res, requests.at(-1)); return; }
     if (reply.disconnect) { req.socket.destroy(); return; }
     if (reply.redirect) { res.writeHead(302, { location: 'https://never-contact.invalid/secret' }); res.end(); return; }
     res.writeHead(reply.status, { 'content-type': reply.type, 'set-cookie': 'synthetic-cookie=never-forward', 'www-authenticate': 'never-forward' }); res.end(reply.bytes);

@@ -130,7 +130,7 @@ export function ProductCapsules() {
   return (
     <div className={styles.root}>
       <div
-        className="guan-dc-product-nav"
+        className="guan-dc-product-nav guan-apple-scroll"
         role="tablist"
         aria-label="当前工作表产品"
         aria-busy={busy}
@@ -151,7 +151,7 @@ export function ProductCapsules() {
             <div key={product.id} className="guan-product-capsule-wrap">
               <button
                 type="button"
-                className={`guan-dc-product-capsule guan-dc-product-capsule-${status} ${active ? "guan-shared-product-capsule is-active" : ""}`}
+                className={`guan-dc-product-capsule guan-apple-action guan-apple-press guan-dc-product-capsule-${status} ${active ? "guan-shared-product-capsule is-active" : ""}`}
                 role="tab"
                 aria-selected={active}
                 data-product-id={product.id}

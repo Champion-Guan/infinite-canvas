@@ -1,6 +1,7 @@
 import type { CanvasProject, CanvasDeletedProject } from "@/stores/canvas/use-canvas-store";
 import { createEmptyWorkbook, importPromptProducts } from "./旧版Excel合同.js";
 import { productDisplayName } from "../产品/旧版产品显示名.js";
+import { imageInfoDefaults } from "../图片设置/图片信息偏好";
 
 export type PromptTemplate = { id: string; order: number; route: string; sourceRowNumber: number; prompts: Record<string, string> };
 export type WorkbookSource = {
@@ -41,6 +42,14 @@ export function workbookEntry(snapshot: WorkbookSnapshot, owner = currentWorkboo
   return projects.find(project => project.id === remembered)?.id
     ?? order.find(id => projects.some(project => project.id === id))
     ?? [...projects].reverse().sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0]?.id ?? null;
+}
+export function prepareWorkbookEntry(snapshot: WorkbookSnapshot): WorkbookSnapshot {
+  const id = workbookEntry(snapshot);
+  if (id) return { ...snapshot, guanWorkbooks: rememberWorkbookProduct(snapshot, id) };
+  const books = snapshot.guanWorkbooks;
+  if (!books || books.contract.workspace.activeProductId === null) return snapshot;
+  return { ...snapshot, guanWorkbooks: { ...books, contract: { ...books.contract,
+    workspace: { ...books.contract.workspace, activeProductId: null } } } };
 }
 export function selectWorkbook(snapshot: WorkbookSnapshot, owner: string | null) {
   if (owner && !snapshot.guanWorkbooks?.contract.productSets.some(book => book.id === owner)) throw new Error("工作簿不存在，未切换产品。");
@@ -104,7 +113,7 @@ export function planExcelImport(snapshot: WorkbookSnapshot, input: ExcelImportIn
   const additions = imported.filter(product => !existing.has(product.id) && !archived.has(product.id)).map(product => ({
     id: product.id, title: productDisplayName(product, product.order - 1), productSetId: owner,
     createdAt: product.createdAt, updatedAt: product.updatedAt, nodes: [], connections: [], chatSessions: [], activeChatId: null,
-    backgroundMode: "lines" as const, showImageInfo: false, viewport: { x: 0, y: 0, k: 1 },
+    backgroundMode: "lines" as const, ...imageInfoDefaults, viewport: { x: 0, y: 0, k: 1 },
   }));
   projects = [...additions.reverse(), ...projects];
   const guanWorkbooks: ExcelWorkbooks = { version: 1, contract, activeByWorkbook: { ...snapshot.guanWorkbooks?.activeByWorkbook } };

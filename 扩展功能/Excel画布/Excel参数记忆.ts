@@ -15,7 +15,9 @@ export function readProductParameterValues(productId: string): Record<string, st
 }
 export function saveProductParameterValues(productId: string, values: Record<string, string>) {
   if (Object.values(values).some(item => typeof item !== "string")) throw new Error("参数必须为文字。");
-  const next = { ...readProductParameterValues(productId), ...values };
+  const current = readProductParameterValues(productId);
+  if (Object.entries(values).every(([token, value]) => current[token] === value)) return;
+  const next = { ...current, ...values };
   sqlitePreferences.setItem(parameterMemoryKey(productId), JSON.stringify(next));
   // setItem只进入现有保存队列；界面的SQLite ACK才代表已持久化。
 }

@@ -1,0 +1,41 @@
+diff --git a/web/src/components/canvas/canvas-context-menu.tsx b/web/src/components/canvas/canvas-context-menu.tsx
+index 464ee3e..3e68808 100644
+--- a/web/src/components/canvas/canvas-context-menu.tsx
++++ b/web/src/components/canvas/canvas-context-menu.tsx
+@@ -1,6 +1,6 @@
+ import { useEffect } from "react";
+ import type { ReactNode } from "react";
+-import { BetweenHorizontalStart, GalleryHorizontalEnd, GalleryHorizontal, Group, Plus, Trash2, Ungroup } from "lucide-react";
++import { BetweenHorizontalStart, GalleryHorizontalEnd, GalleryHorizontal, Group, LockKeyhole, Plus, Trash2, Ungroup } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 
+ import { canvasThemes } from "@/lib/canvas-theme";
+@@ -8,7 +8,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
+ import type { ContextMenuState } from "@/types/canvas";
+ import type { VideoFramePosition } from "@/lib/canvas/canvas-video-frame";
+ 
+-export function CanvasNodeContextMenu({ menu, canCaptureVideoFrame, canGroup, canUngroup, onClose, onCaptureVideoFrame, onDuplicate, onGroup, onUngroup, onDelete }: { menu: ContextMenuState; canCaptureVideoFrame: boolean; canGroup?: boolean; canUngroup?: boolean; onClose: () => void; onCaptureVideoFrame: (position: VideoFramePosition) => void; onDuplicate: () => void; onGroup?: () => void; onUngroup?: () => void; onDelete: () => void }) {
++export function CanvasNodeContextMenu({ menu, canCaptureVideoFrame, canGroup, canUngroup, deleteDisabledReason, onClose, onCaptureVideoFrame, onDuplicate, onGroup, onUngroup, onDelete }: { menu: ContextMenuState; canCaptureVideoFrame: boolean; canGroup?: boolean; canUngroup?: boolean; deleteDisabledReason?: string; onClose: () => void; onCaptureVideoFrame: (position: VideoFramePosition) => void; onDuplicate: () => void; onGroup?: () => void; onUngroup?: () => void; onDelete: () => void }) {
+     const { t } = useTranslation();
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+ 
+@@ -39,16 +39,16 @@ export function CanvasNodeContextMenu({ menu, canCaptureVideoFrame, canGroup, ca
+             {menu.type === "node" && canGroup ? <MenuButton icon={<Group className="size-4" />} label={t("canvas.nodeToolbar.group")} onClick={onGroup} /> : null}
+             {menu.type === "node" && canUngroup ? <MenuButton icon={<Ungroup className="size-4" />} label={t("canvas.nodeToolbar.ungroup")} onClick={onUngroup} /> : null}
+             {menu.type === "node" ? <MenuButton icon={<Plus className="size-4" />} label={t("canvas.controls.duplicate")} onClick={onDuplicate} /> : null}
+-            <MenuButton icon={<Trash2 className="size-4" />} label={t("canvas.controls.delete")} onClick={onDelete} danger />
++            <MenuButton icon={deleteDisabledReason ? <LockKeyhole className="size-4" /> : <Trash2 className="size-4" />} label={deleteDisabledReason ? "此连线不可删除" : t("canvas.controls.delete")} onClick={onDelete} danger={!deleteDisabledReason} disabled={Boolean(deleteDisabledReason)} title={deleteDisabledReason} />
+         </div>
+     );
+ }
+ 
+-function MenuButton({ icon, label, onClick, danger = false }: { icon: ReactNode; label: string; onClick?: () => void; danger?: boolean }) {
++function MenuButton({ icon, label, onClick, danger = false, disabled = false, title }: { icon: ReactNode; label: string; onClick?: () => void; danger?: boolean; disabled?: boolean; title?: string }) {
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+ 
+     return (
+-        <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:opacity-80" style={{ color: danger ? "#f87171" : theme.node.text }} onClick={onClick}>
++        <button type="button" disabled={disabled} title={title} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50" style={{ color: danger ? "#f87171" : theme.node.text }} onClick={onClick}>
+             {icon}
+             <span>{label}</span>
+         </button>

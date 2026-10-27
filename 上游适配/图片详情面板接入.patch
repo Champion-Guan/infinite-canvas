@@ -1,0 +1,42 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 38c0031..6baaaec 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -70,6 +70,7 @@ import { CanvasNodeSplitDialog, type CanvasImageSplitParams } from "@/components
+ import { CanvasNodeUpscaleDialog, type CanvasImageUpscaleParams } from "@/components/canvas/canvas-node-upscale-dialog";
+ import { buildNodeGenerationContext, buildNodeGenerationInputs, buildNodeResponseMessages, hydrateNodeGenerationContext, type NodeGenerationInput } from "@/components/canvas/canvas-node-generation";
+ import { CanvasNodeHoverToolbar, CanvasNodeInfoModal } from "@/components/canvas/canvas-node-hover-toolbar";
++import { CanvasImageDetails } from "@/扩展功能/媒体交付/图片详情面板";
+ import { CanvasSelectionToolbar } from "@/components/canvas/canvas-selection-toolbar";
+ import { InfiniteCanvas, type CanvasViewportController } from "@/components/canvas/infinite-canvas";
+ import { Minimap } from "@/components/canvas/canvas-mini-map";
+@@ -826,7 +827,6 @@ function InfiniteCanvasPage() {
+     const angleNode = angleNodeId ? nodeById.get(angleNodeId) || null : null;
+     const contextMenuNode = contextMenu?.type === "node" ? nodeById.get(contextMenu.nodeId) || null : null;
+     const previewNode = previewNodeId ? nodeById.get(previewNodeId) || null : null;
+-    const previewContent = previewImageId ? previewNode?.metadata?.images?.find((image) => image.id === previewImageId)?.content : previewNode?.metadata?.content;
+     const hasMultipleSelectedNodes = selectedNodeIds.size > 1;
+     const selectedNodes = useMemo(() => nodes.filter((node) => selectedNodeIds.has(node.id)), [nodes, selectedNodeIds]);
+     const canGroupSelection = canGroupSelectedNodes(selectedNodeIds, nodes);
+@@ -3356,17 +3356,10 @@ function InfiniteCanvasPage() {
+ 
+                 {angleNode?.metadata?.content ? <CanvasNodeAngleDialog dataUrl={angleNode.metadata.content} open={productActive && Boolean(angleNode)} onClose={() => setAngleNodeId(null)} onConfirm={(params) => void generateAngleNode(angleNode!, params)} /> : null}
+ 
+-                <Modal
+-                    title={t("canvas.projectPage.imageDetails")}
+-                    open={productActive && Boolean(previewContent)}
+-                    centered
+-                    onCancel={() => setPreviewNodeId(null)}
+-                    footer={null}
+-                    width="auto"
+-                    styles={{ body: { padding: 0, display: "flex", justifyContent: "center", alignItems: "center", maxHeight: "80vh" } }}
+-                >
+-                    {previewContent ? <img src={previewContent} alt={previewNode?.title || t("assets.kinds.image")} style={{ maxWidth: "100%", maxHeight: "80vh", objectFit: "contain" }} /> : null}
+-                </Modal>
++                <CanvasImageDetails node={previewNode} imageId={previewImageId} open={productActive && Boolean(previewNode)} theme={theme} onClose={() => {
++                    setPreviewNodeId(null);
++                    setPreviewImageId(null);
++                }} />
+ 
+                 <Modal
+                     title={t("canvas.projectPage.clearTitle")}

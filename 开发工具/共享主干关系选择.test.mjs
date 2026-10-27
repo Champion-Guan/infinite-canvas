@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const frontendRequire=createRequire(new URL('../.运行/3100源/画布副本/web/package.json',import.meta.url));
+const require=createRequire(frontendRequire.resolve('vite'));
+const {buildSync}=require('esbuild');
+const code=buildSync({entryPoints:['扩展功能/画布连线/共享主干关系选择.ts'],bundle:true,write:false,format:'esm',platform:'node'}).outputFiles[0].text;
+const {sharedConnectionAction,sharedConnectionChoices}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+const g=['a','b','c'].map(id=>({connection:{id,fromNodeId:'source',toNodeId:id}}));
+test('共享段只能打开候选列表，不能默认选择第一条',()=>{const a=sharedConnectionAction(['a','b'],g);assert.equal(a.type,'choose');assert.equal(a.id,undefined);assert.deepEqual(a.choices.map(x=>x.connection.id),['a','b']);});
+test('独立分支直接选择对应关系',()=>{assert.equal(sharedConnectionAction(['b'],g).id,'b');});
+test('只列出命中段覆盖的关系，不带入其他共享段或其他目标',()=>{assert.deepEqual(sharedConnectionChoices(['a','c'],g).map(x=>x.connection.id),['a','c']);});
+test('重复和失效标识不会制造假候选，全部失效不触发选择',()=>{assert.deepEqual(sharedConnectionChoices(['a','a','gone'],g).map(x=>x.connection.id),['a']);assert.equal(sharedConnectionAction(['gone'],g).type,'none');});
+test('同原始ID但不同端点的兼容标识仍作为不同关系选择',()=>{const legacy=[{connection:{id:'canvas-relation:one'}},{connection:{id:'canvas-relation:two'}}];assert.equal(sharedConnectionAction(legacy.map(x=>x.connection.id),legacy).type,'choose');});

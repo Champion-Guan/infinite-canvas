@@ -40,7 +40,6 @@ export function ConfigSoftwareUpdates() {
             <OnlineInstallActions status={status} refresh={refresh} />
             <UpgradeTaskReview blockers={status?.install.blockers || []} refresh={refresh} />
             <div role="status">{status ? updateMessages[status.state] || status.state : unavailable ? "本机更新服务不可用，请刷新页面后重试" : "本机更新服务读取中"}{status?.error ? `：${updateMessages[status.error] || "检查未完成，原版本保留"}` : ""}</div>
-            <div role="status" className="text-xs text-stone-500 dark:text-stone-400">下载：{updateMessages[status?.download.state || "idle"] || "下载未完成"} · {status?.download.progress || 0}%{status?.download.error ? ` · ${updateMessages[status.download.error] || "下载未完成"}` : ""}。{managed ? "下载后需暂存并确认，关闭工作台页面后安装。" : "源码开发模式只检查及下载可信签名包；客户安装版支持升级。"}</div>
 
             {status?.latest ? <div className="whitespace-pre-wrap break-words"><div>发布时间：{new Date(status.latest.publishedAt).toLocaleString()}</div>{status.latest.notes || "暂无更新说明"}</div> : null}
             <div><div className="mb-2 font-medium">更新检查记录（最近 30 次，非安装记录）</div>{status?.history.slice().reverse().map((entry, index) => <div key={`${entry.at}-${index}`} className="text-xs leading-6">{new Date(entry.at).toLocaleString()} · {entry.version || "—"} · {updateMessages[entry.error || entry.state] || "检查未完成"}</div>)}</div>

@@ -1,0 +1,12 @@
+diff --git a/web/src/services/api/model-plugin.ts b/web/src/services/api/model-plugin.ts
+index d3ef676..62eba18 100644
+--- a/web/src/services/api/model-plugin.ts
++++ b/web/src/services/api/model-plugin.ts
+@@ -1,5 +1,6 @@
+ import { requireBusinessFeature } from "@/扩展功能/产品配置/脚本与提示词来源";
+-import axios, { type AxiosRequestConfig } from "axios";
++import { type AxiosRequestConfig } from "axios";
++import { 本地转发Axios as axios, 本地转发请求 as fetch } from "@/扩展功能/网络代理/本地转发请求";
+ 
+ import i18n from "@/i18n";
+ import { buildApiUrl, withLocalProxy, type AiConfig, type ModelCapability } from "@/stores/use-config-store";

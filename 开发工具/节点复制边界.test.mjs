@@ -160,4 +160,10 @@ test('卡片挂载保留复制/撤销快照及明确空值，记忆只补缺失�
     assert.deepEqual(memory.restoreProductParameterValues('product', {}), memory.readProductParameterValues('product'));
     memory.saveProductParameterValues('product', { LENGTH: '' });
     assert.equal(memory.restoreProductParameterValues('product', {}).LENGTH, '');
+    const before = writes.length;
+    for (let index = 0; index < 200; index++) memory.saveProductParameterValues('product', { LENGTH: '' });
+    assert.equal(writes.length, before, '未改变的参数不能重复进入保存队列');
+    memory.saveProductParameterValues('product', { LENGTH: '0' });
+    assert.equal(writes.length, before + 1);
+    assert.equal(memory.readProductParameterValues('product').LENGTH, '0');
 });

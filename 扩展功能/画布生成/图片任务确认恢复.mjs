@@ -5,7 +5,7 @@ import { requireValue } from '../本机存储/协议.mjs';
 export function imageConfirmationTargets(productId, nodes) {
   const targets = [], seen = new Set();
   for (const node of nodes) {
-    if (!['image', 'text', 'guan:prompt-variables'].includes(node.type)) continue;
+    if (!['image', 'text', 'audio', 'guan:prompt-variables'].includes(node.type)) continue;
     for (const task of node.metadata?.gatewayGenerationTasks || []) {
       const receipts = (node.metadata?.gatewayGenerationReceipts || []).filter(item => item.taskId === task.taskId);
       if (!receipts.length) continue;
@@ -71,11 +71,16 @@ export function createImageConfirmationRecovery({ host, targets, save, serialize
 export function clearConfirmedImageErrors(nodes, target) {
   let changed = false;
   const next = nodes.map(node => {
-    if (!['image', 'text'].includes(node.type) || node.id !== target.nodeId) return node;
+    if (!['image', 'text', 'audio'].includes(node.type) || node.id !== target.nodeId) return node;
     const tasks = (node.metadata?.gatewayGenerationTasks || []).filter(task => task.taskId === target.id);
     const receipts = (node.metadata?.gatewayGenerationReceipts || []).filter(receipt => receipt.taskId === target.id);
     if (tasks.length !== 1 || receipts.length !== 1 || receipts[0].responseHash !== target.responseHash) return node;
     const slotId = tasks[0].slotId;
+    if (node.type === 'audio' || node.type === 'image' && !node.metadata?.images?.length) {
+      if (slotId !== node.id || node.metadata?.status !== 'success' || !node.metadata?.content || !node.metadata?.storageKey || !node.metadata?.errorDetails) return node;
+      changed = true;
+      return { ...node, metadata: { ...node.metadata, errorDetails: undefined } };
+    }
     if (node.type === 'text') {
       const texts = node.metadata?.texts?.map(text => {
         if (text.id !== slotId || text.status !== 'success' || !text.content || !text.errorDetails) return text;
@@ -104,9 +109,9 @@ export function clearConfirmedImageErrors(nodes, target) {
 
 // 同一收据确认后仍可能收到原保存失败回调；新错误出现时重新核对任务，不能沿用旧confirmed缓存。
 export function imageConfirmationErrorKey(nodes) {
-  return JSON.stringify(nodes.filter(node => ['image', 'text'].includes(node.type)).flatMap(node => [
+  return JSON.stringify(nodes.filter(node => ['image', 'text', 'audio'].includes(node.type)).flatMap(node => [
     ...(node.type === 'image' ? node.metadata?.images || [] : node.metadata?.texts || [])
       .filter(slot => slot.status === 'success' && slot.errorDetails).map(slot => [node.id, slot.id, slot.errorDetails]),
-    ...(node.type === 'text' && node.metadata?.status === 'success' && node.metadata?.errorDetails ? [[node.id, node.metadata.errorDetails]] : []),
+    ...((node.type !== 'image' || !node.metadata?.images?.length) && node.metadata?.status === 'success' && node.metadata?.errorDetails ? [[node.id, node.metadata.errorDetails]] : []),
   ]));
 }

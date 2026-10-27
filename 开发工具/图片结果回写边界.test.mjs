@@ -84,6 +84,25 @@ test('图片先落盘、再同步回写结果及源配置、最后保存原产�
     assert.deepEqual(image.metadata.gatewayGenerationReceipts.filter(item => item.taskId === 'task'), [api.request.receipt]);
 });
 
+test('蒙版与多角度结果保持原卡片边界，保存原图交付图编号及任务收据', async () => {
+    const api = await fixture();
+    const node = api.port.nodesRef.current[0];
+    node.metadata.images = undefined;
+    node.width = 600; node.height = 900;
+    const position = { ...node.position };
+    const request = { ...api.request, mode: 'tool', prompt: '局部修改', generationMetadata: { generationType: 'edit', model: 'selected' } };
+    await api.run(request);
+    const result = api.port.nodesRef.current[0];
+    assert.deepEqual(result.position, position);
+    assert.ok(result.width <= 600 && result.height <= 900);
+    assert.equal(result.metadata.status, 'success');
+    assert.equal(result.metadata.prompt, '局部修改');
+    assert.equal(result.metadata.originalStorageKey, 'image:原图');
+    assert.equal(result.metadata.deliveryStorageKey, 'image:交付');
+    assert.deepEqual(result.metadata.gatewayGenerationReceipts.filter(item => item.taskId === 'task'), [request.receipt]);
+    assert.deepEqual(api.order, ['upload', 'apply', 'save']);
+});
+
 test('结果卡、槽位缺失或任务已更换时，落盘前停止且不保存', async () => {
     for (const change of ['deleted', 'slot', 'task']) {
         const api = await fixture();

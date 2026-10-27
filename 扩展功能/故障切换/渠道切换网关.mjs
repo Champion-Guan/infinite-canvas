@@ -65,7 +65,7 @@ export function createRoutedImageGateway({ workspace, base, proxied, networkProx
     });
     return payload.requests;
   }
-  return Object.freeze({ bind: base.bind, describe(id) { const plan = readPlan(id); return plan ? { binding: id, kind: 'routed-image', endpoint: '' } : base.describe(id); },
+  return Object.freeze({ bind: base.bind, resolveSaved: value => base.resolveSaved(value), previewCredential: id => base.previewCredential(id), downloadVideo: (id, source) => base.downloadVideo(id, source), describe(id) { const plan = readPlan(id); return plan ? { binding: id, kind: 'routed-image', endpoint: '' } : base.describe(id); },
     fallbackLoad: config.read, fallbackSave: config.save,
     async createPlan(value) {
       requireValue(exactKeys(value, ['mode', 'capability', 'revision', 'candidates']) && ['single', 'fallback'].includes(value.mode) && value.capability === 'image' && Number.isSafeInteger(value.revision) && value.revision >= 0 &&
@@ -90,9 +90,9 @@ export function createRoutedImageGateway({ workspace, base, proxied, networkProx
       if (!plan) return base.validate(id, request);
       assertPolicy(plan); decode(plan, request);
     },
-    async execute(id, request, { signal, taskId } = {}) {
+    async execute(id, request, { signal, taskId, onText, timeout } = {}) {
       const plan = readPlan(id);
-      if (!plan) return base.execute(id, request, { signal });
+      if (!plan) return base.execute(id, request, { signal, onText, timeout });
       requireValue(jobLike(taskId), 'fallback_task_invalid', '切换执行需要已落盘任务身份。');
       assertPolicy(plan); const requests = decode(plan, request), traceId = 'guan-fallback-attempt:' + taskId;
       requireValue(!workspace.readDocument('extension', traceId), 'fallback_already_dispatched', '任务已有执行记录，不会重新发出。', 409);

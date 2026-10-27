@@ -27,8 +27,8 @@ function parseEntries(value) {
 
 // 新模块，不修改已批准v1适配器。不可变块先ACK，再以原根ID+revision CAS发布完整一代。
 // 当前无块GC；失败块和旧代保留，不能借清理删除仍被其他会话/备份使用的数据。
-export function createShardedApplicationStorage({ client, secretPort, readBlobUrl, namespaceSnapshots = false, onStatus = () => {} }) {
-  client = createPacedDataClient(client, { reserveWrites: namespaceSnapshots });
+export function createShardedApplicationStorage({ client, secretPort, readBlobUrl, namespaceSnapshots = false, requestLimit = 96, onStatus = () => {} }) {
+  client = createPacedDataClient(client, { reserveWrites: namespaceSnapshots, requestLimit });
   const codec = createValueCodec({ client, secretPort, readBlobUrl }), spaces = new Map(), known = new Set(), errors = new Map();
   let pending = 0, pendingWrites = 0, closed = false, hasSaved = false;
   const status = () => ({ state: errors.size ? 'error' : pendingWrites ? 'saving' : hasSaved ? 'saved' : 'idle', pending: pendingWrites, reads: pending - pendingWrites, errors: [...errors.keys()],

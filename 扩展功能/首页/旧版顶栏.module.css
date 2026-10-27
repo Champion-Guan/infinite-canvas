@@ -9,6 +9,9 @@
 .productNav { flex: 1 1 0; min-width: 0; }
 .actions { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; margin-left: 10px; }
 .actions button { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 9px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: 12px/1.2 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; cursor: pointer; }
+.actions button { touch-action: manipulation; transition: background-color 140ms ease-out, transform 140ms cubic-bezier(.2,.8,.2,1); }
+@media (hover: hover) and (pointer: fine) { .actions button:enabled:hover { background: var(--muted); } }
+.actions button:enabled:active { background: var(--muted); transform: scale(.97); transition-duration: 80ms; }
 .actions svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; }
 .sheetLabel { flex: 0 0 auto; color: var(--foreground); font: 13px/1.2 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; white-space: nowrap; }
 .fileTrigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: min(250px,26vw); min-width: 160px; height: 46px; flex: 0 0 auto; padding: 0 14px 0 16px; border: 1px solid rgb(20 24 32 / 12%); border-radius: 13px; background: #fff; color: #17181a; font: 13px/1.2 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -26,3 +29,4 @@
 .header button:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 @media(max-width:820px) { .brand { margin-left:0; } .brand span { display:none; } .fileTrigger { width:min(210px,30vw); min-width:140px; } }
 @media(max-width:640px) { .header { padding:0 12px; } .controls { overflow-x:auto; margin-left:8px; } .sheetLabel { display:none; } .fileTrigger { min-width:118px; } }
+@media (prefers-reduced-motion: reduce) { .actions button, .themeButton, .settingsButton { transition: background-color 120ms linear, color 120ms linear; } .actions button:enabled:active, .themeButton:active, .settingsButton:active { transform: none; } }

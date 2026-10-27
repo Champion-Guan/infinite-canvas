@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { requireValue, validHash, validId } from '../本机存储/协议.mjs';
 import { GENERATION_PROTOCOL, TASK_STATES, terminalState, validateSubmission, jobLike, exactKeys, bindingLike } from '../生成网关/生成协议.mjs';
 import { recordNoResultResolution } from './未决任务核实.mjs';
+import { createTransientTextProgress } from './文本临时进度.mjs';
 
 const ledgerId = 'guan-generation-ledger-v1', format = 'guan-generation-ledger.v1';
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -17,6 +18,7 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
   'invalid_generation_service', '生成任务必须显式接入同一工作区、网关、写入协调和画布保存核验。');
   let closed = false, tail = Promise.resolve();
   const active = new Map(), pendingResults = new Map();
+  const textProgress = createTransientTextProgress();
   function clock() { const value = now(); requireValue(Number.isSafeInteger(value) && value >= 0, 'invalid_generation_clock', '任务时钟无效。'); return value; }
   function ledger() {
     const doc = workspace.readDocument('extension', ledgerId);
@@ -78,14 +80,16 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
     try {
       await mutate(jobs => { const job = find(jobs, input.id); requireValue(job.state === 'accepted', 'generation_state_conflict', '任务不能重复执行。', 409); job.state = 'running'; job.updatedAt = Math.max(clock(), job.updatedAt); });
       requireValue(!controller.signal.aborted, 'generation_not_dispatched', '任务在发出前已取消。', 409);
-      const result = await gateway.execute(input.binding, input.request, { signal: controller.signal, taskId: input.id });
+      const result = await gateway.execute(input.binding, input.request, { signal: controller.signal, taskId: input.id,
+        onText: text => textProgress.update(input.id, text),
+      });
       // 零长度响应也保留可校验内容，不把没有结果当作成功。
       requireValue(Buffer.isBuffer(result.bytes) && result.bytes.length > 0, 'generation_empty_response', '上游没有可保存的结果。', 502);
       pendingResults.set(input.id, result); await persistResult(input.id);
     } catch {
       try { await mutate(jobs => { const job = find(jobs, input.id); if (!terminalState(job.state)) { job.state = 'uncertain'; job.reason = pendingResults.has(input.id) ? 'result_save_unconfirmed' : 'upstream_result_unknown'; job.updatedAt = Math.max(clock(), job.updatedAt); } }); }
       catch { /* 保留旧running记录；冷重开必须待核实，不能伪造失败或重发。 */ }
-    } finally { active.delete(input.id); }
+    } finally { active.delete(input.id); textProgress.clear(input.id); }
   }
   return Object.freeze({
     async submit(value) {
@@ -113,6 +117,8 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
       } catch (error) { active.delete(input.id); rejected(error); throw error; }
     },
     get(id) { return publicJob(read(id)); },
+    textProgress(id) { return { job: publicJob(read(id)), progress: textProgress.read(id) }; },
+    waitTextProgress(id, revision, signal) { read(id); return textProgress.wait(id, revision, signal, 1000); },
     list(productId) { return ledger().jobs.filter(job => job.productId === productId).map(publicJob); },
     result(id) {
       const job = read(id); requireValue(job.result && ['succeeded', 'failed'].includes(job.state), 'generation_result_unavailable', '任务结果尚未持久保存。', 409);

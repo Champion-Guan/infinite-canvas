@@ -1,4 +1,10 @@
 // 根目录唯一维护来源；画布和失败通知共用本页保存状态与恢复队列。
+function shouldSkipStorageWrite(cache: ReadonlyMap<string, string>, failed: ReadonlyMap<string, unknown>, cacheKey: string, value: string, failureKey: string) {
+    return cache.get(cacheKey) === value && !failed.has(failureKey);
+}
+function shouldSkipStorageRemove(cache: ReadonlyMap<string, string>, failed: ReadonlyMap<string, unknown>, cacheKey: string, failureKey: string) {
+    return !cache.has(cacheKey) && !failed.has(failureKey);
+}
 export interface SQLiteInstance {
     getItem<T>(key: string): Promise<T | null>;
     setItem<T>(key: string, value: T): Promise<T>;
@@ -68,13 +74,37 @@ export async function initializeSQLiteApplication() {
 }
 export const sqliteStateStorage = {
     getItem(key: string) { ready(); return stateCache.get(key) ?? null; },
-    setItem(key: string, value: string) { ready(); stateCache.set(key, value); return track("state:" + key, appState.setItem(key, value).then(() => {})); },
-    removeItem(key: string) { ready(); stateCache.delete(key); return track("state:" + key, appState.removeItem(key)).then(() => {}); },
+    setItem(key: string, value: string) {
+        ready();
+        const failureKey = "state:" + key;
+        if (shouldSkipStorageWrite(stateCache, failed, key, value, failureKey)) return Promise.resolve();
+        stateCache.set(key, value);
+        return track(failureKey, appState.setItem(key, value).then(() => {}));
+    },
+    removeItem(key: string) {
+        ready();
+        const failureKey = "state:" + key;
+        if (shouldSkipStorageRemove(stateCache, failed, key, failureKey)) return Promise.resolve();
+        stateCache.delete(key);
+        return track(failureKey, appState.removeItem(key).then(() => {}));
+    },
 };
 export const sqlitePreferences = {
     getItem(key: string) { ready(); return preferencesCache.get(key) ?? null; },
-    setItem(key: string, value: string) { ready(); preferencesCache.set(key, value); track("pref:" + key, preferencesStore.setItem(key, value)); },
-    removeItem(key: string) { ready(); preferencesCache.delete(key); track("pref:" + key, preferencesStore.removeItem(key)); },
+    setItem(key: string, value: string) {
+        ready();
+        const failureKey = "pref:" + key;
+        if (shouldSkipStorageWrite(preferencesCache, failed, key, value, failureKey)) return;
+        preferencesCache.set(key, value);
+        track(failureKey, preferencesStore.setItem(key, value));
+    },
+    removeItem(key: string) {
+        ready();
+        const failureKey = "pref:" + key;
+        if (shouldSkipStorageRemove(preferencesCache, failed, key, failureKey)) return;
+        preferencesCache.delete(key);
+        track(failureKey, preferencesStore.removeItem(key));
+    },
 };
 export const sessionMemory = { getItem: (key: string) => sessionCache.get(key) ?? null, setItem: (key: string, value: string) => { sessionCache.set(key, value); } };
 export const sqliteForage = { createInstance(options: { name?: string; storeName?: string }) { return ready().createInstance(options); } };
@@ -86,7 +116,9 @@ function startScheduled(key: string) {
     sqliteStateStorage.setItem(key, entry.value).then(() => { finish(); entry.resolve(); }, error => { finish(); entry.reject(error); });
 }
 export function scheduleStateSave(key: string, value: string) {
-    ready(); const existing = scheduled.get(key);
+    ready();
+    if (!scheduled.has(key) && shouldSkipStorageWrite(stateCache, failed, key, value, "state:" + key)) return Promise.resolve();
+    const existing = scheduled.get(key);
     // 空闲时短暂停笔80ms提交，持续输入最迟250ms启动；在途期间只保留最新候选。
     if (existing) { existing.value = value; clearTimeout(existing.timer); existing.timer = setTimeout(() => startScheduled(key), Math.max(0, Math.min(80, 250 - (performance.now() - existing.queuedAt)))); return existing.promise; }
     let resolve!: () => void, reject!: (reason: unknown) => void;

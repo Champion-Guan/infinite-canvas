@@ -23,7 +23,9 @@ function LegacyTransferPanel({ onClose }: { onClose: () => void }) {
   const configState = useConfigStore(state => state.config), webdav = useConfigStore(state => state.webdav);
   const sources = usePromptSourceStore(state => state.sources), schedule = usePromptSourceStore(state => state.schedule);
   const { preview, previewError } = useMemo(() => {
-    try { return { preview: plan ? previewLegacyTransfer(plan, preferLegacy) : null, previewError: "" }; }
+    try { return { preview: plan ? previewLegacyTransfer(plan, preferLegacy,
+      { projects, deletedProjects: deleted, guanWorkbooks: books },
+      { app: "infinite-canvas", version: 1, exportedAt: "", config: configState, webdav, promptSources: { sources, schedule } }) : null, previewError: "" }; }
     catch (failure) { return { preview: null, previewError: failure instanceof Error ? failure.message : "当前数据存在冲突，未开始导入。" }; }
   }, [plan, preferLegacy, projects, deleted, books, configState, webdav, sources, schedule]);
   const run = async (action: () => Promise<void>) => {

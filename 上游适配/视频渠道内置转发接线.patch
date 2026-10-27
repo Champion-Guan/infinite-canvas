@@ -1,0 +1,11 @@
+diff --git a/web/src/services/api/video.ts b/web/src/services/api/video.ts
+index b67c6c4..e9f48f5 100644
+--- a/web/src/services/api/video.ts
++++ b/web/src/services/api/video.ts
+@@ -1,5 +1,5 @@
+ import { requireGenerationMode } from "@/扩展功能/产品配置/精简与离线策略";
+-import axios from "axios";
++import { 本地转发Axios as axios, 本地转发请求 as fetch } from "@/扩展功能/网络代理/本地转发请求";
+ import { nanoid } from "nanoid";
+ 
+ import i18n from "@/i18n";

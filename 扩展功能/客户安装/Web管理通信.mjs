@@ -20,5 +20,6 @@ export function createWebManagerClient(channel = process) {
   });
   return { status: () => request('status'), stagedIdentity: () => request('staged-identity'), stage: identity => request('stage', identity),
     approve: (identity, acknowledgement) => request('approve', identity, acknowledgement), defer: () => request('defer'),
+    progressWindow: target => request('progress-window', target),
     close() { channel.off('message', receive); for (const item of pending.values()) { clearTimeout(item.timer); item.reject(new UpdateError('update_manager_unavailable')); } pending.clear(); } };
 }

@@ -25,15 +25,18 @@ export function 复制独立备份文件(source, target, expectedHash, expectedS
 export function 复用相同数据库快照(previous, target, hash, size) {
   if (!previous || previous.hash !== hash || previous.size !== size) return false;
   const temporary = target + '.省空间-' + randomUUID();
+  let reused = false;
   try {
     复制独立备份文件(previous.path, temporary, hash, size);
     renameSync(temporary, target);
-    return true;
+    reused = true;
   } catch (error) {
     // 旧备份被移走或损坏时，保留刚由 SQLite 生成的完整新快照。
-    if (error instanceof StorageError || ['ENOENT', 'EACCES', 'EPERM'].includes(error.code)) return false;
-    throw error;
-  } finally {
-    try { unlinkSync(temporary); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    if (!(error instanceof StorageError || ['ENOENT', 'EACCES', 'EPERM'].includes(error.code))) {
+      try { unlinkSync(temporary); } catch (cleanupError) { if (cleanupError.code !== 'ENOENT') throw cleanupError; }
+      throw error;
+    }
   }
+  try { unlinkSync(temporary); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  return reused;
 }

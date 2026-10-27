@@ -31,8 +31,8 @@ export function useExcelParameterOperations({ projectId, excelContext, nodesRef,
         return commit(bindExcelParameters(nodes, connectionsRef.current, fromNodeId, toNodeId, factory));
     }, [nodesRef, connectionsRef, factory, commit]);
 
-    const disconnectParameterConnection = useCallback((connectionId: string) => {
-        return commit(disconnectExcelParameters(nodesRef.current, connectionsRef.current, connectionId));
+    const disconnectParameterConnection = useCallback((connectionId: string, fromNodeId?: string, toNodeId?: string) => {
+        return commit(disconnectExcelParameters(nodesRef.current, connectionsRef.current, connectionId, edge => edge.id === connectionId && (!fromNodeId || edge.fromNodeId === fromNodeId) && (!toNodeId || edge.toNodeId === toNodeId)));
     }, [nodesRef, connectionsRef, commit]);
 
     return { createParameterNode, bindParameterConnection, disconnectParameterConnection };

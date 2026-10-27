@@ -96,6 +96,15 @@ export async function openSQLiteCredentialVault({ workspace, keyProvider, initia
         return decrypt(ref, doc);
       });
     },
+    inspect(ref) {
+      requireValue(validCredentialRef(ref), 'invalid_secret_ref', '凭据引用无效。');
+      return run(() => {
+        const doc = workspace.readDocument('extension', ref);
+        requireValue(doc, 'secret_not_found', '本机凭据缺失；没有替换为新密钥。', 404);
+        decrypt(ref, doc);
+        return 'guan-vault:' + ref;
+      });
+    },
     getStatus: () => ({ closed, pending }),
     close() {
       requireValue(pending === 0, 'credential_busy', '凭据操作尚未结束，不能关闭。', 409);

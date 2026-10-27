@@ -18,13 +18,16 @@
 .page :global(.guan-product-landing-actions) h2 { font-size: clamp(24px, 2vw, 36px); font-weight: 500; }
 .page :global(.guan-product-landing-buttons) { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
 .page :global(.guan-product-landing-buttons) button { padding: 12px 20px; font-size: clamp(16px, 1.4vw, 24px); color: var(--landing-text); background: var(--landing-background); border: 1px solid var(--landing-border); border-radius: 12px; cursor: pointer; transition: transform .18s cubic-bezier(.22,1,.36,1), box-shadow .18s cubic-bezier(.22,1,.36,1); }
-.page :global(.guan-product-landing-buttons) button:hover:enabled { transform: translateY(-2px); box-shadow: 0 8px 20px rgb(0 0 0 / 10%); }
+@media (hover: hover) and (pointer: fine) { .page :global(.guan-product-landing-buttons) button:hover:enabled { transform: translateY(-1px); box-shadow: 0 8px 20px rgb(0 0 0 / 10%); } }
 .page :global(.guan-product-landing-buttons) button:active:enabled { transform: scale(.97); }
 .page :global(.guan-product-landing-buttons) button:disabled { cursor: not-allowed; }
-.page [aria-label="轮播图导航"] { display: flex; align-items: center; justify-content: center; gap: 8px; height: 6px; }
-.page [aria-label="轮播图导航"] button { width: 16px; height: 6px; padding: 0; border: 0; border-radius: 16px; background: var(--landing-dot); cursor: pointer; }
-.page [aria-label="轮播图导航"] button[aria-current="true"] { background: var(--landing-selected-dot); }
+.page [aria-label="轮播图导航"] { display: flex; align-items: center; justify-content: center; gap: 2px; min-height: 32px; }
+.page [aria-label="轮播图导航"] button { display: grid; place-items: center; min-width: 32px; height: 32px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; touch-action: manipulation; }
+.page [aria-label="轮播图导航"] button:not(.playback)::before { content: ""; width: 16px; height: 6px; border-radius: 16px; background: var(--landing-dot); }
+.page [aria-label="轮播图导航"] button[aria-current="true"]::before { background: var(--landing-selected-dot); }
+.page [aria-label="轮播图导航"] .playback { font-size: 12px; margin-left: 6px; }
+.page [aria-label="轮播图导航"] .playback:disabled { opacity: .55; cursor: default; }
 .page [data-slot="badge"] { background: rgb(0 0 0 / 60%); color: #fff; }
 .page button:focus-visible { outline: 2px solid var(--landing-selected-dot); outline-offset: 4px; }
 @media (max-width: 900px) { .page :global(.guan-product-empty) { display: flex; flex-direction: column; justify-content: flex-start; overflow-y: auto; padding: 24px 16px; gap: 40px; } .page :global(.guan-product-landing-actions) { padding-bottom: 24px; } }
-@media (prefers-reduced-motion: reduce) { .page button { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .page button { transition: none; } .page :global(.guan-product-landing-buttons) button:is(:hover, :active):enabled { transform: none; } }

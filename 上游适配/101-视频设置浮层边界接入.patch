@@ -1,0 +1,82 @@
+diff --git a/web/src/components/canvas/canvas-video-settings-popover.tsx b/web/src/components/canvas/canvas-video-settings-popover.tsx
+index 6ba1ef1..4aa4b74 100644
+--- a/web/src/components/canvas/canvas-video-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-video-settings-popover.tsx
+@@ -1,4 +1,6 @@
+-import { useEffect, useRef, useState, type RefObject } from "react";
++import { type RefObject } from "react";
++import { useSettingsPopover } from "@/扩展功能/画布交互/设置浮层生命周期";
++import { settingsPopoverPosition } from "@/扩展功能/画布交互/设置浮层位置";
+ import { createProductPortal } from "@/扩展功能/产品/产品界面边界";
+ import { Settings2 } from "lucide-react";
+ import { Button } from "antd";
+@@ -17,38 +19,14 @@ type CanvasVideoSettingsPopoverProps = {
+ 
+ export function CanvasVideoSettingsPopover({ config, onConfigChange, buttonClassName, placement = "topLeft" }: CanvasVideoSettingsPopoverProps) {
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+-    const buttonRef = useRef<HTMLSpanElement>(null);
+-    const panelRef = useRef<HTMLDivElement>(null);
+-    const [open, setOpen] = useState(false);
+-    const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
+-
+-    useEffect(() => {
+-        if (!open) return;
+-        const syncPosition = () => setButtonRect(buttonRef.current?.getBoundingClientRect() || null);
+-        const closeOnOutsidePointer = (event: PointerEvent) => {
+-            const target = event.target;
+-            if (!(target instanceof Node)) return;
+-            if (buttonRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+-            setOpen(false);
+-        };
+-
+-        syncPosition();
+-        window.addEventListener("resize", syncPosition);
+-        window.addEventListener("scroll", syncPosition, true);
+-        window.addEventListener("pointerdown", closeOnOutsidePointer, true);
+-        return () => {
+-            window.removeEventListener("resize", syncPosition);
+-            window.removeEventListener("scroll", syncPosition, true);
+-            window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+-        };
+-    }, [open]);
++    const { buttonRef, panelRef, open, buttonRect, updateOpen } = useSettingsPopover();
+ 
+     const panel = open && buttonRect ? <VideoSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} /> : null;
+ 
+     return (
+         <>
+             <span ref={buttonRef} className="inline-flex min-w-0">
+-                <Button size="small" type="text" className={buttonClassName || "!h-8 !max-w-[220px] !justify-start !rounded-full !px-2.5"} style={{ background: theme.node.fill, color: theme.node.text }} icon={<Settings2 className="size-3.5" />} onClick={() => setOpen((current) => !current)}>
++                <Button size="small" type="text" className={buttonClassName || "!h-8 !max-w-[220px] !justify-start !rounded-full !px-2.5"} style={{ background: theme.node.fill, color: theme.node.text }} aria-label="视频生成设置" aria-haspopup="dialog" aria-expanded={open} icon={<Settings2 className="size-3.5" />} onClick={() => updateOpen(!open)}>
+                     <span className="truncate">
+                         {videoResolutionLabel(config.vquality)} · {videoSizeLabel(config.size)} · {videoSecondsLabel(config.videoSeconds)} · {videoModeLabel(config.videoMode)}
+                     </span>
+@@ -74,19 +52,10 @@ function VideoSettingsPortal({
+     config: AiConfig;
+     onConfigChange: (key: keyof AiConfig, value: string) => void;
+ }) {
+-    const width = 356;
+-    const gap = 8;
+-    const margin = 12;
+-    const alignRight = placement?.endsWith("Right");
+-    const alignCenter = placement === "top" || placement === "bottom";
+-    const left = alignCenter ? buttonRect.left + buttonRect.width / 2 - width / 2 : alignRight ? buttonRect.right - width : buttonRect.left;
+-    const topPlacement = placement?.startsWith("top");
+     const style = {
+         position: "fixed",
+         zIndex: 1200,
+-        width,
+-        left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)),
+-        ...(topPlacement ? { bottom: window.innerHeight - buttonRect.top + gap, maxHeight: Math.max(260, buttonRect.top - margin * 2) } : { top: buttonRect.bottom + gap, maxHeight: Math.max(260, window.innerHeight - buttonRect.bottom - margin * 2) }),
++        ...settingsPopoverPosition(buttonRect, placement, { width: window.innerWidth, height: window.innerHeight }),
+         background: theme.toolbar.panel,
+         borderRadius: 18,
+         boxShadow: "0 18px 54px rgba(28, 25, 23, 0.16)",
+@@ -97,6 +66,7 @@ function VideoSettingsPortal({
+ 
+     return createProductPortal(
+         <div
++            data-canvas-settings-popover role="dialog" aria-label="视频生成设置"
+             ref={panelRef}
+             className="canvas-image-settings-popover"
+             style={style}

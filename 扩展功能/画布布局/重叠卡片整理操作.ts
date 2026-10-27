@@ -1,4 +1,4 @@
-// 原整理规则、原撤销历史和原视区共用；无重叠时不写入。
+// 单线并排与重叠避让共用原历史和视区；没有位置变化时不写入。
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { CanvasNodeType, type ViewportTransform } from "@/types/canvas";
 import { nodeBounds } from "@/lib/canvas/canvas-node-geometry";
@@ -13,9 +13,9 @@ type ArrangementPort<T extends CanvasHistorySnapshot> = Pick<CanvasHistoryPort<T
 export function useCanvasNodeArrangement<T extends CanvasHistorySnapshot>({ historyRef, createHistoryEntry, applyHistory, message, size, setViewport }: ArrangementPort<T>) {
     return useCallback(() => {
         const before = createHistoryEntry();
-        const arranged = arrangeOverlappingCanvasNodes(before.nodes);
+        const arranged = arrangeOverlappingCanvasNodes(before.nodes, before.connections);
         if (arranged === before.nodes) {
-            message.info("没有需要整理的重叠卡片");
+            message.info("没有需要整理的卡片");
             return;
         }
         const moved = arranged.filter((node, index) => node.type !== CanvasNodeType.Group && node.position !== before.nodes[index].position).length;
@@ -30,6 +30,6 @@ export function useCanvasNodeArrangement<T extends CanvasHistorySnapshot>({ hist
             const k = Math.max(0.05, Math.min(1, availableWidth / Math.max(1, bounds.right - bounds.left), availableHeight / Math.max(1, bounds.bottom - bounds.top)));
             setViewport({ x: 32 + availableWidth / 2 - (bounds.left + bounds.right) / 2 * k, y: 64 + availableHeight / 2 - (bounds.top + bounds.bottom) / 2 * k, k });
         }
-        message.success(`已整理 ${moved} 张重叠卡片，可点击撤销恢复`);
+        message.success(`已整理 ${moved} 张卡片，可点击撤销恢复`);
     }, [applyHistory, createHistoryEntry, historyRef, message, size.width, size.height, setViewport]);
 }

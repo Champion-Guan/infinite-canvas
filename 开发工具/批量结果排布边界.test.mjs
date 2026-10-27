@@ -109,7 +109,7 @@ function generatorFixture() {
         saveCanvasImageResult: async input => { input.onApplied(); },
         recordImageGatewayTask: () => {}, nodeSizeFromRatio: () => sizes.video, generationReferenceUrls: () => [],
         completeVideoNodeTask: async () => { requests.push('video'); },
-        buildAudioGenerationMetadata: () => ({}), requestAudioGeneration: async () => { requests.push('audio'); return {}; }, storeGeneratedAudio: async () => ({}), audioMetadata: () => ({ status: 'success' }),
+        buildAudioGenerationMetadata: () => ({}), requestNodeAudio: async (_config, _prompt, apply) => { requests.push('audio'); apply({}); }, audioMetadata: () => ({ status: 'success' }),
         buildNodeResponseMessages: context => [{ role: 'user', content: context.prompt }], requestNodeText: async () => { requests.push('text'); return '本地验收文本'; },
         isGenerationCanceled: () => false, isVideoTaskFailed: () => false, message: { info: text => errors.push(text), error: text => errors.push(text) }, t: key => key,
     };

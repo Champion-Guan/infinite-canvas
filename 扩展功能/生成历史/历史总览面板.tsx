@@ -1,4 +1,5 @@
-import { useState, type CSSProperties } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useInView } from "motion/react";
 import { Checkbox, Empty, Modal, Spin } from "antd";
 import { Download, Image as ImageIcon, Video } from "lucide-react";
 import type { CanvasTheme } from "@/lib/canvas-theme";
@@ -11,13 +12,19 @@ import { historyMediaInfo } from "./历史媒体详情";
 import { useHistoryMediaPreview } from "./历史媒体预览";
 import styles from "./历史总览面板.module.css";
 
-function MediaPreview({ file }: { file: HistoryDownloadFile }) {
-    const preview = useHistoryMediaPreview(file);
-    if (preview.error) return <p role="alert">{preview.error}</p>;
-    if (!preview.url) return <div className={styles.loading}><Spin aria-label="正在读取媒体" /></div>;
-    return file.node.type === CanvasNodeType.Video
+function MediaPreview({ file, deferred = false }: { file: HistoryDownloadFile; deferred?: boolean }) {
+    const container = useRef<HTMLDivElement>(null);
+    const inView = useInView(container, { once: true, margin: "200px 0px" });
+    const enabled = !deferred || inView || typeof IntersectionObserver === "undefined";
+    const preview = useHistoryMediaPreview(file, enabled);
+    const slot = file.node.metadata?.images?.find(image => image.id === file.imageId);
+    const width = slot?.naturalWidth || file.node.metadata?.naturalWidth;
+    const height = slot?.naturalHeight || file.node.metadata?.naturalHeight;
+    return <div ref={container} className={styles.preview} style={{ aspectRatio: width && height ? `${width} / ${height}` : undefined }}>
+    {preview.error ? <p role="alert">{preview.error}</p> : !preview.url ? <div className={styles.loading}>{enabled ? <Spin aria-label="正在读取媒体" /> : <span>滚动到此处查看图片</span>}</div> : file.node.type === CanvasNodeType.Video
         ? <video className={styles.media} src={preview.url} controls preload="metadata" />
-        : <img className={styles.media} src={preview.url} alt={file.name} />;
+        : <img className={styles.media} src={preview.url} alt={file.name} loading="lazy" decoding="async" />}
+    </div>;
 }
 
 function FileDetails({ file, busy, onDownload }: { file: HistoryDownloadFile; busy: boolean; onDownload: (file: HistoryDownloadFile) => void }) {
@@ -26,11 +33,11 @@ function FileDetails({ file, busy, onDownload }: { file: HistoryDownloadFile; bu
     const info = historyMediaInfo(node);
     return <article className={styles.detail} aria-label={`图片详情 ${file.name}`}>
         <div className={styles.detailHeading}><h3>{file.name}</h3><button type="button" disabled={busy} onClick={() => onDownload(file)} title={`下载 ${file.name}`} aria-label={`下载 ${file.name}`}><Download size={16} /></button></div>
-        <MediaPreview file={file} />
+        <MediaPreview file={file} deferred />
         <dl className={styles.metadata}>
             <dt>渠道 / 模型</dt><dd>{info.channel} · {decodeChannelModel(info.model)?.model || info.model}</dd>
             <dt>文件</dt><dd>{info.dimensions} · {formatBytes(info.bytes) || "大小未知"} · {info.format}</dd>
-            {file.node.metadata?.prompt ? <><dt>提示词</dt><dd>{file.node.metadata.prompt}</dd></> : null}
+            {file.node.metadata?.prompt ? <><dt>提示词</dt><dd><details><summary>查看完整提示词</summary><p>{file.node.metadata.prompt}</p></details></dd></> : null}
         </dl>
     </article>;
 }
@@ -50,6 +57,14 @@ type Props = {
 
 export function HistoryOverviewPanel({ history, files, selectedFiles, selectedIds, downloading, theme, onSelect, onDownload, onDownloadSelected, onClose }: Props) {
     const [previewFile, setPreviewFile] = useState<HistoryDownloadFile | null>(null);
+    const filesByNode = useMemo(() => {
+        const groups = new Map<string, HistoryDownloadFile[]>();
+        for (const file of files) {
+            const group = groups.get(file.node.id);
+            if (group) group.push(file); else groups.set(file.node.id, [file]);
+        }
+        return groups;
+    }, [files]);
     const variables = { "--历史背景": theme.node.panel, "--历史文字": theme.node.text, "--历史边框": theme.node.stroke, "--历史底色": theme.node.fill } as CSSProperties;
     return <Modal open title="生成历史总览" footer={null} onCancel={onClose} width="min(1440px, 94vw)" centered styles={{ body: { padding: 0 }, container: { background: theme.node.panel, color: theme.node.text } }}>
         <div className={styles.root} style={variables}>
@@ -65,7 +80,7 @@ export function HistoryOverviewPanel({ history, files, selectedFiles, selectedId
                 </div>
                 <div className={styles.tasks}>
                     {history.length ? history.map(node => {
-                        const nodeFiles = files.filter(file => file.node.id === node.id);
+                        const nodeFiles = filesByNode.get(node.id) || [];
                         const selectedCount = nodeFiles.filter(file => selectedIds.has(file.id)).length;
                         const status = ({ loading: "生成中", error: "生成失败", success: "已完成" } as Record<string, string>)[node.metadata?.status || "idle"] || "等待生成";
                         return <article key={node.id} className={styles.task}>
@@ -76,7 +91,7 @@ export function HistoryOverviewPanel({ history, files, selectedFiles, selectedId
                             {nodeFiles.map(file => <div key={file.id} className={styles.file}>
                                 <Checkbox aria-label={`勾选图片 ${file.name}`} disabled={downloading} checked={selectedIds.has(file.id)} onChange={event => onSelect([file.id], event.target.checked)} />
                                 <button type="button" className={styles.thumbnail} onClick={() => setPreviewFile(file)} aria-label={`预览 ${file.name}`}>
-                                    {node.type === CanvasNodeType.Image ? <img src={previewUrlFor(file.storageKey) || file.content} alt="" /> : <Video size={20} />}
+                                    {node.type === CanvasNodeType.Image ? <img src={previewUrlFor(file.storageKey) || file.content} alt="" loading="lazy" decoding="async" /> : <Video size={20} />}
                                 </button>
                                 <button type="button" className={styles.fileName} disabled={downloading} onClick={() => onSelect([file.id])}>{file.name}</button>
                             </div>)}

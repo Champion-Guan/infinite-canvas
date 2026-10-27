@@ -36,6 +36,20 @@ test('编辑其他字段时已确认图片URL不重读或重传，媒体引用�
   f.codec.close();
 });
 
+test('同一storageKey换了临时预览地址时直接复用已确认媒体，不重复读取URL', async () => {
+  let reads = 0;
+  const blob = new Blob(['稳定媒体'], { type: 'image/png' });
+  const id = createHash('sha256').update(Buffer.from(await blob.arrayBuffer())).digest('hex');
+  const codec = createValueCodec({
+    client: { readMedia: async () => blob, writeMedia: async () => ({ id }) },
+    readBlobUrl: async () => { reads++; return blob; },
+  });
+  await codec.encode({ storageKey: 'image:稳定', bytes: blob.size, mimeType: blob.type, content: 'blob:第一地址' });
+  await codec.encode({ storageKey: 'image:稳定', bytes: blob.size, mimeType: blob.type, content: 'blob:第二地址' });
+  assert.equal(reads, 1);
+  codec.close();
+});
+
 test('冷读取恢复的URL直接复用已经读验的媒体，缓存不泄露可变描述', async () => {
   const f = fixture(), encoded = await f.codec.encode({ url: 'blob:原图' });
   const restored = await f.codec.decode(encoded.tree), before = { ...f.calls };

@@ -1,0 +1,60 @@
+diff --git a/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx b/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx
+index 3c70290..b79da32 100644
+--- a/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx
++++ b/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx
+@@ -4,7 +4,7 @@ import { Button, Input, Modal, Slider, Tooltip } from "antd";
+ import { Brush, Eraser, ImagePlus, Redo2, RotateCcw, Undo2, WandSparkles, ZoomIn, ZoomOut } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 
+-import { readImageMeta } from "@/lib/image-utils";
++import { useEditorImage, EditorImageStatus } from "@/扩展功能/媒体交付/编辑图片读取";
+ import { useImageEditorViewport } from "@/components/canvas/use-image-editor-viewport";
+ 
+ export type CanvasImageMaskEditPayload = {
+@@ -31,7 +31,8 @@ export function CanvasNodeMaskEditDialog({ dataUrl, open, onClose, onConfirm }:
+     const brushAdjustRef = useRef<{ active: boolean; pointerId: number; startX: number; startSize: number; previewX: number; previewY: number } | null>(null);
+     const historyRef = useRef<MaskStroke[]>([]);
+     const redoRef = useRef<MaskStroke[]>([]);
+-    const [image, setImage] = useState<{ width: number; height: number } | null>(null);
++    const imageRead = useEditorImage(dataUrl, open);
++    const { image } = imageRead;
+     const [prompt, setPrompt] = useState("");
+     const [brushSize, setBrushSize] = useState(defaultBrushSize);
+     const [mode, setMode] = useState<DrawMode>("paint");
+@@ -54,7 +55,6 @@ export function CanvasNodeMaskEditDialog({ dataUrl, open, onClose, onConfirm }:
+         redoRef.current = [];
+         brushAdjustRef.current = null;
+         drawingRef.current = { active: false, stroke: null };
+-        void readImageMeta(dataUrl).then(setImage);
+     }, [dataUrl, open]);
+ 
+     useEffect(() => {
+@@ -204,6 +204,7 @@ export function CanvasNodeMaskEditDialog({ dataUrl, open, onClose, onConfirm }:
+     }, [open, redoMask, undoMask]);
+ 
+     const submit = (generate: boolean) => {
++        if (!image) return;
+         const nextPrompt = prompt.trim();
+         const canvas = maskCanvasRef.current;
+         const element = imageRef.current;
+@@ -215,6 +216,7 @@ export function CanvasNodeMaskEditDialog({ dataUrl, open, onClose, onConfirm }:
+ 
+     return (
+         <Modal title={null} open={open && Boolean(dataUrl)} onCancel={onClose} footer={null} width={980} centered destroyOnHidden transitionName="" maskTransitionName="">
++            <EditorImageStatus {...imageRead} />
+             <div className="grid gap-5 lg:grid-cols-[minmax(360px,1fr)_320px]" data-canvas-no-zoom>
+                 <div
+                     ref={viewport.viewportRef}
+@@ -326,10 +328,10 @@ export function CanvasNodeMaskEditDialog({ dataUrl, open, onClose, onConfirm }:
+                             {t("canvas.editors.reset")}
+                         </Button>
+                         <div className="flex items-center gap-2">
+-                            <Button icon={<ImagePlus className="size-4" />} onClick={() => submit(false)}>
++                            <Button icon={<ImagePlus className="size-4" />} disabled={!image} onClick={() => submit(false)}>
+                                 {t("canvas.editors.maskExport")}
+                             </Button>
+-                            <Button type="primary" icon={<WandSparkles className="size-4" />} onClick={() => submit(true)}>
++                            <Button type="primary" icon={<WandSparkles className="size-4" />} disabled={!image} onClick={() => submit(true)}>
+                                 {t("canvas.editors.maskGenerate")}
+                             </Button>
+                         </div>

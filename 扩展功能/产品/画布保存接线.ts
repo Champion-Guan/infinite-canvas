@@ -42,12 +42,12 @@ export function useCanvasPersistence({ projectId, nodes, connections, chatSessio
     useProductCanvasSave(projectId, snapshot,
         () => projectLoaded && restoredProjectIdRef.current === projectId && !historyPausedRef.current && nodes === nodeTransactionRef.current
             && !dragRef.current.isDraggingNode && !isNodeDragging && !isNodeResizing && focusAnimRef.current === null,
-        async (committed) => {
+        async (committed, options) => {
             const { projectId: id, ...patch } = committed;
             if (restoredProjectIdRef.current !== id || committed.nodes !== nodeTransactionRef.current) throw new Error("Canvas commit invalidated");
             if (!useCanvasStore.getState().projects.some(project => project.id === id)) throw new Error("Canvas unavailable");
             updateProject(id, retainCanvasReferences(useCanvasStore.getState().projects.find(project => project.id === id), patch));
-            await flushSQLiteStorage();
+            if (!options?.deferSQLiteFlush) await flushSQLiteStorage();
             // 完整快照实际保存后才取消同一视区的延迟写入；保留更新视区的计时器。
             if (viewportRef.current === committed.viewport) {
                 if (viewportSaveTimerRef.current) clearTimeout(viewportSaveTimerRef.current);

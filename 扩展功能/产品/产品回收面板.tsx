@@ -42,7 +42,7 @@ export function ProductDeleteDialog({ id, name, onClose }: { id: string; name: s
     finally { submitting.current = false; setRetrying(false); }
   }
   return <LegacyProductDialog title={`删除「${name}」及对应画布？`} busy={busy || retrying} onClose={onClose}>
-    <section className="guan-dc-confirm-card" role="document" aria-labelledby={title}>
+    <section className="guan-dc-confirm-card guan-motion-panel" role="document" aria-labelledby={title}>
       <div className="guan-dc-confirm-icon" aria-hidden="true"><ProductTrashIcon /></div>
       <div className="guan-dc-confirm-copy">
         <h2 id={title}>删除「{name}」及对应画布？</h2>
@@ -50,10 +50,10 @@ export function ProductDeleteDialog({ id, name, onClose }: { id: string; name: s
         <p className="guan-product-file-note">已生成图片、视频等文件将保留，不会一并删除；恢复产品后可继续查看和下载。</p>
         {error ? <p role="alert">{error} 保存未确认时请勿刷新或关闭工作台。</p> : null}
       </div>
-      <div className="guan-dc-confirm-actions">
-        <button type="button" disabled={busy || retrying} onClick={onClose}>取消</button>
-        {error ? <button type="button" disabled={busy || retrying} onClick={() => void submit(true)}>重试保存后继续</button> : null}
-        <button type="button" className="danger" disabled={busy || retrying} onClick={() => void submit()}>删除</button>
+        <div className="guan-dc-confirm-actions guan-apple-stagger">
+        <button type="button" className="guan-apple-action guan-apple-press" disabled={busy || retrying} onClick={onClose}>取消</button>
+        {error ? <button type="button" className="guan-apple-action guan-apple-press" disabled={busy || retrying} onClick={() => void submit(true)}>重试保存后继续</button> : null}
+        <button type="button" className="danger guan-apple-action guan-apple-press" disabled={busy || retrying} onClick={() => void submit()}>删除</button>
       </div>
     </section>
   </LegacyProductDialog>;
@@ -78,7 +78,7 @@ export function ProductTrashEntry({ variant = "icon" }: { variant?: "icon" | "te
   return <>
     <button type="button" data-empty-action={variant === "text" ? "trash" : undefined} disabled={busy} title="产品回收站" aria-label="产品回收站" onClick={() => setOpen(true)}>{variant === "text" ? "产品回收站" : <ProductTrashIcon />}</button>
     {open ? <LegacyProductDialog title="产品回收站" busy={busy || retrying} onClose={() => setOpen(false)}>
-      <section className="guan-dc-confirm-card guan-product-trash-card" role="document" aria-labelledby={title}>
+      <section className="guan-dc-confirm-card guan-product-trash-card guan-motion-panel" role="document" aria-labelledby={title}>
         <h2 id={title}>产品回收站</h2>
         <p>恢复产品会同时恢复对应画布；已生成文件仍保留。</p>
         <div className="guan-product-trash-list">

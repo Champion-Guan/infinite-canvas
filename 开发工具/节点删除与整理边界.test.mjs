@@ -107,6 +107,8 @@ test('再次删除已恢复的节点只更新对应批次，其他回收节点�
 
 const serviceRoot = resolve(root, '.运行/3100源/画布副本/web/src');
 const servicePorts = {
+    "@/扩展功能/媒体交付/媒体地址缓存": await load("媒体交付/媒体地址缓存.ts"),
+    '@/扩展功能/网络代理/本地转发请求': { 本地转发请求: globalThis.fetch, 本地转发Axios: {} },
     '@/扩展功能/本机存储/上游浏览器存储桥': { sqliteForage: { createInstance: () => ({}) } },
     nanoid: { nanoid: () => 'unused' }, '@/扩展功能/画布迁移扩展/内嵌图片解码.mjs': {},
     '@/扩展功能/安全与批量/persistence-checkpoint': { createPersistenceCheckpoint: () => ({}) },
@@ -166,8 +168,8 @@ test('真实音视频素材缺失时保留回收批次，有素材时恢复URL�
     assert.match(missing.errors[0], /音视频素材缺失/); assert.deepEqual(missing.writes, []); assert.equal(missing.batch.nodes.length, 2);
 });
 
-async function arrangement(nodes, size = { width: 1200, height: 720 }) {
-    const snapshot = { nodes, connections: [{ id: 'edge' }], chatSessions: [{ id: 'chat' }] };
+async function arrangement(nodes, size = { width: 1200, height: 720 }, connections = [{ id: 'edge' }]) {
+    const snapshot = { nodes, connections, chatSessions: [{ id: 'chat' }] };
     const historyRef = { current: { past: Array.from({ length: 55 }, (_, index) => ({ id: index })), future: [{ id: 'redo' }] } };
     const applied = [], viewports = [], messages = [];
     const { useCanvasNodeArrangement } = await load('画布布局/重叠卡片整理操作.ts', {
@@ -203,9 +205,59 @@ test('整理扩展组容器以容纳移动后的子卡，异常尺寸不参与�
     assert.ok(wrap.position.y + wrap.height >= moved.position.y + moved.height);
     assert.equal(result.find(item => item.id === 'bad'), bad); assert.ok(Object.values(api.viewports[0]).every(Number.isFinite));
 });
+test('无重叠的单线错位通过真实整理入口一次写入历史，保留原连接和内容', async () => {
+    const source = node('source'), target = node('target', { content: '保留原内容' }, 700, 5);
+    const connections = [{ id: 'single', fromNodeId: source.id, toNodeId: target.id }];
+    const api = await arrangement([source, target], undefined, connections); api.run();
+    assert.equal(api.applied.length, 1);
+    assert.deepEqual(api.applied[0].nodes[1].position, { x: 148, y: 0 });
+    assert.equal(api.applied[0].nodes[1].metadata, target.metadata);
+    assert.equal(api.applied[0].connections, connections);
+    assert.equal(api.historyRef.current.past.at(-1), api.snapshot);
+    assert.deepEqual(api.snapshot.nodes[1].position, { x: 700, y: 5 });
+    assert.match(api.messages[0], /已整理 1 张/);
+});
+test('整理卡片将普通单线排成来源在左、目标在右的同高水平关系', () => {
+    const a = node('a', {}, 0, 0), b = node('b', {}, 700, 220);
+    const arranged = layout.arrangeOverlappingCanvasNodes([a, b], [{ id: 'ab', fromNodeId: 'a', toNodeId: 'b' }]);
+    assert.deepEqual(arranged[0].position, a.position);
+    assert.deepEqual(arranged[1].position, { x: 148, y: 0 });
+    const reverse = layout.arrangeOverlappingCanvasNodes([a, b], [{ id: 'ba', fromNodeId: 'b', toNodeId: 'a' }]);
+    assert.deepEqual(reverse.find(item => item.id === 'b').position, { x: 700, y: 220 });
+    assert.deepEqual(reverse.find(item => item.id === 'a').position, { x: 848, y: 220 });
+    const widelySpaced = layout.arrangeOverlappingCanvasNodes([node('left', {}, 0, 0), node('right', {}, 900, 0)],
+        [{ id: 'wide', fromNodeId: 'left', toNodeId: 'right' }]);
+    assert.deepEqual(widelySpaced[1].position, { x: 900, y: 0 });
+});
+test('分支与汇入节点及其关联端点全部保持原位', () => {
+    const source = node('source', {}, 0, 0), other = node('other', {}, 0, 500);
+    const junction = node('junction', {}, 700, 400), branch = node('branch', {}, 1100, 0), merge = node('merge', {}, 1100, 500);
+    const nodes = [source, other, junction, branch, merge];
+    const connections = [
+        { id: 'in1', fromNodeId: 'source', toNodeId: 'junction' },
+        { id: 'in2', fromNodeId: 'other', toNodeId: 'junction' },
+        { id: 'out1', fromNodeId: 'junction', toNodeId: 'branch' },
+        { id: 'out2', fromNodeId: 'junction', toNodeId: 'merge' },
+    ];
+    const ordinaryOverlap = node('ordinary-overlap', {}, 0, 0);
+    const arranged = layout.arrangeOverlappingCanvasNodes([...nodes, ordinaryOverlap], connections);
+    for (const item of nodes) assert.deepEqual(arranged.find(value => value.id === item.id).position, item.position);
+    assert.notDeepEqual(arranged.find(value => value.id === ordinaryOverlap.id).position, ordinaryOverlap.position);
+    const overlapBeforeJunction = node('overlap-before-junction', {}, 700, 400);
+    const ordered = layout.arrangeOverlappingCanvasNodes([overlapBeforeJunction, ...nodes], connections);
+    assert.deepEqual(ordered.find(item => item.id === 'junction').position, junction.position);
+    assert.notDeepEqual(ordered.find(item => item.id === overlapBeforeJunction.id).position, overlapBeforeJunction.position);
+});
+test('单线整理遇到候选位置障碍时跳过所有相关移动', () => {
+    const a = node('a', {}, 0, 0), b = node('b', {}, 700, 220);
+    const blockers = [node('blocker-target', {}, 148, 0), node('blocker-source', {}, 552, 220)];
+    const nodes = [a, b, ...blockers];
+    const arranged = layout.arrangeOverlappingCanvasNodes(nodes, [{ id: 'ab', fromNodeId: 'a', toNodeId: 'b' }]);
+    assert.equal(arranged, nodes);
+});
 test('新增操作Hook依赖完整，稳定的节点界面setter集合覆盖原来的全部十二个入口', () => {
     const linter = new Linter();
-    for (const name of ['画布回收/节点删除操作.ts', '画布布局/重叠卡片整理操作.ts']) {
+    for (const name of ['画布回收/节点删除操作.ts', '画布布局/重叠卡片整理操作.ts', '画布生成/生成连线保护.ts']) {
         const file = resolve(root, '扩展功能', name);
         const messages = linter.verify(readFileSync(file, 'utf8'), [{ files: ['**/*.ts'], languageOptions: { parser: ts.parser },
             plugins: { 'react-hooks': reactHooks }, rules: { 'react-hooks/rules-of-hooks': 'error', 'react-hooks/exhaustive-deps': 'error' } }], { filename: file });

@@ -18,7 +18,7 @@ export async function publishWebPreview(recordFile) {
   const { selected, manifest } = verifyWebManifest(proof[0], proof[1], { releaseVersion: record.version });
   assert.equal(manifest.commit, record.commit); assert.equal(sha256(await readFile(record.archive)), selected.sha256);
   const notes = join(directory, '发布说明.md');
-  await writeFile(notes, await readFile(join(root, '开发文档/Web紧急存储更新说明.md'), 'utf8'), { flag: 'wx', mode: 0o600 });
+  await writeFile(notes, await readFile(join(root, '开发文档/Web更新说明.md'), 'utf8'), { flag: 'wx', mode: 0o600 });
   run(['release', 'create', tag, '--repo', WEB_REPOSITORY, '--target', record.commit, '--draft', '--prerelease', '--title', '生图工作台 Web ' + record.version, '--notes-file', notes]);
   run(['release', 'upload', tag, '--repo', WEB_REPOSITORY, record.archive + '#' + selected.name, ...WEB_MANIFEST_NAMES.map(name => join(directory, name) + '#' + name)]);
   const downloaded = await mkdtemp(join(directory, '远程复核-'));

@@ -11,5 +11,6 @@ const { build } = await import(pathToFileURL(require.resolve('vite')).href);
 if (mode === '客户') process.env.VITE_BASE = '/';
 await build({ root: web, configFile: join(web, 'vite.config.ts'), cacheDir: cache, logLevel: 'warn',
   ...(mode === '客户' ? { envDir: false, envPrefix: '__GUAN_NO_PUBLIC_ENV__' } : {}),
-  build: { outDir: output, emptyOutDir: mode === '开发' },
+  build: { outDir: output, emptyOutDir: mode === '开发',
+    ...(mode === '开发' ? { minify: false, reportCompressedSize: false } : {}) },
   css: { postcss: { plugins: [require('@tailwindcss/postcss')({ base: join(web, 'src') })] } } });

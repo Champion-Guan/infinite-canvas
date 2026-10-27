@@ -1,7 +1,9 @@
+import { useNavigate } from "react-router-dom";
 import { App, Button } from "antd";
 import { updateRequest, type UpdateBlocker } from "./软件更新客户端";
 
 export function UpgradeTaskReview({ blockers, refresh }: { blockers: UpdateBlocker[]; refresh: () => Promise<unknown> }) {
+    const navigate = useNavigate();
     const { modal, message } = App.useApp();
     if (!blockers.length) return null;
     const confirm = (task: UpdateBlocker) => modal.confirm({
@@ -16,7 +18,8 @@ export function UpgradeTaskReview({ blockers, refresh }: { blockers: UpdateBlock
     return <div className="space-y-2 rounded border border-amber-300 p-3 dark:border-amber-800">
         <div>升级前需处理的生成任务：{blockers.length}</div>
         {blockers.map(task => <div key={task.id} className="flex flex-wrap items-center gap-2 text-xs">
-            <span>{new Date(task.createdAt).toLocaleString()} · {task.id} · {task.state === "uncertain" ? "待核实" : task.state === "succeeded" ? "待确认画布保存" : "尚未结束"}</span>
+            <span>{task.createdAt ? new Date(task.createdAt).toLocaleString() : "旧画布视频"} · {task.id} · {task.reason === "video_legacy_untracked" ? "请返回原画布查询视频" : task.reason === "video_remote_pending" ? "视频待完成或待确认保存" : task.state === "uncertain" ? "待核实" : task.state === "succeeded" ? "待确认画布保存" : "尚未结束"}</span>
+            {task.productId ? <Button size="small" onClick={() => navigate(`/canvas/${encodeURIComponent(task.productId!)}`)}>返回原画布</Button> : null}
             {task.canConfirmNoResult ? <Button size="small" onClick={() => confirm(task)}>核实无结果</Button> : null}
         </div>)}
     </div>;

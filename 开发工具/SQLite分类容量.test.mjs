@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, lstatSync, writeFileSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, readFileSync, lstatSync, writeFileSync, symlinkSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -18,8 +18,10 @@ const candidate = { openWorkspace, startDataService };
 const sha = value => createHash('sha256').update(value).digest('hex'), code = value => error => error.code === value;
 const category = (usage, name) => usage.databases[0].stores.find(row => row.name === name);
 const idFor = namespace => 'app-' + sha(namespace);
+const roots = [];
+test.after(() => { for (const root of roots) rmSync(root, { recursive: true, force: true }); });
 function fixture() {
-  const root = mkdtempSync(join(tmpdir(), 'guan-usage-'));
+  const root = mkdtempSync(join(tmpdir(), 'guan-usage-')); roots.push(root);
   const workspace = candidate.openWorkspace({ dataRoot: root, initialize: true });
   const client = {
     readDocument: (...args) => workspace.readDocument(...args), writeDocument: input => workspace.writeDocument(input),
@@ -99,7 +101,7 @@ test('音频、空Blob与无类型二进制保留独立分类', () => using(asyn
 
 test('混合v1/v2读取且不解密secret，不输出标题、正文、引用或数据根', () => using(async f => {
   let reads = 0;
-  await f.app(false, { secretPort: { async store() { return 'secret:synthetic'; }, async read() { reads++; throw Error('统计不可解密'); } } }).createInstance({ storeName: 'preferences' }).setItem('config', { apiKey: 'synthetic-secret', title: 'private-unique-title' });
+  await f.app(false, { secretPort: { async store() { return 'secret:' + 'a'.repeat(64); }, async inspect() { reads++; throw Error('统计不可解密'); } } }).createInstance({ storeName: 'preferences' }).setItem('config', { apiKey: 'synthetic-secret', title: 'private-unique-title' });
   await f.app().createInstance({ storeName: 'prompt_cache' }).setItem('cache', 'private-unique-prompt');
   const usage = await f.workspace.readDetailedUsage(), text = JSON.stringify(usage);
   assert.equal(reads, 0); assert.equal(category(usage, 'workspace').records, 1); assert.equal(category(usage, 'prompts').records, 1);

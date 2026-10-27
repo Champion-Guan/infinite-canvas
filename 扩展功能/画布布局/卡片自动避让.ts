@@ -1,4 +1,4 @@
-import type { CanvasNodeData, Position } from "@/types/canvas";
+import type { CanvasConnection, CanvasNodeData, Position } from "@/types/canvas";
 
 export const NODE_PLACEMENT_GAP = 48;
 export type PlacementBounds = { x: number; y: number; width: number; height: number };
@@ -93,21 +93,91 @@ export function placeNewCanvasNodes(previous: CanvasNodeData[], next: CanvasNode
     return moved.size ? expandChangedGroups(result, moved) : next;
 }
 
-/** Keep non-overlapping cards fixed; only later cards in overlapping pairs move. */
-export function arrangeOverlappingCanvasNodes(nodes: CanvasNodeData[]) {
-    const kept: CanvasNodeData[] = [];
+function connectionPorts(nodes: CanvasNodeData[], connections: CanvasConnection[]) {
+    const nodeIds = new Set(nodes.map((node) => node.id));
+    const incoming = new Map<string, CanvasConnection[]>();
+    const outgoing = new Map<string, CanvasConnection[]>();
+    const validConnections = connections.filter((edge) => nodeIds.has(edge.fromNodeId) && nodeIds.has(edge.toNodeId));
+    for (const edge of validConnections) {
+        incoming.set(edge.toNodeId, [...(incoming.get(edge.toNodeId) ?? []), edge]);
+        outgoing.set(edge.fromNodeId, [...(outgoing.get(edge.fromNodeId) ?? []), edge]);
+    }
+    // 只锁定实际分支/汇入的端口及其直接关系；配置左侧汇入不影响右侧单线结果。
+    const fixed = new Set<string>();
+    for (const [id, edges] of incoming) if (edges.length > 1) {
+        fixed.add(id);
+        for (const edge of edges) fixed.add(edge.fromNodeId);
+    }
+    for (const [id, edges] of outgoing) if (edges.length > 1) {
+        fixed.add(id);
+        for (const edge of edges) fixed.add(edge.toNodeId);
+    }
+    // 上游卡片先整理，避免依赖 connections 数组顺序；闭环不参与自动排布。
+    const pending = new Map(nodes.map((node) => [node.id, incoming.get(node.id)?.length ?? 0]));
+    const queue = nodes.filter((node) => !pending.get(node.id)).map((node) => node.id);
+    const ordered: CanvasConnection[] = [];
+    for (let index = 0; index < queue.length; index++) for (const edge of outgoing.get(queue[index]) ?? []) {
+        ordered.push(edge);
+        pending.set(edge.toNodeId, pending.get(edge.toNodeId)! - 1);
+        if (!pending.get(edge.toNodeId)) queue.push(edge.toNodeId);
+    }
+    for (const [id, count] of pending) if (count) fixed.add(id);
+    return { incoming, outgoing, fixed, ordered };
+}
+
+function alignSingleConnectionCards(nodes: CanvasNodeData[], ports: ReturnType<typeof connectionPorts>) {
+    const result = [...nodes];
+    for (const connection of ports.ordered) {
+        if (ports.outgoing.get(connection.fromNodeId)?.length !== 1 || ports.incoming.get(connection.toNodeId)?.length !== 1) continue;
+        if (ports.fixed.has(connection.toNodeId)) continue;
+        const sourceIndex = result.findIndex((node) => node.id === connection.fromNodeId);
+        const targetIndex = result.findIndex((node) => node.id === connection.toNodeId);
+        if (sourceIndex < 0 || targetIndex < 0) continue;
+        const source = result[sourceIndex];
+        const target = result[targetIndex];
+        if (source.type === "group" || target.type === "group" || !valid(source) || !valid(target)) continue;
+        const routeBlockers = result.filter((node) => node.id !== source.id && node.id !== target.id && node.type !== "group" && valid(node));
+        const routeIsClear = (from: CanvasNodeData, to: CanvasNodeData) => {
+            const centerY = from.position.y + from.height / 2;
+            return to.position.x > from.position.x + from.width
+                && Math.abs(centerY - (to.position.y + to.height / 2)) <= 1e-7
+                && !routeBlockers.some((node) => node.position.x < to.position.x && node.position.x + node.width > from.position.x + from.width
+                    && centerY > node.position.y && centerY < node.position.y + node.height);
+        };
+        // 已经通畅直连的不收紧距离，也不移动来源卡影响它的其他输入关系。
+        if (routeIsClear(source, target)) continue;
+        const position = { x: source.position.x + source.width + NODE_PLACEMENT_GAP,
+            y: source.position.y + (source.height - target.height) / 2 };
+        const candidate = { ...target, position };
+        if (routeBlockers.some((node) => nodesOverlap(candidate, node, NODE_PLACEMENT_GAP)) || !routeIsClear(source, candidate)) continue;
+        result[targetIndex] = candidate;
+    }
+    if (!result.some((node, index) => node !== nodes[index])) return nodes;
+    const moved = new Set(result.filter((node, index) => node.position !== nodes[index].position).map((node) => node.id));
+    return expandChangedGroups(result, moved);
+}
+
+/** 保留重叠避让；只整理两端端口均为单线的关系，分支/汇入卡片不移动。 */
+export function arrangeOverlappingCanvasNodes(nodes: CanvasNodeData[], connections: CanvasConnection[] = []) {
+    const ports = connectionPorts(nodes, connections);
+    // Reserve branch/merge nodes and their direct neighbors before placing any
+    // ordinary card, regardless of input array order.
+    const kept: CanvasNodeData[] = nodes.filter((node) => node.type !== "group" && ports.fixed.has(node.id));
     const victims = new Set<string>();
     for (const node of nodes) {
-        if (node.type === "group") continue;
+        if (node.type === "group" || ports.fixed.has(node.id)) continue;
         if (kept.some((other) => nodesOverlap(node, other))) victims.add(node.id);
         else kept.push(node);
     }
-    if (!victims.size) return nodes;
-    const result = nodes.map((node) => {
-        if (!victims.has(node.id)) return node;
-        const placed = placeCanvasNode(node, kept);
-        kept.push(placed);
-        return placed;
-    });
-    return expandChangedGroups(result, victims);
+    let result = nodes;
+    if (victims.size) {
+        result = nodes.map((node) => {
+            if (!victims.has(node.id)) return node;
+            const placed = placeCanvasNode(node, kept);
+            kept.push(placed);
+            return placed;
+        });
+        result = expandChangedGroups(result, victims);
+    }
+    return alignSingleConnectionCards(result, ports);
 }

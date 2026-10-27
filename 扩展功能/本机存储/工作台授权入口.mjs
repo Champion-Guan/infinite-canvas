@@ -4,7 +4,7 @@ import { createApplicationStorage } from './应用存储适配.mjs';
 
 // 这是自有启动入口，不查找/修改原页面控件。须通过具体批准的HTML入口接入。
 // 业务React模块只在授权后加载；刷新不恢复旧浏览器数据，也不静默重新授权。
-export function mountWorkbenchAuthorization({ root, origin = location.origin, loadApplication = () => import('@/main'), authorize = authorizeLocalStorage } = {}) {
+export function mountWorkbenchAuthorization({ root, origin = location.origin, loadApplication = () => import('../../main'), authorize = authorizeLocalStorage } = {}) {
   if (!root || root.childNodes.length || typeof loadApplication !== 'function' || typeof authorize !== 'function') throw Error('授权入口需要独立且空的应用根节点。');
   const document = root.ownerDocument;
   const panel = document.createElement('section'), heading = document.createElement('h1'), description = document.createElement('p');

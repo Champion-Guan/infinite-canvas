@@ -29,7 +29,9 @@ function readBody(request, limit) {
 // 授权只通过本机启动器的进程内调用，不提供匿名HTTP发令牌端点。
 export async function startDataService({ workspace, allowedOrigins, port = 0, sessionTTL = 10 * 60_000, rateLimit = 120, now = Date.now, writeOptions } = {}) {
   requireValue(workspace?.workspaceId && Array.isArray(allowedOrigins) && allowedOrigins.length > 0 && allowedOrigins.every(validOrigin), 'invalid_service_config', '必须明确列出本机测试Origin。');
-  requireValue(Number.isInteger(port) && port >= 0 && port <= 65535 && sessionTTL > 0 && sessionTTL <= 15 * 60_000 && Number.isInteger(rateLimit) && rateLimit > 0, 'invalid_service_config', '服务配置无效。');
+  // rateLimit=0 表示已由本机一次性授权码建立可信入口，不再对同一会话做频率限流。
+  // 并发、请求体大小、写入协调和会话期限仍然有效。
+  requireValue(Number.isInteger(port) && port >= 0 && port <= 65535 && sessionTTL > 0 && sessionTTL <= 15 * 60_000 && Number.isInteger(rateLimit) && rateLimit >= 0, 'invalid_service_config', '服务配置无效。');
   const origins = new Set(allowedOrigins), sessions = new Map();
   const writeGate = createWriteCoordinator(writeOptions);
   let activeRequests = 0, stopping = false, closing;
@@ -54,8 +56,10 @@ export async function startDataService({ workspace, allowedOrigins, port = 0, se
       requireValue(['GET', 'PUT', 'POST'].includes(request.method), 'method_denied', '方法不支持。', 405);
       const token = request.headers.authorization?.match(/^Bearer ([0-9a-f]{64})$/)?.[1], session = sessions.get(token);
       requireValue(session && session.origin === origin && session.expiresAt > now(), 'session_denied', '会话缺失或已过期，请重新授权。', 401);
-      if (now() - session.windowStart >= 10_000) { session.windowStart = now(); session.count = 0; }
-      requireValue(++session.count <= rateLimit, 'rate_limited', '请求过于频繁，请稍后重试。', 429);
+      if (rateLimit > 0) {
+        if (now() - session.windowStart >= 10_000) { session.windowStart = now(); session.count = 0; }
+        requireValue(++session.count <= rateLimit, 'rate_limited', '请求过于频繁，请稍后重试。', 429);
+      }
       requireValue(activeRequests < 8, 'service_busy', '本机数据服务繁忙。', 503); activeRequests++; counted = true;
       if (request.method !== 'GET') requireValue(equal(request.headers['x-guan-csrf'], session.csrf), 'csrf_denied', '写入校验失败。', 403);
       // 先鉴权并读完整请求体，再排队；执行前复核撤销/过期及连接关闭。
@@ -91,7 +95,7 @@ export async function startDataService({ workspace, allowedOrigins, port = 0, se
           requireValue(result, 'document_not_found', '文档不存在。', 404); json(200, result); return;
         }
         requireValue(request.method === 'PUT' && second, 'method_denied', '文档只支持读取和指定版本保存。', 405);
-        requireValue(!(first === 'extension' && /^(?:provider:|guan-generation-ledger-v1$|guan-network-proxy-state-v1$|guan-fallback-)/.test(second)), 'reserved_generation_document', '生成绑定与任务账本只能由可信本机服务写入。', 403);
+        requireValue(!(first === 'extension' && /^(?:provider:|secret:|guan-credential|guan-generation-ledger-v1$|guan-network-proxy-state-v1$|guan-fallback-)/.test(second)), 'reserved_generation_document', '凭据、生成绑定与任务账本只能由可信本机服务写入。', 403);
         requireValue(request.headers['content-type'] === 'application/json', 'content_type_denied', '必须提交JSON。', 415);
         const bytes = await readBody(request, MAX_JSON_BODY);
         let body; try { body = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); } catch { throw new StorageError('invalid_json', 'JSON格式无效。'); }
@@ -108,6 +112,7 @@ export async function startDataService({ workspace, allowedOrigins, port = 0, se
     } catch (error) {
       // 不回显底层路径、请求内容、SQL或令牌。SQLite FULL/IOERR也不能伪装成空数据。
       const known = error instanceof StorageError;
+      if (known && error.status === 429) response.setHeader('Retry-After', '1');
       json(known ? error.status : 500, { error: { code: known ? error.code : 'storage_unavailable', message: known ? error.message : '本机存储操作失败，没有报告保存成功。' } });
       request.resume();
     } finally { if (counted) activeRequests--; }

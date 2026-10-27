@@ -1,0 +1,27 @@
+.panel {
+    container: history-actions / inline-size;
+}
+
+.trigger {
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+.button {
+    min-height: 28px;
+    white-space: nowrap;
+}
+
+@container history-actions (max-width: 320px) {
+    .button {
+        width: 28px;
+        min-width: 28px;
+        justify-content: center;
+        gap: 0;
+        padding-inline: 0;
+    }
+
+    .label {
+        display: none;
+    }
+}

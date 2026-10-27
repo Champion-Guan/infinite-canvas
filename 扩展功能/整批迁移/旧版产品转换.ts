@@ -5,6 +5,7 @@ import { assertWorkbookSnapshot, type WorkbookContract, type WorkbookSnapshot, t
 import { productDisplayName } from "../产品/旧版产品显示名.js";
 import { decodeLegacyBlob, legacyRecords, legacyState, legacyText, object, type LegacyBackup } from "./旧版备份读取";
 import { normalizeLegacyMediaReferences } from "./旧版媒体引用归一";
+import { imageInfoDefaults } from "../图片设置/图片信息偏好";
 
 const fields = new Set(["storageKey", "originalStorageKey", "deliveryStorageKey", "references"]);
 export function legacyJSON(raw: string | undefined | null, empty: unknown): unknown {
@@ -74,7 +75,7 @@ export async function prepareLegacyProducts(backup: LegacyBackup): Promise<Legac
     }
     const rawOwner = Object.hasOwn(item, "productSetId") ? item.productSetId : owner;
     return { createdAt: storedDate(item.createdAt, now), updatedAt: storedDate(item.updatedAt, now), nodes: [], connections: [], chatSessions: [], activeChatId: null,
-      backgroundMode: "lines", showImageInfo: false, viewport: { x: 0, y: 0, k: 1 }, ...canvas,
+      backgroundMode: "lines", ...imageInfoDefaults, viewport: { x: 0, y: 0, k: 1 }, ...canvas,
       id, title: canvas ? String(canvas.title) : title, productSetId: rawOwner ? mappedId(String(rawOwner)) : null } as CanvasProject;
   };
   const liveIds = new Set<string>();

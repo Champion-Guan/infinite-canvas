@@ -127,6 +127,23 @@ test('预览读取当前槽位原文件，移除释放URL，迟到的旧文件�
     runtime.unmount(); assert.deepEqual(revoked, ['blob:preview-1']);
 });
 
+test('屏幕外详情不读取原图，进入视区后读取；退出或卸载释放预览', async t => {
+    const reads = [], revoked = [];
+    t.mock.method(URL, 'createObjectURL', () => 'blob:visible-preview');
+    t.mock.method(URL, 'revokeObjectURL', url => revoked.push(url));
+    const runtime = hookFixture();
+    const { useHistoryMediaPreview } = await load('历史媒体预览.ts', {
+        react: runtime.hooks, '@/types/canvas': types,
+        '../画布迁移扩展/media-download': { readDownloadBlob: async request => { reads.push(request); return new Blob(['image']); } },
+    });
+    const render = enabled => runtime.render(() => useHistoryMediaPreview(files[0], enabled));
+    render(false); await flush(); assert.equal(reads.length, 0);
+    render(true); await flush(); assert.equal(reads.length, 1);
+    assert.equal(render(true).url, 'blob:visible-preview');
+    render(false); assert.deepEqual(revoked, ['blob:visible-preview']);
+    runtime.unmount(); assert.equal(reads.length, 1);
+});
+
 function jsx(type, props, key) { return { type, props: props || {}, key }; }
 function elements(value) { if (Array.isArray(value)) return value.flatMap(elements); if (!value || typeof value !== 'object') return []; return [value, ...elements(value.props?.children)]; }
 const theme = { node: { text: '#111', panel: '#fff', fill: '#eee', stroke: '#ccc' } };
@@ -136,6 +153,7 @@ test('总览详情只含已选文件；未勾选缩略图仅打开预览，不�
     const { HistoryOverviewPanel } = await load('历史总览面板.tsx', {
         react: runtime.hooks, 'react/jsx-runtime': { jsx, jsxs: jsx }, antd: { Checkbox: 'Checkbox', Empty: 'Empty', Modal: 'Modal', Spin: 'Spin' },
         'lucide-react': { Download: 'Download', Image: 'Image', Video: 'Video' }, '@/lib/image-utils': { formatBytes: size => size + ' B' },
+        'motion/react': { useInView: () => true },
         '@/stores/use-config-store': { decodeChannelModel: () => null }, '@/services/image-storage': { previewUrlFor: () => undefined }, '@/types/canvas': types,
         './历史媒体详情': { historyMediaInfo }, './历史媒体预览': { useHistoryMediaPreview: file => ({ url: file.content }) },
         './历史总览面板.module.css': { __esModule: true, default: new Proxy({}, { get: (_object, key) => key }) },
@@ -155,26 +173,35 @@ test('总览详情只含已选文件；未勾选缩略图仅打开预览，不�
     assert.deepEqual(elements(tree).filter(item => typeof item.type === 'function' && item.props.file).map(item => item.props.file.id), [files[1].id, files[0].id]);
 });
 
-test('选择模式点击缩略图仅预览，点击文字才勾选/反选；总览紧跟下载按钮', async () => {
-    const runtime = hookFixture(), previews = [];
+test('选择模式缩略图仅预览、文字才勾选；排序立即切换，总览紧跟下载', async () => {
+    const runtime = hookFixture(), previews = [], sorts = [];
     const selection = await load('历史选择操作.ts', { react: runtime.hooks });
+    const actionStyles = { default: {} };
+    const { HistoryActionButton } = await load('历史操作按钮.tsx', {
+        'react/jsx-runtime': { jsx, jsxs: jsx }, antd: { Tooltip: 'Tooltip' },
+        '@/lib/utils': { cn: (...values) => values.filter(Boolean).join(' ') }, './历史操作栏.module.css': actionStyles,
+    });
+    const renderElement = (type, props, key) => type === HistoryActionButton ? type(props) : jsx(type, props, key);
     const { CanvasGenerationHistoryTab } = await load('生成历史页签.tsx', {
-        react: runtime.hooks, 'react/jsx-runtime': { jsx, jsxs: jsx }, antd: { App: { useApp: () => ({ message: {} }) }, Checkbox: 'Checkbox', Empty: 'Empty' },
+        react: runtime.hooks, 'react/jsx-runtime': { jsx: renderElement, jsxs: renderElement }, antd: { App: { useApp: () => ({ message: {} }) }, Checkbox: 'Checkbox', Empty: 'Empty' },
         'lucide-react': Object.fromEntries(['ArrowDownWideNarrow', 'Download', 'Image', 'LayoutGrid', 'ListChecks', 'RotateCcw', 'Video'].map(key => [key, key])),
         'motion/react': { motion: { div: 'motion.div' } }, '@/lib/utils': { cn: (...values) => values.filter(Boolean).join(' ') },
         '@/lib/image-utils': { formatBytes: () => '文件大小' }, './任务摘要': { failedTaskTargets: () => [] }, './历史失败重试': { runHistoryRetries: async () => {} },
         './历史下载文件': { historyDownloadFiles }, './历史媒体详情': { historyMediaInfo }, './历史排序': { sortGenerationHistory: value => value },
         './历史下载操作': { useHistoryDownloads: () => ({ downloading: false, downloadFile: () => {}, downloadAll: () => {} }) },
         './历史选择操作': selection, './历史总览面板': { HistoryOverviewPanel: 'Overview' },
+        './历史操作按钮': { HistoryActionButton }, './历史操作栏.module.css': actionStyles,
         '@/services/file-storage': { getMediaBlob: async () => new Blob(['media']) },
         '@/services/image-storage': { getImageBlob: async () => new Blob(['image']), previewUrlFor: () => undefined, subscribeImagePreviews: () => () => {}, getImagePreviewRevision: () => 0 },
-        '@/stores/use-config-store': { decodeChannelModel: () => null }, '@/stores/use-canvas-side-panel-store': { useCanvasSidePanelStore: callback => callback({ historySorted: false, toggleHistorySorted: () => {} }) }, '@/types/canvas': types,
+        '@/stores/use-config-store': { decodeChannelModel: () => null }, '@/stores/use-canvas-side-panel-store': { useCanvasSidePanelStore: callback => callback({ historySorted: false, toggleHistorySorted: () => sorts.push('sorted') }) }, '@/types/canvas': types,
     });
     const render = () => runtime.render(() => CanvasGenerationHistoryTab({ nodes: fixtureNodes, connections: [], getCurrentNode: () => undefined, onPreviewNode: id => previews.push(id), onRetryNode: () => {}, theme }));
     let tree = render();
     const header = tree.props.children[0];
     const buttons = elements(header).filter(item => item.type === 'button');
-    assert.deepEqual(buttons.slice(-2).map(item => item.props.title), ['一键打包下载全部已成功生成的文件', '生成历史总览']);
+    buttons.find(item => item.props['aria-label'] === '排序').props.onClick();
+    assert.deepEqual(sorts, ['sorted']);
+    assert.deepEqual(buttons.slice(-2).map(item => item.props['aria-label']), ['下载', '总览']);
     buttons.find(item => item.props.className.includes('guan-history-select')).props.onClick();
     tree = render();
     const selected = () => elements(tree).filter(item => item.type === 'Checkbox' && item.props['aria-label']).map(item => item.props.checked);

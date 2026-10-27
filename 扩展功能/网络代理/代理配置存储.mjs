@@ -6,7 +6,7 @@ import { exact, MAX_PROXY_SOURCE } from './配置边界.mjs';
 export const PROXY_STATE_ID = 'guan-network-proxy-state-v1';
 const format = 'guan-network-proxy-state.v1';
 const hash = value => createHash('sha256').update(value).digest('hex');
-const empty = () => ({ format, enabled: false, sourceKind: 'text', source: null, config: null, configName: '' });
+const empty = () => ({ format, enabled: true, relayEnabled: true, sourceKind: 'text', source: null, config: null, configName: '' });
 export function createProxyConfigurationStore({ workspace, vault, runTrustedWrite }) {
   requireValue(workspace?.workspaceId && typeof vault?.store === 'function' && typeof vault.read === 'function' && typeof runTrustedWrite === 'function',
     'proxy_store_invalid', '代理配置需要同一工作区的凭据保管与写入协调。');
@@ -39,9 +39,10 @@ export function createProxyConfigurationStore({ workspace, vault, runTrustedWrit
     const result = chunks.join(''); requireValue(hash(result) === value.hash, 'proxy_state_corrupt', '代理配置密文校验失败。', 409); return result;
   }
   return Object.freeze({ read, unseal,
-    async prepare({ sourceKind, source, config, configName }) {
+    async prepare({ sourceKind, source, config, configName, enabled = true, relayEnabled = true }) {
       requireValue(['text', 'url'].includes(sourceKind) && typeof configName === 'string' && configName.length <= 200 && !/[\r\n\0]/.test(configName), 'proxy_source_invalid', '代理配置来源无效。');
-      return { format, enabled: true, sourceKind, source: await seal(source), config: await seal(config), configName };
+      requireValue(typeof enabled === 'boolean' && typeof relayEnabled === 'boolean', 'proxy_source_invalid', '代理开关状态无效。');
+      return { format, enabled, relayEnabled, sourceKind, source: await seal(source), config: await seal(config), configName };
     },
     save(value, expectedRevision) {
       return runTrustedWrite(() => {

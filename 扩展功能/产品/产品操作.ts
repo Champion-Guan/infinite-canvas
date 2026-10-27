@@ -16,7 +16,7 @@ import { orderedProducts } from "./产品规则";
 import { planWorkbookDeletion, workbookDeletionIds } from "../Excel删除/工作簿删除规则";
 import { workbookDeletionGate } from "../Excel删除/工作簿删除门禁";
 import { commitWorkbookChange } from "../Excel/Excel保存导航";
-import { visibleWorkbookId, withVisibleSelection, planExcelImport, rememberWorkbookProduct, selectWorkbook as planWorkbookSelection, workbookEntry, workbookProjects, type ExcelImportInput, type WorkbookSnapshot } from "../Excel/Excel产品归属";
+import { visibleWorkbookId, withVisibleSelection, planExcelImport, prepareWorkbookEntry, rememberWorkbookProduct, selectWorkbook as planWorkbookSelection, workbookEntry, workbookProjects, type ExcelImportInput, type WorkbookSnapshot } from "../Excel/Excel产品归属";
 import { productRestoreMountGate } from "./产品恢复挂载门禁";
 import { commitLegacyTransfer, finishLegacyTransfer, type LegacyTransfer } from "../整批迁移/整批迁移操作";
 
@@ -35,7 +35,7 @@ export function useProductCanvasSave<T>(
   projectId: string,
   snapshot: T,
   ready: () => boolean,
-  persist: (snapshot: T) => Promise<void>,
+  persist: (snapshot: T, options?: { deferSQLiteFlush?: boolean }) => Promise<void>,
   canDelete: () => boolean = () => true,
 ) {
   const [ticket, requestRender] = useState(0);
@@ -48,8 +48,9 @@ export function useProductCanvasSave<T>(
   useLayoutEffect(() => {
     checkpoint.mount();
     deletionGuards.set(projectId, () => canDeleteRef.current());
-    const unregister = saves.register(projectId, () =>
-      checkpoint.flush((value) => persistRef.current(value)),
+    const unregister = saves.register(projectId, (options) =>
+      checkpoint.flush((value) => persistRef.current(value, options), options),
+      () => checkpoint.acknowledgeDeferredSave(),
     );
     return () => {
       unregister();
@@ -74,15 +75,15 @@ export function useProductNavigation() {
   );
   const pendingWorkbookDeletion = useSyncExternalStore(workbookDeletionGate.subscribe, workbookDeletionGate.getSnapshot, workbookDeletionGate.getSnapshot);
   const busy = operationBusy || Boolean(pendingWorkbookDeletion);
-  const commitCurrent = useCallback(async () => {
+  const commitCurrent = useCallback(async (options: { deferSQLiteFlush?: boolean } = {}) => {
     if (workbookDeletionGate.getSnapshot()) throw new Error("工作簿删除保存尚未确认，请在原确认框重试保存后继续。");
     if (!useCanvasStore.getState().hydrated)
       throw new Error("产品数据尚未加载完成。");
-    // 恢复门禁中的产品尚未挂载、不能编辑；没有页面检查点，但仍须下方全局保存ACK。
+    // 恢复门禁中的产品尚未挂载、不能编辑；统一ACK仍会排空已有保存。
     if (activeId && !productRestoreMountGate.getSnapshot().includes(activeId)
         && useCanvasStore.getState().openProject(activeId))
-      await saves.flush(activeId);
-    await flushSQLiteStorage();
+      await saves.flush(activeId, options);
+    if (!options.deferSQLiteFlush) await flushSQLiteStorage();
   }, [activeId]);
   const enter = useCallback(
     async (id: string) => {
@@ -215,22 +216,56 @@ export function useProductNavigation() {
       navigate("/", { replace: true });
     }
   }, [enter, navigate]);
-  const selectWorkbook = useCallback((owner: string | null) => operations.run(() => commitWorkbookChange({
-    commitCurrent,
-    plan: () => { const state = withVisibleSelection(useCanvasStore.getState(), activeId); return { ...state, guanWorkbooks: planWorkbookSelection(state, owner) }; },
-    publish: value => useCanvasStore.setState({ guanWorkbooks: value.guanWorkbooks }),
-    flush: flushSQLiteStorage, navigate: finishWorkbook,
-  })), [activeId, commitCurrent, finishWorkbook]);
-  const importWorkbook = useCallback((input: ExcelImportInput) => operations.run(() => commitWorkbookChange({
-    commitCurrent,
-    plan: () => planExcelImport(withVisibleSelection(useCanvasStore.getState(), activeId), input),
-    publish: value => {
+  const navigatePreparedWorkbook = useCallback(async (value: WorkbookSnapshot) => {
+    const id = workbookEntry(value);
+    if (id) {
+      if (!useCanvasStore.getState().openProject(id)) throw new Error("目标产品不存在，未切换画布。");
+      navigate(`/canvas/${encodeURIComponent(id)}`, {
+        replace: true,
+        viewTransition: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      });
+      productRestoreMountGate.release(id);
+    } else navigate("/", { replace: true });
+  }, [navigate]);
+  const commitPreparedWorkbook = useCallback((plan: () => WorkbookSnapshot, publish: (value: WorkbookSnapshot) => void) => operations.run(() => {
+    let previousPreference: string | null = null, preferenceStaged = false;
+    return commitWorkbookChange({
+      // 工作簿变更有最终统一ACK；画布检查点只排入最新画布快照，避免先写整根再写一次工作簿根。
+      commitCurrent: () => commitCurrent({ deferSQLiteFlush: true }),
+      plan,
+      prepare: value => prepareWorkbookEntry(value),
+      publish: value => {
+        previousPreference = sqlitePreferences.getItem(ACTIVE_PRODUCT_KEY);
+        publish(value);
+        const id = workbookEntry(value);
+        if (id) sqlitePreferences.setItem(ACTIVE_PRODUCT_KEY, id);
+        else sqlitePreferences.removeItem(ACTIVE_PRODUCT_KEY);
+        preferenceStaged = true;
+      },
+      flush: async () => {
+        await flushSQLiteStorage();
+        if (activeId) saves.acknowledge(activeId);
+      },
+      navigate: navigatePreparedWorkbook,
+      rollback: () => {
+        if (!preferenceStaged) return;
+        if (previousPreference === null) sqlitePreferences.removeItem(ACTIVE_PRODUCT_KEY);
+        else sqlitePreferences.setItem(ACTIVE_PRODUCT_KEY, previousPreference);
+      },
+    });
+  }), [commitCurrent, navigatePreparedWorkbook]);
+  const selectWorkbook = useCallback((owner: string | null) => commitPreparedWorkbook(() => {
+    const state = withVisibleSelection(useCanvasStore.getState(), activeId);
+    return { ...state, guanWorkbooks: planWorkbookSelection(state, owner) };
+  }, value => useCanvasStore.setState({ guanWorkbooks: value.guanWorkbooks })), [activeId, commitPreparedWorkbook]);
+  const importWorkbook = useCallback((input: ExcelImportInput) => commitPreparedWorkbook(
+    () => planExcelImport(withVisibleSelection(useCanvasStore.getState(), activeId), input),
+    value => {
       const old = new Set(useCanvasStore.getState().projects.map(project => project.id));
       for (const project of value.projects) if (!old.has(project.id)) productRestoreMountGate.block(project.id);
       useCanvasStore.setState(value);
     },
-    flush: flushSQLiteStorage, navigate: finishWorkbook,
-  })), [activeId, commitCurrent, finishWorkbook]);
+  ), [activeId, commitPreparedWorkbook]);
   const deleteWorkbook = useCallback((owner: string, retry = false) => operations.run(async () => {
     const pending = workbookDeletionGate.getSnapshot();
     if (pending && pending !== owner) throw new Error("上一次工作簿删除尚未确认，请先重试保存。");

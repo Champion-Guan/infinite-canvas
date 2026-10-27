@@ -1,5 +1,5 @@
 export type UpdatePreferences = { version: 1; repository: string; autoCheck: boolean; autoDownload: boolean; autoInstall: boolean; network: "auto" | "direct" | "proxy" };
-export type UpdateBlocker = { id: string; state: string; reason: string; createdAt: number; canConfirmNoResult: boolean };
+export type UpdateBlocker = { id: string; state: string; reason: string; createdAt: number; canConfirmNoResult: boolean; productId?: string; nodeId?: string };
 export type SoftwareUpdateStatus = {
     currentVersion: string; channel: string; preferences: UpdatePreferences; state: string; checking: boolean;
     authorization: string; hasNewVersion: boolean; lastCheckedAt: string | null; error: string | null;
@@ -7,13 +7,14 @@ export type SoftwareUpdateStatus = {
     history: { at: string; state: string; version: string | null; error: string | null }[];
     download: { state: string; progress: number; error?: string | null };
     install: { allowed: boolean; state: string; currentVersion?: string | null; targetVersion?: string | null;
-        reason?: string | null; staging?: boolean; stageError?: string | null; canApprove?: boolean; blockers?: UpdateBlocker[] };
+        reason?: string | null; staging?: boolean; stageError?: string | null; canApprove?: boolean; progressAvailable?: boolean; blockers?: UpdateBlocker[] };
 };
 export const updateMessages: Record<string, string> = {
     web_manifest_invalid: "Web版签名清单无效，更新已停止",
     web_package_invalid: "Web安装包库存或文件核验失败，原版本保留",
     web_migration_required: "此版本的数据结构不同，需要专门迁移，未自动替换",
     web_release_required: "当前源码开发模式尚未接入 Web 发布包安装",
+    update_progress_unavailable: "独立安装进度暂不可用，尚未确认安装；请通过原启动入口重启客户安装器后重试",
     update_repository_locked: "更新仓库固定为 Champion-Guan/infinite-canvas",
     asset_download_timeout: "安装包下载超时，请检查本机代理后重试",
     unconfigured: "尚未配置仓库", unchecked: "尚未检查", available: "有新的稳定版本（签名结果见下载状态）", "up-to-date": "没有更高的稳定版本",
@@ -63,9 +64,36 @@ export const installationMessages: Record<string, string> = {
     starting: "正在隔离启动", committed: "版本事务已提交", "rolling-back": "正在恢复旧版", "rolled-back": "已恢复旧版",
     "awaiting-browser-exit": "已确认，等待工作台页面关闭", "confirmation-required": "等待本次更新确认", deferred: "已选择稍后安装",
 };
-export async function updateRequest(operation: "status" | "check" | "download" | "preferences" | "stage" | "approve" | "approve-manual" | "defer" | "confirm-no-result", input?: Partial<UpdatePreferences> | { taskId: string; acknowledgement: "upstream-ended-without-result" }): Promise<SoftwareUpdateStatus> {
-    const host = (window as unknown as { __guanUpdateHost?: { request(operation: string, input?: unknown): Promise<SoftwareUpdateStatus> } }).__guanUpdateHost;
+type UpdateHost = { request(operation: string, input?: unknown): Promise<unknown> };
+const pendingStatuses = new WeakMap<UpdateHost, Promise<SoftwareUpdateStatus>>();
+
+type UpdateOperation = "status" | "check" | "download" | "preferences" | "stage" | "approve" | "approve-manual" | "defer" | "confirm-no-result";
+type UpdateInput = Partial<UpdatePreferences> | { taskId: string; acknowledgement: "upstream-ended-without-result" };
+export function updateRequest(operation: "progress-window"): Promise<{ url: string }>;
+export function updateRequest(operation: UpdateOperation, input?: UpdateInput): Promise<SoftwareUpdateStatus>;
+export async function updateRequest(operation: UpdateOperation | "progress-window", input?: UpdateInput): Promise<SoftwareUpdateStatus | { url: string }> {
+    const host = (window as unknown as { __guanUpdateHost?: UpdateHost }).__guanUpdateHost;
     if (!host) throw new Error("本机更新服务未连接，请刷新工作台页面");
-    try { return await host.request(operation, input); }
-    catch (error) { throw new Error(updateMessages[(error as { code?: string }).code || ""] || "软件更新操作未完成，请重新读取状态"); }
+    const send = async () => {
+        try { return await host.request(operation, input) as SoftwareUpdateStatus; }
+        catch (error) { throw new Error(updateMessages[(error as { code?: string }).code || ""] || "软件更新操作未完成，请重新读取状态"); }
+    };
+    if (operation === "progress-window") {
+        const result = await send() as unknown as { url: string };
+        if (typeof result?.url !== "string" || !/^http:\/\/127\.0\.0\.1:\d{1,5}\/[a-f0-9]{48}\/$/.test(result.url)) throw new Error(updateMessages.update_progress_unavailable);
+        return result;
+    }
+    // 设置页、版本弹窗及后台轮询共享同一次在途读取，不缓存旧状态或合并写操作。
+    if (operation === "status") {
+        const existing = pendingStatuses.get(host);
+        if (existing) return existing;
+        const pending = send();
+        pendingStatuses.set(host, pending);
+        const clear = () => { if (pendingStatuses.get(host) === pending) pendingStatuses.delete(host); };
+        void pending.then(clear, clear);
+        return pending;
+    }
+    pendingStatuses.delete(host);
+    try { return await send(); }
+    finally { pendingStatuses.delete(host); }
 }

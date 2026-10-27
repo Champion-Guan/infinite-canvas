@@ -12,7 +12,7 @@ const resultCorners = ["rounded-tl-[16px]", "rounded-tr-[16px]", "", "", "rounde
 
 function PreviewImage({ src, alt, className = "", contain = false }: { src: string; alt: string; className?: string; contain?: boolean }) {
   return <div className={`relative min-h-0 min-w-0 overflow-hidden ${className}`}>
-    <img src={src} alt={alt} draggable={false} decoding="async" className={`absolute inset-0 size-full ${contain ? "object-contain" : "object-cover"}`} />
+    <img src={src} alt={alt} draggable={false} decoding="async" loading="lazy" className={`absolute inset-0 size-full ${contain ? "object-contain" : "object-cover"}`} />
   </div>;
 }
 function Label({ children }: { children: string }) {
@@ -41,9 +41,31 @@ type Props = { theme: "light" | "dark"; onCreate: () => void; onImportProduct: (
 export function WorkbenchHome({ theme, onCreate, onImportProduct, busy = false }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
-  const plugins = useMemo(() => [Autoplay({ delay: 5000, stopOnInteraction: false })], []);
+  const plugins = useMemo(() => [Autoplay({ delay: 5000, stopOnInteraction: true,
+    playOnInit: false, rootNode: (element: HTMLElement) => element.closest("section") || element })], []);
   const [carouselRef, api] = useEmblaCarousel({ loop: true, watchResize: false }, plugins);
   const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(() => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+  useEffect(() => {
+    const media = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    if (!media) return;
+    const sync = () => setReducedMotion(media.matches);
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+  useEffect(() => {
+    const autoplay = api?.plugins().autoplay;
+    if (!api || !autoplay) return;
+    const sync = () => {
+      if (reducedMotion) api.scrollTo(api.selectedScrollSnap(), true);
+      if (paused || reducedMotion) autoplay.stop();
+      else autoplay.play();
+    };
+    sync();
+    api.on("reInit", sync);
+    return () => { api.off("reInit", sync); autoplay.stop(); };
+  }, [api, paused, reducedMotion]);
   const select = useCallback(() => { if (api) setIndex(api.selectedScrollSnap()); }, [api]);
   useEffect(() => {
     if (!api) return;
@@ -67,16 +89,16 @@ export function WorkbenchHome({ theme, onCreate, onImportProduct, busy = false }
   const pending = "选择画布压缩包，新建产品并导入其内容。";
   return <main className={styles.page} data-theme={theme} aria-label="工作台首页">
     <div className="guan-product-empty">
-      <section className="guan-product-landing-preview" aria-labelledby="guan-home-title">
+      <section className="guan-product-landing-preview" aria-labelledby="guan-home-title" onMouseEnter={() => setPaused(true)}>
         <div className="guan-product-landing-introduction"><h1 id="guan-home-title">A+ 详情页</h1><p>上传商品图，AI 即刻生成符合多电商平台规范的高转化率商品图。</p></div>
-        <div ref={root} role="region" aria-roledescription="carousel" aria-label="轮播模板预览" className="relative w-full" onKeyDownCapture={(event) => {
-          if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); if (event.key === "ArrowLeft") api?.scrollPrev(); else api?.scrollNext(); }
+        <div ref={root} role="region" tabIndex={0} aria-roledescription="carousel" aria-label="轮播模板预览" className="relative w-full" onPointerDown={() => setPaused(true)} onFocusCapture={() => setPaused(true)} onKeyDownCapture={(event) => {
+          if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); setPaused(true); if (event.key === "ArrowLeft") api?.scrollPrev(reducedMotion); else api?.scrollNext(reducedMotion); }
         }}>
           <div ref={carouselRef} className="overflow-hidden" data-slot="carousel-content"><div className="flex ml-0 items-center">{groups.map((name, i) => <div key={name} data-slot="carousel-item" role="group" aria-roledescription="slide" aria-label={`${i + 1} / 3：${name}`} className="min-w-0 shrink-0 grow-0 basis-full flex justify-center pl-0"><DetailPageTemplate group={i + 1} /></div>)}</div></div>
         </div>
-        <div aria-label="轮播图导航">{groups.map((name, i) => <button key={name} type="button" aria-label={`切换到第 ${i + 1} 个轮播模板`} aria-current={index === i ? "true" : undefined} onClick={() => { api?.scrollTo(i); api?.plugins().autoplay?.reset(); }} />)}</div>
+        <div aria-label="轮播图导航">{groups.map((name, i) => <button key={name} type="button" aria-label={`切换到第 ${i + 1} 个轮播模板`} aria-current={index === i ? "true" : undefined} onClick={() => { setPaused(true); api?.scrollTo(i, reducedMotion); }} />)}<button type="button" className={styles.playback} disabled={reducedMotion} aria-label={paused || reducedMotion ? "播放轮播" : "暂停轮播"} title={reducedMotion ? "已跟随系统减少动态效果，仍可手动切换" : undefined} onClick={() => setPaused(value => !value)}>{paused || reducedMotion ? "播放" : "暂停"}</button></div>
       </section>
-      <section className="guan-product-landing-actions" aria-labelledby="guan-home-products"><h2 id="guan-home-products">暂无产品</h2><p>新建、导入产品，或从产品回收站恢复，开始使用画布。</p><div className="guan-product-landing-buttons"><button type="button" data-empty-action="new" onClick={onCreate}>新建产品</button><button type="button" data-empty-action="import" disabled={busy} title={pending} onClick={() => importRef.current?.click()}>导入产品</button><input ref={importRef} type="file" accept="application/zip,.zip" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) onImportProduct(file); event.currentTarget.value = ""; }} /><ProductTrashEntry variant="text" /></div></section>
+      <section className="guan-product-landing-actions" aria-labelledby="guan-home-products"><h2 id="guan-home-products">暂无产品</h2><p>新建、导入产品，或从产品回收站恢复，开始使用画布。</p><div className="guan-product-landing-buttons"><button type="button" data-empty-action="new" disabled={busy} onClick={onCreate}>新建产品</button><button type="button" data-empty-action="import" disabled={busy} title={pending} onClick={() => importRef.current?.click()}>导入产品</button><input ref={importRef} type="file" accept="application/zip,.zip" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) onImportProduct(file); event.currentTarget.value = ""; }} /><ProductTrashEntry variant="text" /></div></section>
     </div>
   </main>;
 }

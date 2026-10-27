@@ -31,6 +31,7 @@ const parameterLinks = await load('Excel画布/产品参数联动.ts', { '../提
 const domain = await load('Excel画布/Excel卡片事务.ts', {
     './旧版参数规则': rules, './产品参数联动': parameterLinks, './旧版最终提示词标题': titles, './Excel卡片上下文': contexts,
 });
+const save判定 = await load('产品/画布保存判定.ts');
 const node = (id, type = 'text', metadata = {}) => ({ id, type, title: id, position: { x: 0, y: 0 }, width: 340, height: 240, metadata });
 async function transactions() {
     const renders = [];
@@ -87,6 +88,7 @@ async function persistence(options = {}) {
         react: { useEffect: effect => effects.push(effect), useMemo: callback => callback() },
         '@/stores/canvas/use-canvas-store': { useCanvasStore: { getState: () => store } },
         './产品操作': { useProductCanvasSave: (...args) => { registration = args; } },
+        './画布保存判定': save判定,
         '../本机存储/上游浏览器存储桥': { flushSQLiteStorage: async () => { flushed++; await options.flush?.(); } },
     }, { setTimeout: (callback, delay) => { const id = ++timerId; pendingTimers.set(id, { callback, delay }); return id; },
         clearTimeout: id => { cleared.push(id); pendingTimers.delete(id); } });

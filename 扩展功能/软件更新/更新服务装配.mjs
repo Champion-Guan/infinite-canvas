@@ -35,7 +35,8 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
       return await operation({ ...options, proxyUrl, signal });
     } finally { requests.delete(controller); lease?.release(); }
   };
-  const updates = new SoftwareUpdates({ directory, currentVersion, manager, auth: { token: async () => '' },
+  const updates = new SoftwareUpdates({ directory, currentVersion, manager,
+    progress: manager?.progressWindow ? { open: target => manager.progressWindow(target) } : null, auth: { token: async () => '' },
     readRelease: routed(options => readGitHubStable({ ...options, ...(webPackage ? { selectRelease: selectWebRelease } : {}) })),
     downloader: new StableDownload({ directory: join(directory, 'packages'), readAsset: routed(readReleaseAsset), ...(webPackage ? { verifyManifest: verifyWebManifest, manifestNames: WEB_MANIFEST_NAMES, releaseAssetName: webReleaseAssetName } : {}) }) });
   // network='proxy' 的实际运行状态在每次请求取得租约时核实。
@@ -43,7 +44,7 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
   const status = async () => {
     const value = await updates.status();
     return { ...value, channel: webPackage ? 'GitHub Public / Web预览版' : 'GitHub Public / Stable',
-      install: { ...(!manager ? { allowed: false, state: 'source-development', reason: 'web_release_required' } : value.install), blockers: generation?.updateBlockers() || [] } };
+      install: { ...(!manager ? { allowed: false, state: 'source-development', reason: 'web_release_required' } : value.install), blockers: await generation?.updateBlockers() || [] } };
   };
   const handle = async (request, response) => {
     if (request.url !== '/__guan-local/software-updates') return false;
@@ -58,11 +59,15 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
       let input; try { input = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new UpdateError('invalid_request'); }
       if (!input || typeof input !== 'object' || Array.isArray(input)) throw new UpdateError('invalid_request');
       const { operation, preferences, taskId, acknowledgement, ...extra } = input;
-      if (Object.keys(extra).length || !['status', 'check', 'download', 'preferences', 'stage', 'approve', 'approve-manual', 'defer', 'confirm-no-result'].includes(operation) ||
+      if (Object.keys(extra).length || !['status', 'check', 'download', 'preferences', 'stage', 'approve', 'approve-manual', 'defer', 'confirm-no-result', 'progress-window'].includes(operation) ||
         (operation !== 'preferences' && preferences !== undefined) || (operation !== 'confirm-no-result' && (taskId !== undefined || acknowledgement !== undefined)) ||
         operation === 'confirm-no-result' && (!jobLike(taskId) || acknowledgement !== NO_RESULT_ACK || !generation?.confirmNoResult)) throw new UpdateError('invalid_request');
       await authorize(request);
       if (closed) throw new UpdateError('update_service_stopped');
+      if (operation === 'progress-window') {
+        const result = await updates.progressWindow();
+        await authorize(request); reply(200, { result }); return true;
+      }
       if (operation === 'preferences') {
         if (!manager && preferences?.autoInstall === true) throw new UpdateError('web_release_required');
         await updates.configure(preferences);

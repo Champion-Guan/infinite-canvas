@@ -1,3 +1,4 @@
+import { 本地转发请求 as fetch } from "@/扩展功能/网络代理/本地转发请求";
 import { getImageBlob, setImageBlob } from "@/services/image-storage";
 import { getMediaBlob, setMediaBlob } from "@/services/file-storage";
 import { withLocalProxy } from "@/stores/use-config-store";

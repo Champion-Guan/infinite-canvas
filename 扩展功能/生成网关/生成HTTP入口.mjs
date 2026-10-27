@@ -1,13 +1,14 @@
 import { StorageError, requireValue, validId } from '../本机存储/协议.mjs';
 import { GENERATION_PROTOCOL, MAX_REQUEST_BYTES, exactKeys, jobLike, bindingLike } from './生成协议.mjs';
+import { observeTextProgress } from './文本进度观察.mjs';
 
 const path = '/__guan-local/generation';
 // 不签发新权限。authorize必须复用当前工作台页面能力、数据租约、撤销和期限检查。
 // 回调需要每次重新核验，尤其是慢请求和执行后；不能传入永久true的生产装配。
-export function createGenerationHTTPHandler({ origin, authorize, gateway, tasks, readCanvasCheckpoint, maxRequests = 4, rateLimit = 120, now = Date.now } = {}) {
+export function createGenerationHTTPHandler({ origin, authorize, gateway, tasks, videos, models, readCanvasCheckpoint, maxRequests = 4, rateLimit = 120, now = Date.now } = {}) {
   requireValue(/^http:\/\/(?:localhost|127\.0\.0\.1):\d+$/.test(origin) && typeof authorize === 'function' && gateway?.bind && tasks?.submit &&
     Number.isInteger(maxRequests) && maxRequests > 0 && maxRequests <= 8 && Number.isInteger(rateLimit) && rateLimit > 0 && rateLimit <= 240 && typeof now === 'function', 'invalid_generation_http', '必须复用可信工作台授权入口。');
-  let active = 0, count = 0, windowStart = null;
+  let active = 0, observers = 0, count = 0, windowStart = null;
   return async function handle(request, response) {
     if (request.url !== path) return false;
     response.setHeader('Cache-Control', 'no-store'); response.setHeader('X-Content-Type-Options', 'nosniff');
@@ -30,13 +31,29 @@ export function createGenerationHTTPHandler({ origin, authorize, gateway, tasks,
       let value;
       try { value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))); } catch { throw new StorageError('generation_json_invalid', '生成请求格式无效。'); }
       await authorize(request);
+      if (exactKeys(value, ['operation', 'id']) && value.operation === 'text-observe' && jobLike(value.id) && tasks.textProgress && tasks.waitTextProgress) {
+        requireValue(observers < maxRequests, 'generation_observation_busy', '文本观察已满，请查询原任务。', 429);
+        tasks.get(value.id);
+        active--; counted = false; observers++;
+        try { await observeTextProgress({ request, response, authorize, tasks, id: value.id }); } finally { observers--; }
+        return true;
+      }
       let result;
       if (exactKeys(value, ['operation', 'profile']) && value.operation === 'bind') result = await gateway.bind(value.profile);
+      else if (exactKeys(value, ['operation', 'profile']) && value.operation === 'resolve-saved') result = gateway.resolveSaved(value.profile);
+      else if (models && exactKeys(value, ['operation', 'binding']) && value.operation === 'models' && bindingLike(value.binding)) result = await models.read(value.binding);
       else if (exactKeys(value, ['operation']) && value.operation === 'fallback-load') result = gateway.fallbackLoad();
       else if (exactKeys(value, ['operation', 'value', 'revision']) && value.operation === 'fallback-save') result = await gateway.fallbackSave(value.value, value.revision);
       else if (exactKeys(value, ['operation', 'plan']) && value.operation === 'route-plan') result = await gateway.createPlan(value.plan);
       else if (exactKeys(value, ['operation', 'binding']) && value.operation === 'describe' && bindingLike(value.binding)) result = gateway.describe(value.binding);
+      else if (exactKeys(value, ['operation', 'binding']) && value.operation === 'credential-preview' && bindingLike(value.binding)) result = await gateway.previewCredential(value.binding);
       else if (exactKeys(value, ['operation', 'id']) && value.operation === 'checkpoint' && jobLike(value.id) && typeof readCanvasCheckpoint === 'function') result = await readCanvasCheckpoint(value.id);
+      else if (videos && exactKeys(value, ['operation', 'scope', 'request']) && value.operation === 'video-create') result = await videos.create(value.scope, value.request);
+      else if (videos && exactKeys(value, ['operation', 'scope', 'remoteId']) && value.operation === 'video-ensure') result = await videos.ensure(value.scope, value.remoteId);
+      else if (videos && exactKeys(value, ['operation', 'productId', 'nodeId']) && value.operation === 'video-find') result = videos.find(value.productId, value.nodeId);
+      else if (videos && exactKeys(value, ['operation', 'id']) && value.operation === 'video-terminal' && jobLike(value.id)) result = await videos.confirmTerminal(value.id);
+      else if (videos && exactKeys(value, ['operation', 'id']) && value.operation === 'video-poll' && jobLike(value.id)) result = await videos.poll(value.id);
+      else if (videos && exactKeys(value, ['operation', 'id']) && value.operation === 'video-download' && jobLike(value.id)) result = await videos.download(value.id);
       else if (exactKeys(value, ['operation', 'task']) && value.operation === 'submit') result = await tasks.submit(value.task);
       else if (exactKeys(value, ['operation', 'productId']) && value.operation === 'list' && validId(value.productId)) result = tasks.list(value.productId);
       else if (exactKeys(value, ['operation', 'id', 'checkpoint']) && value.operation === 'applied' && jobLike(value.id)) result = await tasks.confirmApplied(value.id, value.checkpoint);

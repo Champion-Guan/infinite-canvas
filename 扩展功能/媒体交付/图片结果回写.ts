@@ -78,3 +78,11 @@ export function applyRetriedImageResult(node: CanvasNodeData, result: ImageResul
         },
     };
 }
+
+export function applyToolImageResult(node: CanvasNodeData, result: ImageResult, options: { prompt: string; generationMetadata: CanvasNodeMetadata }): CanvasNodeData {
+    const size = fitNodeSize(result.uploaded.width, result.uploaded.height, node.width, node.height);
+    return { ...node, ...size, metadata: { ...node.metadata, ...options.generationMetadata,
+        ...imageMetadata(result.uploaded, deliveryDetails(result)), prompt: options.prompt,
+        errorDetails: undefined, gatewayGenerationReceipts: resultReceipts(node, result.receipt),
+    } };
+}

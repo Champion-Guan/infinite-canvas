@@ -1,0 +1,23 @@
+diff --git a/web/src/services/api/local-proxy.ts b/web/src/services/api/local-proxy.ts
+index 8a3de4a..cf67911 100644
+--- a/web/src/services/api/local-proxy.ts
++++ b/web/src/services/api/local-proxy.ts
+@@ -1,14 +1,7 @@
+ import { requireProductFeature } from "@/扩展功能/产品配置/功能开关";
+-import i18n from "@/i18n";
+-import { normalizeLocalProxyUrl } from "@/stores/use-config-store";
+-
+-/** The proxy answers its root path with its own identity payload, which doubles as a reachability check. */
+-export async function testLocalProxy(proxyUrl: string) {
++export async function testLocalProxy(_proxyUrl: string) {
+     requireProductFeature("localProxy");
+-    const base = normalizeLocalProxyUrl(proxyUrl);
+-    if (!base) throw new Error(i18n.t("config.proxy.missingUrl"));
+-    const response = await fetch(`${base}/`, { cache: "no-store" });
+-    const data = response.ok ? ((await response.json().catch(() => null)) as { proxy?: string; version?: string } | null) : null;
+-    if (!data?.proxy) throw new Error(i18n.t("config.proxy.unreachable"));
+-    return `${data.proxy} v${data.version || "?"}`;
++    const host = (window as unknown as { __guanNetworkProxyHost?: { status(): Promise<{ relayEnabled: boolean }> } }).__guanNetworkProxyHost;
++    if (!host || !(await host.status()).relayEnabled) throw Error("本地代理未开启或本机服务未就绪");
++    return "工作台内置代理";
+ }

@@ -30,9 +30,10 @@ const imageHydration=await load('.运行/3100源/画布副本/web/src/lib/canvas
 });
 let serial = 0;
 const canvas = await load('扩展功能/画布导入/画布导入数据.ts', { nanoid: { nanoid:()=>`media_${++serial}` } });
-const books = await load('扩展功能/Excel/Excel产品归属.ts', { './旧版Excel合同.js':{}, '../产品/旧版产品显示名.js':{ productDisplayName } });
+const appearance = await load('扩展功能/图片设置/图片信息偏好.ts');
+const books = await load('扩展功能/Excel/Excel产品归属.ts', { './旧版Excel合同.js':{}, '../产品/旧版产品显示名.js':{ productDisplayName }, '../图片设置/图片信息偏好': appearance });
 const products = await load('扩展功能/整批迁移/旧版产品转换.ts', {
-  fflate, '../画布导入/画布导入数据':canvas, '../Excel/Excel产品归属':books,
+  fflate, '../画布导入/画布导入数据':canvas, '../Excel/Excel产品归属':books, '../图片设置/图片信息偏好': appearance,
   '../产品/旧版产品显示名.js':{ productDisplayName }, './旧版备份读取':reader,
   './旧版媒体引用归一':mediaReferences,
 });
@@ -144,6 +145,7 @@ const configStore={defaultConfig:defaults,defaultWebdavSyncConfig:webdav,default
 const safety=await load('扩展功能/配置文件/配置文件安全.ts',{
   'file-saver':{},'@/i18n/index':{default:{t:key=>key}},'@/stores/use-config-store':configStore,'@/stores/use-prompt-source-store':{},
   '@/services/api/prompt-source-presets':{filterWorkbenchPromptSources:value=>value},'../本机存储/上游浏览器存储桥':{},
+  '../本机凭据/配置凭据封存':{sealConfigurationCredentials:async value=>value},
 });
 const settings=await load('扩展功能/整批迁移/旧版配置转换.ts',{'@/stores/use-config-store':configStore,'../配置文件/配置文件安全':safety,'./旧版备份读取':reader});
 const fallbackPolicy=await import('../扩展功能/故障切换/原版策略.mjs');

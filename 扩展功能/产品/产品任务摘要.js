@@ -11,12 +11,18 @@ function representedConfigIds(nodes, connections) {
 
 export function canvasTaskSummary(nodes, connections = []) {
     const representedConfigs = representedConfigIds(nodes, connections);
-    const tracked = nodes.filter(node => !representedConfigs.has(node.id)).filter(node => node.metadata?.generationStartedAt ||
-        (["image", "video", "audio", "text", "config"].includes(node.type) &&
-        (node.metadata?.generationType || node.metadata?.generationImageType || node.metadata?.videoTaskId || ["loading", "error"].includes(node.metadata?.status))));
-    const statuses = tracked.flatMap(node => [node.metadata?.status, ...(node.metadata?.images || []).map(image => image.status), ...(node.metadata?.texts || []).map(text => text.status)]);
-    const status = statuses.includes("loading") ? "loading" : statuses.includes("error") ? "error" : tracked.length ? "success" : "idle";
-    const latest = tracked.reduce((best, node) => !best || (node.metadata?.generationStartedAt || 0) > (best.metadata?.generationStartedAt || 0) ? node : best, null);
+    const tracked = nodes.filter(node => !representedConfigs.has(node.id)).flatMap(node => {
+        const metadata = node.metadata || {};
+        const statuses = [metadata.status, ...(metadata.images || []).map(image => image.status), ...(metadata.texts || []).map(text => text.status)];
+        // 图片类别、尺寸等只是配置；导入内容的success也不代表执行过生成。
+        const hasTask = metadata.generationStartedAt ||
+            (["image", "video", "audio", "text", "config"].includes(node.type) &&
+            (metadata.generationType || metadata.videoTaskId || statuses.some(status => status === "loading" || status === "error")));
+        return hasTask && statuses.some(status => ["loading", "error", "success"].includes(status)) ? [{ node, statuses }] : [];
+    });
+    const statuses = tracked.flatMap(task => task.statuses);
+    const status = statuses.includes("loading") ? "loading" : statuses.includes("error") ? "error" : statuses.includes("success") ? "success" : "idle";
+    const latest = tracked.reduce((best, { node }) => !best || (node.metadata?.generationStartedAt || 0) > (best.metadata?.generationStartedAt || 0) ? node : best, null);
     return { status, taskId: latest?.id || "", startedAt: latest?.metadata?.generationStartedAt || 0 };
 }
 

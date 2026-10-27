@@ -2,15 +2,27 @@
 export async function commitWorkbookChange<T>(steps: {
   commitCurrent(): Promise<void>;
   plan(): T;
+  prepare?(value: T): T;
   publish(value: T): void;
   flush(): Promise<void>;
   navigate(value: T): Promise<void>;
+  rollback?(): void;
 }) {
-  await steps.commitCurrent();
-  const planned = steps.plan(); // 保存期间可能有后台结果完成，因此必须在ACK后读取最新根。
-  steps.publish(planned);
-  // 失败保留完整内存根和现有重试队列，不删新产品，不覆盖后台已完成结果。
-  await steps.flush();
-  await steps.navigate(planned);
-  return planned;
+  let published = false;
+  try {
+    await steps.commitCurrent();
+    const latest = steps.plan(); // 保存期间可能有后台结果完成，因此必须在ACK后读取最新根。
+    const planned = steps.prepare ? steps.prepare(latest) : latest;
+    published = true;
+    steps.publish(planned);
+    // 业务根与导航偏好在同一轮排空中确认后才切换页面。
+    await steps.flush();
+    await steps.navigate(planned);
+    return planned;
+  } catch (error) {
+    if (published) {
+      try { steps.rollback?.(); } catch { /* 保留原始保存或导航错误。 */ }
+    }
+    throw error;
+  }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Braces } from "lucide-react";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
@@ -20,21 +20,22 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
     const linkedTokens = ctx.getNodes().filter((node) => node.metadata?.excelPromptBindingNodeId === ctx.node.id && !node.metadata?.promptVariablePreviewOf)
         .flatMap((node) => promptVariableTokens(node.metadata?.excelPromptRaw || node.metadata?.content || node.metadata?.prompt || ""));
     const tokens = Array.from(new Set([...(productTokens || []), ...(metadata.promptVariableTokens || []), ...linkedTokens, ...promptVariableTokens(currentPrompt)]));
-    const values = metadata.promptVariableValues || {};
+    const values = useMemo(() => metadata.promptVariableValues || {}, [metadata.promptVariableValues]);
+    const initialized = useRef<{ nodeId: string; productId: string } | null>(null);
 
     useEffect(() => {
-        const current = ctx.getNode(ctx.node.id)?.metadata?.promptVariableValues || {};
-        const restored = restoreProductParameterValues(productId, current);
-        if (Object.keys(restored).some((token) => restored[token] !== current[token])) {
-            ctx.updateMetadata({ promptVariableValues: restored });
+        const node = ctx.getNode(ctx.node.id);
+        if (!node) return;
+        const current = node.metadata?.promptVariableValues || {};
+        const firstMount = initialized.current?.nodeId !== ctx.node.id || initialized.current.productId !== productId;
+        const restored = firstMount ? restoreProductParameterValues(productId, current) : current;
+        initialized.current = { nodeId: ctx.node.id, productId };
+        const missing = tokens.some((token) => restored[token] === undefined);
+        if (missing || Object.keys(restored).some((token) => restored[token] !== current[token])) {
+            // 记忆恢复与空变量补齐在同一次更新中提交，避免后一个effect用旧空值覆盖记忆。
+            ctx.updateMetadata({ promptVariableTokens: tokens, promptVariableValues: missing ? completePromptVariableValues(tokens, restored) : restored });
         }
-    }, [ctx.node.id, productId]);
-
-    useEffect(() => {
-        if (!tokens.length) return;
-        const nextValues = completePromptVariableValues(tokens, values);
-        if (tokens.some((token) => values[token] === undefined)) ctx.updateMetadata({ promptVariableTokens: tokens, promptVariableValues: nextValues });
-    }, [ctx, tokens, values]);
+    }, [ctx, productId, tokens]);
 
     const { updateValue, updateSupplement } = useProductParameterEditing(ctx, productId, tokens);
 

@@ -172,10 +172,14 @@ export class SoftwareUpdates {
     return this.status();
   }
   async progressWindow() {
-    if (this.stopped || !this.manager || !this.progress || !this.downloader?.stageIdentity) throw new UpdateError('update_progress_unavailable');
-    const p = await this.preferences(), identity = this.downloader.stageIdentity(p.repository);
+    if (this.stopped || !this.manager || !this.progress) throw new UpdateError('update_progress_unavailable');
+    const p = await this.preferences();
+    // 重启后已暂存的签名身份来自管理器，不要求重新下载同一安装包。
+    const identity = await this.manager.stagedIdentity?.() || this.downloader?.stageIdentity?.(p.repository);
+    if (!identity || identity.repository !== p.repository) throw new UpdateError('update_progress_unavailable');
     if (compareVersions(identity.version, this.currentVersion) <= 0) throw new UpdateError('version_not_newer');
-    return this.progress.open(identity.version);
+    try { return await this.progress.open(identity.version); }
+    catch (error) { if (error.code === 'invalid_request') throw new UpdateError('update_progress_unavailable'); throw error; }
   }
   async defer() {
     if (!this.manager?.defer) throw new UpdateError('update_manager_unavailable');

@@ -37,8 +37,8 @@ export function OriginalFallbackPanel() {
         catch { if (live.current) setError("Fallback保存未确认。已尝试重读实际配置；请检查后再操作。"); return false; }
         finally { operation.current = false; if (live.current) setBusy(false); }
     };
-    return <div className="guan-fallback"><div className="local-canvas-settings-tabpanel" data-local-canvas-panel="fallback" aria-busy={busy}>
-        <section className="local-canvas-settings-card">
+    return <div className="guan-fallback guan-apple-enter"><div className="local-canvas-settings-tabpanel" data-local-canvas-panel="fallback" aria-busy={busy}>
+        <section className="local-canvas-settings-card guan-motion-panel">
             <h4>失败自动切换</h4>
             <p>按渠道模型能力分别配置生图、视频、文本和音频的 Fallback。名称、协议、地址和模型跟随渠道更新。</p>
             <div className="local-canvas-fallback-group-head local-canvas-fallback-global">
@@ -46,7 +46,7 @@ export function OriginalFallbackPanel() {
                 <label htmlFor={prefix + "-global"}>启用 Fallback 自动切换</label><small>总开关</small>
             </div>
             <div className="local-canvas-fallback-switch" data-canvas-fallback-switch>
-                {capabilities.map(({ key, label }) => <button key={key} type="button" className={key === active ? "is-active" : ""} aria-pressed={key === active} onClick={() => setActive(key as ModelCapability)}>{label}</button>)}
+                {capabilities.map(({ key, label }) => <button key={key} type="button" className={`guan-apple-action guan-apple-press ${key === active ? "is-active" : ""}`} aria-pressed={key === active} onClick={() => setActive(key as ModelCapability)}>{label}</button>)}
             </div>
             <div data-canvas-fallback-groups>
                 {capabilities.map(({ key, label }) => {

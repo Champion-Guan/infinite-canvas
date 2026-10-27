@@ -8,6 +8,9 @@ export class ProductCommitCheckpoint<T> {
   private ticket = 0;
   private latest: T | undefined;
   private ready = false;
+  private persistedRevision = 0;
+  private deferredRevision = 0;
+  private hasReadyBaseline = false;
   private pending = new Map<
     number,
     { resolve: (commit: Commit<T>) => void; reject: (error: Error) => void }
@@ -25,6 +28,9 @@ export class ProductCommitCheckpoint<T> {
     this.pending.clear();
     this.latest = undefined;
     this.ready = false;
+    this.persistedRevision = 0;
+    this.deferredRevision = 0;
+    this.hasReadyBaseline = false;
   }
   commit(ticket: number, snapshot: T, ready: boolean) {
     if (!this.active) return;
@@ -32,6 +38,12 @@ export class ProductCommitCheckpoint<T> {
       this.latest = snapshot;
       this.ready = ready;
       this.revision++;
+    }
+    // 首次进入可编辑状态时，快照已经来自SQLite预读；将它作为基线，
+    // 让单纯切换设置或产品时不重复写入同一份完整画布。
+    if (ready && !this.hasReadyBaseline) {
+      this.persistedRevision = this.revision;
+      this.hasReadyBaseline = true;
     }
     for (const [id, pending] of this.pending) {
       if (id > ticket) continue;
@@ -48,9 +60,11 @@ export class ProductCommitCheckpoint<T> {
         });
     }
   }
-  async flush(persist: (snapshot: T) => Promise<void>) {
+  async flush(persist: (snapshot: T) => Promise<void>, options: { deferSQLiteFlush?: boolean } = {}) {
     if (!this.active || this.pending.size >= 32)
       throw new Error("产品保存检查点不可用。");
+    if (this.latest !== undefined && this.ready && this.hasReadyBaseline && this.persistedRevision === this.revision)
+      return;
     const generation = this.generation,
       ticket = ++this.ticket;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -86,11 +100,20 @@ export class ProductCommitCheckpoint<T> {
     )
       throw new Error("产品保存提交已改变，请重试。");
     await persist(committed.snapshot);
+    // 工作簿切换会在同一 SQLite ACK 中确认这个快照及工作簿根；
+    // 最终ACK成功前不能把该修订标记为已保存。
+    if (options.deferSQLiteFlush) this.deferredRevision = committed.revision;
+    else this.persistedRevision = committed.revision;
     if (
       !this.active ||
       committed.generation !== this.generation ||
       committed.revision !== this.revision
     )
       throw new Error("保存时画布发生新编辑，保留当前产品，请重试。");
+  }
+  acknowledgeDeferredSave() {
+    if (!this.active || !this.deferredRevision || this.deferredRevision !== this.revision) return;
+    this.persistedRevision = this.deferredRevision;
+    this.deferredRevision = 0;
   }
 }

@@ -1,0 +1,105 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index f52f85c..ea7b3d4 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -4,7 +4,7 @@ import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type
+ import { App, Empty, Input, Popconfirm, Select, Spin, Tag } from "antd";
+ import { useQuery } from "@tanstack/react-query";
+ import { BookOpen, Check, ChevronRight, Download, Eye, FileText, Image as ImageIcon, LayoutGrid, ListChecks, Music2, Plus, RotateCcw, Rows3, Search, Settings2, Square, Trash2, Type, Video } from "lucide-react";
+-import { motion } from "motion/react";
++import { motion, useReducedMotion } from "motion/react";
+ import { useTranslation } from "react-i18next";
+ 
+ import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
+@@ -30,7 +30,6 @@ import { assetInScope, type AssetScope } from "@/扩展功能/素材/素材归
+ import type { InsertAssetPayload } from "./asset-picker-modal";
+ 
+ const PANEL_MOTION_SECONDS = CANVAS_SIDE_PANEL_MOTION_MS / 1000;
+-const PANEL_EASE = [0.22, 1, 0.36, 1] as const;
+ const PROMPT_DRAG_DATA_TYPE = "application/x-infinite-canvas-prompt";
+ 
+ type PanelTab = "canvas" | "assets" | "history" | "prompts" | "trash";
+@@ -77,25 +76,46 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+     const panelClosing = useCanvasSidePanelStore((state) => state.panelClosing);
+     const setWidth = useCanvasSidePanelStore((state) => state.setWidth);
+     const [resizing, setResizing] = useState(false);
++    const reducedMotion = useReducedMotion();
++    const resizeCleanup = useRef<(() => void) | null>(null);
++    useEffect(() => () => { resizeCleanup.current?.(); }, []);
++    const panelTransition = resizing || reducedMotion ? { duration: reducedMotion ? 0.12 : 0 } : { type: "spring" as const, bounce: 0, duration: PANEL_MOTION_SECONDS };
+ 
+     const startResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
++        if (!event.isPrimary || event.button !== 0) return;
+         event.preventDefault();
++        resizeCleanup.current?.();
++        const handle = event.currentTarget;
++        const pointerId = event.pointerId;
++        handle.setPointerCapture(pointerId);
+         const startX = event.clientX;
+         const startWidth = width;
+         let nextWidth = startWidth;
+         const onMove = (moveEvent: PointerEvent) => {
++            if (moveEvent.pointerId !== pointerId) return;
+             nextWidth = Math.min(CANVAS_SIDE_PANEL_MAX_WIDTH, Math.max(CANVAS_SIDE_PANEL_MIN_WIDTH, startWidth + moveEvent.clientX - startX));
+             setWidth(nextWidth);
+         };
+-        const onUp = () => {
+-            sqlitePreferences.setItem("canvas-side-panel-width", String(nextWidth));
+-            window.removeEventListener("pointermove", onMove);
+-            window.removeEventListener("pointerup", onUp);
++        const cleanup = () => {
++            handle.removeEventListener("pointermove", onMove);
++            handle.removeEventListener("pointerup", onUp);
++            handle.removeEventListener("pointercancel", onUp);
++            handle.removeEventListener("lostpointercapture", onUp);
++            if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId);
++            resizeCleanup.current = null;
++        };
++        const onUp = (upEvent: PointerEvent) => {
++            if (upEvent.pointerId !== pointerId) return;
++            cleanup();
+             setResizing(false);
++            sqlitePreferences.setItem("canvas-side-panel-width", String(nextWidth));
+         };
++        resizeCleanup.current = cleanup;
+         setResizing(true);
+-        window.addEventListener("pointermove", onMove);
+-        window.addEventListener("pointerup", onUp);
++        handle.addEventListener("pointermove", onMove);
++        handle.addEventListener("pointerup", onUp);
++        handle.addEventListener("pointercancel", onUp);
++        handle.addEventListener("lostpointercapture", onUp);
+     };
+ 
+     if (!panelMounted) return null;
+@@ -103,16 +123,16 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+     return (
+         <motion.div
+             className="relative z-[60] flex h-full shrink-0"
+-            initial={{ width: 0, opacity: 0 }}
++            initial={{ width: reducedMotion ? width + 1 : 0, opacity: 0 }}
+             animate={{ width: panelOpen ? width + 1 : 0, opacity: panelOpen ? 1 : 0 }}
+-            transition={{ duration: resizing ? 0 : PANEL_MOTION_SECONDS, ease: PANEL_EASE }}
++            transition={panelTransition}
+             style={{ overflow: "clip", pointerEvents: panelClosing ? "none" : undefined }}
+         >
+             <motion.aside
+                 className="relative flex h-full shrink-0 flex-col overflow-hidden border-r"
+-                initial={{ x: -48 }}
+-                animate={{ x: panelClosing ? -28 : 0 }}
+-                transition={{ duration: resizing ? 0 : PANEL_MOTION_SECONDS, ease: PANEL_EASE }}
++                initial={{ x: reducedMotion ? 0 : -28 }}
++                animate={{ x: panelClosing && !reducedMotion ? -28 : 0 }}
++                transition={panelTransition}
+                 style={{ width, background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
+                 data-canvas-no-zoom
+             >
+@@ -136,7 +156,7 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+                         <CanvasPromptsTab onInsert={onInsertAsset} theme={theme} />
+                     )}
+                 </div>
+-                <button type="button" className="absolute inset-y-0 right-0 z-40 w-4 translate-x-1/2 cursor-col-resize" onPointerDown={startResize} aria-label={t("canvas.sidePanel.resize")} />
++                <button type="button" className="absolute inset-y-0 right-0 z-40 w-4 translate-x-1/2 cursor-col-resize touch-none" onPointerDown={startResize} aria-label={t("canvas.sidePanel.resize")} />
+             </motion.aside>
+         </motion.div>
+     );

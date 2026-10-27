@@ -32,7 +32,13 @@
     "web:test-update": "node --test 开发工具/Web客户更新边界.test.mjs",
     "web:sign": "node 开发工具/签名Web客户包.mjs",
     "web:publish-preview": "node 开发工具/发布Web预览版.mjs",
-    "test:disk-guards": "node --test 开发工具/磁盘写入保护.test.mjs 开发工具/Web客户更新边界.test.mjs 开发工具/Web构建缓存清理.test.mjs 开发工具/自动备份.test.mjs 开发工具/本机存储.test.mjs 开发工具/异常退出写盘.test.mjs 开发工具/升级遗留清理.test.mjs"
+    "test:disk-guards": "node --test 开发工具/磁盘写入保护.test.mjs 开发工具/Web客户更新边界.test.mjs 开发工具/Web构建缓存清理.test.mjs 开发工具/自动备份.test.mjs 开发工具/本机存储.test.mjs 开发工具/异常退出写盘.test.mjs 开发工具/内置网络代理.test.mjs 开发工具/升级遗留清理.test.mjs",
+    "test:boundaries": "node --test 开发工具/目录装配.test.mjs 开发工具/画布业务边界.test.mjs 开发工具/Excel画布操作边界.test.mjs 开发工具/翻译配置与下载边界.test.mjs 开发工具/图片结果回写边界.test.mjs 开发工具/生成历史总览边界.test.mjs 开发工具/批量结果排布边界.test.mjs 开发工具/产品变量使用边界.test.mjs 开发工具/图片默认尺寸边界.test.mjs 开发工具/保存自动重连边界.test.mjs 开发工具/保存状态显示边界.test.mjs 开发工具/Fallback自定义排序边界.test.mjs 开发工具/主题过渡生命周期边界.test.mjs 开发工具/页面授权释放边界.test.mjs 开发工具/业务端口会话恢复边界.test.mjs 开发工具/画布状态与参考图边界.test.mjs 开发工具/节点删除与整理边界.test.mjs 开发工具/图片批次操作边界.test.mjs 开发工具/节点复制边界.test.mjs 开发工具/生成连线保护边界.test.mjs 开发工具/工作台端口与运行地址.test.mjs",
+    "test:ux": "node --test 开发工具/配置持久化筛选.test.mjs 开发工具/侧栏快切生命周期.test.mjs 开发工具/首页播放生命周期.test.mjs 开发工具/更新状态读取合并.test.mjs 开发工具/主题过渡生命周期边界.test.mjs 开发工具/生成历史总览边界.test.mjs 开发工具/参数卡初始化生命周期.test.mjs",
+    "test:all-current": "node 开发工具/全面体验回归.mjs",
+    "test:update-progress": "node --test 开发工具/更新进度观察.test.mjs 开发工具/在线安装入口边界.test.mjs 开发工具/更新状态读取合并.test.mjs",
+    "test:migration-remaining": "node --test 开发工具/画布性能迁移.test.mjs 开发工具/媒体任务迁移.test.mjs 开发工具/图片结果回写边界.test.mjs 开发工具/画布业务边界.test.mjs 开发工具/批量结果排布边界.test.mjs 开发工具/旧版整批迁移边界.test.mjs 开发工具/视频任务迁移.test.mjs 开发工具/文本流式迁移.test.mjs 开发工具/渠道读取迁移.test.mjs 开发工具/凭据后端隔离.test.mjs",
+    "test:connections": "node --test 开发工具/卡片避障路由.test.mjs 开发工具/共享网络数据流.test.mjs 开发工具/关系面板避让.test.mjs 开发工具/并排图片关系透视.test.mjs 开发工具/连线端口吸附.test.mjs 开发工具/连线稳定与聚焦规则.test.mjs 开发工具/共享主干关系选择.test.mjs 开发工具/连线交点整理.test.mjs 开发工具/连线交互体验.test.mjs 开发工具/连线迁移接入.test.mjs 开发工具/生成连线保护边界.test.mjs 开发工具/画布性能迁移.test.mjs 开发工具/Excel画布操作边界.test.mjs 开发工具/节点复制边界.test.mjs 开发工具/节点删除与整理边界.test.mjs"
   },
   "engines": {
     "node": ">=18"

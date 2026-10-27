@@ -8,8 +8,9 @@ export async function switchWebVersion({ previous, target, workspaceId, save, st
     target.dataSchema !== 1 || target.origin !== WEB_ORIGIN || previous.origin !== WEB_ORIGIN) fail('web_migration_required');
   await verify(target);
   await save({ phase: 'prepared', current: previous, target, workspaceId });
+  report('prepared');
   // stop须原子冻结新授权、核实零页面和原生任务，排空保存并释放SQLite锁；遵循自动备份开关。
-  try { await stop(); }
+  try { report('stopping'); await stop(); }
   catch (error) {
     if (['install_browsers_running', 'install_tasks_pending', 'generation_busy', 'proxy_busy'].includes(error.code)) {
       await save({ phase: 'committed', current: previous, workspaceId });
@@ -19,6 +20,7 @@ export async function switchWebVersion({ previous, target, workspaceId, save, st
   try {
     // 停服后的第一笔持久写入也在回退范围内，磁盘失败不能让旧版本永久停服。
     await save({ phase: 'switching', current: previous, target, workspaceId });
+    report('switching');
     report('starting');
     const ready = await start(target);
     if (!ready?.ready || ready.workspaceId !== workspaceId || ready.version !== target.version || !isWorkbenchOrigin(ready.origin)) fail('web_health_mismatch');

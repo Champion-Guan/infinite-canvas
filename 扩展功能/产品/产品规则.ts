@@ -70,23 +70,26 @@ export class ProductOperationGate {
 export class ProductSaveRegistry {
   private participants = new Map<
     string,
-    { token: symbol; save: () => Promise<void> }
+    { token: symbol; save: (options?: { deferSQLiteFlush?: boolean }) => Promise<void>; acknowledge: () => void }
   >();
-  register(id: string, save: () => Promise<void>) {
+  register(id: string, save: (options?: { deferSQLiteFlush?: boolean }) => Promise<void>, acknowledge: () => void = () => {}) {
     if (!id || this.participants.has(id))
       throw new Error("产品画布实例重复，已停止切换。");
     const token = Symbol(id);
-    this.participants.set(id, { token, save });
+    this.participants.set(id, { token, save, acknowledge });
     return () => {
       if (this.participants.get(id)?.token === token)
         this.participants.delete(id);
     };
   }
-  async flush(id: string) {
+  async flush(id: string, options?: { deferSQLiteFlush?: boolean }) {
     const entry = this.participants.get(id);
     if (!entry) throw new Error("产品画布尚未加载完成，请稍后重试。");
-    await entry.save();
+    await entry.save(options);
     if (this.participants.get(id) !== entry)
       throw new Error("保存期间产品实例已改变，未切换画布。");
+  }
+  acknowledge(id: string) {
+    this.participants.get(id)?.acknowledge();
   }
 }

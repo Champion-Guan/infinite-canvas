@@ -7,6 +7,7 @@ import { Linter } from 'eslint';
 import globals from 'globals';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
 import { clearConfirmedImageErrors } from '../扩展功能/画布生成/图片任务确认恢复.mjs';
+import { canvasTaskSummary } from '../扩展功能/产品/产品任务摘要.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const hooks = { useCallback: value => value, useRef: value => ({ current: value }) };
@@ -66,6 +67,8 @@ test('确认清理保存失败后仅重试保存；节点不存在时不记录�
   const { useCanvasTaskReceipts } = await load('画布生成/生成任务回执操作.ts', {
     react: hooks, './图片任务确认恢复.mjs': { clearConfirmedImageErrors },
     './原画布文本调用': { requestCanvasText: async () => { submissions++; } },
+    './原画布音频调用': { requestCanvasAudio: async () => { submissions++; } },
+    '@/services/api/audio': { storeGeneratedAudio: async () => { throw Error('此检查不交付音频'); } },
     '../产品/产品操作': { saveProductCanvas: async () => { if (++saves === 1) throw Error('保存失败'); } },
   });
   const api = useCanvasTaskReceipts({ projectId: 'product', nodesRef, restoredProjectIdRef: { current: 'product' }, setNodes: value => { nodesRef.current = typeof value === 'function' ? value(nodesRef.current) : value; } });
@@ -128,22 +131,46 @@ test('回收恢复缺少素材时保留原批次，不改节点、撤销记录�
   assert.match(errors[0], /图片素材缺失/);
 });
 
-async function batchModule() {
+async function batchModule(generationParameters = { promptGenerationPatch: () => ({}), generationSettingsFromNode: () => ({ quality: 'high' }) }) {
   const layout = await load('画布布局/卡片自动避让.ts', {});
   const columns = await load('画布布局/批量结果排布.ts', { './卡片自动避让': layout });
   return load('画布生成/批量生成操作.ts', {
     react: hooks, '@/types/canvas': { CanvasNodeType: { Config: 'config', Text: 'text', Image: 'image', Video: 'video', Audio: 'audio' } },
     '@/constant/canvas': { getNodeSpec: () => ({ width: 100, height: 80 }) },
-    '@/lib/canvas/canvas-node-factory': { createCanvasNode: (type, position, metadata) => ({ id: 'new-config', type, position, width: 100, height: 80, metadata }) },
+    '@/lib/canvas/canvas-node-factory': { createCanvasNode: (type, position, metadata) => ({ id: 'new-config', type, position, width: 100, height: 80, metadata: { status: 'idle', ...metadata } }) },
     '@/lib/canvas/canvas-generation-helpers': { getGenerationCount: value => value || 1 },
     nanoid: { nanoid: () => 'edge' },
-    './生成参数继承': { promptGenerationPatch: () => ({}), generationSettingsFromNode: () => ({ quality: 'high' }) },
+    './生成参数继承': generationParameters,
     '../安全与批量/prompt-generation-mode': { promptGenerationMode: () => 'image' },
     '../安全与批量/settle-activity-group': { settleActivityGroup: values => Promise.all(values) },
     '../画布布局/卡片自动避让': { placeCanvasNode: node => node },
     '../画布布局/批量结果排布': columns,
   });
 }
+test('只补齐Excel提示词配置与连线不执行生成，也不把产品胶囊变绿', async () => {
+  const parameters = await load('画布生成/生成参数继承.ts', {
+    '@/types/canvas': { CanvasNodeType: { Config: 'config' } },
+    '@/lib/canvas/canvas-generation-helpers': { getGenerationCount: value => value || 1 },
+    '../安全与批量/prompt-generation-mode': { promptGenerationMode: () => 'image' },
+  });
+  const { useCanvasBatchGeneration } = await batchModule(parameters);
+  const nodesRef = { current: [{ id: 'prompt', type: 'text', position: { x: 0, y: 0 }, width: 100, height: 80,
+    metadata: { status: 'success', content: '900x1200 px, 3:4 MAIN IMAGE', generationImageType: 'main image' } }] };
+  const connectionsRef = { current: [] };
+  let submissions = 0;
+  const api = useCanvasBatchGeneration({ nodesRef, connectionsRef, effectiveConfig: { imageModel: '模型', size: '1152x1536' },
+    setNodes: () => {}, setConnections: () => {}, setSelectedNodeIds: () => {}, setSelectedConnectionId: () => {},
+    handleGenerateNode: async () => { submissions++; },
+    message: { info: () => {}, success: () => {}, error: text => assert.fail(text) },
+  });
+  api.addGenerationConfigsForPromptNodes();
+  assert.equal(submissions, 0);
+  assert.equal(nodesRef.current.length, 2);
+  assert.equal(connectionsRef.current.length, 1);
+  assert.equal(nodesRef.current[1].metadata.generationImageType, 'main image');
+  assert.equal(nodesRef.current[1].metadata.size, '900x1200');
+  assert.deepEqual(canvasTaskSummary(nodesRef.current, connectionsRef.current), { status: 'idle', taskId: '', startedAt: 0 });
+});
 test('批量执行最多三个并发，失败继续，运行中卡片跳过且重复点击不重复排队', async () => {
   const { useCanvasBatchGeneration } = await batchModule();
   const gates = [], calls = [], warnings = [], placements = [];

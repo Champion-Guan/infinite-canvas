@@ -33,6 +33,18 @@ test('后台读取满额仍可立即保存及读验新分片；总96次窗口和
   time = 10_050; sleepers.splice(0).forEach(resolve => resolve());
   await Promise.all([background, finalWrite]); assert.equal(calls, 98);
 });
+
+test('生产授权取消固定窗口但保留并发整形', async () => {
+  let active = 0, peak = 0, calls = 0;
+  const client = { readDocument: async () => {
+    active++; peak = Math.max(peak, active); calls++;
+    await new Promise(resolve => setTimeout(resolve, 1));
+    active--;
+  } };
+  const paced = createPacedDataClient(client, { requestLimit: 0, maxConcurrent: 6 });
+  await Promise.all(Array.from({ length: 128 }, () => paced.readDocument('extension', 'synthetic')));
+  assert.equal(calls, 128); assert.ok(peak <= 6); assert.ok(peak > 1);
+});
 async function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'guan-read-speed-')), workspace = openWorkspace({ dataRoot: root, initialize: true });
   const origin = 'http://localhost:43201', service = await startDataService({ workspace, allowedOrigins: [origin], rateLimit: 120 });

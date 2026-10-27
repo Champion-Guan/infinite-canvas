@@ -56,7 +56,7 @@ export function useCanvasContentImport<T extends CanvasHistorySnapshot>({ projec
             if (contentInputRef.current) contentInputRef.current.value = "";
             hide();
         }
-    }, [applyHistory, assertImportTarget, createHistoryEntry, message, projectId]);
+    }, [applyHistory, assertImportTarget, createHistoryEntry, message, projectId, historyRef, nodesRef, setSelectedNodeIds]);
 
     return { contentInputRef, importCurrentContents };
 }

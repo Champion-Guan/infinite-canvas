@@ -10,6 +10,7 @@ import { restoreWebStage, stageWebPackage, validateStageIdentity } from './Web�
 import { isWorkbenchOrigin } from '../本机服务/工作台端口.mjs';
 import { 清理过期安装版本, 清理已完成Web安装 } from './安装版本清理.mjs';
 import { 创建有界日志流 } from '../本机服务/有界运行日志.mjs';
+import { createWebProgressObserver, webProgressSnapshot } from './Web更新进度服务.mjs';
 
 export function processIdentity(pid) {
   try { return { pid, command: execFileSync('/bin/ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8' }).trim(),
@@ -38,7 +39,10 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
   };
   const canApprove = () => Boolean(staged && !installing && ['staged', 'deferred', 'blocked'].includes(phase) &&
     ['committed', 'rolled-back'].includes(state.phase));
-  const status = () => ({ allowed: true, state: phase, currentVersion: current.version, targetVersion, reason, canApprove: canApprove() });
+  const status = () => ({ allowed: true, state: phase, currentVersion: current.version, targetVersion, reason, canApprove: canApprove(), progressAvailable: true });
+  const progress = createWebProgressObserver(target => webProgressSnapshot(target, status(), {
+    transaction: state, service: childStatus, alive: Boolean(child && child.connected && !childStopped),
+  }));
   let stageJob = null;
   async function stage(identity) {
     validateStageIdentity(identity, current);
@@ -51,6 +55,10 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
     const { operation, identity, acknowledgement } = message;
     if (operation === 'status') return status();
     if (operation === 'staged-identity') return canApprove() ? staged.identity : null;
+    if (operation === 'progress-window') {
+      if (!targetVersion || identity !== targetVersion) fail('update_progress_unavailable');
+      return progress.open(targetVersion);
+    }
     if (operation === 'stage') {
       if (stageJob) fail('update_stage_unavailable');
       stageJob = stage(identity); try { await stageJob; } finally { stageJob = null; }
@@ -134,12 +142,13 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
     }, 1000);
     const shutdown = async () => {
       if (installing || stageJob) return;
-      try { await stop(false); clearInterval(timer); await unlink(paths.address).catch(e => { if (e.code !== 'ENOENT') throw e; }); await unlink(paths.lock); process.exit(0); }
+      try { await stop(false); clearInterval(timer); await progress.close(); await unlink(paths.address).catch(e => { if (e.code !== 'ENOENT') throw e; }); await unlink(paths.lock); process.exit(0); }
       catch { reason = 'install_tasks_pending'; }
     };
     for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(signal, () => void shutdown());
   } catch (error) {
     log.write('安装管理器停止：' + (error.code || 'web_start_failed') + '\n');
+    await progress.close();
     try { await stop(false); await unlink(paths.lock); } catch { /* 未确认退出时保留锁与事务 */ }
     throw error;
   }

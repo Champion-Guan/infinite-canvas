@@ -1,0 +1,35 @@
+diff --git a/web/src/stores/use-canvas-side-panel-store.ts b/web/src/stores/use-canvas-side-panel-store.ts
+index 7e4ac81..7b5ebc3 100644
+--- a/web/src/stores/use-canvas-side-panel-store.ts
++++ b/web/src/stores/use-canvas-side-panel-store.ts
+@@ -1,7 +1,8 @@
+ import { sqlitePreferences } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { create } from "zustand";
+ 
+-export const CANVAS_SIDE_PANEL_MOTION_MS = 500;
++export const CANVAS_SIDE_PANEL_MOTION_MS = 360;
++let closeTimer: ReturnType<typeof setTimeout> | undefined;
+ export const CANVAS_SIDE_PANEL_MIN_WIDTH = 220;
+ export const CANVAS_SIDE_PANEL_MAX_WIDTH = 480;
+ export const CANVAS_SIDE_PANEL_DEFAULT_WIDTH = 280;
+@@ -63,6 +64,9 @@ export const useCanvasSidePanelStore = create<CanvasSidePanelStore>((set, get) =
+         set({ nodeViewMode: mode });
+     },
+     openPanel: () => {
++        clearTimeout(closeTimer);
++        closeTimer = undefined;
++        if (get().panelOpen && !get().panelClosing) return;
+         if (typeof window !== "undefined") sqlitePreferences.setItem(OPEN_KEY, "1");
+         set({ panelOpen: true, panelMounted: true, panelClosing: false });
+     },
+@@ -70,7 +74,9 @@ export const useCanvasSidePanelStore = create<CanvasSidePanelStore>((set, get) =
+         if (!get().panelMounted || get().panelClosing) return;
+         if (typeof window !== "undefined") sqlitePreferences.setItem(OPEN_KEY, "0");
+         set({ panelOpen: false, panelClosing: true });
+-        setTimeout(() => {
++        clearTimeout(closeTimer);
++        closeTimer = setTimeout(() => {
++            closeTimer = undefined;
+             if (get().panelClosing) set({ panelMounted: false, panelClosing: false });
+         }, CANVAS_SIDE_PANEL_MOTION_MS);
+     },

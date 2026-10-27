@@ -1,0 +1,10 @@
+diff --git a/web/src/services/api/image.ts b/web/src/services/api/image.ts
+index 421666a..2a1f612 100644
+--- a/web/src/services/api/image.ts
++++ b/web/src/services/api/image.ts
+@@ -1,4 +1,4 @@
+-import axios from "axios";
++import { 本地转发Axios as axios, 本地转发请求 as fetch } from "@/扩展功能/网络代理/本地转发请求";
+ 
+ import i18n from "@/i18n";
+ import { buildApiUrl, resolveModelRequestConfig, resolveModelScript, withLocalProxy, type AiConfig, type ModelChannel } from "@/stores/use-config-store";

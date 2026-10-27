@@ -1,0 +1,8 @@
+/* 数据点只出现在当前高亮关系上；不参与命中，也不触发画布保存。 */
+.connection-flow-particles {
+    pointer-events: none;
+    opacity: 0.9;
+}
+@media (prefers-reduced-motion: reduce) {
+    .connection-flow-particles { display: none; }
+}

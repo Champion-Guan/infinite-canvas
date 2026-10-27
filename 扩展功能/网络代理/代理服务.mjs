@@ -2,14 +2,24 @@ import { StorageError, requireValue } from '../本机存储/协议.mjs';
 import { createProxyConfigurationStore } from './代理配置存储.mjs';
 import { buildIsolatedProxyConfig, subscriptionURL, validateSourceText } from './配置边界.mjs';
 import { readProxySubscription } from './订阅读取.mjs';
+import { 代理配置来源显示 } from './内置订阅设置.mjs';
 
 // 只管理自己的实例。状态查询不发起网络探测；配置/启停串行，路由租约阻止中途换代理。
-export async function openNetworkProxyService({ workspace, vault, runTrustedWrite, runtime, readSubscription = readProxySubscription } = {}) {
+export async function openNetworkProxyService({ workspace, vault, runTrustedWrite, runtime, readSubscription = readProxySubscription, initialConfiguration } = {}) {
   requireValue(typeof runtime?.start === 'function' && typeof readSubscription === 'function', 'proxy_runtime_invalid', '代理服务需要可信进程内运行器。');
   const store = createProxyConfigurationStore({ workspace, vault, runTrustedWrite });
   let state = store.read(), handle = null, closed = false, pending = 0, leases = 0, tail = Promise.resolve(), lastError = null;
-  const status = () => ({ configured: !!state.value.config, enabled: state.value.enabled, running: !!handle?.running(),
-    configName: state.value.configName, source: state.value.config ? state.value.sourceKind === 'url' ? 'subscription' : 'uploaded' : null,
+  let currentNode = null, delayResults = [], configInput = '';
+  async function updateSourceDisplay() {
+    configInput = '';
+    if (state.value.config) {
+      let source = '';
+      if (state.value.sourceKind === 'url') try { source = await store.unseal(state.value.source); } catch { /* 来源索引失败时不回传或猜测私人地址。 */ }
+      configInput = 代理配置来源显示({ ...state.value, source });
+    }
+  }
+  const status = () => ({ configured: !!state.value.config, enabled: state.value.enabled, relayEnabled: state.value.relayEnabled, running: !!handle?.running(), currentNode, delayResults,
+    configName: state.value.configName, configInput, source: state.value.config ? state.value.sourceKind === 'url' ? 'subscription' : 'uploaded' : null,
     busy: pending > 0, activeRequests: leases, lastError });
   const run = operation => {
     requireValue(!closed, 'proxy_closed', '代理服务已关闭。', 503);
@@ -27,12 +37,13 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
     lastError = null;
     await stop();
     try {
-      if (next.enabled) handle = await runtime.start(await store.unseal(next.config));
-      state = await store.save(next, before.revision); return status();
+      if (next.enabled && next.config) handle = await runtime.start(await store.unseal(next.config));
+      state = await store.save(next, before.revision); await updateSourceDisplay(); return status();
     } catch (error) {
       await stop();
       // 丢ACK可能已经提交。只按重新读到的真实落盘状态恢复，不伪称旧配置已回滚。
       state = store.read();
+      await updateSourceDisplay();
       if (state.value.enabled && state.value.config) { try { handle = await runtime.start(await store.unseal(state.value.config)); } catch { lastError = 'proxy_restore_failed'; } }
       throw error;
     }
@@ -45,17 +56,37 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
     buildIsolatedProxyConfig(config, { port: 23210, controllerToken: '1'.repeat(64), proxyPassword: '2'.repeat(64) });
     const configName = sourceKind === 'url' ? '远端订阅配置' : fileName || '上传的代理配置.yaml';
     requireValue(!/https?:|[\r\n\0]/i.test(configName), 'proxy_source_invalid', '配置名称不能包含网址或控制字符。');
-    const next = await store.prepare({ sourceKind, source, config, configName }); return transition(next);
+    const next = await store.prepare({ sourceKind, source, config, configName }); next.relayEnabled = state.value.relayEnabled; return transition(next);
   }
-  if (state.value.enabled) {
+  if (!state.revision && initialConfiguration) {
+    try {
+      const initial = await initialConfiguration();
+      if (initial) {
+        if (initial.config != null || initial.source != null) {
+          buildIsolatedProxyConfig(initial.config, { port: 23210, controllerToken: '1'.repeat(64), proxyPassword: '2'.repeat(64) });
+          state = await store.save(await store.prepare(initial), 0);
+        } else {
+          // 旧状态可能只有开关，没有订阅或配置文件；只写入开关，不伪造空密文。
+          requireValue(typeof initial.enabled === 'boolean' && typeof initial.relayEnabled === 'boolean', 'proxy_source_invalid', '代理开关状态无效。');
+          state = await store.save({ ...state.value, enabled: initial.enabled, relayEnabled: initial.relayEnabled }, 0);
+        }
+      }
+    } catch { state = store.read(); lastError = 'proxy_import_failed'; }
+  }
+  await updateSourceDisplay();
+  if (state.value.enabled && state.value.config) {
     try { handle = await runtime.start(await store.unseal(state.value.config)); }
     catch { lastError = 'proxy_restore_failed'; } // 无代理不阻止打开画布，但后续代理请求必须失败，不能偷偷直连。
   }
   return Object.freeze({ status,
     configure: value => run(() => configure(value)),
     toggle: enabled => run(async () => {
-      requireValue(typeof enabled === 'boolean' && state.value.config, 'proxy_not_configured', '请先保存代理配置。');
+      requireValue(typeof enabled === 'boolean', 'proxy_source_invalid', '代理开关无效。');
       return transition({ ...state.value, enabled });
+    }),
+    toggleRelay: enabled => run(async () => {
+      requireValue(typeof enabled === 'boolean', 'proxy_source_invalid', '本地代理开关无效。');
+      state = await store.save({ ...state.value, relayEnabled: enabled }, state.revision); return status();
     }),
     refresh: () => run(async () => {
       requireValue(state.value.sourceKind === 'url' && state.value.source, 'proxy_not_subscription', '当前不是订阅配置。');
@@ -65,7 +96,11 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
     select: (group, name) => run(async () => { requireValue(handle?.running(), 'proxy_not_running', '网络代理未运行。', 409); return handle.select(group, name); }),
     async diagnose() {
       const lease = this.acquireRoute();
-      try { return await handle.diagnose(); } finally { lease.release(); }
+      try { const result = await handle.diagnose(); currentNode = result.currentNode || { name: result.node, latencyMs: result.delay, testedAt: Date.now() }; return { ...result, ...status() }; } finally { lease.release(); }
+    },
+    async testAll() {
+      const lease = this.acquireRoute();
+      try { const result = await handle.testAll(); currentNode = result.currentNode; delayResults = result.delayResults; return status(); } finally { lease.release(); }
     },
     // 仅可信生成网关可获取认证材料；HTTP/浏览器不暴露此接口，后继批次才连接生成网关。
     acquireRoute(transport = 'proxy') {

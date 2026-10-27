@@ -24,7 +24,7 @@ function scoped(job, scope, id) {
 const delay = () => new Promise(resolve => setTimeout(resolve, 3000));
 
 const slots = new Set();
-/** @param {{host: any, scope: {productId: string, nodeId: string, slotId: string}, prepare: Function, bind: Function, previous?: any, recordTask: Function, applyAndSave: Function, signal?: AbortSignal, retry?: boolean, wait?: Function, makeId?: Function}} options */
+/** @param {{host: any, scope: {productId: string, nodeId: string, slotId: string}, prepare: Function, bind: Function, previous?: any, recordTask: Function, applyAndSave: Function, onProgress?: Function, signal?: AbortSignal, retry?: boolean, wait?: Function, makeId?: Function}} options */
 export async function runCanvasImageTask(options) {
   const key = JSON.stringify([options.scope?.productId, options.scope?.nodeId, options.scope?.slotId]);
   requireValue(!slots.has(key), 'generation_slot_busy', '该生成任务正在处理，请勿重复点击。', 409);
@@ -32,7 +32,7 @@ export async function runCanvasImageTask(options) {
   try { return await run(options); } finally { slots.delete(key); }
 }
 async function run({ host, scope, prepare, bind, previous, recordTask, applyAndSave,
-  signal, retry = false, wait = delay, makeId = () => crypto.randomUUID() } = {}) {
+  signal, onProgress, retry = false, wait = delay, makeId = () => crypto.randomUUID() } = {}) {
   requireValue(host?.submit && host?.get && host?.deliver && host?.checkpoint && typeof prepare === 'function' &&
     typeof bind === 'function' && typeof recordTask === 'function' && typeof applyAndSave === 'function' &&
     typeof scope?.productId === 'string' && typeof scope.nodeId === 'string' && typeof scope.slotId === 'string',
@@ -75,6 +75,14 @@ async function run({ host, scope, prepare, bind, previous, recordTask, applyAndS
       if (signal?.aborted) throw new DOMException('已取消', 'AbortError');
       job = scoped(await host.submit({ ...task, binding: descriptor.binding, request }), target, task.id);
       if (cancelled) cancel();
+    }
+    if (onProgress && host.observeText && !terminalState(job.state)) {
+      try { job = scoped(await host.observeText(task, { signal, onProgress: text => onProgress(text, task.id) }), target, task.id); }
+      catch {
+        if (signal?.aborted) throw new DOMException('已取消', 'AbortError');
+        // 观察失败只查询原任务，不重提submit，不将部分文字当作最终成功。
+        job = scoped(await host.get(task.id), target, task.id);
+      }
     }
     while (!terminalState(job.state)) {
       if (signal?.aborted) { cancel(); throw new DOMException('已取消', 'AbortError'); }

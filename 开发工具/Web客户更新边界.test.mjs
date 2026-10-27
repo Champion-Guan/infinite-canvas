@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import { generateKeyPairSync, sign, randomUUID } from 'node:crypto';
-import { mkdtemp, mkdir, writeFile, chmod, readFile, symlink } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, chmod, readFile, symlink, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -12,6 +12,10 @@ import { inventoryWebFiles, verifyWebDirectory, verifySignedWebDirectory, extrac
 import { switchWebVersion } from '../扩展功能/客户安装/Web版本事务.mjs';
 import { readWebArchive } from '../扩展功能/客户安装/Web压缩包读取.mjs';
 import { writeState, readState } from '../扩展功能/客户安装/Web安装目录.mjs';
+
+const temporaryRoots = [];
+async function 临时目录(prefix) { const root = await mkdtemp(join(tmpdir(), prefix)); temporaryRoots.push(root); return root; }
+after(async () => { for (const root of temporaryRoots) await rm(root, { recursive: true, force: true }); });
 
 // 每轮生成内存测试密钥；不会写入信任表、配置、环境或发布包。
 const keys = generateKeyPairSync('ed25519'), pem = keys.publicKey.export({ format: 'pem', type: 'spki' });
@@ -57,7 +61,7 @@ test('GitHub实际资产名映射：本地中文不变，缺包、重复资产�
   assert.equal(selectWebRelease([{ ...r, assets: r.assets.map(a => ({ ...a, name: a.name === 'Web.json' ? 'Web更新清单.json' : a.name })) }]), null);
 });
 test('从GitHub净化后的资产名验签下载，磁盘仍保存中文清单；篡改包拒绝', async () => {
-  const parent = await mkdtemp(join(tmpdir(), 'Web远程命名-')), zip = Buffer.from('signed-package');
+  const parent = await 临时目录('Web远程命名-'), zip = Buffer.from('signed-package');
   const m = manifest(); m.packages[0].sha256 = sha256(zip); m.packages[0].size = zip.length;
   const s = signed(m), r = release(m.version), seen = [];
   r.assets[0].size = s.bytes.length; r.assets[2].size = zip.length;
@@ -75,18 +79,29 @@ test('从GitHub净化后的资产名验签下载，磁盘仍保存中文清单�
   assert.deepEqual(seen, ['Web.json', 'Web.sig', 'Web-v2.0.0-beta.2-macos-arm64.zip']);
   assert.deepEqual(await readFile(join(d.verified.directory, WEB_MANIFEST_NAMES[0])), s.bytes);
   assert.deepEqual(await readFile(join(d.verified.directory, WEB_MANIFEST_NAMES[1])), s.signature);
+  // 新下载器实例模拟服务重启，同一包再次验签，但不再次拉取大包。
+  const resumed = new StableDownload(options);
+  await resumed.download({ repository: WEB_REPOSITORY, release: { ...r, version: m.version }, currentVersion: '2.0.0-beta.1' });
+  assert.equal(resumed.verified.directory, d.verified.directory);
+  assert.equal(seen.filter(name => name.endsWith('.zip')).length, 1);
+  assert.equal((await readdir(options.directory)).length, 1);
   const bad = new StableDownload({ ...options, directory: join(parent, '损坏下载'), readAsset: async input => {
     if (input.onChunk) { await input.onChunk(Buffer.alloc(zip.length)); return zip.length; }
     return options.readAsset(input);
   } });
   await bad.download({ repository: WEB_REPOSITORY, release: { ...r, version: m.version }, currentVersion: '2.0.0-beta.1' });
   assert.equal(bad.status(WEB_REPOSITORY).error, 'package_integrity_failed');
+  assert.deepEqual(await readdir(bad.directory), []);
+  await resumed.cleanup(m.version);
+  assert.deepEqual(await readdir(options.directory), []);
+  // 旧下载器内存状态失效后，下次仍只能凭磁盘重新验证。
+
 });
 for (const path of ['../数据', '/tmp/a', 'a/../b', 'a//b', 'a\\b', '.运行/x', 'data/a', 'a/private.pem', 'a/test.sqlite', 'a/.env.production']) {
   test('包路径拦截：' + path, () => assert.throws(() => safeMember(path)));
 }
 async function fixture() {
-  const parent = await mkdtemp(join(tmpdir(), 'Web更新边界-')), root = join(parent, '包'); await mkdir(root, { mode: 0o700 });
+  const parent = await 临时目录('Web更新边界-'), root = join(parent, '包'); await mkdir(root, { mode: 0o700 });
   const binary = Buffer.alloc(8); binary.writeUInt32LE(0xfeedfacf); binary.writeUInt32LE(0x0100000c, 4);
   for (const name of ['web/index.html', '扩展功能/客户安装/Web客户命令.mjs', '扩展功能/客户安装/Web客户服务.mjs', '启动工作台.command', '安装工作台.command', 'runtime/node', '系统助手/系统钥匙串']) {
     await mkdir(join(root, name, '..'), { recursive: true, mode: 0o700 });
@@ -166,7 +181,7 @@ test('页面门禁拒绝停服时恢复原指针，保留原服务', async () =>
   assert.deepEqual(t.saves.map(s => s.phase), ['prepared', 'committed']);
 });
 test('版本状态耐久原子替换，私人权限保持且无临时残留', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'Web版本状态-')), file = join(root, '当前版本.json');
+  const root = await 临时目录('Web版本状态-'), file = join(root, '当前版本.json');
   await writeState(file, { phase: 'prepared' }); await writeState(file, { phase: 'committed' });
   assert.deepEqual(await readState(file), { phase: 'committed' });
   const { readdir } = await import('node:fs/promises'); assert.deepEqual(await readdir(root), ['当前版本.json']);
@@ -215,10 +230,11 @@ test('暂存持久恢复重新验签，同包重复暂存安全复用；工作�
   await writeFile(join(paths.versions, staged.next.name, 'web/index.html'), 'tampered');
   await assert.rejects(restoreWebStage(paths, args.workspaceId, old, verifyOptions));
   await assert.rejects(stageWebPackage(args));
+  assert.equal((await readdir(paths.versions)).filter(name => name.startsWith('暂存-')).length, 0);
 });
 test('服务重启后确认安装取管理器已复核身份，不依赖下载器内存', async () => {
   const { SoftwareUpdates } = await import('../扩展功能/软件更新/software-updates.mjs');
-  const directory = await mkdtemp(join(tmpdir(), '暂存确认-'));
+  const directory = await 临时目录('暂存确认-');
   const identity = { repository: WEB_REPOSITORY, version: '2.0.0-beta.2', downloadId: 'verified-' + randomUUID() };
   let approved = 0;
   const updates = new SoftwareUpdates({ directory, currentVersion: old.version, auth: {}, downloader: { status: () => ({ state: 'idle' }), stageIdentity() { throw Error('no in-memory download'); } },

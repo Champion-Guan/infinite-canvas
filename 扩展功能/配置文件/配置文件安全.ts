@@ -8,6 +8,7 @@ import { defaultConfig, defaultWebdavSyncConfig, useConfigStore, type AiConfig, 
 import { usePromptSourceStore, type PromptSourceSchedule } from "@/stores/use-prompt-source-store";
 import { filterWorkbenchPromptSources, type PromptSource } from "@/services/api/prompt-source-presets";
 import { flushSQLiteStorage } from "../本机存储/上游浏览器存储桥";
+import { sealConfigurationCredentials } from "../本机凭据/配置凭据封存";
 
 export type AppConfigFile = {
     app: "infinite-canvas";
@@ -190,6 +191,7 @@ export async function importAppConfig(file: File) {
             data.config.apiKey = data.config.baseUrl && data.config.apiFormat === original.config.apiFormat && data.config.baseUrl === original.config.baseUrl ? original.config.apiKey : "";
             data.webdav.password = data.webdav.url && data.webdav.username === original.webdav.username && data.webdav.url === original.webdav.url ? original.webdav.password : "";
         }
+        data.config = await sealConfigurationCredentials(data.config);
         const current = useConfigStore.getState(), currentSources = usePromptSourceStore.getState();
         if (current.config !== original.config || current.webdav !== original.webdav ||
             currentSources.sources !== originalSources.sources || currentSources.schedule !== originalSources.schedule) {

@@ -1,0 +1,38 @@
+diff --git a/web/src/services/api/image.ts b/web/src/services/api/image.ts
+index 2a1f612..b214f63 100644
+--- a/web/src/services/api/image.ts
++++ b/web/src/services/api/image.ts
+@@ -1,3 +1,4 @@
++import { fetchConfiguredModels } from "@/扩展功能/生成网关/模型读取客户端";
+ import { 本地转发Axios as axios, 本地转发请求 as fetch } from "@/扩展功能/网络代理/本地转发请求";
+ 
+ import i18n from "@/i18n";
+@@ -857,27 +858,7 @@ export async function requestImageQuestion(config: AiConfig, messages: AiTextMes
+ }
+ 
+ export async function fetchImageModels(config: Pick<AiConfig, "baseUrl" | "apiKey" | "apiFormat">) {
+-    try {
+-        if (config.apiFormat === "gemini") {
+-            const response = await axios.get<GeminiPayload>(geminiApiUrl({ ...defaultGeminiConfig, ...config }), { headers: geminiHeaders({ ...defaultGeminiConfig, ...config }) });
+-            validateGeminiPayload(response.data);
+-            return (response.data.models || [])
+-                .map((model) => model.name?.replace(/^models\//, ""))
+-                .filter((id): id is string => Boolean(id))
+-                .sort((a, b) => a.localeCompare(b));
+-        }
+-        const response = await axios.get<{ data?: Array<{ id?: string }>; error?: { message?: string } }>(buildApiUrl(config.baseUrl, "/models"), {
+-            headers: {
+-                Authorization: `Bearer ${config.apiKey}`,
+-            },
+-        });
+-        return (response.data.data || [])
+-            .map((model) => model.id)
+-            .filter((id): id is string => Boolean(id))
+-            .sort((a, b) => a.localeCompare(b));
+-    } catch (error) {
+-        throw new Error(readAxiosError(error, apiText("modelReadFailed")));
+-    }
++    return fetchConfiguredModels(config);
+ }
+ 
+ export async function fetchChannelModels(channel: ModelChannel) {

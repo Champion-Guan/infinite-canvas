@@ -1,0 +1,44 @@
+diff --git a/web/src/stores/use-config-store.ts b/web/src/stores/use-config-store.ts
+index 89f752d..aa59d5c 100644
+--- a/web/src/stores/use-config-store.ts
++++ b/web/src/stores/use-config-store.ts
+@@ -1,3 +1,4 @@
++import { createConfigPersistence } from "@/扩展功能/本机存储/配置持久化筛选";
+ import { 本地转发地址, 本地转发前缀 } from "@/扩展功能/网络代理/本地转发请求";
+ import { sqliteStateStorage, scheduleStateSave, flushSQLiteStorage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { requireAuxiliaryFeature } from "@/扩展功能/产品配置/精简与离线策略";
+@@ -229,6 +230,15 @@ function isAiConfigReady(config: AiConfig, model: string): boolean {
+     return Boolean(match && match.channel.baseUrl.trim() && match.channel.apiKey.trim());
+ }
+ 
++const configPersistence = createConfigPersistence(createJSONStorage<Pick<ConfigStore, "config" | "webdav">>(() => ({
++    getItem: sqliteStateStorage.getItem,
++    setItem: scheduleStateSave,
++    async removeItem(key) {
++        await flushSQLiteStorage();
++        await sqliteStateStorage.removeItem(key);
++    },
++}))!, CONFIG_STORE_KEY);
++
+ export const useConfigStore = create<ConfigStore>()(
+     persist(
+         (set, get) => ({
+@@ -276,14 +286,10 @@ export const useConfigStore = create<ConfigStore>()(
+         }),
+         {
+             name: CONFIG_STORE_KEY,
+-            storage: createJSONStorage(() => ({
+-                getItem: sqliteStateStorage.getItem,
+-                setItem: scheduleStateSave,
+-                async removeItem(key) {
+-                    await flushSQLiteStorage();
+-                    await sqliteStateStorage.removeItem(key);
+-                },
+-            })),
++            storage: configPersistence.storage,
++            onRehydrateStorage: () => (state, error) => {
++                if (state && !error) configPersistence.seed({ config: state.config, webdav: state.webdav });
++            },
+             partialize: (state) => ({ config: state.config, webdav: state.webdav }),
+             merge: (persisted, current) => {
+                 const persistedState = (persisted || {}) as Partial<ConfigStore>;

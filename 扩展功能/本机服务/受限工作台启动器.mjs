@@ -61,7 +61,7 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
     res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
     res.setHeader('Content-Security-Policy', `default-src 'none'; script-src 'self' ${scriptHashes}; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: ${service?.url ?? ''}; worker-src 'self' blob:; frame-ancestors 'none'; form-action 'self'; base-uri 'none'`);
-    if (!ready) { res.writeHead(503); res.end('本机工作区尚未就绪。'); req.resume(); return; }
+    if (!ready) { res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8', 'Retry-After': '1' }); res.end('本机工作区尚未就绪。'); req.resume(); return; }
     if (await networkProxy.handle(req, res)) return;
     if (await generation.handle(req, res)) return;
     if (await updates.handle(req, res)) return;
@@ -84,7 +84,7 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
     let bytes = value.bytes;
     if (value.type === 'text/html') {
       if (req.method !== 'GET' || req.headers['sec-fetch-mode'] !== 'navigate' || req.headers['sec-fetch-dest'] !== 'document') {
-        res.writeHead(403); res.end('请直接打开本机工作台地址。'); return;
+        res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('请直接打开本机工作台地址。'); return;
       }
       // 不新增匿名签发API、不放URL/Cookie或动态脚本；无存储缓存的HTML只交给顶层导航。
       try {
@@ -92,7 +92,7 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
         requireValue(html.split('</head>').length === 2 && !html.includes('guan-local-bootstrap'), 'invalid_web_bundle', '静态包不兼容自动入口。');
         const ticket = gateway.issueTicket();
         bytes = Buffer.from(html.replace('</head>', '<meta name="guan-local-bootstrap" content="' + ticket.code + '"></head>'));
-      } catch { res.writeHead(503); res.end('本机启动暂时不可用；数据未改动，请稍后重新打开。'); return; }
+      } catch { res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8', 'Retry-After': '1' }); res.end('本机启动暂时不可用；数据未改动，请稍后重新打开。'); return; }
     }
     res.writeHead(200, { 'Content-Type': value.type + (['text/', 'application/json'].some(type => value.type.startsWith(type)) ? '; charset=utf-8' : ''), 'Content-Length': bytes.length });
     res.end(req.method === 'HEAD' ? undefined : bytes);
@@ -125,13 +125,16 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
     workspace = storage.openWorkspace({ dataRoot, initialize });
     if (onWorkspaceReady) await onWorkspaceReady(workspace);
     credentialPort = await openSQLiteCredentialVault({ workspace, keyProvider: credentialKeyProvider, initialize });
-    service = await storage.startDataService({ workspace, allowedOrigins: [origin] });
+    // 一次性授权码已经把数据入口绑定到当前工作台 Origin；生产会话不再使用频率阈值。
+    // 服务仍保留并发、体积、CSRF、写入串行和会话期限保护。
+    service = await storage.startDataService({ workspace, allowedOrigins: [origin], rateLimit: 0 });
     requireValue(typeof service.createBackup === 'function', 'write_coordination_required', '必须装配已批准的写入/备份协调服务。');
     backup = createBackupCoordinator({ workspaceId: workspace.workspaceId, automatic: false, createBackup: () => service.createBackup() });
     // 用户关闭自动备份；启动、定时及升级均不自动复制工作区。
     await backup.start();
     controller = createSessionController({ service, origin });
-    gateway = createLocalAuthorizationGateway({ origin, dataURL: service.url, controller, credentialPort });
+    // 工作台页面只由本机入口交付一次性码；已有页面不会再受授权兑换频率阈值影响。
+    gateway = createLocalAuthorizationGateway({ origin, dataURL: service.url, controller, credentialPort, rateLimit: 0 });
     requireValue(typeof service.runTrustedWrite === 'function', 'generation_write_coordination_required', '生成任务需要同一写入协调。');
     networkProxy = await assembleNetworkProxyService({ workspace, vault: credentialPort, origin, runTrustedWrite: operation => service.runTrustedWrite(operation), authorize: request => gateway.assertGenerationPage(request),
       runtimeOptions: { runtimeParent: join(realpathSync(tmpdir()), 'ai-workbench-proxy-' + workspace.workspaceId), ...networkProxyOptions }, initialConfiguration: initialProxyConfiguration });
@@ -157,7 +160,7 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
           const status = gateway.getStatus();
           requireValue(status.authorizedPages === 0 && status.pendingTickets === 0 && status.activeRequests === 0,
             'install_browsers_running', '请保存并关闭工作台页面，其他网站可继续使用。', 409);
-          generation.assertCanUpdate(); networkProxy.assertCanClose();
+          await generation.assertCanUpdate(); networkProxy.assertCanClose();
           await backup.request('before-maintenance');
           if (!closing) closing = cleanup();
           await closing;

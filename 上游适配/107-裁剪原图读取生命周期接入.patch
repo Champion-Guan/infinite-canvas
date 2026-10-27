@@ -1,0 +1,52 @@
+diff --git a/web/src/components/canvas/canvas-node-crop-dialog.tsx b/web/src/components/canvas/canvas-node-crop-dialog.tsx
+index 341a1b3..852ac29 100644
+--- a/web/src/components/canvas/canvas-node-crop-dialog.tsx
++++ b/web/src/components/canvas/canvas-node-crop-dialog.tsx
+@@ -4,7 +4,7 @@ import { Check, X, ZoomIn, ZoomOut } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 
+ import { useImageEditorViewport } from "@/components/canvas/use-image-editor-viewport";
+-import { readImageMeta } from "@/lib/image-utils";
++import { useEditorImage, EditorImageStatus } from "@/扩展功能/媒体交付/编辑图片读取";
+ 
+ export type CanvasImageCropRect = {
+     x: number;
+@@ -24,7 +24,8 @@ export function CanvasNodeCropDialog({ dataUrl, open, onClose, onConfirm }: { da
+     const [crop, setCrop] = useState<CanvasImageCropRect>(defaultCrop);
+     const [ratioPreset, setRatioPreset] = useState("free");
+     const [fixedRatio, setFixedRatio] = useState<number | null>(null);
+-    const [image, setImage] = useState<{ width: number; height: number } | null>(null);
++    const imageRead = useEditorImage(dataUrl, open);
++    const { image } = imageRead;
+     const dragAbortRef = useRef<AbortController | null>(null);
+     const viewport = useImageEditorViewport(image, open);
+     const boxRef = viewport.stageRef;
+@@ -38,11 +39,6 @@ export function CanvasNodeCropDialog({ dataUrl, open, onClose, onConfirm }: { da
+         }
+     }, [dataUrl, open]);
+ 
+-    useEffect(() => {
+-        if (!open) return;
+-        void readImageMeta(dataUrl).then(setImage);
+-    }, [dataUrl, open]);
+-
+     useEffect(() => {
+         if (!open) dragAbortRef.current?.abort();
+         return () => dragAbortRef.current?.abort();
+@@ -70,6 +66,7 @@ export function CanvasNodeCropDialog({ dataUrl, open, onClose, onConfirm }: { da
+ 
+     return (
+         <Modal title={t("canvas.editors.cropTitle")} open={open && Boolean(dataUrl)} onCancel={onClose} footer={null} width={780} centered destroyOnHidden transitionName="" maskTransitionName="">
++            <EditorImageStatus {...imageRead} />
+             <div className="space-y-4">
+                 <div
+                     ref={viewport.viewportRef}
+@@ -149,7 +146,7 @@ export function CanvasNodeCropDialog({ dataUrl, open, onClose, onConfirm }: { da
+                     <Button icon={<X className="size-4" />} onClick={onClose}>
+                         {t("canvas.editors.cancel")}
+                     </Button>
+-                    <Button type="primary" icon={<Check className="size-4" />} onClick={() => onConfirm(crop)}>
++                    <Button type="primary" icon={<Check className="size-4" />} disabled={!image} onClick={() => onConfirm(crop)}>
+                         {t("canvas.editors.confirmCrop")}
+                     </Button>
+                 </div>
