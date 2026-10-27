@@ -33,6 +33,7 @@ export function createGenerationClient({ command, observe } = {}) {
     describe: binding => call({ operation: 'describe', binding }),
     previewCredential: binding => call({ operation: 'credential-preview', binding }),
     async submit(task) { const snapshot = structuredClone(validateSubmission(task)); return match(await call({ operation: 'submit', task: snapshot }), snapshot); },
+    async retirePreparedTask(task) { const snapshot = structuredClone(task); return match(await call({ operation: 'retire-prepared', task: snapshot }), snapshot); },
     checkpoint: id => call({ operation: 'checkpoint', id }),
     get: id => call({ operation: 'get', id }),
     list: productId => call({ operation: 'list', productId }),

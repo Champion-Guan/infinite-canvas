@@ -3,6 +3,7 @@ import { requireValue, validHash, validId } from '../本机存储/协议.mjs';
 import { GENERATION_PROTOCOL, TASK_STATES, terminalState, validateSubmission, jobLike, exactKeys, bindingLike } from '../生成网关/生成协议.mjs';
 import { recordNoResultResolution } from './未决任务核实.mjs';
 import { createTransientTextProgress } from './文本临时进度.mjs';
+import { createPreparedTaskRetirement } from './未提交任务重试收口.mjs';
 
 const ledgerId = 'guan-generation-ledger-v1', format = 'guan-generation-ledger.v1';
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -92,6 +93,7 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
     } finally { active.delete(input.id); textProgress.clear(input.id); }
   }
   return Object.freeze({
+    retirePreparedTask: createPreparedTaskRetirement({ mutate, active, pendingResults, workspace, clock, isClosed: () => closed, maxTasks, publicJob }),
     async submit(value) {
       requireValue(!closed, 'generation_closed', '任务入口已关闭。', 503);
       const input = structuredClone(validateSubmission(value)); gateway.validate(input.binding, input.request);

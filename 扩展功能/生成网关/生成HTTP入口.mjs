@@ -55,6 +55,7 @@ export function createGenerationHTTPHandler({ origin, authorize, gateway, tasks,
       else if (videos && exactKeys(value, ['operation', 'id']) && value.operation === 'video-poll' && jobLike(value.id)) result = await videos.poll(value.id);
       else if (videos && exactKeys(value, ['operation', 'id']) && value.operation === 'video-download' && jobLike(value.id)) result = await videos.download(value.id);
       else if (exactKeys(value, ['operation', 'task']) && value.operation === 'submit') result = await tasks.submit(value.task);
+      else if (exactKeys(value, ['operation', 'task']) && value.operation === 'retire-prepared' && tasks.retirePreparedTask) result = await tasks.retirePreparedTask(value.task);
       else if (exactKeys(value, ['operation', 'productId']) && value.operation === 'list' && validId(value.productId)) result = tasks.list(value.productId);
       else if (exactKeys(value, ['operation', 'id', 'checkpoint']) && value.operation === 'applied' && jobLike(value.id)) result = await tasks.confirmApplied(value.id, value.checkpoint);
       else if (exactKeys(value, ['operation', 'id']) && jobLike(value.id) && ['get', 'result', 'cancel', 'retry-save'].includes(value.operation)) {

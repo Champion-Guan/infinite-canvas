@@ -38,14 +38,26 @@ async function run({ host, scope, prepare, bind, previous, recordTask, applyAndS
     typeof scope?.productId === 'string' && typeof scope.nodeId === 'string' && typeof scope.slotId === 'string',
   'invalid_canvas_generation', '原画布生成接入不完整，没有改用直连接口。');
   const target = Object.freeze({ ...scope });
-  let descriptor = previous ? structuredClone(previous) : null, job;
+  let descriptor = previous ? structuredClone(previous) : null, job, replacementId;
   if (descriptor) {
     requireValue(jobLike(descriptor.taskId) && descriptor.slotId === target.slotId && bindingLike(descriptor.binding) &&
       /^[0-9a-f]{64}$/.test(descriptor.requestHash), 'invalid_canvas_task', '原卡片任务记录无效，没有重新生成。');
     try { job = scoped(await host.get(descriptor.taskId), target, descriptor.taskId); }
-    catch (error) { if (error?.code !== 'generation_not_found') throw error; }
+    catch (error) {
+      if (error?.code !== 'generation_not_found') throw error;
+      if (retry && typeof host.retirePreparedTask === 'function') {
+        if (signal?.aborted) throw new DOMException('已取消', 'AbortError');
+        job = scoped(await host.retirePreparedTask({ id: descriptor.taskId, productId: target.productId,
+          nodeId: target.nodeId, binding: descriptor.binding, requestHash: descriptor.requestHash }), target, descriptor.taskId);
+      }
+    }
     if (job && (['failed', 'cancelled'].includes(job.state) || job.state === 'succeeded' && job.applied && retry)) {
       requireValue(retry, 'generation_explicit_retry_required', '原任务已结束，请明确点击重试后再生成。', 409);
+      if (job.state === 'cancelled' && job.reason === 'replaced_before_dispatch') {
+        // 多页面恢复同一旧身份时共用后继ID；旧页面迟到重试不会再生成另一笔。
+        const hash = await imageRequestHash({ retiredTaskId: descriptor.taskId, ...target });
+        replacementId = `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
+      }
       descriptor = null; job = undefined;
     }
   }
@@ -60,7 +72,7 @@ async function run({ host, scope, prepare, bind, previous, recordTask, applyAndS
     } else {
       const binding = await bind();
       requireValue(bindingLike(binding), 'invalid_provider_binding', '渠道未得到有效的本机绑定。');
-      descriptor = { taskId: makeId(), slotId: target.slotId, binding, requestHash };
+      descriptor = { taskId: replacementId || makeId(), slotId: target.slotId, binding, requestHash };
       requireValue(jobLike(descriptor.taskId), 'invalid_canvas_task', '任务ID无效。');
       await serializeProductResult(target.productId, () => recordTask(Object.freeze({ ...descriptor })));
     }

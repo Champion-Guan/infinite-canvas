@@ -28,6 +28,18 @@ test('真实HTTP/客户端→后端凭据→模拟渠道→SQLite→原产品保
     assert.equal(result.applied, true); assert.equal(f.requests.length, 1); assert.ok(f.checks >= 12);
   } finally { await f.close(); }
 });
+test('原授权HTTP及客户端可以收口未提交身份，撤销后拒绝且不发送API', async () => {
+  const f = await fixture();
+  try {
+    const b = await f.bind(), input = f.submit(b.binding);
+    const task = { id: input.id, productId: input.productId, nodeId: input.nodeId, binding: input.binding, requestHash: 'c'.repeat(64) };
+    const retired = await f.client.retirePreparedTask(task);
+    assert.equal(retired.reason, 'replaced_before_dispatch'); assert.equal(retired.state, 'cancelled');
+    f.revoke();
+    assert.equal((await f.post({ operation: 'retire-prepared', task: { ...task, id: randomUUID() } })).status, 401);
+    assert.equal(f.requests.length, 0);
+  } finally { await f.close(); }
+});
 for (const [title, headers] of [
   ['跨站Origin', { Origin: 'http://evil.example' }], ['缺失能力', { Authorization: '' }], ['错误协议', { 'X-Guan-Generation-Protocol': 'unknown' }], ['错误Content-Type', { 'Content-Type': 'text/plain' }], ['跨站FetchSite', { 'Sec-Fetch-Site': 'cross-site' }],
 ]) test('HTTP拒绝' + title, async () => {
