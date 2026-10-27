@@ -20,7 +20,7 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
   }
   const status = () => ({ configured: !!state.value.config, enabled: state.value.enabled, relayEnabled: state.value.relayEnabled, running: !!handle?.running(), currentNode, delayResults,
     configName: state.value.configName, configInput, source: state.value.config ? state.value.sourceKind === 'url' ? 'subscription' : 'uploaded' : null,
-    busy: pending > 0, activeRequests: leases, lastError });
+    smart: handle?.running() ? handle.smartStatus?.() || null : null, busy: pending > 0, activeRequests: leases, lastError });
   const run = operation => {
     requireValue(!closed, 'proxy_closed', '代理服务已关闭。', 503);
     pending++;

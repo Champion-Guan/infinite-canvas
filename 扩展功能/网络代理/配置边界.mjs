@@ -1,6 +1,7 @@
 import { parseDocument, stringify, visit } from 'yaml';
 import { buildMihomoConfig } from './旧版配置转换.mjs';
 import { requireValue } from '../本机存储/协议.mjs';
+import { 启用Smart智能分组 } from './Smart智能分组.mjs';
 
 export const PROXY_PROTOCOL = 'guan-network-proxy.v1';
 export const MAX_PROXY_SOURCE = 10 * 1024 * 1024;
@@ -43,7 +44,7 @@ export function buildIsolatedProxyConfig(source, { port, controllerToken, proxyP
   requireValue(new Set(value.proxies.map(node => node.name)).size === value.proxies.length, 'proxy_nodes_invalid', '代理节点名称不能重复。');
   const retained = {};
   for (const key of ['proxies', 'proxy-groups', 'rules', 'mode', 'ipv6', 'tcp-concurrent', 'unified-delay']) if (Object.hasOwn(value, key)) retained[key] = value[key];
-  return stringify({ ...retained, 'mixed-port': port, port: 0, 'socks-port': 0, 'redir-port': 0, 'tproxy-port': 0,
+  return stringify({ ...启用Smart智能分组(retained), 'mixed-port': port, port: 0, 'socks-port': 0, 'redir-port': 0, 'tproxy-port': 0,
     'bind-address': '127.0.0.1', 'allow-lan': false, authentication: ['workbench:' + proxyPassword], 'skip-auth-prefixes': [],
     'external-controller': '127.0.0.1:' + (port + 1), secret: controllerToken,
     'external-controller-unix': '', 'external-controller-pipe': '', 'external-ui': '', 'external-ui-url': '',

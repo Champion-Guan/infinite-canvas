@@ -4,7 +4,7 @@ import { 内置网络代理订阅 } from "./内置订阅设置.mjs";
 import { useProductActive } from "../产品/产品界面边界";
 
 type NodeInfo = { name: string; latencyMs: number | null; testedAt?: number; error?: string | null };
-type Status = { configured: boolean; enabled: boolean; running: boolean; configName: string; configInput: string; source: string | null; busy: boolean; activeRequests: number; lastError: string | null; currentNode?: NodeInfo | null; delayResults?: NodeInfo[] };
+type Status = { configured: boolean; enabled: boolean; running: boolean; configName: string; configInput: string; source: string | null; busy: boolean; activeRequests: number; lastError: string | null; currentNode?: NodeInfo | null; delayResults?: NodeInfo[]; smart?: { enabled: boolean; groups: number; modelBundled: boolean } | null };
 type ProxyHost = { status(): Promise<Status>; configure(value: { configText: string; subscriptionUrl: string; fileName: string }): Promise<Status>; toggle(enabled: boolean): Promise<Status>; diagnose(): Promise<Status & { reachable: boolean }>; testAll(): Promise<Status> };
 function host() { return (window as unknown as { __guanNetworkProxyHost?: ProxyHost }).__guanNetworkProxyHost; }
 
@@ -59,6 +59,7 @@ export function OriginalNetworkProxyPanel() {
             </div>
             <div className="local-canvas-proxy-state" data-status={state} role="status" aria-live="polite">{busy ? "网络代理：切换中…" : status?.running ? "网络代理：已启动" : unavailable ? "网络代理：本机端口尚未接入" : status?.enabled && !status.configured ? "网络代理：已开启，等待配置" : "网络代理：未启动"}</div>
             {status?.running && <div className="local-canvas-settings-note">
+                {status.smart?.enabled && <div>Smart 智能选路：已启用 · {status.smart.groups} 个智能分组{status.smart.modelBundled ? " · 内置模型" : ""}</div>}
                 <div>当前测试实际节点：{status.currentNode?.name || "未读取"} · HTTP 实测延迟：{status.currentNode?.latencyMs ? `${status.currentNode.latencyMs} ms` : status.currentNode?.error || "尚未测试"} · 配置文件：{status.configName || "未配置"}{status.currentNode?.testedAt ? ` · 测试时间：${new Date(status.currentNode.testedAt).toLocaleTimeString()}` : ""}</div>
                 <div className="local-canvas-settings-actions"><button type="button" disabled={busy} onClick={() => void act(async port => {
                     const next = await port.diagnose(); if (mounted.current) setConnection(next.reachable ? "外网访问正常（通过网络代理）" : "外网访问失败"); return next;

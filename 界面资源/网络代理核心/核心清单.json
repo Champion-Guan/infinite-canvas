@@ -10,5 +10,11 @@
   "source": "https://github.com/vernesong/mihomo/releases/download/Prerelease-Alpha/mihomo-darwin-arm64-alpha-smart-4624551.gz",
   "sourceCode": "https://github.com/vernesong/mihomo/tree/462455136157a760937c666bba71afe33b1a809e",
   "license": "GPL-3.0",
-  "upstreamDigest": "GitHub Release资产digest"
+  "upstreamDigest": "GitHub Release资产digest",
+  "model": {
+    "file": "智能选路模型.bin",
+    "size": 9345218,
+    "sha256": "23633022a815fb34e510befe1c176ba50af3ced48f08b172454f4cd6b8327788",
+    "source": "https://github.com/vernesong/mihomo/releases/download/LightGBM-Model/Model.bin"
+  }
 }

@@ -39,6 +39,15 @@ export async function installBundledProxyCore(directory, cacheRoot) {
   }
   const target = join(versions, manifest.sha256); await privateDirectory(target);
   const path = join(target, 'mihomo');
+  requireValue(manifest.variant !== 'Mihomo Smart' || manifest.model, 'proxy_core_invalid', 'Smart核心缺少内置模型。', 503);
+  let modelPath;
+  if (manifest.model) {
+    requireValue(manifest.model.file === '智能选路模型.bin' && allowed.test(manifest.model.sha256) && Number.isSafeInteger(manifest.model.size) && manifest.model.size > 0 && manifest.model.size <= 16 * 1024 ** 2,
+      'proxy_core_invalid', 'Smart模型清单无效。', 503);
+    const model = await readChecked(join(directory, manifest.model.file), 16 * 1024 ** 2);
+    requireValue(model.length === manifest.model.size && digest(model) === manifest.model.sha256, 'proxy_core_invalid', 'Smart模型校验失败。', 503);
+    modelPath = join(directory, manifest.model.file);
+  }
   let existing;
   try { existing = await readChecked(path, 128 * 1024 ** 2); } catch (error) { if (error.code !== 'ENOENT') throw error; }
   if (existing) requireValue(existing.length === manifest.size && digest(existing) === manifest.sha256 && (await lstat(path)).mode & 0o100, 'proxy_core_invalid', '已安装代理核心校验失败。', 503);
@@ -70,5 +79,5 @@ export async function installBundledProxyCore(directory, cacheRoot) {
   }
   candidates.sort((a, b) => b.modified - a.modified);
   for (const item of candidates.slice(1)) await rm(item.folder, { recursive: true });
-  return { path, sha256: manifest.sha256 };
+  return { path, sha256: manifest.sha256, ...(modelPath ? { model: { path: modelPath, sha256: manifest.model.sha256, size: manifest.model.size } } : {}) };
 }

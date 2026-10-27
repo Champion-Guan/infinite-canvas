@@ -81,6 +81,9 @@ export async function buildWebPackage({ root = sourceRoot, runtimeDirectory, ups
   assert.equal(core.variant, 'Mihomo Smart'); assert.equal(core.platform, 'darwin'); assert.equal(core.arch, 'arm64');
   assert.ok(coreArchive.length < 32 * 1024 ** 2); assert.equal(coreArchive.length, core.archiveSize); assert.equal(sha256(coreArchive), core.archiveSha256);
   assert.ok(readFileSync(join(coreDirectory, '开源许可.txt'), 'utf8').includes('GNU GENERAL PUBLIC LICENSE'));
+  assert.equal(core.model.file, '智能选路模型.bin');
+  const smartModel = readFileSync(join(coreDirectory, core.model.file));
+  assert.ok(smartModel.length <= 16 * 1024 ** 2); assert.equal(smartModel.length, core.model.size); assert.equal(sha256(smartModel), core.model.sha256);
   for (const [name, target] of [['Web运行依赖.json', 'package.json'], ['Web运行依赖锁.json', 'package-lock.json']]) cpSync(join(root, '开发工具', name), join(stage, target));
   await 执行有界构建命令('npm', ['ci', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: stage, env: buildEnv, budgetDirectory: outputParent, timeout: 300000 });
   rmSync(join(stage, 'node_modules/.bin'), { recursive: true, force: true });

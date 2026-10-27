@@ -49,6 +49,14 @@ export function createMihomoRuntime({ core, runtimeParent, port = 23210, coreArg
         await 记录代理目录所有者(directory);
         const config = buildIsolatedProxyConfig(source, { port, controllerToken: token, proxyPassword: password });
         const file = join(directory, 'config.yaml'); await writeFile(file, config, { mode: 0o600, flag: 'wx' });
+        if (core.model) {
+          const info = await lstat(core.model.path);
+          requireValue(info.isFile() && !info.isSymbolicLink() && info.nlink === 1 && !(info.mode & 0o022) && info.size === core.model.size && info.size <= 16 * 1024 ** 2,
+            'proxy_core_invalid', 'Smart模型文件无效。', 503);
+          const model = await readFile(core.model.path);
+          requireValue(createHash('sha256').update(model).digest('hex') === core.model.sha256, 'proxy_core_invalid', 'Smart模型指纹无效。', 503);
+          await writeFile(join(directory, 'Model.bin'), model, { mode: 0o600, flag: 'wx' });
+        }
         child = spawnProxyProcess(core.path, [...coreArguments, '-d', directory, '-f', file], {
           cwd: directory, stdio: ['ignore', 'ignore', 'ignore'],
           // 不继承用户的代理、自动下载或私人路径环境设置。
@@ -81,7 +89,9 @@ export function createMihomoRuntime({ core, runtimeParent, port = 23210, coreArg
           try { const version = await api('/version'); requireValue(typeof version.version === 'string', 'proxy_core_invalid', '代理核心未就绪。'); break; }
           catch { requireValue(child.exitCode === null && child.signalCode === null && Date.now() < until, 'proxy_start_failed', '代理启动未通过认证健康检查。', 503); await new Promise(done => setTimeout(done, 50)); }
         }
+        const smartGroups = Object.values((await api('/proxies')).proxies || {}).filter(group => group.type === 'Smart' && group.useLightGBM === true);
         const handle = Object.freeze({
+          smartStatus: () => ({ enabled: smartGroups.length > 0, groups: smartGroups.length, modelBundled: Boolean(core.model) }),
           running: () => !writeFailure && child.exitCode === null && child.signalCode === null,
           route: () => ({ proxyURL: 'http://127.0.0.1:' + port, username: 'workbench', password }),
           async inspect() {

@@ -52,7 +52,9 @@ async function fixture({ wrap = value => value, subscription, initialConfigurati
 }
 test('旧版内联配置和节点保持，安全运行项覆盖', () => {
   const old = parse(buildMihomoConfig(source, parameters.port)), next = parse(buildIsolatedProxyConfig(source + '\nallow-lan: true\ntun: {enable: true}\ndns: {enable: true, listen: 0.0.0.0:53}\n', parameters));
-  assert.deepEqual(next.proxies, old.proxies); assert.deepEqual(next['proxy-groups'], old['proxy-groups']); assert.deepEqual(next.rules, old.rules);
+  assert.deepEqual(next.proxies, old.proxies); assert.deepEqual(next.rules, old.rules);
+  assert.equal(next['proxy-groups'].find(group => group.name === 'TEST-GROUP').type, 'select');
+  const smart = next['proxy-groups'].find(group => group.type === 'smart'); assert.deepEqual(smart.proxies, ['test-A', 'test-B']); assert.equal(smart.uselightgbm, true);
   assert.equal(next['bind-address'], '127.0.0.1'); assert.equal(next['allow-lan'], false); assert.equal(next.tun.enable, false); assert.equal(next.dns.enable, false);
   assert.equal(next['external-controller'], '127.0.0.1:23211'); assert.equal(next.secret, parameters.controllerToken); assert.deepEqual(next.authentication, ['workbench:' + parameters.proxyPassword]);
 });
