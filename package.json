@@ -42,7 +42,8 @@
     "test:upgrade-continuity": "node --test 开发工具/升级管理器接续.test.mjs 开发工具/自动更新重启.test.mjs 开发工具/延迟凭据保管.test.mjs 开发工具/内置Smart核心.test.mjs 开发工具/Smart资源自动更新.test.mjs",
     "test:heic": "node --test 开发工具/HEIC自动转换.test.mjs 开发工具/HEIC上传保存.test.mjs",
     "test:clean-address": "node --test 开发工具/工作台纯净地址.test.mjs",
-    "test:image-delivery": "node --test 开发工具/生成图片尺寸交付.test.mjs 开发工具/图片默认尺寸边界.test.mjs 开发工具/图片结果回写边界.test.mjs 开发工具/图片批次操作边界.test.mjs 开发工具/图片详情恢复边界.test.mjs 开发工具/HEIC上传保存.test.mjs"
+    "test:image-delivery": "node --test 开发工具/生成图片尺寸交付.test.mjs 开发工具/图片默认尺寸边界.test.mjs 开发工具/图片结果回写边界.test.mjs 开发工具/图片批次操作边界.test.mjs 开发工具/图片详情恢复边界.test.mjs 开发工具/HEIC上传保存.test.mjs",
+    "test:concurrent-generation": "node --test 开发工具/并发生成卡片状态.test.mjs 开发工具/画布业务边界.test.mjs 开发工具/图片结果回写边界.test.mjs 开发工具/画布状态与参考图边界.test.mjs 开发工具/生成连线保护边界.test.mjs"
   },
   "engines": {
     "node": ">=18"
