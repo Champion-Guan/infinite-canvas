@@ -894,7 +894,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/components/canvas/canvas-generation-history-tab.tsx",
       "原SHA256": "c1881c6bfe7ab38900468810625fe78a97c6a342d3e008ada2ebaca92e79b02f",
       "类型": "前端",
-      "SHA256": "91626072c76f969e26dc1d3850811c4aa5dc4713a126d3b554722406317efa03"
+      "SHA256": "c94bf6573b30ec59f1a59fc5867b5f2de674a11e381f6cfa1862858b3d807924"
     },
     {
       "来源": "扩展功能/图片设置/尺寸比例锚点.ts",
@@ -2939,7 +2939,7 @@
       "目标": "画布副本/web/src/扩展功能/生成历史/历史操作栏.module.css",
       "原位置": "生成历史操作栏宽度适配",
       "类型": "前端",
-      "SHA256": "13e0a1cfd06272acf0c263b9e472ddd069d322d7b6301b3004f6aa289cacd0fd"
+      "SHA256": "3f657a99c364cff66b319cd877c3d870c90fbbf9b396e80e1399bd891834a1dc"
     },
     {
       "来源": "扩展功能/媒体交付/图片详情数据.ts",

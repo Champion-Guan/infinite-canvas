@@ -111,15 +111,17 @@ export const CanvasGenerationHistoryTab = memo(function CanvasGenerationHistoryT
     return (
         <div className={cn("guan-apple-enter flex h-full flex-col", actionStyles.panel)}>
             <div className="guan-apple-stagger flex flex-wrap items-center gap-2 px-3 pb-2 pt-1">
+                <span className={actionStyles.heading}>
                 <span className="text-xs font-medium opacity-60">生成任务 / 生成历史</span>
                 <span className="text-xs opacity-35">{history.length}</span>
+                </span>
+                <div className={actionStyles.actions} role="group" aria-label="生成历史操作">
                 <HistoryActionButton disabled={!history.length} onClick={toggleHistorySorted} className={cn(sorted && "bg-black/5 dark:bg-white/10")} style={{ color: theme.node.text }} aria-pressed={sorted} label="排序" icon={<ArrowDownWideNarrow className="size-3.5" />} description={sorted ? "排序：当前为分类顺序；点击恢复生成任务请求顺序" : "排序：按主图、详情页编号、富内容编号、其他排序，同类按图片序号排列"} />
                 <HistoryActionButton disabled={retrying || !failed.length} onClick={() => void retryTargets(failed)} className="guan-history-retry-all" style={{ color: theme.node.text }} aria-busy={retrying} label={retrying ? "正在重试…" : "重试"} icon={<RotateCcw className="size-3.5" />} description={retrying ? "正在重试失败任务" : "重试：只重试失败任务，不重新生成成功任务"} />
                 <HistoryActionButton disabled={downloading || (!selectionMode && !validCompletedFiles.length)} onClick={toggleSelectionMode} className="guan-history-select" style={{ color: theme.node.text }} aria-pressed={selectionMode} label={selectionMode ? "取消" : "选择"} icon={<ListChecks className="size-3.5" />} description={selectionMode ? "取消列表勾选模式" : "选择：勾选要下载的卡片"} />
-                <span className="inline-flex shrink-0 items-center gap-2">
                 <HistoryActionButton disabled={downloading || !validCompletedFiles.length || (selectionMode && !selectedHistoryFiles.length)} onClick={() => void downloadAll(selectionMode ? selectedHistoryFiles : validCompletedFiles)} className={cn("guan-download-action", downloading && "is-loading")} style={{ color: theme.node.text }} aria-busy={downloading} label={downloading ? "正在打包…" : "下载"} icon={<Download className="guan-download-icon size-3.5" />} description={downloading ? "正在打包下载文件" : !validCompletedFiles.length ? "下载：暂无可下载的成功文件" : selectionMode ? "下载：打包下载勾选的文件" : "下载：打包下载全部已成功生成的文件"} />
                 <HistoryActionButton onClick={() => { beginOverviewSelection(); setOverviewOpen(true); }} style={{ color: theme.node.text }} label="总览" icon={<LayoutGrid className="size-3.5" />} description="总览：勾选并对照查看生成图片详情" />
-                </span>
+                </div>
             </div>
             <div className="guan-apple-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-3">
                 {history.length ? (
