@@ -5033,6 +5033,22 @@
       "SHA256": "4f1841dc56953462b38cb18b42860d4e1972e60eaf5d1dcbb12250e9d2c01754",
       "前态SHA256": "d88fe0d45232956f913cd4a0011c2eec2eda6b8e931615db169d77ff57925ef9",
       "后态SHA256": "eb0e3cbf051e53f3d0895873735c0aa58a5b633422b16a5d1ce7fab84c579a7f"
+    },
+    {
+      "文件": "上游适配/设置说明中文同步.patch",
+      "目标": "web/src/i18n/locales/zh-CN.ts",
+      "职责": "设置说明中文同步",
+      "SHA256": "52f4f2efaa11b6f7212ed7ebc8765385ec0a742dcf64992b9c12a6c2827943d6",
+      "前态SHA256": "752ebdbbfc0e4196e9852b14c7b6499a412d8a44d9541323d0aa55ad971cffa9",
+      "后态SHA256": "d2c85830b10bc38f735c185ebf09fe71036920a162fbe35607682b536d1af359"
+    },
+    {
+      "文件": "上游适配/设置说明英文同步.patch",
+      "目标": "web/src/i18n/locales/en-US.ts",
+      "职责": "设置说明英文同步",
+      "SHA256": "4987c34d28d0f01012a5f961836ea2eece0d94ab86fdbb6a3eb0483f96f53ec8",
+      "前态SHA256": "ace51ee81a92f6e4fd80d279906f24287336ad3597a483dc03ce649c7966cfbe",
+      "后态SHA256": "bec03da326b79449bd839b8acefda2f3046b7a7a14f884114a5236c293942609"
     }
   ]
 }

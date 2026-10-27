@@ -1,0 +1,33 @@
+diff --git a/web/src/i18n/locales/en-US.ts b/web/src/i18n/locales/en-US.ts
+index 1bbb667..a025469 100644
+--- a/web/src/i18n/locales/en-US.ts
++++ b/web/src/i18n/locales/en-US.ts
+@@ -373,8 +373,8 @@ export default {
+     config: {
+         title: "Settings & Preferences",
+         invalidFile: "The settings file format is invalid",
+-        description: "Providers, model selection, sync, and local storage",
+-        modalDescription: "Providers, default models, sync, and local storage",
++        description: "Providers, model selection, and local storage",
++        modalDescription: "Providers, default models, and local storage",
+         tabs: {
+             channels: "Providers",
+             localProxy: "Local proxy",
+@@ -468,7 +468,7 @@ export default {
+             },
+             runtime: { requestFailed: "Request failed ({{status}})", urlRequired: "JSON URL is required", fetchFailed: "Failed to fetch “{{name}}”: {{error}}", noPrompts: "No valid prompts were parsed from “{{name}}”", invalidRoot: "Invalid “{{name}}” format: the root value must be an array" },
+         },
+-        fileSecurity: "Exported JSON omits API keys, WebDAV passwords and custom request scripts. Set them up again on the new computer.",
++        fileSecurity: "Exported settings do not include API keys. After importing on another computer, enter each provider's API key again.",
+         import: "Import settings",
+         export: "Export settings",
+         imported: "Settings and preferences imported",
+@@ -481,7 +481,7 @@ export default {
+         saved: "Settings saved",
+         savedContinue: "Settings saved. Continue with your previous request.",
+         channels: {
+-            description: "Choose a protocol for each provider, fetch its models, assign capabilities, and optionally customize request scripts.",
++            description: "Choose a protocol for each provider, fetch its models, and assign image, video, text, or audio capabilities.",
+             add: "Add provider",
+             unnamed: "Unnamed provider",
+             numberedName: "Provider {{count}}",
