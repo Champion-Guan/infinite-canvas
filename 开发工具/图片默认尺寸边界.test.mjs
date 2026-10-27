@@ -80,6 +80,31 @@ test('实际质量选项按自动到低排列，模型不支持的最高与极�
     assert.deepEqual(panel.imageQualityOptionsForModel('gpt-image-2').map(item => item.value), ['auto', 'high', 'medium', 'low']);
     assert.equal(panel.imageQualityForModel('max', 'gpt-image-2'), 'auto');
 });
+for (const model of ['gpt-image-2.5', 'gpt-image-2.5-flare', 'gpt-image-2.5-sunburst', 'gpt-image-2.5-flare-1k', 'gpt-image-2.5-sunburst-4k', 'vendor/gpt-image-2.5-preview', ' GPT-IMAGE-2.5-FLARE-1K ', 'gpt-image-2.5-flare-2026-10-27']) {
+    test(`2.5名称包含规则：${model} 显示、选中并提交最高/极高`, async () => {
+        assert.equal(panel.supportsAdvancedImageQuality(model), true);
+        assert.deepEqual(panel.imageQualityOptionsForModel(model).map(item => item.value), ['auto', 'max', 'xhigh', 'high', 'medium', 'low']);
+        for (const quality of ['max', 'xhigh']) {
+            assert.equal(panel.imageQualityForModel(quality, model), quality);
+            const changes = [];
+            const rendered = descendants(panel.ImageSettingsPanel({ config: { ...config, model, quality }, theme: { node: {} }, onConfigChange: (...change) => changes.push(change) }));
+            const pill = rendered.find(node => node.type?.name === 'OptionPill' && node.props.children === `settingsPanels.common.${quality}`);
+            assert.ok(pill); assert.equal(pill.props.selected, true); pill.props.onClick();
+            assert.deepEqual(changes, [['quality', quality]]);
+            assert.equal((await bodyFor({ model, quality, size: '1024x1024' })).quality, quality);
+        }
+    });
+}
+test('非2.5模型仍排除最高/极高，常规质量不受影响', async () => {
+    for (const model of ['gpt-image-2', 'gpt-image-1.5', 'flux-2.5', 'gpt-image-2_5']) {
+        assert.equal(panel.supportsAdvancedImageQuality(model), false);
+        for (const quality of ['max', 'xhigh']) {
+            assert.equal(panel.imageQualityForModel(quality, model), 'auto');
+            assert.equal(Object.hasOwn(await bodyFor({ model, quality, size: '1024x1024' }), 'quality'), false);
+        }
+        for (const quality of ['low', 'medium', 'high']) assert.equal((await bodyFor({ model, quality, size: '1024x1024' })).quality, quality);
+    }
+});
 test('2k、4k及公共视频规则保持原规格', () => {
     for (const scale of ['2k', '4k']) for (const ratio of ['1:1', '2:3', '3:2', '4:3', '3:4', '16:9', '9:16', '21:9', '9:21']) {
         assert.equal(sizes.computeMediaSize(scale, ratio), video.computeMediaSize(scale, ratio));

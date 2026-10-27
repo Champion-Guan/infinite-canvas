@@ -1,0 +1,9 @@
+diff --git a/web/src/components/image-settings-panel.tsx b/web/src/components/image-settings-panel.tsx
+index 13a618f..f1f6df9 100644
+--- a/web/src/components/image-settings-panel.tsx
++++ b/web/src/components/image-settings-panel.tsx
+@@ -24,3 +24,3 @@ export function supportsAdvancedImageQuality(model: string) {
+     const name = modelOptionName(model).trim().toLowerCase();
+-    return /^(?:gpt-image-2\.5-(?:sunburst|flare))(?:-\d{4}-\d{2}-\d{2})?$/.test(name);
++    return name.includes("gpt-image-2.5");
+ }

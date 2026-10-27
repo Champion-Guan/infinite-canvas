@@ -230,7 +230,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/generation/原版图片协议.ts",
       "原SHA256": "ee632349971edae2ab5730e0d2b1d18035f38fbd975d11b1ef32746190acdd5c",
       "类型": "前端",
-      "SHA256": "52828ce30ec615a79f45b171d5536c709261ee80dd1792b86b4cc4194d09821b"
+      "SHA256": "a999cd71029b9e8f3d72756581a1e7341279e844275b513708a4bd7b1a8fb216"
     },
     {
       "来源": "扩展功能/画布生成/原画布图片调用.ts",
@@ -5049,6 +5049,14 @@
       "SHA256": "4987c34d28d0f01012a5f961836ea2eece0d94ab86fdbb6a3eb0483f96f53ec8",
       "前态SHA256": "ace51ee81a92f6e4fd80d279906f24287336ad3597a483dc03ce649c7966cfbe",
       "后态SHA256": "bec03da326b79449bd839b8acefda2f3046b7a7a14f884114a5236c293942609"
+    },
+    {
+      "文件": "上游适配/图片最高质量模型匹配.patch",
+      "目标": "web/src/components/image-settings-panel.tsx",
+      "职责": "图片最高质量模型匹配",
+      "SHA256": "b497ce22697f88f5b0976c41c3094ad5bb8c5a97b835bbad1b7c6c819b30422f",
+      "前态SHA256": "8c2bb4d104e844c86f4b9327b2900f418569c1415d94088ed57636d4845ff214",
+      "后态SHA256": "31e43cd2b68fd6ce59b045dd412a3cff6ad49e610c1dd31ffaed2f6be9d7775c"
     }
   ]
 }

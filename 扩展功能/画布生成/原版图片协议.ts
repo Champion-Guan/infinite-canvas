@@ -62,7 +62,7 @@ const GEMINI_SUPPORTED_RATIOS = ["1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1"
 
 function supportsAdvancedImageQuality(model: string) {
     const value = model.trim().toLowerCase();
-    return /^(?:gpt-image-2\.5-(?:sunburst|flare))(?:-\d{4}-\d{2}-\d{2})?$/.test(value);
+    return value.includes("gpt-image-2.5");
 }
 
 function normalizeQuality(quality: string, model = "") {
