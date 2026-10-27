@@ -25,7 +25,7 @@ export function createNetworkProxyHTTPHandler({ origin, authorize, proxy, relay,
       let value; try { value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))); } catch { throw new StorageError('proxy_json_invalid', '代理请求格式无效。'); }
       await authorize(request);
       let result;
-      if (exact(value, ['operation']) && value.operation === 'status') result = proxy.status();
+      if (exact(value, ['operation']) && value.operation === 'status') result = await (proxy.observeStatus ? proxy.observeStatus() : proxy.status());
       else if (exact(value, ['operation', 'configText', 'subscriptionUrl', 'fileName']) && value.operation === 'configure') result = await proxy.configure(value);
       else if (exact(value, ['operation', 'enabled']) && value.operation === 'toggle') result = await proxy.toggle(value.enabled);
       else if (exact(value, ['operation', 'enabled']) && value.operation === 'toggle-relay') result = await proxy.toggleRelay(value.enabled);

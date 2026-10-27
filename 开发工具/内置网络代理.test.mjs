@@ -75,6 +75,24 @@ test('真实临时SQLite加密分片读回；不留下订阅与节点明文', as
     assert.equal(contains(join(f.parent, 'data'), '中文😀'), false);
   } finally { await f.close(); }
 });
+test('实时状态跟随核心节点变化，连续读取不保存、不测试外网、不保留停用核心观测', async () => {
+  let writes = 0;
+  const f = await fixture({ wrap: workspace => new Proxy(workspace, { get(target, key) {
+    if (key === 'writeDocument') return value => { writes++; return target.writeDocument(value); };
+    return Reflect.get(target, key);
+  } }) });
+  try {
+    await f.service.configure({ configText: source, subscriptionUrl: '', fileName: '合成.yaml' });
+    const before = writes;
+    const first = await f.service.observeStatus(); assert.equal(first.live.nodes[0].name, 'test-A'); assert.equal(first.currentNode, null);
+    await f.service.select('TEST-GROUP', 'test-B');
+    const second = await f.service.observeStatus(); assert.equal(second.live.nodes[0].name, 'test-B'); assert.equal(second.currentNode, null);
+    await Promise.all(Array.from({ length: 10 }, () => f.service.observeStatus()));
+    assert.equal(writes, before); assert.equal(second.delayResults.length, 0);
+    await f.service.toggle(false); const stopped = await f.service.observeStatus();
+    assert.equal(stopped.running, false); assert.equal(stopped.live, undefined);
+  } finally { await f.close(); }
+});
 test('两类代理初始默认开启；主动关闭后冷重开保留选择，不启动无配置核心', async () => {
   const f = await fixture();
   try {
@@ -260,6 +278,7 @@ test('实际HTTP授权：拒绝跨站、无权限、错误协议、任意转发�
     for (const operation of ['read-secret', 'fetch', 'route', 'core-path']) assert.equal((await command({ operation })).status, 400);
     assert.equal((await command({ operation: 'configure', configText: source, subscriptionUrl: '', fileName: 'test.yaml' })).status, 200);
     const status = await command({ operation: 'status' }); assert.equal(status.json.result.running, true); assert.equal(JSON.stringify(status).includes('synthetic-proxy-password'), false);
+    assert.equal(status.json.result.live.nodes[0].name, 'test-A');
     const client = createNetworkProxyClient({ command: async value => (await command(value)).json }); assert.equal((await client.status()).running, true);
     assert.equal((await command({ operation: 'status', proxyURL: 'http://evil.example' })).status, 400);
   } finally { await close(server); await f.close(); }

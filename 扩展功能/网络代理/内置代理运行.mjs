@@ -8,6 +8,7 @@ import { buildIsolatedProxyConfig } from './配置边界.mjs';
 import { 清理中断代理目录, 记录代理目录所有者 } from './代理运行目录保护.mjs';
 import { 开始目录写入监测 } from '../本机服务/目录写入监测.mjs';
 import { 诊断代理连接, 检测全部代理节点 } from './代理节点诊断.mjs';
+import { 读取代理实时状态 } from './代理实时状态.mjs';
 import { StorageError, requireValue } from '../本机存储/协议.mjs';
 
 export async function assertProxyPortsAvailable(port) {
@@ -91,6 +92,7 @@ export function createMihomoRuntime({ core, runtimeParent, port = 23210, coreArg
         }
         const smartGroups = Object.values((await api('/proxies')).proxies || {}).filter(group => group.type === 'Smart' && group.useLightGBM === true);
         const handle = Object.freeze({
+          observe: () => 读取代理实时状态(api),
           smartStatus: () => ({ enabled: smartGroups.length > 0, groups: smartGroups.length, modelBundled: Boolean(core.model) }),
           running: () => !writeFailure && child.exitCode === null && child.signalCode === null,
           route: () => ({ proxyURL: 'http://127.0.0.1:' + port, username: 'workbench', password }),

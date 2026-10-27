@@ -66,6 +66,8 @@ test('实际内置资产是固定来源的 Smart arm64 核心，压缩包兼容 
       assert.deepEqual(handle.smartStatus(), { enabled: true, groups: 1, modelBundled: true });
       const groups = await handle.inspect(); assert.ok(groups.some(group => group.type === 'Smart'));
       assert.ok(groups.find(group => group.type === 'Selector').choices.some(name => name.includes('Smart')));
+      const live = await handle.observe(); assert.ok(live.observedAt > 0); assert.ok(Array.isArray(live.nodes));
+      assert.equal(live.activeConnections, 0);
     } finally { await handle.stop(); }
   } finally { await rm(root, { recursive: true, force: true }); }
 });

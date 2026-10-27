@@ -11,7 +11,7 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
   const store = createProxyConfigurationStore({ workspace, vault, runTrustedWrite });
   let state = store.read(), handle = null, closed = false, pending = 0, leases = 0, tail = Promise.resolve(), lastError = null;
   let currentNode = null, delayResults = [], configInput = '';
-  let resourceUpdater, activeRuntime = runtime, activeCore = resourceUpdateOptions?.bundledCore;
+  let resourceUpdater, activeRuntime = runtime, activeCore = resourceUpdateOptions?.bundledCore, observation;
   async function updateSourceDisplay() {
     configInput = '';
     if (state.value.config) {
@@ -117,6 +117,17 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
     }
   }
   const port = Object.freeze({ status,
+    async observeStatus() {
+      const current = handle;
+      if (closed || pending || !current?.running() || !current.observe) return status();
+      if (!observation || observation.handle !== current) {
+        const promise = Promise.resolve().then(() => current.observe()).catch(() => ({ observedAt: Date.now(), nodes: [], error: 'proxy_observation_failed' }));
+        const request = { handle: current, promise }; observation = request;
+        void promise.finally(() => { if (observation === request) observation = null; });
+      }
+      const live = await observation.promise;
+      return { ...status(), ...(handle === current && !closed && !pending && current.running() ? { live } : {}) };
+    },
     resourceCheck: async () => { await resourceUpdater?.check(true); return status(); },
     configureResourceUpdates: async enabled => { await resourceUpdater?.configure(enabled); return status(); },
     pauseUpdates: () => resourceUpdater?.close(),

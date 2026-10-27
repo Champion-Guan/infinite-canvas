@@ -1,0 +1,13 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index 6f57763..7730626 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -229,7 +229,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                     {
+                         key: "local-proxy",
+                         label: "代理设置",
+-                        children: <ConfigLocalProxy />,
++                        children: <ConfigLocalProxy active={activeTab === "local-proxy"} />,
+                     },
+                     {
+                         key: "preferences",

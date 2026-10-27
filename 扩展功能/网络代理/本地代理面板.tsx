@@ -3,30 +3,43 @@ import { Network, Wifi } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useConfigStore } from "@/stores/use-config-store";
 import { 本地转发地址, 本地转发请求 } from "./本地转发请求";
+import { useProductActive } from "../产品/产品界面边界";
+import { useProxyStatusRefresh } from "./代理状态刷新";
 
 type Status = { relayEnabled: boolean };
 type Port = { status(): Promise<Status>; toggleRelay(enabled: boolean): Promise<Status> };
 const host = () => (window as unknown as { __guanNetworkProxyHost?: Port }).__guanNetworkProxyHost;
-export function LocalProxyPanel() {
+export function LocalProxyPanel({ active = true }: { active?: boolean }) {
+    const productActive = useProductActive(), observing = active && productActive;
     const { message } = App.useApp();
     const enabled = useConfigStore(s => s.config.proxyEnabled), update = useConfigStore(s => s.updateConfig);
     const [busy, setBusy] = useState(false), [ready, setReady] = useState(false), [error, setError] = useState("");
-    const mounted = useRef(false), flight = useRef(false);
+    const mounted = useRef(false), flight = useRef(false), polling = useRef(false), revision = useRef(0);
+    const invalidateRequests = useCallback(() => { revision.current++; }, []);
     const apply = useCallback((status: Status) => {
         if (!mounted.current) return;
         if (useConfigStore.getState().config.proxyEnabled !== status.relayEnabled) update("proxyEnabled", status.relayEnabled);
         setReady(true); setError("");
     }, [update]);
-    useEffect(() => {
-        let active = true; mounted.current = true;
+    const refresh = useCallback(async () => {
+        if (flight.current || polling.current) return;
+        const snapshot = revision.current;
         const port = host();
-        if (!port) setError("本地代理：本机服务尚未就绪");
-        else void port.status().then(status => { if (active) apply(status); }).catch(() => { if (active) setError("本地代理：状态读取失败"); });
-        return () => { active = false; mounted.current = false; };
+        if (!port) { if (mounted.current) setError("本地代理：本机服务尚未就绪"); return; }
+        polling.current = true;
+        try { const status = await port.status(); if (mounted.current && revision.current === snapshot) apply(status); }
+        catch { if (mounted.current && revision.current === snapshot) setError("本地代理：状态读取失败，正在自动重试"); }
+        finally { polling.current = false; }
     }, [apply]);
+    useEffect(() => {
+        if (!observing) return;
+        mounted.current = true; setBusy(flight.current);
+        return () => { mounted.current = false; invalidateRequests(); };
+    }, [observing, invalidateRequests]);
+    useProxyStatusRefresh(observing, refresh);
     const act = async (operation: (port: Port) => Promise<Status>, test = false) => {
         const port = host(); if (!port || flight.current) return;
-        flight.current = true; setBusy(true);
+        flight.current = true; revision.current++; setBusy(true);
         try { const status = await operation(port); apply(status); if (test && mounted.current) void message.success(status.relayEnabled ? "本地代理连接正常" : "本地代理已关闭"); }
         catch { if (mounted.current) setError("本地代理操作未确认，请重新检查状态。"); }
         finally { flight.current = false; if (mounted.current) setBusy(false); }

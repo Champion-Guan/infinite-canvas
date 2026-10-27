@@ -2,16 +2,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import "./原版网络代理.css";
 import { 内置网络代理订阅 } from "./内置订阅设置.mjs";
 import { useProductActive } from "../产品/产品界面边界";
+import { useProxyStatusRefresh } from "./代理状态刷新";
 
 type NodeInfo = { name: string; latencyMs: number | null; testedAt?: number; error?: string | null };
 type ResourceUpdate = { autoUpdate: boolean; state: string; checkedAt: number | null; error: string | null; model: string };
-type Status = { configured: boolean; enabled: boolean; running: boolean; configName: string; configInput: string; source: string | null; busy: boolean; activeRequests: number; lastError: string | null; currentNode?: NodeInfo | null; delayResults?: NodeInfo[]; smart?: { enabled: boolean; groups: number; modelBundled: boolean; version?: string } | null; resourceUpdate?: ResourceUpdate | null };
+type Status = { configured: boolean; enabled: boolean; running: boolean; configName: string; configInput: string; source: string | null; busy: boolean; activeRequests: number; lastError: string | null; currentNode?: NodeInfo | null; delayResults?: NodeInfo[]; live?: { observedAt: number; nodes: NodeInfo[]; activeConnections?: number; error?: string }; smart?: { enabled: boolean; groups: number; modelBundled: boolean; version?: string } | null; resourceUpdate?: ResourceUpdate | null };
 type ProxyHost = { status(): Promise<Status>; configure(value: { configText: string; subscriptionUrl: string; fileName: string }): Promise<Status>; toggle(enabled: boolean): Promise<Status>; diagnose(): Promise<Status & { reachable: boolean }>; testAll(): Promise<Status>; checkResources(): Promise<Status>; configureResourceUpdates(enabled: boolean): Promise<Status> };
 function host() { return (window as unknown as { __guanNetworkProxyHost?: ProxyHost }).__guanNetworkProxyHost; }
 
 // 迁入旧版makeNetworkPanel的真实结构、文案、尺寸与样式；只替换事件/状态出口，不注入DOM。
-export function OriginalNetworkProxyPanel() {
+export function OriginalNetworkProxyPanel({ active = true }: { active?: boolean }) {
     const productActive = useProductActive();
+    const observing = active && productActive;
     const [status, setStatus] = useState<Status | null>(null);
     const [input, setInput] = useState(内置网络代理订阅);
     const [fileText, setFileText] = useState("");
@@ -21,25 +23,23 @@ export function OriginalNetworkProxyPanel() {
     const [notice, setNotice] = useState("");
     const [error, setError] = useState("");
     const [connection, setConnection] = useState("");
+    const [refreshedAt, setRefreshedAt] = useState(0), [refreshError, setRefreshError] = useState("");
     const fileRef = useRef<HTMLInputElement>(null);
     const mounted = useRef(false), flight = useRef(false), polling = useRef(false), revision = useRef(0), fileRevision = useRef(0), unlocked = useRef(false);
     const invalidateRequests = useCallback(() => { revision.current++; fileRevision.current++; }, []);
     const refresh = useCallback(async () => {
         const port = host(); if (!port || flight.current || polling.current) return;
         const snapshot = revision.current; polling.current = true;
-        try { const next = await port.status(); if (mounted.current && revision.current === snapshot) { setStatus(next); if (!unlocked.current) setFrozen(next.running); } }
-        catch { if (mounted.current && revision.current === snapshot) setError("网络代理：状态获取失败"); }
+        try { const next = await port.status(); if (mounted.current && revision.current === snapshot) { setStatus(next); setRefreshedAt(Date.now()); setRefreshError(""); if (!unlocked.current) setFrozen(next.running); } }
+        catch { if (mounted.current && revision.current === snapshot) setRefreshError("状态暂时读取失败，保留上次结果，正在自动重试"); }
         finally { polling.current = false; }
     }, []);
     useEffect(() => {
-        if (!productActive) return;
-        mounted.current = true;
-        const visibleRefresh = () => { if (document.visibilityState === "visible") void refresh(); };
-        visibleRefresh();
-        document.addEventListener("visibilitychange", visibleRefresh);
-        const timer = window.setInterval(visibleRefresh, 10000);
-        return () => { mounted.current = false; invalidateRequests(); window.clearInterval(timer); document.removeEventListener("visibilitychange", visibleRefresh); };
-    }, [productActive, refresh, invalidateRequests]);
+        if (!observing) return;
+        mounted.current = true; setBusy(flight.current);
+        return () => { mounted.current = false; invalidateRequests(); };
+    }, [observing, invalidateRequests]);
+    useProxyStatusRefresh(observing, refresh);
     useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(""), 10000); return () => window.clearTimeout(timer); }, [notice]);
     const act = async (operation: (port: ProxyHost) => Promise<Status>, success: string, clearInput = false) => {
         const port = host(); if (!port || flight.current) return;
@@ -59,9 +59,11 @@ export function OriginalNetworkProxyPanel() {
                 <label className="local-canvas-settings-toggle"><input data-canvas-proxy-toggle type="checkbox" checked={status?.enabled === true} disabled={busy || unavailable || !status} onChange={event => { const enabled = event.currentTarget.checked; void act(port => port.toggle(enabled), enabled ? status?.configured ? "代理启动成功" : "已开启，等待配置代理" : "代理已停止"); }} />启用网络代理</label>
             </div>
             <div className="local-canvas-proxy-state" data-status={state} role="status" aria-live="polite">{busy ? "网络代理：切换中…" : status?.running ? "网络代理：已启动" : unavailable ? "网络代理：本机端口尚未接入" : status?.enabled && !status.configured ? "网络代理：已开启，等待配置" : "网络代理：未启动"}</div>
+            <div className="local-canvas-settings-note" aria-live="off">{refreshError || `每 5 秒自动刷新${refreshedAt ? ` · 状态更新：${new Date(refreshedAt).toLocaleTimeString()}` : " · 正在读取…"}`}</div>
             {status?.running && <div className="local-canvas-settings-note">
                 {status.smart?.enabled && <div>Smart 智能选路：已启用 · {status.smart.groups} 个智能分组{status.smart.modelBundled ? " · 最大 LightGBM 模型" : ""}{status.smart.version ? ` · ${status.smart.version}` : ""}</div>}
-                <div>当前测试实际节点：{status.currentNode?.name || "未读取"} · HTTP 实测延迟：{status.currentNode?.latencyMs ? `${status.currentNode.latencyMs} ms` : status.currentNode?.error || "尚未测试"} · 配置文件：{status.configName || "未配置"}{status.currentNode?.testedAt ? ` · 测试时间：${new Date(status.currentNode.testedAt).toLocaleTimeString()}` : ""}</div>
+                <div>当前活跃节点：{status.live?.error ? "暂时无法读取，正在重试" : status.live?.nodes.length ? status.live.nodes.map(node => `${node.name}${node.latencyMs !== null ? `（核心检测 ${node.latencyMs} ms）` : ""}`).join("、") : "暂无活跃连接，Smart 按请求选路"}</div>
+                <div>最近手动测试节点：{status.currentNode?.name || "尚未测试"} · HTTP 实测延迟：{status.currentNode?.latencyMs !== null && status.currentNode?.latencyMs !== undefined ? `${status.currentNode.latencyMs} ms` : status.currentNode?.error || "尚未测试"} · 配置文件：{status.configName || "未配置"}{status.currentNode?.testedAt ? ` · 测试时间：${new Date(status.currentNode.testedAt).toLocaleTimeString()}` : ""}</div>
                 <div className="local-canvas-settings-actions"><button type="button" disabled={busy} onClick={() => void act(async port => {
                     const next = await port.diagnose(); if (mounted.current) setConnection(next.reachable ? "外网访问正常（通过网络代理）" : "外网访问失败"); return next;
                 }, "网络代理测试完成")}>测试连接</button><button type="button" disabled={busy} onClick={() => void act(port => port.testAll(), "节点延迟测试完成")}>测试所有服务器延迟</button></div>
