@@ -1,0 +1,14 @@
+{
+  "version": "alpha-smart-4624551",
+  "variant": "Mihomo Smart",
+  "platform": "darwin",
+  "arch": "arm64",
+  "sha256": "138c416dddf53af64a8cd01508c2e93c338e18c6cc04b0e480932bc819eda061",
+  "size": 57972626,
+  "archiveSha256": "f8dc10168f0117d438bd13bf7cb4f35ea6ba9932d8aa30cf99f455c9ddd416d4",
+  "archiveSize": 21153224,
+  "source": "https://github.com/vernesong/mihomo/releases/download/Prerelease-Alpha/mihomo-darwin-arm64-alpha-smart-4624551.gz",
+  "sourceCode": "https://github.com/vernesong/mihomo/tree/462455136157a760937c666bba71afe33b1a809e",
+  "license": "GPL-3.0",
+  "upstreamDigest": "GitHub Release资产digest"
+}

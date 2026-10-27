@@ -1,6 +1,6 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { lstat, mkdir, readFile, cp, readdir, rm } from 'node:fs/promises';
+import { lstat, mkdir, readFile, cp, rm } from 'node:fs/promises';
 import { verifySignedWebDirectory } from './Web安装包核验.mjs';
 import { WEB_APP, WEB_ORIGIN, fail } from './Web发布协议.mjs';
 import { 检查目录容量, 读取目录字节 } from '../本机服务/目录容量限制.mjs';
@@ -56,15 +56,6 @@ export async function installWebDirectory(source, paths = webInstallPaths(), opt
   } finally { if (!committed) await rm(destination, { recursive: true, force: true }); }
 }
 export async function copyStableHelper(packageRoot, inventory) {
-  const parent = join(homedir(), 'Library/Application Support/AI-Workbench-Web系统助手');
-  await privateDirectory(parent);
-  const directory = join(parent, inventory.helper.sha256);
-  try {
-    await mkdir(directory, { mode: 0o700 });
-    await cp(join(packageRoot, '系统助手/系统钥匙串'), join(directory, '系统钥匙串'), { force: false, errorOnExist: true });
-  } catch (e) { if (e.code !== 'EEXIST') throw e; }
-  await privateDirectory(directory);
-  if ((await readdir(directory)).join(',') !== '系统钥匙串') fail('invalid_keychain_helper');
-  // 原凭据provider再次核验二进制；安装不读取或创建任何Keychain条目。
-  return { helperPath: join(directory, '系统钥匙串'), helperSHA256: inventory.helper.sha256 };
+  const { continueSignedHelper } = await import('./系统助手接续.mjs');
+  return continueSignedHelper(packageRoot, inventory, webInstallPaths());
 }

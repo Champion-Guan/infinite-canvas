@@ -15,7 +15,7 @@ export function OnlineInstallActions({ status, refresh }: Props) {
     const install = status?.install;
     const managed = Boolean(install?.allowed);
     const waiting = install?.state === "awaiting-browser-exit";
-    const switching = ["prepared", "stopping", "switching", "starting", "rolling-back"].includes(install?.state || "");
+    const switching = ["prepared", "stopping", "switching", "starting", "restarting-manager", "rolling-back"].includes(install?.state || "");
     const canApprove = managed && Boolean(install?.canApprove ?? install?.state === "staged");
     const staging = Boolean(install?.staging);
     const downloading = ["verifying-manifest", "downloading"].includes(status?.download.state || "");
@@ -34,14 +34,17 @@ export function OnlineInstallActions({ status, refresh }: Props) {
     };
     const openProgress = () => {
         const popup = window.open("about:blank", "guan-web-update-progress", "popup,width=740,height=700");
-        return connectUpdateProgressWindow(popup).then(() => popup);
+        return connectUpdateProgressWindow(popup).then(url => ({ popup, url }));
     };
-    const approve = () => modal.confirm({ title: "在线安装更新", content: "请确认画布已经保存，所有生成任务已经结束。确认后会打开独立进度窗口，请保留进度窗口并关闭所有工作台页面。安装器会再次核实保存与任务状态，再切换到新版本；其他网站可以继续使用。自动安装开关不会因本次手动安装而改变。",
+    const approve = () => modal.confirm({ title: "在线安装更新", content: "请确认所有生成任务已经结束。确认后会自动保存当前画布，转入更新进度页，并在安装完成后自动返回新版工作台。同版本的其他工作台页面也会自动准备更新；更早版本的页面请手动关闭。安装器会再次核实保存与任务状态。",
         okText: "已保存，任务已结束，安装本次更新", cancelText: "暂不安装", onOk: async () => {
-            try { await openProgress(); }
+            const restart = (window as unknown as { __guanAutomaticUpdateRestart?: (url: string) => Promise<boolean> }).__guanAutomaticUpdateRestart;
+            let observation;
+            try { observation = restart ? { popup: null, ...(await updateRequest("progress-window")) } : await openProgress(); }
             catch (error) { message.error(error instanceof Error ? error.message : "进度窗口未能启动，本次安装尚未确认"); throw error; }
             // 确认请求失败也保留观察页，避免响应中断时丢失已开始安装的进度。
             await operate("approve-manual");
+            if (restart && await restart(observation.url)) observation.popup?.close();
         } });
     const reason = !status ? "正在读取安装状态" : install?.state === "source-development" ? "当前为源码开发版，只检查和下载；在线安装请通过“启动工作台.command”打开客户安装版。"
         : !managed ? "独立安装管理器尚未就绪，请通过“启动工作台.command”重新打开客户安装版。"

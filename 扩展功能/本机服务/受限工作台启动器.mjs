@@ -10,7 +10,7 @@ import { requireValue } from '../本机存储/协议.mjs';
 import { createSessionController } from './受控会话.mjs';
 import { createLocalAuthorizationGateway } from './本机授权网关.mjs';
 import { createBackupCoordinator } from './自动备份.mjs';
-import { openSQLiteCredentialVault } from '../本机凭据/SQLite凭据保管.mjs';
+import { createDeferredCredentialVault } from '../本机凭据/延迟凭据保管.mjs';
 import { DEFAULT_WORKBENCH_PORT, listenWorkbench } from './工作台端口.mjs';
 
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.gif': 'image/gif', '.mp4': 'video/mp4', '.mp3': 'audio/mpeg', '.txt': 'text/plain' };
@@ -124,7 +124,7 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
     const origin = 'http://' + hostname + ':' + server.address().port;
     workspace = storage.openWorkspace({ dataRoot, initialize });
     if (onWorkspaceReady) await onWorkspaceReady(workspace);
-    credentialPort = await openSQLiteCredentialVault({ workspace, keyProvider: credentialKeyProvider, initialize });
+    credentialPort = await createDeferredCredentialVault({ workspace, keyProvider: credentialKeyProvider, initialize });
     // 一次性授权码已经把数据入口绑定到当前工作台 Origin；生产会话不再使用频率阈值。
     // 服务仍保留并发、体积、CSRF、写入串行和会话期限保护。
     service = await storage.startDataService({ workspace, allowedOrigins: [origin], rateLimit: 0 });
@@ -136,7 +136,7 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
     // 工作台页面只由本机入口交付一次性码；已有页面不会再受授权兑换频率阈值影响。
     gateway = createLocalAuthorizationGateway({ origin, dataURL: service.url, controller, credentialPort, rateLimit: 0 });
     requireValue(typeof service.runTrustedWrite === 'function', 'generation_write_coordination_required', '生成任务需要同一写入协调。');
-    networkProxy = await assembleNetworkProxyService({ workspace, vault: credentialPort, origin, runTrustedWrite: operation => service.runTrustedWrite(operation), authorize: request => gateway.assertGenerationPage(request),
+    networkProxy = await assembleNetworkProxyService({ workspace, vault: credentialPort, origin, deferStartup: true, runTrustedWrite: operation => service.runTrustedWrite(operation), authorize: request => gateway.assertGenerationPage(request),
       runtimeOptions: { runtimeParent: join(realpathSync(tmpdir()), 'ai-workbench-proxy-' + workspace.workspaceId), ...networkProxyOptions }, initialConfiguration: initialProxyConfiguration });
     generation = await assembleGenerationService({ workspace, networkProxy, vault: credentialPort, origin, runTrustedWrite: operation => service.runTrustedWrite(operation), authorize: request => gateway.assertGenerationPage(request) });
     updates = assembleSoftwareUpdates({ ...softwareUpdateOptions, dataRoot, origin, networkProxy, generation, authorize: request => gateway.assertGenerationPage(request) });
@@ -151,7 +151,7 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
       },
       activate() { requireValue(!closing && service && workspace, 'launcher_stopping', '工作台尚未就绪。', 503); ready = true; },
       issueTicket() { requireValue(ready, 'launcher_stopping', '入口正在停止。', 503); return gateway.issueTicket(); },
-      getStatus() { return { ready, authorization: gateway.getStatus(), backup: backup.getStatus(), generation: generation.getStatus(), networkProxy: networkProxy.getStatus() }; },
+      getStatus() { return { ready, authorization: gateway.getStatus(), backup: backup.getStatus(), generation: generation.getStatus(), networkProxy: networkProxy.getStatus(), credentials: credentialPort.getStatus() }; },
       async closeForUpdate() {
         // 同一同步段冻结新导航，再核实零页面与任务；不以页面关闭替代原生任务账本。
         requireValue(ready && !closing, 'launcher_stopping', '工作台已在停止。', 409);

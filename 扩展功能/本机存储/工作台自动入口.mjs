@@ -3,6 +3,7 @@ import { authorizeLocalStorage } from './本机授权客户端.mjs';
 import { bindPageAuthorization } from './页面授权生命周期.mjs';
 import { createRenewingDataClient } from './续期数据客户端.mjs';
 import { createRecoverableShardedApplicationStorage as createApplicationStorage } from './可恢复分片应用存储.mjs';
+import { bindAutomaticUpdateRestart } from '../软件更新/自动更新重启.mjs';
 
 // 用户不再填码。只消费当前本机启动器交付的一次性握手材料，立即从DOM移除。
 // 这不是匿名数据访问：Host/Origin、短期票据、会话及CSRF仍由既有模块核验。
@@ -62,6 +63,10 @@ export function mountAutomaticWorkbench({ root, origin = location.origin, loadAp
       status.textContent = '正在加载工作台界面…';
       // 保留启动面板到React真正提交首屏，避免动态模块加载期间出现空白页。
       await loadApplication();
+      bindAutomaticUpdateRestart({ view, updatePort: authorization.updatePort, host: authorization.host, flush: async () => {
+        if (typeof view.__guanPrepareUpdate !== 'function') throw Error('保存排空入口尚未就绪');
+        await view.__guanPrepareUpdate(); await app.flush();
+      } });
       return true;
     } catch {
       if (!started) { unbind?.(); try { await authorization?.host.close(); } catch { /* 服务端期限兜底，不重发或复用旧材料。 */ } }

@@ -12,9 +12,11 @@ export function webProgressSnapshot(target, status, { transaction, service, aliv
     isWorkbenchOrigin(service.origin);
   let state = relevant ? status.state : 'unavailable';
   if (state === 'committed') state = transaction?.phase === 'committed' && transaction.current.version === target && healthy ? 'success' : 'starting';
+  if (state === 'success' && status.managerVersion && status.managerVersion !== target) state = 'restarting-manager';
   if (state === 'rolled-back' && !(transaction?.phase === 'rolled-back' && healthy)) state = 'recovery-required';
   return { target, state, reason: relevant ? status.reason : null,
-    currentVersion: status.currentVersion, origin: healthy ? service.origin : null };
+    currentVersion: status.currentVersion, origin: healthy ? service.origin : null,
+    diagnostic: status.diagnostic || transaction?.diagnostic || null, waiting: status.waiting || null };
 }
 
 export async function serveWebUpdateProgress({ target, readStatus, lifetimeMs = 60 * 60 * 1000 }) {

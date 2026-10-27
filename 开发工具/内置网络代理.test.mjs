@@ -29,7 +29,7 @@ const listen = server => new Promise((done, fail) => { server.once('error', fail
 const close = server => new Promise((done, fail) => { server.closeAllConnections?.(); server.close(error => error ? fail(error) : done()); });
 const contains = (root, text) => readdirSync(root).some(name => { const p = join(root, name); return statSync(p).isDirectory() ? contains(p, text) : readFileSync(p).includes(Buffer.from(text)); });
 async function pairPort() { for (let i = 0; i < 40; i++) { const port = randomInt(20000, 48000); try { await assertProxyPortsAvailable(port); return port; } catch { /* try another isolated pair */ } } throw Error('fixture ports unavailable'); }
-async function fixture({ wrap = value => value, subscription, initialConfiguration } = {}) {
+async function fixture({ wrap = value => value, subscription, initialConfiguration, deferStartup = false } = {}) {
   const parent = realpathSync(mkdtempSync(join(tmpdir(), 'guan-proxy-test-'))); roots.push(parent);
   let workspace = openWorkspace({ dataRoot: join(parent, 'data'), initialize: true }); const key = randomBytes(32);
   const keyProvider = { create: async () => Buffer.from(key), read: async () => Buffer.from(key) };
@@ -37,7 +37,7 @@ async function fixture({ wrap = value => value, subscription, initialConfigurati
   const port = await pairPort(), corePath = realpathSync(process.execPath);
   const options = { core: { path: corePath, sha256: digest(readFileSync(corePath)) }, runtimeParent: join(parent, 'runtime'), port,
     coreArguments: [fileURLToPath(new URL('./内置代理模拟核心.mjs', import.meta.url))], startupTimeout: 10000, requestProbe: async () => { await new Promise(done => setTimeout(done, 30)); return { status: 204 }; } };
-  const args = () => ({ workspace: wrap(workspace), vault, runTrustedWrite: f => coordinator.runWrite(f), runtime: createMihomoRuntime(options), initialConfiguration, ...(subscription ? { readSubscription: subscription } : {}) });
+  const args = () => ({ workspace: wrap(workspace), vault, runTrustedWrite: f => coordinator.runWrite(f), runtime: createMihomoRuntime(options), initialConfiguration, deferStartup, ...(subscription ? { readSubscription: subscription } : {}) });
   let serviceArgs = args();
   let service = await openNetworkProxyService(serviceArgs);
   return { get workspace() { return workspace; }, get vault() { return vault; }, parent, port, options, get service() { return service; }, get serviceArgs() { return serviceArgs; },
@@ -99,6 +99,18 @@ test('原代理配置接续异常只显示代理错误，不阻止工作台启�
   const f = await fixture({ initialConfiguration: async () => { throw Error('synthetic missing configuration'); } });
   try { assert.equal(f.service.status().running, false); assert.equal(f.service.status().lastError, 'proxy_import_failed'); }
   finally { await f.close(); }
+});
+test('首次订阅和凭据恢复在后台执行，不阻断工作台就绪；恢复完成后保留原开关', async () => {
+  let finish;
+  const gate = new Promise(resolve => { finish = resolve; });
+  const f = await fixture({ deferStartup: true, initialConfiguration: async () => { await gate; return { enabled: false, relayEnabled: true }; } });
+  try {
+    assert.equal(f.service.status().busy, true); assert.equal(f.service.status().running, false);
+    finish();
+    const deadline = Date.now() + 3000;
+    while (f.service.status().busy && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal(f.service.status().busy, false); assert.equal(f.service.status().enabled, false); assert.equal(f.service.status().relayEnabled, true);
+  } finally { finish(); await f.close(); }
 });
 test('只有旧开关没有代理配置时也接续开关，不写入伪造密文', async () => {
   const f = await fixture({ initialConfiguration: async () => ({ enabled: false, relayEnabled: false }) });

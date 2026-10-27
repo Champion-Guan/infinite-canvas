@@ -75,6 +75,12 @@ export async function buildWebPackage({ root = sourceRoot, runtimeDirectory, ups
     const target = join(stage, member); mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
     cpSync(join(source, item.目标), target); chmodSync(target, 0o600);
   }
+  // 旧版安装器单文件上限32MiB：随签名包携带压缩核心，不能漏包或塞入裸二进制。
+  const coreDirectory = join(stage, '扩展功能/网络代理/核心');
+  const core = json(join(coreDirectory, '核心清单.json')), coreArchive = readFileSync(join(coreDirectory, '代理核心.gz'));
+  assert.equal(core.variant, 'Mihomo Smart'); assert.equal(core.platform, 'darwin'); assert.equal(core.arch, 'arm64');
+  assert.ok(coreArchive.length < 32 * 1024 ** 2); assert.equal(coreArchive.length, core.archiveSize); assert.equal(sha256(coreArchive), core.archiveSha256);
+  assert.ok(readFileSync(join(coreDirectory, '开源许可.txt'), 'utf8').includes('GNU GENERAL PUBLIC LICENSE'));
   for (const [name, target] of [['Web运行依赖.json', 'package.json'], ['Web运行依赖锁.json', 'package-lock.json']]) cpSync(join(root, '开发工具', name), join(stage, target));
   await 执行有界构建命令('npm', ['ci', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: stage, env: buildEnv, budgetDirectory: outputParent, timeout: 300000 });
   rmSync(join(stage, 'node_modules/.bin'), { recursive: true, force: true });

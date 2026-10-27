@@ -5,7 +5,7 @@ import { readProxySubscription } from './订阅读取.mjs';
 import { 代理配置来源显示 } from './内置订阅设置.mjs';
 
 // 只管理自己的实例。状态查询不发起网络探测；配置/启停串行，路由租约阻止中途换代理。
-export async function openNetworkProxyService({ workspace, vault, runTrustedWrite, runtime, readSubscription = readProxySubscription, initialConfiguration } = {}) {
+export async function openNetworkProxyService({ workspace, vault, runTrustedWrite, runtime, readSubscription = readProxySubscription, initialConfiguration, deferStartup = false } = {}) {
   requireValue(typeof runtime?.start === 'function' && typeof readSubscription === 'function', 'proxy_runtime_invalid', '代理服务需要可信进程内运行器。');
   const store = createProxyConfigurationStore({ workspace, vault, runTrustedWrite });
   let state = store.read(), handle = null, closed = false, pending = 0, leases = 0, tail = Promise.resolve(), lastError = null;
@@ -26,7 +26,7 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
     pending++;
     const flight = tail.then(async () => {
       requireValue(leases === 0, 'proxy_busy', '仍有请求使用代理，未中断或切换网络。', 409);
-      try { const result = await operation(); lastError = null; return result; }
+      try { lastError = null; return await operation(); }
       catch (error) { lastError = lastError === 'proxy_restore_failed' ? lastError : error instanceof StorageError ? error.code : 'proxy_operation_failed'; throw new StorageError(lastError, '代理操作未确认，已重新检查实际保存状态；请检查配置、核心及端口，不要反复提交。', error instanceof StorageError ? error.status : 503); }
     }).finally(() => { pending--; });
     tail = flight.then(() => {}, () => {}); return flight;
@@ -58,26 +58,30 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
     requireValue(!/https?:|[\r\n\0]/i.test(configName), 'proxy_source_invalid', '配置名称不能包含网址或控制字符。');
     const next = await store.prepare({ sourceKind, source, config, configName }); next.relayEnabled = state.value.relayEnabled; return transition(next);
   }
-  if (!state.revision && initialConfiguration) {
-    try {
-      const initial = await initialConfiguration();
-      if (initial) {
-        if (initial.config != null || initial.source != null) {
-          buildIsolatedProxyConfig(initial.config, { port: 23210, controllerToken: '1'.repeat(64), proxyPassword: '2'.repeat(64) });
-          state = await store.save(await store.prepare(initial), 0);
-        } else {
-          // 旧状态可能只有开关，没有订阅或配置文件；只写入开关，不伪造空密文。
-          requireValue(typeof initial.enabled === 'boolean' && typeof initial.relayEnabled === 'boolean', 'proxy_source_invalid', '代理开关状态无效。');
-          state = await store.save({ ...state.value, enabled: initial.enabled, relayEnabled: initial.relayEnabled }, 0);
+  const restore = async () => {
+    if (!state.revision && initialConfiguration) {
+      try {
+        const initial = await initialConfiguration();
+        if (initial) {
+          if (initial.config != null || initial.source != null) {
+            buildIsolatedProxyConfig(initial.config, { port: 23210, controllerToken: '1'.repeat(64), proxyPassword: '2'.repeat(64) });
+            state = await store.save(await store.prepare(initial), 0);
+          } else {
+            // 旧状态可能只有开关，没有订阅或配置文件；只写入开关，不伪造空密文。
+            requireValue(typeof initial.enabled === 'boolean' && typeof initial.relayEnabled === 'boolean', 'proxy_source_invalid', '代理开关状态无效。');
+            state = await store.save({ ...state.value, enabled: initial.enabled, relayEnabled: initial.relayEnabled }, 0);
+          }
         }
-      }
-    } catch { state = store.read(); lastError = 'proxy_import_failed'; }
-  }
-  await updateSourceDisplay();
-  if (state.value.enabled && state.value.config) {
-    try { handle = await runtime.start(await store.unseal(state.value.config)); }
-    catch { lastError = 'proxy_restore_failed'; } // 无代理不阻止打开画布，但后续代理请求必须失败，不能偷偷直连。
-  }
+      } catch { state = store.read(); lastError = 'proxy_import_failed'; }
+    }
+    await updateSourceDisplay();
+    if (state.value.enabled && state.value.config) {
+      try { handle = await runtime.start(await store.unseal(state.value.config)); }
+      catch { lastError = 'proxy_restore_failed'; } // 无代理不阻止打开画布，但后续代理请求必须失败，不能偷偷直连。
+    }
+  };
+  if (deferStartup) void run(restore).catch(() => {});
+  else await restore();
   return Object.freeze({ status,
     configure: value => run(() => configure(value)),
     toggle: enabled => run(async () => {

@@ -68,6 +68,7 @@ export async function initializeSQLiteApplication() {
     for (const [key, value] of nextState) stateCache.set(key, value);
     for (const [key, value] of nextPreferences) preferencesCache.set(key, value);
     appState = app; preferencesStore = prefs; runtime = candidate;
+    Object.defineProperty(window, "__guanPrepareUpdate", { value: flushSQLiteStorage });
     candidate.subscribe(statusChanged);
     window.addEventListener("beforeunload", event => { const status = storageStatus(); if (status.state === "saving" || status.state === "error") { event.preventDefault(); event.returnValue = ""; } });
     statusChanged();

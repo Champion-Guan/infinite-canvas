@@ -1,5 +1,6 @@
 export type UpdatePreferences = { version: 1; repository: string; autoCheck: boolean; autoDownload: boolean; autoInstall: boolean; network: "auto" | "direct" | "proxy" };
 export type UpdateBlocker = { id: string; state: string; reason: string; createdAt: number; canConfirmNoResult: boolean; productId?: string; nodeId?: string };
+export type StartupDiagnostic = { code: string; stage: string; field?: string };
 export type SoftwareUpdateStatus = {
     currentVersion: string; channel: string; preferences: UpdatePreferences; state: string; checking: boolean;
     authorization: string; hasNewVersion: boolean; lastCheckedAt: string | null; error: string | null;
@@ -7,7 +8,8 @@ export type SoftwareUpdateStatus = {
     history: { at: string; state: string; version: string | null; error: string | null }[];
     download: { state: string; progress: number; error?: string | null };
     install: { allowed: boolean; state: string; currentVersion?: string | null; targetVersion?: string | null;
-        reason?: string | null; staging?: boolean; stageError?: string | null; canApprove?: boolean; progressAvailable?: boolean; blockers?: UpdateBlocker[] };
+        reason?: string | null; staging?: boolean; stageError?: string | null; canApprove?: boolean; progressAvailable?: boolean; blockers?: UpdateBlocker[];
+        diagnostic?: StartupDiagnostic | null; waiting?: { pages: number | null; tickets: number | null; requests: number | null } };
 };
 export const updateMessages: Record<string, string> = {
     web_manifest_invalid: "Web版签名清单无效，更新已停止",
@@ -44,6 +46,14 @@ export const updateMessages: Record<string, string> = {
     update_activation_unconfirmed: "版本激活尚未确认，不开放新任务或自动降级", update_state_invalid: "更新状态记录读取失败，原记录保留",
     install_permit_invalid: "任务空闲许可无效，未进行版本切换", update_failed_rolled_back: "新版本启动失败，已恢复旧版",
     update_rollback_failed: "回滚未能确认，已停止后续安装并保留数据",
+    web_health_mismatch: "启动健康检查未通过，请查看具体检查项",
+    web_start_timeout: "服务启动超时，请保留日志后重试",
+    web_service_exited: "服务在就绪前退出，请查看本机工作台日志",
+    invalid_keychain_helper: "系统钥匙串助手核验失败，未读取凭据",
+    keychain_helper_migration_required: "系统助手发生变化，需要兼容迁移，未替换原凭据",
+    update_manager_handoff_failed: "新版管理器接续未确认，原数据保留",
+    update_manager_handoff_timeout: "等待原管理器退出超时，未启动第二个数据写入者",
+    install_pages_releasing: "正在等待页面请求和未使用的启动票据释放，安装会自动继续",
     install_disabled: "请先开启确认后自动安装",
     install_operator_confirmation_required: "此版本需要重新确认已保存且全部任务结束",
     install_operator_record_invalid: "安装确认记录损坏，已保留并停止安装",
@@ -61,7 +71,7 @@ export const installationMessages: Record<string, string> = {
     unavailable: "更新器未启动", disabled: "安装关闭", idle: "更新器已就绪", staged: "已暂存并再次验签（未执行）",
     "bootstrap-required": "等待首次安全接管", "activation-required": "等待确认激活", "recovery-required": "需要安全恢复",
     blocked: "安装被安全阻止", prepared: "已准备版本事务", stopping: "正在停止受控服务", switching: "正在切换版本",
-    starting: "正在隔离启动", committed: "版本事务已提交", "rolling-back": "正在恢复旧版", "rolled-back": "已恢复旧版",
+    starting: "正在启动并检查新版", "restarting-manager": "正在交接新版安装管理器", committed: "更新已完成", "rolling-back": "正在恢复旧版", "rolled-back": "已恢复旧版",
     "awaiting-browser-exit": "已确认，等待工作台页面关闭", "confirmation-required": "等待本次更新确认", deferred: "已选择稍后安装",
 };
 type UpdateHost = { request(operation: string, input?: unknown): Promise<unknown> };
