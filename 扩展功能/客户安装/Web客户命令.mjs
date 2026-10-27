@@ -9,6 +9,7 @@ import { WEB_REPOSITORY, WEB_MANIFEST_NAMES, webReleaseAssetName, fail } from '.
 import { readReleaseAsset } from '../软件更新/github-assets.mjs';
 import { readWebAddress, waitWebAddress } from './Web运行地址.mjs';
 import { acceptsWebRelease } from '../软件更新/更新发布渠道.mjs';
+import { ensureDesktopEntry, openWorkbenchAddress } from './客户桌面入口.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url)), paths = webInstallPaths();
 async function bootstrapProof() {
@@ -35,22 +36,31 @@ export async function customerCommand(operation) {
   if (operation === 'install') {
     await bootstrapProof();
     const result = await installWebDirectory(root);
-    console.log('安装完成。个人数据与旧工作台均已保留。请双击“启动工作台.command”。');
+    await ensureDesktopEntry(paths);
+    console.log('安装完成。个人数据与旧工作台均已保留。请双击桌面“生图工作台.app”或“启动工作台.command”。');
     return result.identity;
   }
   if (operation === 'supervisor') return runWebSupervisor();
   const state = await readState(paths.state), running = await readState(paths.lock);
   if (operation === 'status') return { installed: Boolean(state), running: Boolean(ownedProcess(running)), version: state?.current?.version, phase: state?.phase,
     address: await readWebAddress(paths, running, state, ownedProcess) };
-  if (operation === 'start') {
-    if (running) { if (ownedProcess(running)) return waitWebAddress(paths, ownedProcess); fail('update_recovery_required'); }
+  if (operation === 'start' || operation === 'desktop-start') {
     if (!state?.current) fail('web_install_required');
-    const packageRoot = versionPath(paths, state.current);
-    await verifySignedWebDirectory(packageRoot, { releaseVersion: state.current.version });
-    const child = spawn(join(packageRoot, 'runtime/node'), [join(packageRoot, '扩展功能/客户安装/Web客户命令.mjs'), 'supervisor'], {
-      cwd: packageRoot, detached: true, stdio: 'ignore', env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8' } });
-    child.unref();
-    return waitWebAddress(paths, ownedProcess);
+    await ensureDesktopEntry(paths);
+    let result;
+    if (running) {
+      if (!ownedProcess(running)) fail('update_recovery_required');
+      result = await waitWebAddress(paths, ownedProcess);
+    } else {
+      const packageRoot = versionPath(paths, state.current);
+      await verifySignedWebDirectory(packageRoot, { releaseVersion: state.current.version });
+      const child = spawn(join(packageRoot, 'runtime/node'), [join(packageRoot, '扩展功能/客户安装/Web客户命令.mjs'), 'supervisor'], {
+        cwd: packageRoot, detached: true, stdio: 'ignore', env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8' } });
+      child.unref();
+      result = await waitWebAddress(paths, ownedProcess);
+    }
+    if (operation === 'desktop-start') { await openWorkbenchAddress(result.address); return { ...result, opened: true }; }
+    return result;
   }
   if (operation === 'stop') {
     if (!ownedProcess(running)) fail('web_process_unowned');

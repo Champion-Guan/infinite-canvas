@@ -16,6 +16,7 @@ import { processIdentity, ownedProcess } from './管理进程身份.mjs';
 import { assertWebHealth, safeStartupDiagnostic, startupError } from './启动健康诊断.mjs';
 import { clearInstallConfirmation, saveInstallConfirmation, restoreInstallConfirmation } from './本次安装确认.mjs';
 import { requireSavedUpdateChannel } from '../软件更新/更新发布渠道.mjs';
+import { ensureDesktopEntry } from './客户桌面入口.mjs';
 export { processIdentity, ownedProcess } from './管理进程身份.mjs';
 
 export async function runWebSupervisor(paths = webInstallPaths()) {
@@ -40,6 +41,10 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
       assertWebHealth(childStatus, state.current, state.workspaceId, { active: true });
     }
     await writeState(paths.address, { owner, ready, origin: ready ? childStatus.origin : null, version: state.current?.version, workspaceId: state.workspaceId });
+  };
+  const checkDesktopEntry = async () => {
+    try { return await ensureDesktopEntry(paths); }
+    catch (error) { log.write('桌面入口检查失败：' + (error.code || 'desktop_entry_failed') + '\n'); return { error: error.code || 'desktop_entry_failed' }; }
   };
   const canApprove = () => Boolean(staged && !installing && ['staged', 'deferred', 'blocked'].includes(phase) &&
     ['committed', 'rolled-back'].includes(state.phase));
@@ -128,6 +133,7 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
     const ready = await start(current);
     assertWebHealth(ready, current, state.workspaceId);
     await save({ ...state, workspaceId: ready.workspaceId });
+    await checkDesktopEntry();
     const cleanupDownloads = async () => {
       try { await 清理已完成Web安装(paths, join(dailyWorkbenchPaths().dataRoot, 'software-updates/packages')); }
       catch (error) { log.write('更新包清理未完成：' + (error.code || 'download_storage_failed') + '\n'); }
@@ -156,6 +162,7 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
         .then(async result => {
           current = result.current; reason = result.error || null; diagnostic = result.diagnostic || null; staged = null;
           await clearInstallConfirmation(paths);
+          await checkDesktopEntry();
           if (!result.rolledBack) {
             if (current.version !== managerVersion) await handoffManager();
             else await cleanupDownloads();

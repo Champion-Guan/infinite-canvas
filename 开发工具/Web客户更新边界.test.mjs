@@ -104,7 +104,7 @@ for (const path of ['../数据', '/tmp/a', 'a/../b', 'a//b', 'a\\b', '.运行/x'
 async function fixture() {
   const parent = await 临时目录('Web更新边界-'), root = join(parent, '包'); await mkdir(root, { mode: 0o700 });
   const binary = Buffer.alloc(8); binary.writeUInt32LE(0xfeedfacf); binary.writeUInt32LE(0x0100000c, 4);
-  for (const name of ['web/index.html', '扩展功能/客户安装/Web客户命令.mjs', '扩展功能/客户安装/Web客户服务.mjs', '启动工作台.command', '安装工作台.command', 'runtime/node', '系统助手/系统钥匙串']) {
+  for (const name of ['web/index.html', '扩展功能/客户安装/Web客户命令.mjs', '扩展功能/客户安装/Web客户服务.mjs', '扩展功能/客户安装/客户桌面入口.mjs', '启动工作台.command', '安装工作台.command', 'runtime/node', '系统助手/系统钥匙串']) {
     await mkdir(join(root, name, '..'), { recursive: true, mode: 0o700 });
     await writeFile(join(root, name), ['runtime/node', '系统助手/系统钥匙串'].includes(name) ? binary : 'fixture', { mode: 0o700 });
   }
