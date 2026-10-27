@@ -46,6 +46,11 @@ test('自动下载校验→待空闲→验收提交；清理压缩缓存，冷�
   try { assert.equal((await next.candidate()).sha256, candidate.sha256); assert.equal(next.status().autoUpdate, true); }
   finally { await next.close(); }
 }));
+test('内置资源已经最新时仅读取元数据，结束后退出检查状态', () => fixture(async ({ args, coreRelease, modelRelease, requests }) => {
+  const updater = await createSmartResourceUpdater({ ...args, cacheRoot: join(args.cacheRoot, '已是最新'), bundledCore: { archiveSha256: coreRelease.assets[0].digest.slice(7), model: { sha256: modelRelease.assets[0].digest.slice(7) } } });
+  try { await updater.check(); assert.equal(updater.status().state, 'idle'); assert.equal(updater.status().error, null); assert.equal(requests.length, 2); assert.equal(await updater.candidate(), null); }
+  finally { await updater.close(); }
+}));
 test('模型篡改不改变活动资源，失败退避；用户关闭后不自动检查或应用待更新', () => fixture(async ({ updater, corrupt, requests, root }) => {
   corrupt(); await updater.check(); assert.equal(updater.status().error, 'proxy_resource_integrity_failed'); assert.equal(await updater.candidate(), null);
   const count = requests.length; await updater.check(); assert.equal(requests.length, count); assert.deepEqual(await readdir(join(root, '更新资源')), []);

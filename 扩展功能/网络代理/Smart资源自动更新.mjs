@@ -77,7 +77,7 @@ export async function createSmartResourceUpdater({ cacheRoot, bundledCore, proxy
         lastError = null; phase = 'pending';
       } catch (error) {
         if (!controller.signal.aborted) { lastError = /^[a-z_]{3,64}$/.test(error.code || '') ? error.code : 'proxy_resource_update_failed'; state.retryAt = now() + 6 * 60 * 60 * 1000; await save(); phase = 'error'; }
-      } finally { lease?.release(); if (destination) await rm(destination, { recursive: true, force: true }); }
+      } finally { lease?.release(); if (destination) await rm(destination, { recursive: true, force: true }); if (phase === 'checking') phase = lastError ? 'error' : 'idle'; }
     })().finally(() => { flight = null; controller = null; });
     await flight;
     if (state.pending && !stopped) await onPending();
