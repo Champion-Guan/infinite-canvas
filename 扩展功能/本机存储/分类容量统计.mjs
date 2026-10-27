@@ -73,6 +73,8 @@ export async function readCategorizedUsage({ dataRoot, workspaceId }) {
       if (tag === 'number') { check(Number.isFinite(value)); return; }
       if (tag === 'date') { check(typeof value === 'string' && Number.isFinite(Date.parse(value))); return; }
       if (tag === 'secret') { check(typeof value === 'string' && /^secret:[A-Za-z0-9_-]{1,128}$/.test(value)); return; }
+      // 渠道绑定由应用编码器持久化；统计只校验引用格式，不访问或解密凭据。
+      if (tag === 'provider') { check(typeof value === 'string' && /^provider:[a-f0-9]{64}$/.test(value), '渠道凭据引用格式无效，容量统计已停止。'); return; }
       if (['blob', 'blob-url', 'array-buffer'].includes(tag)) {
         check(value && typeof value.mime === 'string' && (!value.mime || MEDIA_TYPES.includes(value.mime)) && Number.isSafeInteger(value.size) && value.size >= 0 && value.size <= 512 * 1024 * 1024 && Array.isArray(value.parts) && value.parts.every(validHash) && value.parts.length === Math.ceil(value.size / (16 * 1024 * 1024)));
         const kind = category === 'previews' ? 'previews' : !value.mime || value.mime === 'application/octet-stream' ? category === 'images' ? 'images' : 'other_media' : mimeCategory(value.mime);

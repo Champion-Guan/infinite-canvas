@@ -108,6 +108,35 @@ test('混合v1/v2读取且不解密secret，不输出标题、正文、引用或
   for (const forbidden of [f.root, 'private-unique-title', 'private-unique-prompt', 'secret:synthetic', 'synthetic-secret']) assert.equal(text.includes(forbidden), false);
 }));
 
+for (const sharded of [false, true]) test(`${sharded ? 'v2分片' : 'v1整值'}配置含渠道绑定时正常统计，不访问凭据端口或输出引用`, () => using(async f => {
+  const binding = 'provider:' + 'b'.repeat(64), privateKey = 'synthetic-channel-private-key';
+  let credentialCalls = 0;
+  const secretPort = {
+    async store() { assert.fail('渠道凭据应绑定，不另存密钥'); },
+    async inspect() { credentialCalls++; assert.fail('渠道绑定不解密旧凭据'); },
+    async bindChannel() { credentialCalls++; return binding; },
+    async describeChannel() { credentialCalls++; return { binding }; },
+  };
+  const store = f.app(sharded, { secretPort }).createInstance({ storeName: 'preferences' });
+  await store.setItem('saved-config', { channels: [{ apiKey: privateKey, baseUrl: 'https://synthetic.example.invalid', apiFormat: 'openai' }] });
+  const callsBefore = credentialCalls, documentsBefore = f.workspace.listDocuments('extension');
+  const usage = await f.workspace.readDetailedUsage();
+  assert.equal(category(usage, 'workspace').records, 1);
+  assert.ok(category(usage, 'workspace').documentBytes > 0);
+  assert.equal(usage.breakdown.indexedMediaBytes, 0);
+  assert.equal(credentialCalls, callsBefore, '只读统计不得检查、解密或重新绑定凭据');
+  assert.deepEqual(f.workspace.listDocuments('extension'), documentsBefore);
+  for (const value of [binding, privateKey, 'synthetic.example.invalid', f.root]) assert.equal(JSON.stringify(usage).includes(value), false);
+  sums(usage);
+}));
+
+test('损坏的渠道绑定和未知值标签仍拒绝，不当作零容量略过', () => using(async f => {
+  for (const tree of [['provider', 'provider:bad'], ['provider', 'provider:' + 'G'.repeat(64)], ['provider', null], ['future-value', 'opaque']]) {
+    put(f, 'extension', idFor('preferences'), { format: 'guan-app-storage.v1', namespace: 'preferences', entries: [['config', { tree, mediaIds: [] }]] });
+    await assert.rejects(f.workspace.readDetailedUsage(), code('usage_invalid_data'));
+  }
+}));
+
 test('直接画布及其媒体引用兼容，不将节点数量当作记录数量', () => using(async f => {
   const image = f.workspace.writeMedia(Buffer.from('direct-image'), 'image/png');
   put(f, 'canvas', 'canvas-one', { id: 'canvas-one', title: '合成', nodes: [], connections: [] }, [image.id]);
