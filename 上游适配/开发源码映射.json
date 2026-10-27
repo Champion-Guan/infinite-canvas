@@ -4960,6 +4960,14 @@
       "SHA256": "df5016a6f292534ddd80bc45fdac36999b089b02fd11040bad0caacabedcf263",
       "前态SHA256": "69224fbb9e7eba4b0ce424da166ad8d844e362ad2fd05ce61a1c9b9bc9e5bd0e",
       "后态SHA256": "f77dc21420afb6f6b1ad36b9335c29f32a52aedf07a24a7aa7d51ce656023d34"
+    },
+    {
+      "文件": "上游适配/资产侧栏移除归属下拉菜单.patch",
+      "目标": "web/src/components/canvas/canvas-side-panel.tsx",
+      "职责": "资产侧栏移除归属下拉菜单",
+      "SHA256": "bfd892443992a070d643524ac5690d3dca9de8b5a1ad57c90d4a43ea892a385b",
+      "前态SHA256": "90312934f5c6bab9e5bab7e03b7c5775ae3cf39552f4d97417171b0cdb0facf8",
+      "后态SHA256": "1d5ce91969718b9762287259287a12879b1a60d55d4a6285055ac8b5e7cfd8d6"
     }
   ]
 }
