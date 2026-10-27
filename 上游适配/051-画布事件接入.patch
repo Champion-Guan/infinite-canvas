@@ -1,0 +1,46 @@
+diff --git a/web/src/lib/canvas/canvas-event-bus.ts b/web/src/lib/canvas/canvas-event-bus.ts
+index 563883f..5aa3416 100644
+--- a/web/src/lib/canvas/canvas-event-bus.ts
++++ b/web/src/lib/canvas/canvas-event-bus.ts
+@@ -1,4 +1,4 @@
+-import localforage from "localforage";
++import { sqliteForage as localforage, type SQLiteInstance } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ 
+ import type { PluginStorage } from "@/types/canvas-plugin";
+ 
+@@ -27,21 +27,26 @@ export function onCanvasEvent(event: string, handler: Handler) {
+ }
+ 
+ // Private plugin storage isolated by pluginId namespace.
+-const stores = new Map<string, LocalForage>();
++const stores = new Map<string, SQLiteInstance>();
+ 
+ export function createPluginStorage(pluginId: string): PluginStorage {
+-    let store = stores.get(pluginId);
+-    if (!store) {
+-        store = localforage.createInstance({ name: "infinite-canvas-plugins", storeName: pluginId });
+-        stores.set(pluginId, store);
+-    }
++    // 内置节点也组装此上下文；只创建能力描述，不能因此打开插件数据库。
++    // 真正调用读写时仍经过SQLite白名单，未授权插件不会恢复或退回浏览器。
++    const getStore = () => {
++        let store = stores.get(pluginId);
++        if (!store) {
++            store = localforage.createInstance({ name: "infinite-canvas-plugins", storeName: pluginId });
++            stores.set(pluginId, store);
++        }
++        return store;
++    };
+     return {
+-        get: (key) => store!.getItem(key),
++        get: async (key) => getStore().getItem(key),
+         set: async (key, value) => {
+-            await store!.setItem(key, value);
++            await getStore().setItem(key, value);
+         },
+         remove: async (key) => {
+-            await store!.removeItem(key);
++            await getStore().removeItem(key);
+         },
+     };
+ }

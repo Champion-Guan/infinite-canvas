@@ -1,0 +1,20 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 2f340ac..8e76b7e 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -1,5 +1,6 @@
+ import { promptHighlightSegments } from "@/扩展功能/画布迁移扩展/prompt-variable-highlight.js";
+ import { localizePromptTheme } from "@/扩展功能/画布迁移扩展/prompt-theme-labels.js";
++import { useCanvasTextPreview } from "@/扩展功能/画布生成/文本显示接线";
+ import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+ import type { ReactNode } from "react";
+ import { ChevronRight, Copy, Download, Group, Image as ImageIcon, Music2, Puzzle, RefreshCw, Star, Trash2, Video } from "lucide-react";
+@@ -469,6 +470,8 @@ export const CanvasNode = React.memo(function CanvasNode({
+ });
+ 
+ function NodeContent(props: NodeContentRendererProps) {
++    const displayNode = useCanvasTextPreview(props.node);
++    if (displayNode !== props.node) props = { ...props, node: displayNode };
+     if (props.node.type === CanvasNodeType.Config && props.renderNodeContent) return props.renderNodeContent(props.node);
+     if (props.isBatchRoot && props.node.type === CanvasNodeType.Image) return <ImageNodeContent {...props} />;
+     if (props.node.type === CanvasNodeType.Text && props.node.metadata?.texts?.length && (props.node.metadata.status !== "error" || props.node.metadata.texts.some((text) => text.content))) return <TextContent {...props} />;

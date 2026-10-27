@@ -1,0 +1,91 @@
+diff --git a/web/src/components/layout/channel-editor-drawer.tsx b/web/src/components/layout/channel-editor-drawer.tsx
+index e1f90b1..e2b5f95 100644
+--- a/web/src/components/layout/channel-editor-drawer.tsx
++++ b/web/src/components/layout/channel-editor-drawer.tsx
+@@ -1,8 +1,9 @@
++import { ChannelCredentialInput, useChannelCredentialEditor } from "@/扩展功能/本机凭据/渠道凭据编辑";
+ import { useSettingsViewport } from "@/扩展功能/存储界面/设置视区";
+ import { businessFeatures } from "@/扩展功能/产品配置/脚本与提示词来源";
+ import { Button, Drawer, Input, InputNumber, Segmented, Select, Space } from "antd";
+ import { ListPlus, Trash2 } from "lucide-react";
+-import { useEffect, useState } from "react";
++import { useState } from "react";
+ import { useTranslation } from "react-i18next";
+ 
+ import { defaultBaseUrlForApiFormat, guessCapability, normalizeChannelModels, type ApiCallFormat, type ChannelModel, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
+@@ -14,7 +15,8 @@ type ScriptTarget = { name: string; capability: ModelCapability; value: string }
+ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: boolean; channel: ModelChannel | null; onSave: (channel: ModelChannel) => void; onClose: () => void }) {
+     const { t } = useTranslation();
+     const viewport = useSettingsViewport();
+-    const [draft, setDraft] = useState<ModelChannel | null>(channel);
++    const editor = useChannelCredentialEditor({ open, channel, onSave, onClose });
++    const { draft, patch } = editor;
+     const [selectOpen, setSelectOpen] = useState(false);
+     const [scriptTarget, setScriptTarget] = useState<ScriptTarget | null>(null);
+     const apiFormatOptions: Array<{ label: string; value: ApiCallFormat }> = [
+@@ -23,13 +25,8 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open:
+     ];
+     const capabilityOptions: Array<{ label: string; value: ModelCapability }> = ["image", "video", "text", "audio"].map((value) => ({ label: t(`config.channelEditor.capabilities.${value}`), value: value as ModelCapability }));
+ 
+-    useEffect(() => {
+-        if (open && channel) setDraft(channel);
+-    }, [open, channel]);
+-
+     if (!draft) return null;
+ 
+-    const patch = (value: Partial<ModelChannel>) => setDraft((current) => (current ? { ...current, ...value } : current));
+     const setModels = (models: ChannelModel[]) => patch({ models });
+ 
+     const changeApiFormat = (apiFormat: ApiCallFormat) => {
+@@ -47,8 +44,7 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open:
+     const removeModel = (name: string) => setModels(draft.models.filter((model) => model.name !== name));
+ 
+     const save = () => {
+-        onSave({ ...draft, name: draft.name.trim() || t("config.channels.unnamed"), models: normalizeChannelModels(draft.models) });
+-        onClose();
++        void editor.save({ ...draft, name: draft.name.trim() || t("config.channels.unnamed"), models: normalizeChannelModels(draft.models) });
+     };
+ 
+     return (
+@@ -58,17 +54,19 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open:
+             getContainer={viewport ?? undefined}
+             rootStyle={viewport ? { position: "absolute", inset: 0 } : undefined}
+             title={t("config.channelEditor.title")}
+-            onClose={onClose}
++            onClose={editor.close}
+             styles={{ body: { paddingTop: 16 } }}
+             extra={
+                 <Space>
+-                    <Button onClick={onClose}>{t("common.cancel")}</Button>
+-                    <Button type="primary" onClick={save}>
++                    <Button disabled={editor.pending} onClick={editor.close}>{t("common.cancel")}</Button>
++                    <Button type="primary" loading={editor.saving} onClick={save}>
+                         {t("common.save")}
+                     </Button>
+                 </Space>
+             }
+         >
++            {editor.message ? <p role="status" className="mb-4 text-sm text-amber-600 dark:text-amber-400">{editor.message}</p> : null}
++            <fieldset disabled={editor.locked} className="min-w-0 border-0 p-0">
+             <div className="grid gap-4 md:grid-cols-2">
+                 <label className="block">
+                     <span className="mb-1 block text-sm font-medium">{t("config.channelEditor.name")}</span>
+@@ -84,7 +82,7 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open:
+                 </label>
+                 <label className="block md:col-span-2">
+                     <span className="mb-1 block text-sm font-medium">API Key</span>
+-                    <Input.Password value={draft.apiKey} onChange={(event) => patch({ apiKey: event.target.value })} placeholder="sk-..." />
++                    <ChannelCredentialInput value={draft.apiKey} onChange={(apiKey) => patch({ apiKey })} disabled={editor.locked} />
+                 </label>
+             </div>
+ 
+@@ -120,7 +118,8 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open:
+                 )}
+             </div>
+ 
+-            <ModelSelectModal open={selectOpen} channel={draft} selectedNames={draft.models.map((model) => model.name)} onConfirm={applySelection} onClose={() => setSelectOpen(false)} />
++            </fieldset>
++            <ModelSelectModal open={selectOpen && !editor.locked} channel={draft} selectedNames={draft.models.map((model) => model.name)} onConfirm={applySelection} onClose={() => setSelectOpen(false)} />
+ 
+             {businessFeatures.modelScripts ? <ModelScriptEditor
+                 open={Boolean(scriptTarget)}

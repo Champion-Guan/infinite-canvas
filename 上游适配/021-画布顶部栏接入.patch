@@ -1,0 +1,199 @@
+diff --git a/web/src/components/canvas/canvas-top-bar.tsx b/web/src/components/canvas/canvas-top-bar.tsx
+index 25d4192..842439a 100644
+--- a/web/src/components/canvas/canvas-top-bar.tsx
++++ b/web/src/components/canvas/canvas-top-bar.tsx
+@@ -1,16 +1,19 @@
+-import { useEffect, useRef, useState } from "react";
+-import { BookOpen, Bot, Download, Home, Images, Menu, PanelLeftClose, PanelLeftOpen, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
+-import { Button, Dropdown, Modal, Tooltip } from "antd";
++import { useProductActive } from "@/扩展功能/产品/产品界面边界";
++import { productFeatures } from "@/扩展功能/产品配置/功能开关";
++import { useEffect, useRef, useState, useSyncExternalStore } from "react";
++import { Bot, Download, Grid2x2, Keyboard, Menu, PanelLeftClose, PanelLeftOpen, Redo2, Undo2, Upload } from "lucide-react";
++import { Button, Dropdown, Modal, Tooltip, type MenuProps } from "antd";
+ import { useTranslation } from "react-i18next";
+ 
+-import { UserStatusActions } from "@/components/layout/user-status-actions";
++import { VersionReleaseModal } from "@/components/layout/version-release-modal";
+ import { canvasThemes } from "@/lib/canvas-theme";
+ import { useCanvasSidePanelStore } from "@/stores/use-canvas-side-panel-store";
+ import { useThemeStore } from "@/stores/use-theme-store";
+-import { DOCS_URL } from "@/constant/env";
++import { storageStatus } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ 
+ export function CanvasTopBar({
+     title,
++    savePending,
+     titleDraft,
+     isTitleEditing,
+     onTitleDraftChange,
+@@ -19,12 +22,9 @@ export function CanvasTopBar({
+     onCancelTitleEditing,
+     canUndo,
+     canRedo,
+-    onHome,
+-    onProjects,
+-    onCreateProject,
+-    onDeleteProject,
+     onExportProject,
+-    onImportImage,
++    onOrganizeOverlaps,
++    onImportContents,
+     onOpenPlugins,
+     onUndo,
+     onRedo,
+@@ -33,6 +33,7 @@ export function CanvasTopBar({
+     onToggleAgent,
+ }: {
+     title: string;
++    savePending: boolean;
+     titleDraft: string;
+     isTitleEditing: boolean;
+     onTitleDraftChange: (value: string) => void;
+@@ -41,12 +42,9 @@ export function CanvasTopBar({
+     onCancelTitleEditing: () => void;
+     canUndo: boolean;
+     canRedo: boolean;
+-    onHome: () => void;
+-    onProjects: () => void;
+-    onCreateProject: () => void;
+-    onDeleteProject: () => void;
+     onExportProject: () => void;
+-    onImportImage: () => void;
++    onOrganizeOverlaps: () => void;
++    onImportContents: () => void;
+     onOpenPlugins: () => void;
+     onUndo: () => void;
+     onRedo: () => void;
+@@ -58,6 +56,7 @@ export function CanvasTopBar({
+     const { t } = useTranslation();
+     const theme = canvasThemes[colorTheme];
+     const titleRef = useRef<HTMLDivElement>(null);
++    const productActive = useProductActive();
+     const [shortcutsOpen, setShortcutsOpen] = useState(false);
+     const sidePanelOpen = useCanvasSidePanelStore((state) => state.panelOpen);
+     const toggleSidePanel = useCanvasSidePanelStore((state) => state.togglePanel);
+@@ -80,7 +79,7 @@ export function CanvasTopBar({
+                             type="button"
+                             onClick={toggleSidePanel}
+                             aria-label={sidePanelOpen ? t("canvas.collapsePanel") : t("canvas.expandPanel")}
+-                            className="grid size-7 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10"
++                            className="guan-apple-glow guan-toolbar-focus grid size-7 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10"
+                             style={{ color: theme.node.text }}
+                         >
+                             {sidePanelOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
+@@ -89,23 +88,17 @@ export function CanvasTopBar({
+                     <Dropdown
+                         trigger={["click"]}
+                         menu={{
+-                            items: [
+-                                { key: "home", icon: <Home className="size-4" />, label: t("canvas.home"), onClick: onHome },
+-                                { key: "docs", icon: <BookOpen className="size-4" />, label: t("canvas.docs"), onClick: () => window.open(DOCS_URL, "_blank", "noopener,noreferrer") },
+-                                { key: "projects", icon: <Images className="size-4" />, label: t("canvas.projects"), onClick: onProjects },
+-                                { type: "divider" },
+-                                { key: "new", icon: <Plus className="size-4" />, label: t("canvas.create"), onClick: onCreateProject },
+-                                { key: "delete", danger: true, icon: <Trash2 className="size-4" />, label: t("canvas.deleteCurrent"), onClick: onDeleteProject },
+-                                { type: "divider" },
+-                                { key: "import", icon: <Upload className="size-4" />, label: t("canvas.importAsset"), onClick: onImportImage },
++                            items: ([
++                                { key: "importContents", icon: <Upload className="size-4" />, label: "导入画布内容（ZIP）", onClick: onImportContents },
+                                 { key: "export", icon: <Download className="size-4" />, label: t("canvas.exportCurrent"), onClick: onExportProject },
+                                 { type: "divider" },
++                                { key: "organize", icon: <Grid2x2 className="size-4" />, label: "整理重叠卡片（可撤销）", onClick: onOrganizeOverlaps },
+                                 { key: "undo", disabled: !canUndo, icon: <Undo2 className="size-4" />, label: <MenuLabel text={t("canvas.undo")} shortcut="⌘ Z" />, onClick: onUndo },
+                                 { key: "redo", disabled: !canRedo, icon: <Redo2 className="size-4" />, label: <MenuLabel text={t("canvas.redo")} shortcut="⌘ ⇧ Z / ⌘ Y" />, onClick: onRedo },
+-                            ],
++                            ] satisfies NonNullable<MenuProps["items"]>),
+                         }}
+                     >
+-                        <button type="button" className="grid size-7 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} aria-label={t("canvas.openMenu")}>
++                        <button type="button" className="guan-apple-glow guan-toolbar-focus grid size-7 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} aria-label={t("canvas.openMenu")}>
+                             <Menu className="size-4" />
+                         </button>
+                     </Dropdown>
+@@ -114,6 +107,7 @@ export function CanvasTopBar({
+                         {isTitleEditing ? (
+                             <input
+                                 autoFocus
++                                aria-label="画布名称"
+                                 value={titleDraft}
+                                 onChange={(event) => onTitleDraftChange(event.target.value)}
+                                 onBlur={onFinishTitleEditing}
+@@ -135,24 +129,32 @@ export function CanvasTopBar({
+                             </button>
+                         )}
+                     </div>
+-                    <CompactAgentStatus status={compactAgentStatus} onClick={onToggleAgent} />
++                    <CanvasSaveStatus pending={savePending} />
++                    {productFeatures.externalAgent ? <CompactAgentStatus status={compactAgentStatus} onClick={onToggleAgent} /> : null}
+                 </div>
+ 
+                 <div className="pointer-events-auto flex items-center gap-1.5">
+-                    <UserStatusActions variant="canvas" onOpenShortcuts={() => setShortcutsOpen(true)} onOpenPlugins={onOpenPlugins} />
+-                    <span className="h-6 w-px" style={{ background: theme.toolbar.border }} />
+-                    <Button
+-                        type="text"
+-                        className="!h-10 !rounded-xl !px-3 !font-medium"
+-                        style={{ background: agentOpen ? theme.toolbar.activeBg : theme.toolbar.panel, color: theme.node.text, boxShadow: "0 10px 30px rgba(28,25,23,.10)" }}
+-                        icon={<Bot className="size-4" />}
+-                        onClick={onToggleAgent}
+-                    >
+-                        Agent
+-                    </Button>
++                    <VersionReleaseModal className="guan-apple-glow guan-toolbar-focus inline-flex h-7 shrink-0 cursor-pointer items-center rounded-md px-2 text-xs font-medium transition-colors hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} />
++                    <button type="button" className="guan-apple-glow guan-toolbar-focus inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} onClick={() => setShortcutsOpen(true)} aria-label={t("topNav.shortcuts")} title={t("topNav.shortcuts")}>
++                        <Keyboard className="size-4" />
++                    </button>
++                    {productFeatures.externalAgent ? (
++                        <>
++                            <span className="h-6 w-px" style={{ background: theme.toolbar.border }} />
++                            <Button
++                                type="text"
++                                className="!h-10 !rounded-xl !px-3 !font-medium"
++                                style={{ background: agentOpen ? theme.toolbar.activeBg : theme.toolbar.panel, color: theme.node.text, boxShadow: "0 10px 30px rgba(28,25,23,.10)" }}
++                                icon={<Bot className="size-4" />}
++                                onClick={onToggleAgent}
++                            >
++                                Agent
++                            </Button>
++                        </>
++                    ) : null}
+                 </div>
+             </div>
+-            <Modal title={t("canvas.shortcuts")} open={shortcutsOpen} onCancel={() => setShortcutsOpen(false)} footer={null} centered>
++            <Modal title={t("canvas.shortcuts")} open={productActive && shortcutsOpen} onCancel={() => setShortcutsOpen(false)} footer={null} centered>
+                 <div className="space-y-2 border-t pt-4 text-sm" style={{ borderColor: theme.node.stroke }}>
+                     <Shortcut keys={["Ctrl / Space", t("canvas.shortcut.drag")]} value={t("canvas.shortcut.toggleTool")} />
+                     <Shortcut keys={[t("canvas.shortcut.wheel")]} value={t("canvas.shortcut.zoom")} />
+@@ -198,6 +200,31 @@ function CompactAgentStatus({ status, onClick }: { status: { connected: boolean;
+     );
+ }
+ 
++function subscribeSaveStatus(callback: () => void) {
++    window.addEventListener("guan:storage-status", callback);
++    return () => window.removeEventListener("guan:storage-status", callback);
++}
++
++function readSaveStatus() {
++    const status = storageStatus();
++    if (status.state === "error" || status.reconnectError) return "error";
++    return status.state === "saved" && !status.pending && !status.retrying ? "saved" : "saving";
++}
++
++function CanvasSaveStatus({ pending }: { pending: boolean }) {
++    const status = useSyncExternalStore(subscribeSaveStatus, readSaveStatus, () => "saving");
++    const colorTheme = useThemeStore((state) => state.theme);
++    const theme = canvasThemes[colorTheme];
++    const failed = status === "error";
++    const saving = !failed && (pending || status === "saving");
++    return (
++        <span className="guan-canvas-save-status flex h-8 items-center gap-1.5 text-xs" style={{ color: failed ? "#dc2626" : saving ? "#d97706" : theme.node.muted }} aria-live="polite" data-canvas-save-status={failed ? "error" : saving ? "saving" : "saved"}>
++            <span className="size-2 rounded-full" style={{ background: failed ? "#dc2626" : saving ? "#f59e0b" : "#22c55e" }} />
++            <span className="max-w-[140px] truncate">{failed ? "保存失败" : saving ? "保存中…" : "已保存"}</span>
++        </span>
++    );
++}
++
+ function Shortcut({ keys, value }: { keys: string[]; value: string }) {
+     return (
+         <div className="grid grid-cols-[minmax(0,1fr)_120px] items-center gap-6 rounded-lg px-1 py-1.5">

@@ -1,0 +1,36 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 2689b4e..c9b1214 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,3 +1,4 @@
++import { hasHeicNameOrType } from "@/扩展功能/媒体交付/HEIC格式识别.mjs";
+ import { useCanvasConnectionSystem } from "@/扩展功能/画布连线/画布连线状态";
+ import { snapConnectionPorts } from "@/扩展功能/画布连线/连线端口吸附";
+ import { connectionSelectionKey, selectedConnection } from "@/扩展功能/画布连线/连线关系标识";
+@@ -2096,7 +2097,7 @@ function InfiniteCanvasPage() {
+             const input = event.target;
+             try { await attemptImageUpload(async () => {
+             const files = Array.from(event.target.files || []).filter(
+-                (f) => f.type.startsWith("image/") || f.type.startsWith("video/") || isAudioFile(f),
++                (f) => f.type.startsWith("image/") || hasHeicNameOrType(f) || f.type.startsWith("video/") || isAudioFile(f),
+             );
+             if (!files.length) {
+                 uploadTargetRef.current = null;
+@@ -2250,7 +2251,7 @@ function InfiniteCanvasPage() {
+                 return;
+             }
+             const files = Array.from(event.dataTransfer.files).filter(
+-                (item) => item.type.startsWith("image/") || item.type.startsWith("video/") || isAudioFile(item),
++                (item) => item.type.startsWith("image/") || hasHeicNameOrType(item) || item.type.startsWith("video/") || isAudioFile(item),
+             );
+             if (!files.length) return;
+ 
+@@ -3340,7 +3341,7 @@ function InfiniteCanvasPage() {
+                     />
+                 ) : null}
+ 
+-                <input ref={imageInputRef} type="file" multiple accept="image/*,video/*,audio/mpeg,audio/wav,audio/x-wav,.mp3,.wav" className="hidden" onChange={handleImageInputChange} />
++                <input ref={imageInputRef} type="file" multiple accept="image/*,.heic,.heif,video/*,audio/mpeg,audio/wav,audio/x-wav,.mp3,.wav" className="hidden" onChange={handleImageInputChange} />
+                 <input ref={contentInputRef} type="file" accept=".zip,application/zip" className="hidden" onChange={event => void importCurrentContents(event.target.files?.[0])} />
+ 
+                 <CanvasNodeInfoModal node={infoNode} open={productActive && Boolean(infoNode)} onClose={() => setInfoNodeId(null)} />

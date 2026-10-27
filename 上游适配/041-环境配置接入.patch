@@ -1,0 +1,15 @@
+diff --git a/web/src/constant/env.ts b/web/src/constant/env.ts
+index 84a4f24..e924407 100644
+--- a/web/src/constant/env.ts
++++ b/web/src/constant/env.ts
+@@ -1,5 +1,10 @@
+ export const APP_VERSION = __APP_VERSION__ || "dev";
+ 
++export function formatDisplayVersion(version: string | null | undefined) {
++    if (!version) return "v—";
++    return `v${version.replace(/^v/, "")}`;
++}
++
+ export const DOCS_URL = import.meta.env.VITE_DOC_URL || "https://docs.canvas.best";
+ 
+ // Official plugin registry URL: CI publishes to plugins-dist for jsDelivr delivery; an environment variable may override it for self-hosting.

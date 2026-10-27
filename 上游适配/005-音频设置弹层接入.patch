@@ -1,0 +1,20 @@
+diff --git a/web/src/components/canvas/canvas-audio-settings-popover.tsx b/web/src/components/canvas/canvas-audio-settings-popover.tsx
+index 2f20434..2f45a1c 100644
+--- a/web/src/components/canvas/canvas-audio-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-audio-settings-popover.tsx
+@@ -1,5 +1,5 @@
+ import { useEffect, useRef, useState, type RefObject } from "react";
+-import { createPortal } from "react-dom";
++import { createProductPortal } from "@/扩展功能/产品/产品界面边界";
+ import { Settings2 } from "lucide-react";
+ import { Button } from "antd";
+ 
+@@ -98,7 +98,7 @@ function AudioSettingsPortal({
+         color: theme.node.text,
+     } as const;
+ 
+-    return createPortal(
++    return createProductPortal(
+         <div
+             ref={panelRef}
+             className="canvas-image-settings-popover"

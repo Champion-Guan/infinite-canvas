@@ -1,0 +1,59 @@
+diff --git a/web/src/components/canvas/canvas-node-split-dialog.tsx b/web/src/components/canvas/canvas-node-split-dialog.tsx
+index 891c5b0..5dec331 100644
+--- a/web/src/components/canvas/canvas-node-split-dialog.tsx
++++ b/web/src/components/canvas/canvas-node-split-dialog.tsx
+@@ -3,7 +3,7 @@ import { Button, InputNumber, Modal, Tooltip } from "antd";
+ import { Grid2x2, ListRestart, PanelTop, Redo2, Rows3, Trash2, Undo2, ZoomIn, ZoomOut } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 
+-import { readImageMeta } from "@/lib/image-utils";
++import { useEditorImage, EditorImageStatus } from "@/扩展功能/媒体交付/编辑图片读取";
+ import type { ImageSplitParams } from "@/lib/canvas/canvas-image-data";
+ import { useImageEditorViewport } from "@/components/canvas/use-image-editor-viewport";
+ 
+@@ -16,7 +16,8 @@ type ActiveLine = { axis: "horizontal" | "vertical"; index: number } | null;
+ export function CanvasNodeSplitDialog({ dataUrl, open, onClose, onConfirm }: { dataUrl: string; open: boolean; onClose: () => void; onConfirm: (params: CanvasImageSplitParams) => void }) {
+     const { t } = useTranslation();
+     const [params, setParams] = useState(defaultParams);
+-    const [image, setImage] = useState<{ width: number; height: number } | null>(null);
++    const imageRead = useEditorImage(dataUrl, open);
++    const { image } = imageRead;
+     const [active, setActive] = useState<ActiveLine>(null);
+     const historyRef = useRef<CanvasImageSplitParams[]>([]);
+     const redoRef = useRef<CanvasImageSplitParams[]>([]);
+@@ -36,18 +37,12 @@ export function CanvasNodeSplitDialog({ dataUrl, open, onClose, onConfirm }: { d
+         if (!open) return;
+         setParams(defaultParams);
+         setActive(null);
+-        setImage(null);
+         historyRef.current = [];
+         redoRef.current = [];
+         setHistorySize(0);
+         setRedoSize(0);
+     }, [dataUrl, open]);
+ 
+-    useEffect(() => {
+-        if (!open) return;
+-        void readImageMeta(dataUrl).then(setImage);
+-    }, [dataUrl, open]);
+-
+     useEffect(() => {
+         if (!open) dragAbortRef.current?.abort();
+         return () => dragAbortRef.current?.abort();
+@@ -149,6 +144,7 @@ export function CanvasNodeSplitDialog({ dataUrl, open, onClose, onConfirm }: { d
+ 
+     return (
+         <Modal title={null} open={open && Boolean(dataUrl)} onCancel={onClose} footer={null} width={780} centered destroyOnHidden transitionName="" maskTransitionName="">
++            <EditorImageStatus {...imageRead} />
+             <div className="space-y-5" data-canvas-no-zoom>
+                 <div>
+                     <h2 className="text-xl font-semibold">{t("canvas.editors.splitTitle")}</h2>
+@@ -219,7 +215,7 @@ export function CanvasNodeSplitDialog({ dataUrl, open, onClose, onConfirm }: { d
+                                 <span className="font-semibold">{pieceSize ? `${pieceSize.width} x ${pieceSize.height}` : t("canvas.editors.unknown")}</span>
+                             </div>
+                         </div>
+-                        <Button type="primary" size="large" className="w-full" icon={<Grid2x2 className="size-4" />} onClick={() => onConfirm(confirmParams)}>
++                        <Button type="primary" size="large" className="w-full" icon={<Grid2x2 className="size-4" />} disabled={!image} onClick={() => onConfirm(confirmParams)}>
+                             {t("canvas.editors.generateChildren")}
+                         </Button>
+                     </div>

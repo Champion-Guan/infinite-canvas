@@ -1,0 +1,69 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 280c463..834dbc3 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -19,8 +19,7 @@ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { ImageTaskConfirmation } from "@/扩展功能/画布生成/图片任务确认状态";
+ import { requestCanvasImage } from "@/扩展功能/画布生成/原画布图片调用";
+ import { readProtectedRetryPrompt } from "@/扩展功能/提示词/生成文本读取";
+-import { useProductCanvasSave } from "@/扩展功能/产品/产品操作";
+-import { flushSQLiteStorage } from "@/扩展功能/本机存储/上游浏览器存储桥";
++import { useCanvasPersistence } from "@/扩展功能/产品/画布保存接线";
+ import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
+ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+ import type { ChangeEvent as ReactChangeEvent, DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
+@@ -591,30 +590,11 @@ function InfiniteCanvasPage() {
+         };
+     }, [activeChatId, backgroundMode, chatSessions, connections, createHistoryEntry, nodes, projectLoaded, showImageInfo]);
+ 
+-    useEffect(() => {
+-        if (!projectLoaded || historyPausedRef.current || isNodeDragging || isNodeResizing) return;
+-        updateProject(projectId, { nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo });
+-    }, [activeChatId, backgroundMode, chatSessions, connections, nodes, projectId, projectLoaded, showImageInfo, updateProject, isNodeDragging, isNodeResizing]);
+-
+-    const updateFlushSnapshot = useMemo(() => ({ projectId, nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport }),
+-        [projectId, nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport]);
+-    useProductCanvasSave(projectId, updateFlushSnapshot,
+-        () => projectLoaded && restoredProjectIdRef.current === projectId && !historyPausedRef.current && nodes === nodeTransactionRef.current
+-            && !dragRef.current.isDraggingNode && !isNodeDragging && !isNodeResizing && focusAnimRef.current === null,
+-        async (snapshot) => {
+-            const { projectId: id, ...patch } = snapshot;
+-            if (restoredProjectIdRef.current !== id || snapshot.nodes !== nodeTransactionRef.current) throw new Error("Canvas commit invalidated");
+-            if (!useCanvasStore.getState().projects.some(project => project.id === id)) throw new Error("Canvas unavailable");
+-            updateProject(id, patch);
+-            await flushSQLiteStorage();
+-            // The committed snapshot includes the viewport. Cancel a queued
+-            // viewport write only after this full snapshot was actually saved.
+-            // Do not cancel a timer scheduled by a newer committed viewport.
+-            if (viewportRef.current === snapshot.viewport) {
+-                if (viewportSaveTimerRef.current) clearTimeout(viewportSaveTimerRef.current);
+-                viewportSaveTimerRef.current = null;
+-            }
+-        }, () => generationRequestsRef.current.size === 0 && runningNodeId === null);
++    useCanvasPersistence({
++        projectId, nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport,
++        projectLoaded, restoredProjectIdRef, nodeTransactionRef, historyPausedRef, dragRef, isNodeDragging,
++        isNodeResizing, focusAnimRef, viewportRef, viewportSaveTimerRef, generationRequestsRef, runningNodeId, updateProject,
++    });
+ 
+     const { clearConfirmedImageError, recordImageGatewayTask, requestNodeText } = useCanvasTaskReceipts({ projectId, nodesRef, restoredProjectIdRef, setNodes });
+     const saveCanvasImageResult = useCanvasImageResults({ projectId, nodesRef, restoredProjectIdRef, surfaceRef, setNodes });
+@@ -623,18 +603,6 @@ function InfiniteCanvasPage() {
+         if (!dialogNodeId) setNodeImageSettingsOpen(false);
+     }, [dialogNodeId]);
+ 
+-    useEffect(() => {
+-        if (!projectLoaded) return;
+-        if (viewportSaveTimerRef.current) clearTimeout(viewportSaveTimerRef.current);
+-        viewportSaveTimerRef.current = setTimeout(() => {
+-            updateProject(projectId, { viewport: viewportRef.current });
+-            viewportSaveTimerRef.current = null;
+-        }, 500);
+-        return () => {
+-            if (viewportSaveTimerRef.current) clearTimeout(viewportSaveTimerRef.current);
+-        };
+-    }, [projectId, projectLoaded, updateProject, viewport]);
+-
+     useEffect(() => {
+         if (!projectLoaded) return;
+         const current = nodesRef.current;

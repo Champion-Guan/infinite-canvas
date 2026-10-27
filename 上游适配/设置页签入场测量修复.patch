@@ -1,0 +1,35 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index 1877f46..7ada004 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -1,3 +1,4 @@
++import { useSettingsTabBarAlignment } from "@/扩展功能/存储界面/设置页签测量";
+ import { SettingsDoneButton } from "@/扩展功能/存储界面/设置完成按钮";
+ import { businessFeatures, resolveBusinessConfigTab } from "@/扩展功能/产品配置/脚本与提示词来源";
+ import { productFeatures, resolveConfigTab } from "@/扩展功能/产品配置/功能开关";
+@@ -60,6 +61,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+     const { message } = App.useApp();
+     const { i18n, t } = useTranslation();
+     const configInputRef = useRef<HTMLInputElement>(null);
++    const { surfaceRef, renderTabBar } = useSettingsTabBarAlignment();
+     const [activeTab, setActiveTab] = useState<ConfigTabKey>(() => resolveBusinessConfigTab(resolveConfigTab(initialTab)));
+     const [editingChannelId, setEditingChannelId] = useState("");
+     const [testingWebdav, setTestingWebdav] = useState(false);
+@@ -163,7 +165,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+     };
+ 
+     return (
+-        <div className="guan-settings-surface guan-motion-panel">
++        <div ref={surfaceRef} className="guan-settings-surface guan-motion-panel">
+             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-3 dark:border-stone-800">
+                 <div className="text-xs text-stone-500">{t("config.fileSecurity")}</div>
+                 <div className="flex gap-2">
+@@ -179,6 +181,8 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+             </div>
+             <Tabs
+                 className="guan-settings-tabs guan-apple-transition [&>.ant-tabs-nav_.ant-tabs-nav-list]:gap-1"
++                renderTabBar={renderTabBar}
++                styles={{ item: { transform: "none" } }}
+                 activeKey={activeTab}
+                 onChange={(key) => {
+                     const nextTab = resolveBusinessConfigTab(resolveConfigTab(key as ConfigTabKey));

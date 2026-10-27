@@ -1,0 +1,69 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 7f38088..af2325c 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -7,9 +7,9 @@ import { ExcelCanvasScope, useExcelPromptContext } from "@/扩展功能/Excel画
+ import { registerExcelParameterNode } from "@/扩展功能/Excel画布/Excel参数节点注册";
+ import { PROMPT_VARIABLES_NODE_TYPE } from "@/扩展功能/Excel画布/旧版参数规则";
+ import { readProductParameterValues } from "@/扩展功能/Excel画布/Excel参数记忆";
+-import { syncExcelPromptNodes } from "@/扩展功能/Excel画布/旧版提示词同步";
+-import { bindExcelParameters, createProductParameterNode, insertExcelPromptCards, reconcileExcelPreviews, disconnectExcelParameters, remapCopiedExcelRelations, type ExcelInsertRequest } from "@/扩展功能/Excel画布/Excel卡片事务";
+-import { EXCEL_PROMPT_DRAG_TYPE } from "@/扩展功能/Excel画布/Excel提示词列表";
++import { useExcelCanvasInsertion } from "@/扩展功能/Excel画布/Excel插入操作";
++import { bindExcelParameters, createProductParameterNode, reconcileExcelPreviews, disconnectExcelParameters, remapCopiedExcelRelations } from "@/扩展功能/Excel画布/Excel卡片事务";
++import { EXCEL_PROMPT_DRAG_TYPE } from "@/扩展功能/Excel画布/Excel拖入校验";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { ImageTaskConfirmation } from "@/扩展功能/画布生成/图片任务确认状态";
+ import { requestCanvasImage } from "@/扩展功能/画布生成/原画布图片调用";
+@@ -720,21 +720,10 @@ function InfiniteCanvasPage() {
+ 
+     const hideNodeToolbar = useCallback(() => {}, []);
+ 
+-    const insertExcelCards = useCallback((request: ExcelInsertRequest, center?: Position) => {
+-        if (!productActive || !projectLoaded || restoredProjectIdRef.current !== projectId) return;
+-        try {
+-            const result = insertExcelPromptCards(nodesRef.current, connectionsRef.current, excelContext, request, center || getCanvasCenter(), excelFactory,
+-                node => window.confirm(`「${node.title || "提示词"}」已手动修改，是否使用 Excel 新内容覆盖？`), syncExcelPromptNodes);
+-            setNodes(result.nodes); connectionsRef.current = result.connections; setConnections(result.connections);
+-            setSelectedNodeIds(new Set(result.selectedIds)); setSelectedConnectionId(null);
+-        } catch (error) { message.error(error instanceof Error ? error.message : "Excel提示词插入失败，原画布保留"); }
+-    }, [productActive, projectLoaded, projectId, excelContext, getCanvasCenter, setNodes, message]);
+-
+-    useEffect(() => {
+-        if (!projectLoaded) return;
+-        const next = syncExcelPromptNodes(nodesRef.current, excelContext, node => productActive ? window.confirm(`「${node.title || "提示词"}」已手动修改，是否使用 Excel 新内容覆盖？`) : undefined);
+-        if (next !== nodesRef.current) setNodes(next);
+-    }, [excelContext, projectLoaded, productActive, setNodes]);
++    const { insertExcelCards, dropExcelCards } = useExcelCanvasInsertion({
++        projectId, productActive, projectLoaded, restoredProjectIdRef, excelContext, nodesRef, connectionsRef,
++        setNodes, setConnections, setSelectedNodeIds, setSelectedConnectionId, getCanvasCenter, factory: excelFactory, message,
++    });
+ 
+     const connectNodes = useCallback(
+         (current: ConnectionHandle, targetNodeId: string) => {
+@@ -2535,15 +2524,7 @@ function InfiniteCanvasPage() {
+     const handleDrop = useCallback(
+         (event: ReactDragEvent<HTMLDivElement>) => {
+             event.preventDefault();
+-            const excelDrag = event.dataTransfer.getData(EXCEL_PROMPT_DRAG_TYPE);
+-            if (excelDrag) {
+-                try {
+-                    const request: unknown = JSON.parse(excelDrag);
+-                    if (!request || typeof request !== "object" || !("productId" in request) || !("templateId" in request) || !("key" in request) || typeof request.productId !== "string" || typeof request.templateId !== "string" || typeof request.key !== "string") throw Error("Excel拖入数据格式错误");
+-                    insertExcelCards({ productId: request.productId, templateId: request.templateId, key: request.key }, screenToCanvas(event.clientX, event.clientY));
+-                } catch (error) { message.warning(error instanceof Error ? error.message : "Excel拖入失败"); }
+-                return;
+-            }
++            if (dropExcelCards(event.dataTransfer.getData(EXCEL_PROMPT_DRAG_TYPE), screenToCanvas(event.clientX, event.clientY))) return;
+             const promptData = event.dataTransfer.getData("application/x-infinite-canvas-prompt");
+             if (promptData) {
+                 try {
+@@ -2580,7 +2561,7 @@ function InfiniteCanvasPage() {
+                 }
+             }
+         },
+-        [createAudioFileNode, createImageFileNode, createVideoFileNode, screenToCanvas, insertExcelCards, message, setNodes],
++        [createAudioFileNode, createImageFileNode, createVideoFileNode, screenToCanvas, dropExcelCards, message, setNodes],
+     );
+ 
+     const startTitleEditing = useCallback(() => {

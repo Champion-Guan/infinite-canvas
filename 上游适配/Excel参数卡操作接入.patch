@@ -1,0 +1,98 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index af2325c..f339fc5 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -6,9 +6,9 @@ import { promptGenerationPatch, detectedPromptConfig, generationNodeForExecution
+ import { ExcelCanvasScope, useExcelPromptContext } from "@/扩展功能/Excel画布/Excel画布上下文";
+ import { registerExcelParameterNode } from "@/扩展功能/Excel画布/Excel参数节点注册";
+ import { PROMPT_VARIABLES_NODE_TYPE } from "@/扩展功能/Excel画布/旧版参数规则";
+-import { readProductParameterValues } from "@/扩展功能/Excel画布/Excel参数记忆";
++import { useExcelParameterOperations } from "@/扩展功能/Excel画布/Excel参数操作";
+ import { useExcelCanvasInsertion } from "@/扩展功能/Excel画布/Excel插入操作";
+-import { bindExcelParameters, createProductParameterNode, reconcileExcelPreviews, disconnectExcelParameters, remapCopiedExcelRelations } from "@/扩展功能/Excel画布/Excel卡片事务";
++import { reconcileExcelPreviews, remapCopiedExcelRelations } from "@/扩展功能/Excel画布/Excel卡片事务";
+ import { EXCEL_PROMPT_DRAG_TYPE } from "@/扩展功能/Excel画布/Excel拖入校验";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { ImageTaskConfirmation } from "@/扩展功能/画布生成/图片任务确认状态";
+@@ -725,6 +725,10 @@ function InfiniteCanvasPage() {
+         setNodes, setConnections, setSelectedNodeIds, setSelectedConnectionId, getCanvasCenter, factory: excelFactory, message,
+     });
+ 
++    const { createParameterNode, bindParameterConnection, disconnectParameterConnection } = useExcelParameterOperations({
++        projectId, excelContext, nodesRef, connectionsRef, setNodes, setConnections, factory: excelFactory,
++    });
++
+     const connectNodes = useCallback(
+         (current: ConnectionHandle, targetNodeId: string) => {
+             if (current.nodeId === targetNodeId) return;
+@@ -756,14 +760,12 @@ function InfiniteCanvasPage() {
+                     }
+                 }
+                 if (nextNodes !== nodesRef.current) setNodes(nextNodes);
+-                const bound = bindExcelParameters(nextNodes, connectionsRef.current, fromNodeId, toNodeId, excelFactory);
+-                if (bound) { setNodes(bound.nodes); connectionsRef.current = bound.connections; setConnections(bound.connections); }
+-                else setConnections((prev) => [...prev, { id: nanoid(), fromNodeId, toNodeId }]);
++                if (!bindParameterConnection(fromNodeId, toNodeId, nextNodes)) setConnections((prev) => [...prev, { id: nanoid(), fromNodeId, toNodeId }]);
+                 } catch (error) { message.warning(error instanceof Error ? error.message : "参数连接失败"); }
+             }
+             setContextMenu(null);
+         },
+-        [effectiveConfig, message, setNodes, t],
++        [effectiveConfig, message, setNodes, bindParameterConnection, t],
+     );
+ 
+     const createConnectedNode = useCallback(
+@@ -776,16 +778,16 @@ function InfiniteCanvasPage() {
+                 message.warning(t("canvas.projectPage.configConnection"));
+                 return;
+             }
+-            const bound = bindExcelParameters([...nodesRef.current, newNode], connectionsRef.current, connection.fromNodeId, connection.toNodeId, excelFactory);
+-            if (bound) { setNodes(bound.nodes); connectionsRef.current = bound.connections; setConnections(bound.connections); }
+-            else { setNodes((prev) => [...prev, newNode]); setConnections((prev) => [...prev, { id: nanoid(), ...connection }]); }
++            if (!bindParameterConnection(connection.fromNodeId, connection.toNodeId, [...nodesRef.current, newNode])) {
++                setNodes((prev) => [...prev, newNode]); setConnections((prev) => [...prev, { id: nanoid(), ...connection }]);
++            }
+             setSelectedNodeIds(new Set([newNode.id]));
+             setSelectedConnectionId(null);
+             if (type !== CanvasNodeType.Text && type !== CanvasNodeType.Audio) setDialogNodeId(newNode.id);
+             setPendingConnectionCreate(null);
+             setConnecting(null);
+         },
+-        [effectiveConfig, message, setConnecting, setNodes, t],
++        [effectiveConfig, message, setConnecting, setNodes, bindParameterConnection, t],
+     );
+ 
+     const cancelPendingConnectionCreate = useCallback(() => {
+@@ -981,7 +983,7 @@ function InfiniteCanvasPage() {
+                       }
+                     : undefined;
+             const currentViewport = viewportRef.current;
+-            const newNode = placeCanvasNode(type === PROMPT_VARIABLES_NODE_TYPE ? createProductParameterNode(excelContext, targetPosition, readProductParameterValues(projectId), excelFactory) : createCanvasNode(type, targetPosition, configMetadata), nodesRef.current, position ? undefined : {
++            const newNode = placeCanvasNode(type === PROMPT_VARIABLES_NODE_TYPE ? createParameterNode(targetPosition) : createCanvasNode(type, targetPosition, configMetadata), nodesRef.current, position ? undefined : {
+                 x: (24 - currentViewport.x) / currentViewport.k,
+                 y: (80 - currentViewport.y) / currentViewport.k,
+                 width: (size.width - 48) / currentViewport.k,
+@@ -1006,7 +1008,7 @@ function InfiniteCanvasPage() {
+                     : isBuiltinType(type) && type !== CanvasNodeType.Text && type !== CanvasNodeType.Audio && type !== CanvasNodeType.Group;
+             if (wantsPanel) setDialogNodeId(newNode.id);
+         },
+-        [effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, getCanvasCenter, size.width, size.height, setNodes, excelContext, projectId],
++        [effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, getCanvasCenter, size.width, size.height, setNodes, createParameterNode],
+     );
+ 
+     useLayoutEffect(() => {
+@@ -1088,12 +1090,10 @@ function InfiniteCanvasPage() {
+     }, []);
+ 
+     const deleteConnection = useCallback((connectionId: string) => {
+-        const detached = disconnectExcelParameters(nodesRef.current, connectionsRef.current, connectionId);
+-        if (detached) { setNodes(detached.nodes); connectionsRef.current = detached.connections; setConnections(detached.connections); }
+-        else setConnections((prev) => prev.filter((conn) => conn.id !== connectionId));
++        if (!disconnectParameterConnection(connectionId)) setConnections((prev) => prev.filter((conn) => conn.id !== connectionId));
+         setSelectedConnectionId((current) => (current === connectionId ? null : current));
+         setContextMenu((current) => (current?.type === "connection" && current.connectionId === connectionId ? null : current));
+-    }, []);
++    }, [disconnectParameterConnection]);
+ 
+     const disconnectNodeReference = useCallback((fromNodeId: string, toNodeId: string) => {
+         const edge = connectionsRef.current.find(connection => connection.fromNodeId === fromNodeId && connection.toNodeId === toNodeId);

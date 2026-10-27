@@ -1,0 +1,17 @@
+diff --git a/web/src/services/api/prompt-source-runtime.ts b/web/src/services/api/prompt-source-runtime.ts
+index cd198f2..4cb7333 100644
+--- a/web/src/services/api/prompt-source-runtime.ts
++++ b/web/src/services/api/prompt-source-runtime.ts
+@@ -1,3 +1,4 @@
++import { requireBusinessFeature } from "@/扩展功能/产品配置/脚本与提示词来源";
+ import i18n from "@/i18n";
+ import type { PromptSource } from "./prompt-source-presets";
+ 
+@@ -29,6 +30,7 @@ async function fetchSource(source: PromptSource, options?: RunOptions) {
+ }
+ 
+ export async function runPromptSource(source: PromptSource, options?: RunOptions): Promise<RawPrompt[]> {
++    requireBusinessFeature("promptSources");
+     if (!source.url.trim()) throw new Error(i18n.t("config.promptSources.runtime.urlRequired"));
+     let data: unknown;
+     try {

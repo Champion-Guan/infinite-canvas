@@ -1,0 +1,13 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index b69d2cd..1877f46 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -210,7 +210,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                                                 <Button size="small" icon={<Pencil className="size-3.5" />} onClick={() => setEditingChannelId(channel.id)}>
+                                                     {t("common.edit")}
+                                                 </Button>
+-                                                <Button size="small" danger icon={<Trash2 className="size-3.5" />} onClick={() => deleteChannel(channel.id)} />
++                                                <Button size="small" danger icon={<Trash2 className="size-3.5" />} aria-label={`${t("common.delete")} ${channel.name}`} title={`${t("common.delete")} ${channel.name}`} onClick={() => deleteChannel(channel.id)} />
+                                             </div>
+                                         </div>
+                                     ))}

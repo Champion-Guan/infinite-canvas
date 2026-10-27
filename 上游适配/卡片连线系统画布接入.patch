@@ -1,0 +1,123 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index df82dfc..38c0031 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,3 +1,6 @@
++import { useCanvasConnectionSystem } from "@/扩展功能/画布连线/画布连线状态";
++import { snapConnectionPorts } from "@/扩展功能/画布连线/连线端口吸附";
++import { connectionSelectionKey, selectedConnection } from "@/扩展功能/画布连线/连线关系标识";
+ import { useCanvasVideoProtection } from "@/扩展功能/画布生成/视频任务保护";
+ import { useCanvasImageTools } from "@/扩展功能/画布生成/图片工具任务";
+ import { canvasContentSnapshot } from "@/扩展功能/画布布局/坐标独立内容";
+@@ -195,7 +198,7 @@ export default function CanvasPage() {
+ function measureFocusFrame(container: HTMLDivElement | null, nodeId: string) {
+     if (!container) return {};
+     const nodeRect = container.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`)?.getBoundingClientRect();
+-    const panelRect = container.querySelector<HTMLElement>(`[data-node-id="${nodeId}"] [data-node-panel]`)?.getBoundingClientRect();
++    const panelRect = container.querySelector<HTMLElement>(`[data-node-panel="${nodeId}"]`)?.getBoundingClientRect();
+     const toolbarRect = container.closest("[data-product-id]")?.querySelector<HTMLElement>(`[data-node-toolbar="${nodeId}"]`)?.getBoundingClientRect();
+     const dockRect = container.closest("[data-product-id]")?.querySelector<HTMLElement>("[data-canvas-bottom-toolbar]")?.getBoundingClientRect();
+     const below = nodeRect && panelRect ? panelRect.bottom - nodeRect.bottom : 0;
+@@ -801,23 +804,13 @@ function InfiniteCanvasPage() {
+     const visibleNodes = useMemo(() => queryVisibleNodes(viewBounds), [queryVisibleNodes, viewBounds]);
+     const nodeById = useMemo(() => new Map(nodes.map(node => [node.id, node])), [nodes]);
+     const contentNodeById = useMemo(() => new Map(contentNodes.map(node => [node.id, node])), [contentNodes]);
+-    const connectionGeometry = useMemo(() => connections.flatMap(connection => {
+-        const from = nodeById.get(connection.fromNodeId), to = nodeById.get(connection.toNodeId);
+-        if (!from || !to) return [];
+-        const startX = from.position.x + from.width, startY = from.position.y + from.height / 2;
+-        const endX = to.position.x, endY = to.position.y + to.height / 2;
+-        const curvature = Math.max(Math.abs(endX - startX) * 0.5, 50);
+-        return [{ connection, from, to, bounds: {
+-            left: Math.min(startX, endX - curvature), right: Math.max(startX + curvature, endX),
+-            top: Math.min(startY, endY), bottom: Math.max(startY, endY),
+-        } }];
+-    }), [connections, nodeById]);
++    const { connectionGeometry, connectionFocus, obscuredResultIds, connectionPreviewNodeIds, setConnectionPreviewNodeIds, cardEndpointTarget, setCardEndpointTarget, cardPanelTarget, setCardPanelTarget, connectionFocusTarget, setConnectionFocusTarget, setDisplayConnectionIds, keepFocusBehindCards, portAlignmentGuide, setPortAlignmentGuide } = useCanvasConnectionSystem(connections, nodeById, selectedNodeIds, selectedConnectionId, hoveredNodeId);
+     const queryVisibleConnections = useMemo(() => createVisibilityIndex(connectionGeometry, item => item.bounds), [connectionGeometry]);
+     const visibleConnections = useMemo(() => queryVisibleConnections(viewBounds), [queryVisibleConnections, viewBounds]);
+     const selectConnection = useCallback((id: string) => {
+         setSelectedConnectionId(id); setSelectedNodeIds(new Set()); setContextMenu(null);
+     }, []);
+-    const openConnectionMenu = useCallback((id: string, event: ReactMouseEvent<SVGPathElement>) => {
++    const openConnectionMenu = useCallback((event: ReactMouseEvent<SVGPathElement>, id: string) => {
+         setSelectedConnectionId(id); setSelectedNodeIds(new Set());
+         setContextMenu({ type: "connection", x: event.clientX, y: event.clientY, connectionId: id });
+     }, []);
+@@ -1023,7 +1016,7 @@ function InfiniteCanvasPage() {
+ 
+     const disconnectNodeReference = useCallback((fromNodeId: string, toNodeId: string) => {
+         const edge = connectionsRef.current.find(connection => connection.fromNodeId === fromNodeId && connection.toNodeId === toNodeId);
+-        if (edge) deleteConnection(edge.id);
++        if (edge) deleteConnection(connectionSelectionKey(edge));
+     }, [deleteConnection]);
+ 
+     const startNodeReferenceSelection = useCallback((nodeId: string) => {
+@@ -1348,13 +1341,15 @@ function InfiniteCanvasPage() {
+         historyPausedRef.current = false;
+         nodeDraggingRef.current = false;
+         setIsNodeDragging(false);
++        setPortAlignmentGuide(null);
+         setDropTargetGroupId(null);
+         if (dragRef.current.hasMoved && clientX != null && clientY != null) {
+             setNodes((prev) => {
+-                const moved = prev.map((node) => {
++                const proposed = prev.map((node) => {
+                     const initial = initialPositions.get(node.id);
+                     return initial ? { ...node, position: { x: initial.x + dx, y: initial.y + dy } } : node;
+                 });
++                const moved = snapConnectionPorts(proposed, connectionsRef.current, movedIds, currentViewport.k).nodes;
+                 const targetGroup = findGroupDropTarget(movedIds, moved);
+                 if (targetGroup) return snapNodesIntoGroup(movedIds, moved, targetGroup);
+                 return moved.map((node) => {
+@@ -1402,10 +1397,13 @@ function InfiniteCanvasPage() {
+                 // Drop-target detection and node updates both run once per frame; mousemove can fire far more often than the display refreshes.
+                 if (rafRef.current) cancelAnimationFrame(rafRef.current);
+                 rafRef.current = requestAnimationFrame(() => {
+-                    const previewNodes = nodesRef.current.map((node) => {
++                    const proposed = nodesRef.current.map((node) => {
+                         const initial = initialPositions.get(node.id);
+                         return initial ? { ...node, position: { x: initial.x + dx, y: initial.y + dy } } : node;
+                     });
++                    const snapped = snapConnectionPorts(proposed, connectionsRef.current, movedIds, currentViewport.k);
++                    const previewNodes = snapped.nodes;
++                    setPortAlignmentGuide(snapped.guide);
+                     setDropTargetGroupId(findGroupDropTarget(movedIds, previewNodes)?.id || null);
+                     setRawNodes(previewNodes);
+                     rafRef.current = null;
+@@ -3123,17 +3121,24 @@ function InfiniteCanvasPage() {
+                     onDrop={handleDrop}
+                 >
+                     <svg className="absolute left-0 top-0 h-[10000px] w-[10000px] overflow-visible" style={{ pointerEvents: "none", transform: "translateZ(0)", zIndex: 0 }}>
+-                        <CachedConnectionLayer geometry={visibleConnections} selectedId={selectedConnectionId} relatedIds={relatedHighlight.connectionIds} onSelect={selectConnection} onContextMenu={openConnectionMenu} />
++                        {portAlignmentGuide ? <line data-port-alignment-guide="true" x1={Math.min(portAlignmentGuide.x1, portAlignmentGuide.x2) - 24 / viewport.k} x2={Math.max(portAlignmentGuide.x1, portAlignmentGuide.x2) + 24 / viewport.k} y1={portAlignmentGuide.y} y2={portAlignmentGuide.y} stroke="var(--primary, #3b82f6)" strokeWidth={1 / viewport.k} strokeDasharray={`${4 / viewport.k} ${4 / viewport.k}`} opacity={0.65} /> : null}
++                        <CachedConnectionLayer focusTarget={connectionFocusTarget} keepFocusBehindCards={keepFocusBehindCards} onFocusConnections={setDisplayConnectionIds} geometry={visibleConnections} flowGeometry={connectionGeometry} focusedIds={connectionFocus.connectionIds} scale={viewport.k} dragging={isNodeDragging || isCanvasPanning} onSelect={selectConnection} onContextMenu={openConnectionMenu} onPreviewNodes={setConnectionPreviewNodeIds} />
+                         {connectingParams ? <ActiveConnectionPath node={nodeById.get(connectingParams.nodeId)} handle={connectingParams} mouseWorld={mouseWorld} target={connectionTargetNodeId ? nodeById.get(connectionTargetNodeId) : undefined} /> : null}
+                     </svg>
+ 
++                    <svg data-connection-focus-layer="true" className="absolute overflow-visible" width={Math.max(1, viewBounds.right - viewBounds.left)} height={Math.max(1, viewBounds.bottom - viewBounds.top)} viewBox={`${viewBounds.left} ${viewBounds.top} ${Math.max(1, viewBounds.right - viewBounds.left)} ${Math.max(1, viewBounds.bottom - viewBounds.top)}`} style={{ left: viewBounds.left, top: viewBounds.top, pointerEvents: "none", zIndex: 51 }}><g ref={setConnectionFocusTarget} /></svg>
++                    <div ref={setCardEndpointTarget} data-card-endpoints="true" className="absolute inset-0 pointer-events-none" style={{ zIndex: 52 }} />
++                    <div ref={setCardPanelTarget} data-card-panels="true" className="absolute inset-0 pointer-events-none" style={{ zIndex: 70 }} />
+                     {visibleNodes.map((node) => (
+                         <CanvasNode
+                             key={node.id}
+                             data={node}
++                            endpointTarget={cardEndpointTarget}
++                            panelTarget={cardPanelTarget}
++                            isConnectionObscured={obscuredResultIds.has(node.id)}
+                             scale={viewport.k}
+                             isSelected={selectedNodeIds.has(node.id)}
+-                            isRelated={relatedHighlight.nodeIds.has(node.id)}
++                            isRelated={relatedHighlight.nodeIds.has(node.id) || connectionFocus.nodeIds.has(node.id) || connectionPreviewNodeIds.has(node.id)}
+                             isFocusRelated={activeNodeId === node.id}
+                             isConnectionTarget={connectionTargetNodeId === node.id}
+                             isConnecting={Boolean(connectingParams)}
+@@ -3302,7 +3307,7 @@ function InfiniteCanvasPage() {
+                 {contextMenu ? (
+                     <CanvasNodeContextMenu
+                         menu={contextMenu}
+-                        deleteDisabledReason={contextMenu.type === "connection" && isGeneratedResultConnection(connections.find(edge => edge.id === contextMenu.connectionId), nodes) ? GENERATED_CONNECTION_DELETE_NOTICE : undefined}
++                        deleteDisabledReason={contextMenu.type === "connection" && isGeneratedResultConnection(selectedConnection(connections, contextMenu.connectionId), nodes) ? GENERATED_CONNECTION_DELETE_NOTICE : undefined}
+                         canCaptureVideoFrame={contextMenuNode?.type === CanvasNodeType.Video && Boolean(contextMenuNode.metadata?.content)}
+                         canGroup={contextMenu.type === "node" && canGroupSelection}
+                         canUngroup={contextMenu.type === "node" && canUngroupSelection}

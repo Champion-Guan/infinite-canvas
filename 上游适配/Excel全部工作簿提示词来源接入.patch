@@ -1,0 +1,109 @@
+diff --git a/web/src/components/layout/config-prompt-sources.tsx b/web/src/components/layout/config-prompt-sources.tsx
+index a753142..8a509a7 100644
+--- a/web/src/components/layout/config-prompt-sources.tsx
++++ b/web/src/components/layout/config-prompt-sources.tsx
+@@ -1,10 +1,9 @@
+ import { App, Button, Switch, Tag } from "antd";
+ import { useQuery, useQueryClient } from "@tanstack/react-query";
+ import { Eye, Pencil, RefreshCw, Trash2 } from "lucide-react";
+-import { useState } from "react";
++import { useMemo, useState } from "react";
+ import { useTranslation } from "react-i18next";
+-import { useMatch } from "react-router-dom";
+-import { useExcelPromptSource } from "@/扩展功能/Excel画布/Excel画布上下文";
++import { useExcelWorkbookSources } from "@/扩展功能/Excel画布/Excel画布上下文";
+ 
+ import { PromptSourceEditorDrawer } from "./prompt-source-editor-drawer";
+ import { PromptSourceContentModal } from "./prompt-source-content-modal";
+@@ -19,10 +18,10 @@ export function ConfigPromptSources() {
+     const { i18n, t } = useTranslation();
+     const queryClient = useQueryClient();
+     const savedSources = usePromptSourceStore((state) => state.sources);
+-    const productId = useMatch("/canvas/:id")?.params.id || "";
+-    const excel = useExcelPromptSource(productId);
++    const excelSources = useExcelWorkbookSources();
++    const excelById = useMemo(() => new Map(excelSources.map(local => [local.source.id, local])), [excelSources]);
+     const patchExcelSource = usePromptSourceStore((state) => state.patchExcelSource);
+-    const sources = excel ? [...savedSources, excel.source] : savedSources;
++    const sources = [...savedSources, ...excelSources.map(local => local.source)];
+     const saveSource = usePromptSourceStore((state) => state.saveSource);
+     const removeSource = usePromptSourceStore((state) => state.removeSource);
+     const toggleSource = usePromptSourceStore((state) => state.toggleSource);
+@@ -31,10 +30,10 @@ export function ConfigPromptSources() {
+     const [editingSource, setEditingSource] = useState<PromptSource | null>(null);
+     const [viewingId, setViewingId] = useState("");
+     const [refreshingId, setRefreshingId] = useState("");
+-    const [localRefresh, setLocalRefresh] = useState({ revision: "", at: "" });
++    const [localRefresh, setLocalRefresh] = useState<Record<string, { revision: string; at: string }>>({});
+     const viewingSource = sources.find((item) => item.id === viewingId) || null;
+     const editingCurrent = sources.find((item) => item.id === editingSource?.id) || null;
+-    const isExcelSource = (source: PromptSource) => source.id === excel?.source.id;
++    const isExcelSource = (source: PromptSource) => excelById.has(source.id);
+ 
+     const invalidatePrompts = async () => {
+         await Promise.all([
+@@ -45,7 +44,8 @@ export function ConfigPromptSources() {
+     };
+ 
+     const handleSave = (source: PromptSource) => {
+-        if (isExcelSource(source)) patchExcelSource(productId, { name: source.name, homepage: source.homepage, enabled: source.enabled });
++        const local = excelById.get(source.id);
++        if (local) patchExcelSource(local.preferenceKey, { name: source.name, homepage: source.homepage, enabled: source.enabled });
+         else saveSource(source);
+         void invalidatePrompts();
+     };
+@@ -58,7 +58,8 @@ export function ConfigPromptSources() {
+             okButtonProps: { danger: true },
+             cancelText: t("common.cancel"),
+             onOk: async () => {
+-                if (isExcelSource(source) && excel) patchExcelSource(productId, { removedRevision: excel.revision });
++                const local = excelById.get(source.id);
++                if (local) patchExcelSource(local.preferenceKey, { removedRevision: local.revision });
+                 else removeSource(source.id);
+                 await invalidatePrompts();
+             },
+@@ -68,8 +69,9 @@ export function ConfigPromptSources() {
+     const handleRefreshOne = async (source: PromptSource) => {
+         setRefreshingId(source.id);
+         try {
+-            const result = isExcelSource(source) && excel ? { count: excel.items.length } : await refreshSource(source.id);
+-            if (isExcelSource(source) && excel) setLocalRefresh({ revision: excel.revision, at: new Date().toISOString() });
++            const local = excelById.get(source.id);
++            const result = local ? { count: local.items.length } : await refreshSource(source.id);
++            if (local) setLocalRefresh(current => ({ ...current, [source.id]: { revision: local.revision, at: new Date().toISOString() } }));
+             await invalidatePrompts();
+             message.success(t("config.promptSources.refreshed", { name: source.name, count: result.count }));
+         } catch (error) {
+@@ -88,11 +90,11 @@ export function ConfigPromptSources() {
+ 
+             <div className="space-y-2">
+                 {sources.map((source) => {
+-                    const local = isExcelSource(source) ? excel : null;
+-                    const status = local ? { count: local.items.length, lastSuccessAt: localRefresh.revision === local.revision ? localRefresh.at : local.lastSuccessAt, lastError: "" } : statusQuery.data?.[source.id];
++                    const local = excelById.get(source.id);
++                    const status = local ? { count: local.items.length, lastSuccessAt: localRefresh[source.id]?.revision === local.revision ? localRefresh[source.id].at : local.lastSuccessAt, lastError: "" } : statusQuery.data?.[source.id];
+                     return (
+                         <div key={source.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 px-4 py-3 dark:border-stone-800">
+-                            <Switch size="small" checked={source.enabled} onChange={(checked) => { if (local) patchExcelSource(productId, { enabled: checked }); else toggleSource(source.id, checked); void invalidatePrompts(); }} />
++                            <Switch size="small" checked={source.enabled} onChange={(checked) => { if (local) patchExcelSource(local.preferenceKey, { enabled: checked }); else toggleSource(source.id, checked); void invalidatePrompts(); }} />
+                             <div className="min-w-[220px] flex-1">
+                                 <div className="flex min-w-0 items-center gap-2">
+                                     <span className="truncate text-sm font-semibold">{source.name}</span>
+@@ -100,7 +102,7 @@ export function ConfigPromptSources() {
+                                 </div>
+                                 <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-500">
+                                     <a className="max-w-full truncate hover:text-stone-800 hover:underline dark:hover:text-stone-200" href={source.homepage || source.url} target="_blank" rel="noreferrer" onClick={local && !source.homepage ? (event) => { event.preventDefault(); setViewingId(source.id); } : undefined}>
+-                                        {source.homepage || source.url}
++                                        {local ? local.fileName : source.homepage || source.url}
+                                     </a>
+                                     <span className="tabular-nums">{t("config.promptSources.itemCount", { count: status?.count ?? 0 })}</span>
+                                     {status?.lastError ? <Tag color="error" className="m-0 text-[10px]" title={status.lastError}>{t("config.promptSources.failed")}</Tag> : status?.lastSuccessAt ? <Tag color="success" className="m-0 text-[10px]">{t("config.promptSources.healthy")}</Tag> : <Tag className="m-0 text-[10px]">{t("config.promptSources.unsynced")}</Tag>}
+@@ -125,7 +127,7 @@ export function ConfigPromptSources() {
+ 
+ 
+             <PromptSourceEditorDrawer open={Boolean(editingCurrent)} source={editingCurrent} managed={Boolean(editingCurrent && isExcelSource(editingCurrent))} onSave={handleSave} onClose={() => setEditingSource(null)} />
+-            <PromptSourceContentModal key={viewingSource ? `${viewingSource.id}:${viewingSource.url}` : "closed"} source={viewingSource} localItems={viewingSource && isExcelSource(viewingSource) ? excel?.items : undefined} onClose={() => setViewingId("")} />
++            <PromptSourceContentModal key={viewingSource ? `${viewingSource.id}:${viewingSource.url}` : "closed"} source={viewingSource} localItems={excelById.get(viewingId)?.items} onClose={() => setViewingId("")} />
+         </div>
+     );
+ }

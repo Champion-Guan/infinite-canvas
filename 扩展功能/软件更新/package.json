@@ -1,0 +1,6 @@
+{
+  "name": "guan-software-updates",
+  "private": true,
+  "type": "module",
+  "dependencies": { "undici": "6.29.0" }
+}

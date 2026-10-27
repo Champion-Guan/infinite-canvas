@@ -1,0 +1,59 @@
+--- a/web/src/stores/use-config-store.ts
++++ b/web/src/stores/use-config-store.ts
+@@ -238,12 +238,15 @@
+             configTab: "channels",
+             shouldPromptContinue: false,
+             updateConfig: (key, value) =>
+-                set((state) => ({
+-                    config: {
+-                        ...state.config,
+-                        [key]: value,
+-                    },
+-                })),
++                set((state) => {
++                    if (Object.is(state.config[key], value)) return state;
++                    return {
++                        config: {
++                            ...state.config,
++                            [key]: value,
++                        },
++                    };
++                }),
+             importChannelCredentials: (input) => {
+                 requireAuxiliaryFeature("urlCredentials");
+                 const currentConfig = get().config;
+@@ -252,17 +255,24 @@
+                 return { status: result.status, channelName: result.channelName };
+             },
+             updateWebdavConfig: (key, value) =>
+-                set((state) => ({
+-                    webdav: {
+-                        ...state.webdav,
+-                        [key]: value,
+-                    },
+-                })),
++                set((state) => {
++                    if (Object.is(state.webdav[key], value)) return state;
++                    return {
++                        webdav: {
++                            ...state.webdav,
++                            [key]: value,
++                        },
++                    };
++                }),
+             isAiConfigReady: (config, model) => isAiConfigReady(config, model),
+-            openConfigDialog: (shouldPromptContinue = false, configTab) => set((state) => ({ isConfigOpen: true, shouldPromptContinue, configTab: configTab || state.configTab })),
+-            setConfigTab: (configTab) => set({ configTab }),
+-            setConfigDialogOpen: (isConfigOpen) => set({ isConfigOpen }),
+-            clearPromptContinue: () => set({ shouldPromptContinue: false }),
++            openConfigDialog: (shouldPromptContinue = false, configTab) => set((state) => {
++                const nextTab = configTab || state.configTab;
++                if (state.isConfigOpen && state.shouldPromptContinue === shouldPromptContinue && state.configTab === nextTab) return state;
++                return { isConfigOpen: true, shouldPromptContinue, configTab: nextTab };
++            }),
++            setConfigTab: (configTab) => set((state) => state.configTab === configTab ? state : { configTab }),
++            setConfigDialogOpen: (isConfigOpen) => set((state) => state.isConfigOpen === isConfigOpen ? state : { isConfigOpen }),
++            clearPromptContinue: () => set((state) => state.shouldPromptContinue ? { shouldPromptContinue: false } : state),
+         }),
+         {
+             name: CONFIG_STORE_KEY,

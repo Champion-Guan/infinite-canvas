@@ -1,0 +1,13 @@
+diff --git a/web/src/pages/video/index.tsx b/web/src/pages/video/index.tsx
+index a73febb..3b7b9bb 100644
+--- a/web/src/pages/video/index.tsx
++++ b/web/src/pages/video/index.tsx
+@@ -158,7 +158,7 @@ export default function VideoPage() {
+             }
+             const nextReferences = await Promise.all(
+                 blobs.slice(0, 7 - references.length).map(async (blob, index) => {
+-                    const image = await uploadImage(blob);
++                    const image = await uploadImage(new File([blob], `剪贴板图片-${index + 1}.png`, { type: blob.type }));
+                     return { id: nanoid(), name: `clipboard-${index + 1}.png`, type: image.mimeType, dataUrl: image.url, storageKey: image.storageKey };
+                 }),
+             );

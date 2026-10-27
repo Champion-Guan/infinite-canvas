@@ -1,0 +1,18 @@
+diff --git a/web/src/hooks/use-prompt-source-scheduler.ts b/web/src/hooks/use-prompt-source-scheduler.ts
+index 54ccb1d..b9db38e 100644
+--- a/web/src/hooks/use-prompt-source-scheduler.ts
++++ b/web/src/hooks/use-prompt-source-scheduler.ts
+@@ -1,3 +1,4 @@
++import { businessFeatures } from "@/扩展功能/产品配置/脚本与提示词来源";
+ import { useEffect } from "react";
+ import { useQueryClient } from "@tanstack/react-query";
+ 
+@@ -12,7 +13,7 @@ export function usePromptSourceScheduler() {
+     const intervalMinutes = usePromptSourceStore((state) => state.schedule.intervalMinutes);
+ 
+     useEffect(() => {
+-        if (!intervalMinutes) return;
++        if (!businessFeatures.promptRefresh || !intervalMinutes) return;
+         let running = false;
+         const tick = async () => {
+             if (running) return;

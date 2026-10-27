@@ -1,0 +1,28 @@
+diff --git a/web/src/components/layout/app-providers.tsx b/web/src/components/layout/app-providers.tsx
+index 3d47c9e..6a6c71b 100644
+--- a/web/src/components/layout/app-providers.tsx
++++ b/web/src/components/layout/app-providers.tsx
+@@ -1,3 +1,4 @@
++import { SystemThemeSync } from "@/扩展功能/主题/三态主题设置";
+ import type { ReactNode } from "react";
+ import { useEffect } from "react";
+ import { ProConfigProvider } from "@ant-design/pro-components";
+@@ -37,15 +38,16 @@ export function AppProviders({ children }: { children: ReactNode }) {
+ 
+     useEffect(() => {
+         document.documentElement.lang = locale;
+-        document.title = t("meta.title");
++        document.title = "AI生图工作台";
+         document.querySelector('meta[name="description"]')?.setAttribute("content", t("meta.description"));
+         dayjs.locale(locale === "zh-CN" ? "zh-cn" : "en");
+     }, [locale, t]);
+ 
+     return (
+         <ConfigProvider locale={locale === "zh-CN" ? zhCN : enUS} theme={getAntThemeConfig(dark)}>
++            <SystemThemeSync />
+             <ProConfigProvider dark={dark}>
+-                <App>
++                <App message={{ top: 84 + 8 }}>
+                     <QueryClientProvider client={queryClient}>
+                         <ClientRootInit>{children}</ClientRootInit>
+                     </QueryClientProvider>

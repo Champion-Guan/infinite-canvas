@@ -1,0 +1,38 @@
+.guan-network-proxy .local-canvas-settings-tabpanel{padding:2px 0 12px;min-height:260px}
+.guan-network-proxy .local-canvas-proxy-section{margin-top:16px}
+.guan-network-proxy .local-canvas-settings-card{border:1px solid #e7e5e4;border-radius:8px;padding:12px;background:transparent}
+.guan-network-proxy .local-canvas-settings-card h4{margin:0;color:#17181a;font-size:14px;font-weight:650}
+.guan-network-proxy .local-canvas-settings-card p{margin:4px 0 0;color:#78716c;font-size:12px;line-height:1rem}
+.guan-network-proxy .local-canvas-settings-field{display:grid;gap:7px;margin-top:16px}
+.guan-network-proxy .local-canvas-settings-field label{font-size:12px;color:#454950;font-weight:600}
+.guan-network-proxy .local-canvas-settings-input-row{display:flex;gap:8px;align-items:center;border:1px solid #d9dce2;border-radius:9px;padding:4px 5px 4px 10px}
+.guan-network-proxy .local-canvas-settings-input-row:focus-within{border-color:#3478f6;box-shadow:0 0 0 3px rgba(52,120,246,.14)}
+.guan-network-proxy .local-canvas-settings-input{min-width:0;flex:1;border:0;outline:0;padding:7px 0;font:inherit;background:transparent;color:inherit}
+.guan-network-proxy .local-canvas-settings-file{border:1px solid #d9dce2;border-radius:7px;padding:6px 9px;background:#f7f8fa;color:#34363b;font-size:12px;cursor:pointer}
+.guan-network-proxy .local-canvas-settings-actions{display:flex;align-items:center;gap:8px;margin-top:16px}
+.guan-network-proxy .local-canvas-settings-actions button{border:1px solid #d9dce2;border-radius:8px;padding:7px 11px;background:#fff;color:#24262a;font-size:12px;cursor:pointer}
+.guan-network-proxy .local-canvas-settings-actions [data-canvas-proxy-unfreeze]{min-width:72px;color:#24262a;background:#fff}
+.guan-network-proxy .local-canvas-settings-actions button.primary{border-color:#111;background:#111;color:#fff}
+.guan-network-proxy .local-canvas-settings-actions button:disabled{opacity:.55;cursor:not-allowed}
+.guan-network-proxy .local-canvas-settings-status{margin-right:auto;font-size:12px;color:#22925a}.guan-network-proxy .local-canvas-settings-status[data-status='pending']{color:#b7791f}.guan-network-proxy .local-canvas-settings-status[data-status='inactive'],.guan-network-proxy .local-canvas-settings-status[data-status='error'],.guan-network-proxy .local-canvas-settings-status.error{color:#d92d20}
+.guan-network-proxy .local-canvas-settings-header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.guan-network-proxy .local-canvas-settings-toggle{display:inline-flex;align-items:center;gap:8px;color:#454950;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.guan-network-proxy .local-canvas-settings-toggle input{appearance:none;-webkit-appearance:none;position:relative;width:44px;height:24px;flex:0 0 44px;margin:0;border:1px solid #cfd3da;border-radius:999px;background:#d9dce2;cursor:pointer;transition:background .18s,border-color .18s,box-shadow .18s}
+.guan-network-proxy .local-canvas-settings-toggle input::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .18s}
+.guan-network-proxy .local-canvas-settings-toggle input:checked{border-color:#1f2024;background:#1f2024}
+.guan-network-proxy .local-canvas-settings-toggle input:checked::after{transform:translateX(20px)}
+.guan-network-proxy .local-canvas-settings-toggle input:focus-visible{outline:2px solid #3478f6;outline-offset:2px}
+.guan-network-proxy .local-canvas-settings-toggle input:disabled{cursor:not-allowed;opacity:.55}
+.guan-network-proxy .local-canvas-proxy-state{margin-top:8px;font-size:12px;color:#22925a}.guan-network-proxy .local-canvas-proxy-state[data-status='pending']{color:#b7791f}.guan-network-proxy .local-canvas-proxy-state[data-status='inactive'],.guan-network-proxy .local-canvas-proxy-state[data-status='error'],.guan-network-proxy .local-canvas-proxy-state.error{color:#d92d20}
+.guan-network-proxy .local-canvas-settings-note{margin-top:12px;font-size:12px;line-height:1rem;color:#78716c}
+html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-card,html.dark .guan-network-proxy .local-canvas-settings-card{border-color:#292524;background:transparent;color:#f4f4f5}
+html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-card h4,html.dark .guan-network-proxy .local-canvas-settings-card h4{color:#f4f4f5}
+html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-card p,html.dark .guan-network-proxy .local-canvas-settings-card p,html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-note,html.dark .guan-network-proxy .local-canvas-settings-note{color:#78716c}
+html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-field label,html.dark .guan-network-proxy .local-canvas-settings-field label{color:#d8dce3}
+html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-input-row,html.dark .guan-network-proxy .local-canvas-settings-input-row,html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-file,html.dark .guan-network-proxy .local-canvas-settings-file,html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-actions button,html.dark .guan-network-proxy .local-canvas-settings-actions button{border-color:rgba(255,255,255,.14);background:transparent;color:#f4f4f5}
+html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-actions button.primary,html.dark .guan-network-proxy .local-canvas-settings-actions button.primary{border-color:#f4f4f5;background:#f4f4f5;color:#1e2024}
+html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-actions [data-canvas-proxy-unfreeze],html.dark .guan-network-proxy .local-canvas-settings-actions [data-canvas-proxy-unfreeze]{border-color:rgba(255,255,255,.14);background:transparent;color:#f4f4f5}
+html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-toggle,html.dark .guan-network-proxy .local-canvas-settings-toggle{color:#d8dce3}
+html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-toggle input,html.dark .guan-network-proxy .local-canvas-settings-toggle input{border-color:rgba(255,255,255,.22);background:#4b4f57}
+html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-toggle input:checked,html.dark .guan-network-proxy .local-canvas-settings-toggle input:checked{border-color:#f4f4f5;background:#f4f4f5}
+html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-toggle input:checked::after,html.dark .guan-network-proxy .local-canvas-settings-toggle input:checked::after{background:#1e2024}

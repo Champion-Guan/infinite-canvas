@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 1890856..d0ebc22 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -336,7 +336,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+                 onHoverEnd(data.id);
+             }}
+             onMouseDownCapture={(event) => {
+-                if ((event.target as Element).closest("[data-card-panel-anchor]")) return;
++                if ((event.target as Element).closest("[data-card-panel-anchor], button")) return;
+                 if (!referenceSelectionState) onSelectCapture?.(event, data.id);
+             }}
+             onContextMenu={(event) => {

@@ -1,0 +1,137 @@
+diff --git a/web/src/hooks/use-version-check.ts b/web/src/hooks/use-version-check.ts
+index 3e85bc6..51981f4 100644
+--- a/web/src/hooks/use-version-check.ts
++++ b/web/src/hooks/use-version-check.ts
+@@ -1,92 +1,77 @@
+ import { useCallback, useEffect, useMemo, useState } from "react";
+ import { App } from "antd";
+-import { useTranslation } from "react-i18next";
+ import { APP_VERSION } from "@/constant/env";
+-import { parseChangelog, type ReleaseInfo } from "@/lib/release";
++import type { ReleaseInfo } from "@/lib/release";
++import { updateRequest, updateMessages, type SoftwareUpdateStatus } from "@/扩展功能/软件更新/软件更新客户端";
+ 
+-const latestVersionUrl = "https://raw.githubusercontent.com/basketikun/infinite-canvas/main/VERSION";
+-const latestChangelogUrl = "https://raw.githubusercontent.com/basketikun/infinite-canvas/main/CHANGELOG.md";
+-
+-function readLocalReleases(): ReleaseInfo[] {
+-    return __APP_RELEASES__ || [];
+-}
+-
+-function toVersionParts(version: string) {
+-    const match = version.trim().match(/^v?(\d+)\.(\d+)\.(\d+)/);
+-    return match ? match.slice(1).map(Number) : null;
+-}
+-
+-function isNewerVersion(latestVersion: string, currentVersion: string) {
+-    const latest = toVersionParts(latestVersion);
+-    const current = toVersionParts(currentVersion);
+-    if (!latest || !current) return false;
+-    return latest.some((value, index) => value > current[index] && latest.slice(0, index).every((part, prevIndex) => part === current[prevIndex]));
++export function resolveCurrentWorkbenchVersion(serverVersion: string | null | undefined, bundleVersion = APP_VERSION) {
++    return serverVersion || bundleVersion;
+ }
+ 
+ export function useVersionCheck() {
+-    const { t } = useTranslation();
+-    const currentVersion = APP_VERSION;
+     const { message } = App.useApp();
+-    const localReleases = useMemo(readLocalReleases, []);
+-    const [latestVersion, setLatestVersion] = useState(currentVersion);
+-    const [releases, setReleases] = useState<ReleaseInfo[]>(localReleases);
++    const localReleases = useMemo<ReleaseInfo[]>(() => __APP_RELEASES__ || [], []);
++    const [status, setStatus] = useState<SoftwareUpdateStatus | null>(null);
+     const [checking, setChecking] = useState(false);
++    const [unavailable, setUnavailable] = useState(false);
+     const [open, setOpen] = useState(false);
+-    const hasNewVersion = isNewerVersion(latestVersion, currentVersion);
+-
+-    const checkLatestVersion = useCallback(async () => {
+-        try {
+-            const response = await fetch(latestVersionUrl);
+-            if (!response.ok) return false;
+-            const version = await response.text();
+-            setLatestVersion(version.trim() || currentVersion);
+-            return true;
+-        } catch {
+-            return false;
+-        }
+-    }, [currentVersion]);
++    const refresh = useCallback(async () => {
++        try { setStatus(await updateRequest("status")); setUnavailable(false); }
++        catch { setStatus(null); setUnavailable(true); }
++    }, []);
+ 
+     const checkLatestRelease = useCallback(
+         async (showMessage = false) => {
+             setChecking(true);
+             try {
+-                const [versionResponse, changelogResponse] = await Promise.all([fetch(latestVersionUrl), fetch(latestChangelogUrl)]);
+-                if (!versionResponse.ok) throw new Error(t("version.readFailed"));
+-                if (!changelogResponse.ok) throw new Error(t("version.changelogFailed"));
+-                const [version, changelog] = await Promise.all([versionResponse.text(), changelogResponse.text()]);
+-                setLatestVersion(version.trim() || currentVersion);
+-                if (changelog.trim()) setReleases(parseChangelog(changelog));
+-                if (showMessage) message.success(t("version.updated"));
+-                return true;
++                const next = await updateRequest("check");
++                setStatus(next);
++                if (showMessage) {
++                    if (next.error) message.warning(updateMessages[next.error] || "更新检查未完成");
++                    else message.success(updateMessages[next.state] || "检查完成");
++                }
++                await refresh();
++                return !next.error;
+             } catch {
+-                setLatestVersion(currentVersion);
+-                setReleases(localReleases);
+-                if (showMessage) message.error(t("version.updateFailed"));
++                if (showMessage) message.error("本机更新服务不可用，工作台仍可继续使用");
+                 return false;
+             } finally {
+                 setChecking(false);
+             }
+         },
+-        [currentVersion, localReleases, message, t],
++        [message, refresh],
+     );
+ 
+     useEffect(() => {
+-        void checkLatestVersion();
+-    }, [checkLatestVersion]);
++        // Backend owns startup and six-hour polling; cached iframes cannot multiply GitHub requests.
++        void refresh();
++        const timer = setInterval(() => void refresh(), 30000);
++        return () => clearInterval(timer);
++    }, [refresh]);
+ 
+     const openReleaseModal = useCallback(() => {
+         setOpen(true);
+-        void checkLatestRelease();
+-    }, [checkLatestRelease]);
++        void refresh();
++    }, [refresh]);
++
++    const latest = status?.latest;
++    // The backend owns the running application version. The canvas bundle may
++    // be ahead during source-mode rollout or stale in an already-open iframe.
++    const currentVersion = resolveCurrentWorkbenchVersion(status?.currentVersion);
++    const releases = latest ? [{ version: latest.version, date: latest.publishedAt.slice(0, 10), items: [{ type: "更新", content: latest.notes || "暂无更新说明" }] }, ...localReleases.filter(r => r.version !== latest.version)] : localReleases;
+ 
+     return {
+         open,
+         setOpen,
+         openReleaseModal,
+-        latestVersion,
++        currentVersion,
++        latestVersion: latest?.version || "",
+         releases,
+         checking,
+-        hasNewVersion,
++        hasNewVersion: status?.hasNewVersion || false,
+         checkLatestRelease,
++        status,
++        unavailable,
++        refresh,
+     };
+ }

@@ -1,0 +1,36 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index c1ca92a..df82dfc 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -85,6 +85,7 @@ import { useAgentBridge } from "@/pages/canvas/hooks/use-agent-bridge";
+ import { usePluginHost } from "@/pages/canvas/hooks/use-plugin-host";
+ import { buildNodeMentionReferences, getGroupResourceNodes, isCanvasReferenceNode, type CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
+ import { exportCanvasProjects } from "@/lib/canvas/canvas-export";
++import { GENERATED_CONNECTION_DELETE_NOTICE, isGeneratedResultConnection, useCanvasConnectionDeletion } from "@/扩展功能/画布生成/生成连线保护";
+ import { applyNodeConfigPatch, audioMetadata, buildAudioGenerationMetadata, buildImageGenerationMetadata, createCanvasNode, imageMetadata, videoMetadata } from "@/lib/canvas/canvas-node-factory";
+ import { applyGroupSelection, applyUngroupSelection, canGroupSelectedNodes, canUngroupSelectedNodes, collectGroupMemberNodes, findContainingGroupId, findGroupDropTarget, focusViewportForNode, getConnectionTargetAnchor, getGroupWrapRect, normalizeConnection, nodeBounds, snapNodesIntoGroup } from "@/lib/canvas/canvas-node-geometry";
+ import {
+@@ -1015,11 +1016,10 @@ function InfiniteCanvasPage() {
+         setContextMenu(null);
+     }, []);
+ 
+-    const deleteConnection = useCallback((connectionId: string) => {
+-        if (!disconnectParameterConnection(connectionId)) setConnections((prev) => prev.filter((conn) => conn.id !== connectionId));
+-        setSelectedConnectionId((current) => (current === connectionId ? null : current));
+-        setContextMenu((current) => (current?.type === "connection" && current.connectionId === connectionId ? null : current));
+-    }, [disconnectParameterConnection]);
++    const deleteConnection = useCanvasConnectionDeletion({
++        nodesRef, connectionsRef, disconnectParameterConnection, setConnections, setSelectedConnectionId, setContextMenu,
++        message,
++    });
+ 
+     const disconnectNodeReference = useCallback((fromNodeId: string, toNodeId: string) => {
+         const edge = connectionsRef.current.find(connection => connection.fromNodeId === fromNodeId && connection.toNodeId === toNodeId);
+@@ -3302,6 +3302,7 @@ function InfiniteCanvasPage() {
+                 {contextMenu ? (
+                     <CanvasNodeContextMenu
+                         menu={contextMenu}
++                        deleteDisabledReason={contextMenu.type === "connection" && isGeneratedResultConnection(connections.find(edge => edge.id === contextMenu.connectionId), nodes) ? GENERATED_CONNECTION_DELETE_NOTICE : undefined}
+                         canCaptureVideoFrame={contextMenuNode?.type === CanvasNodeType.Video && Boolean(contextMenuNode.metadata?.content)}
+                         canGroup={contextMenu.type === "node" && canGroupSelection}
+                         canUngroup={contextMenu.type === "node" && canUngroupSelection}

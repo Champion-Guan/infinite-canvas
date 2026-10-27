@@ -1,0 +1,22 @@
+diff --git a/web/src/lib/canvas/canvas-generation-helpers.ts b/web/src/lib/canvas/canvas-generation-helpers.ts
+index adfe56f..2584262 100644
+--- a/web/src/lib/canvas/canvas-generation-helpers.ts
++++ b/web/src/lib/canvas/canvas-generation-helpers.ts
+@@ -1,4 +1,4 @@
+-import { defaultConfig, resolveModelForCapability, type AiConfig } from "@/stores/use-config-store";
++import { defaultConfig, FALLBACK_MODEL_OPTION, resolveModelForCapability, type AiConfig } from "@/stores/use-config-store";
+ import i18n from "@/i18n";
+ import { ensureImagePreview, resolveImageUrl, uploadImage } from "@/services/image-storage";
+ import { resolveMediaUrl } from "@/services/file-storage";
+@@ -106,8 +106,11 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
+     return {
+         ...config,
+         model: resolveModelForCapability(config, node?.metadata?.model, mode),
++        fallbackRequested: mode === "image" && (node?.metadata?.model === FALLBACK_MODEL_OPTION || !node?.metadata?.model && config.imageModel === FALLBACK_MODEL_OPTION),
++        fallbackCapability: mode,
+         reasoningEffort: node?.metadata?.reasoningEffort || config.reasoningEffort || defaultConfig.reasoningEffort,
+         quality: node?.metadata?.quality || config.quality || defaultConfig.quality,
++        moderation: node?.metadata?.moderation === "auto" ? "auto" : node?.metadata?.moderation === "low" ? "low" : config.moderation || defaultConfig.moderation,
+         size: node?.metadata?.size || config.size || defaultConfig.size,
+         background: node?.metadata?.background ?? config.background ?? defaultConfig.background,
+         videoSeconds: node?.metadata?.seconds || config.videoSeconds || defaultConfig.videoSeconds,

@@ -1,0 +1,42 @@
+diff --git a/web/src/services/file-storage.ts b/web/src/services/file-storage.ts
+index 9c1b605..3ecdda7 100644
+--- a/web/src/services/file-storage.ts
++++ b/web/src/services/file-storage.ts
+@@ -1,3 +1,4 @@
++import { createMediaUrlCache } from "@/扩展功能/媒体交付/媒体地址缓存";
+ import { 本地转发请求 as fetch } from "@/扩展功能/网络代理/本地转发请求";
+ import { sqliteForage as localforage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { nanoid } from "nanoid";
+@@ -7,7 +8,7 @@ import { withLocalProxy } from "@/stores/use-config-store";
+ export type UploadedFile = { url: string; storageKey: string; bytes: number; mimeType: string; width?: number; height?: number; durationMs?: number };
+ 
+ const store = localforage.createInstance({ name: "infinite-canvas", storeName: "media_files" });
+-const objectUrls = new Map<string, string>();
++const objectUrls = createMediaUrlCache();
+ 
+ export async function uploadMediaFile(input: string | Blob, prefix = "file"): Promise<UploadedFile> {
+     let blob: Blob;
+@@ -27,13 +28,7 @@ export async function uploadMediaFile(input: string | Blob, prefix = "file"): Pr
+ 
+ export async function resolveMediaUrl(storageKey?: string, fallback = "") {
+     if (!storageKey) return fallback;
+-    const cached = objectUrls.get(storageKey);
+-    if (cached) return cached;
+-    const blob = await store.getItem<Blob>(storageKey);
+-    if (!blob) return fallback;
+-    const url = URL.createObjectURL(blob);
+-    objectUrls.set(storageKey, url);
+-    return url;
++    return objectUrls.resolve(storageKey, () => store.getItem<Blob>(storageKey), fallback);
+ }
+ 
+ export async function getMediaBlob(storageKey: string) {
+@@ -50,8 +45,6 @@ export async function setMediaBlob(storageKey: string, blob: Blob) {
+ export async function deleteStoredMedia(keys: Iterable<string>) {
+     await Promise.all(
+         Array.from(new Set(keys)).map(async (key) => {
+-            const url = objectUrls.get(key);
+-            if (url) URL.revokeObjectURL(url);
+             objectUrls.delete(key);
+             await store.removeItem(key);
+         }),

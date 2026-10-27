@@ -1,0 +1,40 @@
+diff --git a/web/src/stores/use-config-store.ts b/web/src/stores/use-config-store.ts
+index 270b6a6..3b58ac8 100644
+--- a/web/src/stores/use-config-store.ts
++++ b/web/src/stores/use-config-store.ts
+@@ -1,3 +1,4 @@
++import { 本地转发地址, 本地转发前缀 } from "@/扩展功能/网络代理/本地转发请求";
+ import { sqliteStateStorage, scheduleStateSave, flushSQLiteStorage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { requireAuxiliaryFeature } from "@/扩展功能/产品配置/精简与离线策略";
+ import { requireBusinessFeature } from "@/扩展功能/产品配置/脚本与提示词来源";
+@@ -87,7 +88,7 @@ const CHANNEL_MODEL_SEPARATOR = "::";
+ const OPENAI_BASE_URL = "https://api.openai.com";
+ const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
+ export const LOCAL_PROXY_PACKAGE = "@basketikun/canvas-proxy";
+-export const DEFAULT_LOCAL_PROXY_URL = "http://127.0.0.1:23210";
++export const DEFAULT_LOCAL_PROXY_URL = 本地转发前缀().replace(/\/$/, "");
+ 
+ export const defaultConfig: AiConfig = {
+     channelMode: "local",
+@@ -132,7 +133,7 @@ export const defaultConfig: AiConfig = {
+     background: "",
+     count: "1",
+     canvasImageCount: "3",
+-    proxyEnabled: false,
++    proxyEnabled: true,
+     proxyUrl: DEFAULT_LOCAL_PROXY_URL,
+     nodeRegenerateBehavior: "new-node",
+     autoFocusOnSelect: false,
+@@ -529,10 +530,8 @@ export function normalizeLocalProxyUrl(value: string) {
+ 
+ /** Prefix an outgoing request with the local forwarding proxy so the browser is not blocked by CORS. */
+ export function withLocalProxy(url: string) {
+-    const { proxyEnabled, proxyUrl } = useConfigStore.getState().config;
++    const { proxyEnabled } = useConfigStore.getState().config;
+     if (!proxyEnabled || !/^https?:\/\//i.test(url)) return url;
+     if (!productFeatures.localProxy) requireProductFeature("localProxy");
+-    const base = normalizeLocalProxyUrl(proxyUrl);
+-    if (!base || url.startsWith(`${base}/`)) return url;
+-    return `${base}/${url}`;
++    return 本地转发地址(url);
+ }

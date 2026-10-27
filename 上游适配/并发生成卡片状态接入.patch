@@ -1,0 +1,290 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 622256d..6c7b90f 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,3 +1,4 @@
++import { useCanvasGenerationRequests } from "@/扩展功能/画布生成/并发生成状态";
+ import { uploadGeneratedImage } from "@/services/image-storage";
+ import { hasHeicNameOrType } from "@/扩展功能/媒体交付/HEIC格式识别.mjs";
+ import { useCanvasConnectionSystem } from "@/扩展功能/画布连线/画布连线状态";
+@@ -158,13 +159,6 @@ type CanvasHistoryEntry = {
+     showImageInfo: boolean;
+ };
+ 
+-type CanvasGenerationRequest = {
+-    targetNodeId: string;
+-    originNodeId: string;
+-    runningNodeId: string;
+-    controller: AbortController;
+-};
+-
+ const VIDEO_NODE_MAX_WIDTH = 420;
+ const VIDEO_NODE_MAX_HEIGHT = 420;
+ // Stable empty reference array prevents `... || []` from invalidating CanvasNode's React.memo on every render.
+@@ -299,7 +293,6 @@ function InfiniteCanvasPage() {
+     const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
+     const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+     const [nodeCreatePosition, setNodeCreatePosition] = useState<Position | null>(null);
+-    const [runningNodeId, setRunningNodeId] = useState<string | null>(null);
+     const [isMiniMapOpen, setIsMiniMapOpen] = useState(false);
+     const [backgroundMode, setBackgroundMode] = useState<CanvasBackgroundMode>("lines");
+     const [showImageInfo, setShowImageInfo] = useState(true);
+@@ -359,7 +352,7 @@ function InfiniteCanvasPage() {
+     const connectionTargetNodeIdRef = useRef(connectionTargetNodeId);
+     const selectionBoxRef = useRef(selectionBox);
+     const pendingConnectionCreateRef = useRef(pendingConnectionCreate);
+-    const generationRequestsRef = useRef(new Map<string, CanvasGenerationRequest>());
++    const { generationRequestsRef, runningNodeIds, startGenerationRequest, finishGenerationRequest, stopGenerationRequests } = useCanvasGenerationRequests();
+     const videoPollIdsRef = useRef(new Set<string>());
+ 
+     const createHistoryEntry = useCallback(
+@@ -381,18 +374,6 @@ function InfiniteCanvasPage() {
+         [cleanupAssetImages],
+     );
+ 
+-    const startGenerationRequest = useCallback((targetNodeId: string, originNodeId: string, runningId = originNodeId, controller = new AbortController()) => {
+-        const previous = generationRequestsRef.current.get(targetNodeId);
+-        if (previous?.controller !== controller) previous?.controller.abort();
+-        generationRequestsRef.current.set(targetNodeId, { targetNodeId, originNodeId, runningNodeId: runningId, controller });
+-        return controller;
+-    }, []);
+-
+-    const finishGenerationRequest = useCallback((targetNodeId: string, controller: AbortController) => {
+-        const request = generationRequestsRef.current.get(targetNodeId);
+-        if (request?.controller === controller) generationRequestsRef.current.delete(targetNodeId);
+-    }, []);
+-
+     const videoProtection = useCanvasVideoProtection({ projectId, nodesRef, restoredProjectIdRef, surfaceRef, setNodes });
+ 
+     const completeVideoNodeTask = useCallback(
+@@ -420,7 +401,7 @@ function InfiniteCanvasPage() {
+                     openConfigDialog(true);
+                     return;
+                 }
+-                setRunningNodeId(node.id);
++
+                 setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_LOADING, errorDetails: undefined } } : item)));
+                 controller = startGenerationRequest(node.id, node.id, node.id);
+                 const protectedTask = await videoProtection.resume(node.id, generationConfig, { id: taskId, provider: node.metadata?.videoTaskProvider === "gemini" ? "gemini" : "openai", model: generationConfig.model }, controller.signal);
+@@ -464,23 +445,14 @@ function InfiniteCanvasPage() {
+                 videoPollIdsRef.current.delete(node.id);
+                 if (controller) {
+                     finishGenerationRequest(node.id, controller);
+-                    setRunningNodeId((current) => (current === node.id ? null : current));
+                 }
+             }
+         },
+-        [effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, startGenerationRequest, t, videoProtection],
++        [effectiveConfig, generationRequestsRef, nodesRef, setNodes, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, startGenerationRequest, t, videoProtection],
+     );
+ 
+     const stopGenerationByRunningId = useCallback((runningId: string) => {
+-        const affectedNodeIds = new Set<string>();
+-        generationRequestsRef.current.forEach((request) => {
+-            if (request.runningNodeId !== runningId) return;
+-            request.controller.abort();
+-            generationRequestsRef.current.delete(request.targetNodeId);
+-            affectedNodeIds.add(request.targetNodeId);
+-            affectedNodeIds.add(request.originNodeId);
+-        });
+-        setRunningNodeId((current) => (current === runningId ? null : current));
++        const affectedNodeIds = stopGenerationRequests(runningId);
+         if (!affectedNodeIds.size) return;
+         setNodes((prev) =>
+             prev.map((node) =>
+@@ -498,7 +470,7 @@ function InfiniteCanvasPage() {
+                     : node,
+             ),
+         );
+-    }, [t]);
++    }, [stopGenerationRequests, t]);
+ 
+     const stopConfirmationRef = useRef<ReturnType<typeof modal.confirm> | null>(null);
+     useEffect(() => {
+@@ -612,7 +584,7 @@ function InfiniteCanvasPage() {
+     useCanvasPersistence({
+         projectId, nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport,
+         projectLoaded, restoredProjectIdRef, nodeTransactionRef, historyPausedRef, dragRef, isNodeDragging,
+-        isNodeResizing, focusAnimRef, viewportRef, viewportSaveTimerRef, generationRequestsRef, runningNodeId, updateProject,
++        isNodeResizing, focusAnimRef, viewportRef, viewportSaveTimerRef, generationRequestsRef, runningNodeId: runningNodeIds.values().next().value ?? null, updateProject,
+     });
+ 
+     const { clearConfirmedImageError, recordImageGatewayTask, requestNodeText, requestNodeAudio } = useCanvasTaskReceipts({ projectId, nodesRef, restoredProjectIdRef, setNodes });
+@@ -978,7 +950,7 @@ function InfiniteCanvasPage() {
+ 
+     const deletedNodeIdSetters = useMemo(() => [setHoveredNodeId, setToolbarNodeId, setDialogNodeId, setInfoNodeId,
+         setCropNodeId, setMaskEditNodeId, setAngleNodeId, setPreviewNodeId, setSplitNodeId, setUpscaleNodeId,
+-        setRunningNodeId, setReferencePickerNodeId], []);
++        setReferencePickerNodeId], []);
+     const deleteNodes = useCanvasNodeDeletion({ projectId, nodesRef, connectionsRef, chatSessions, updateProject,
+         setNodes, setConnections, nodeIdSetters: deletedNodeIdSetters, setSelectedNodeIds, setSelectedConnectionId,
+         setPreviewImageId, setExpandedBatchNodeIds, setContextMenu, cleanupCanvasFiles });
+@@ -1075,7 +1047,7 @@ function InfiniteCanvasPage() {
+         setMaskEditNodeId(null);
+         setAngleNodeId(null);
+         setPreviewNodeId(null);
+-        setRunningNodeId(null);
++
+         deselectCanvas();
+         setClearConfirmOpen(false);
+     }, [deleteNodes, deselectCanvas]);
+@@ -1993,7 +1965,7 @@ function InfiniteCanvasPage() {
+             setSelectedConnectionId(null);
+             setDialogNodeId(childId);
+             if (!payload.generate) return;
+-            setRunningNodeId(childId);
++
+             const controller = startGenerationRequest(childId, node.id, childId);
+             try {
+                 await requestImageTool(childId, generationConfig, prompt, references, controller.signal, generationMetadata);
+@@ -2004,7 +1976,6 @@ function InfiniteCanvasPage() {
+                 setNodes((prev) => prev.map((item) => (item.id === childId ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails } } : item)));
+             } finally {
+                 finishGenerationRequest(childId, controller);
+-                setRunningNodeId(null);
+             }
+         },
+         [effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, requestImageTool, startGenerationRequest, t],
+@@ -2051,7 +2022,7 @@ function InfiniteCanvasPage() {
+                 { id: node.id, name: `${node.title || node.id}.png`, type: node.metadata.mimeType || "image/png", dataUrl: node.metadata.content, storageKey: node.metadata.storageKey },
+             ]);
+             setAngleNodeId(null);
+-            setRunningNodeId(childId);
++
+             setNodes((prev) => [
+                 ...prev,
+                 {
+@@ -2078,7 +2049,6 @@ function InfiniteCanvasPage() {
+                 setNodes((prev) => prev.map((item) => (item.id === childId ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails } } : item)));
+             } finally {
+                 finishGenerationRequest(childId, controller);
+-                setRunningNodeId(null);
+             }
+         },
+         [effectiveConfig, finishGenerationRequest, openConfigDialog, requestImageTool, startGenerationRequest, t],
+@@ -2292,6 +2262,7 @@ function InfiniteCanvasPage() {
+ 
+     const handleGenerateNode = useCallback(
+         async (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string, batchPlacement?: BatchResultPlacement) => {
++            if ([...generationRequestsRef.current.values()].some(request => request.runningNodeId === nodeId && !request.controller.signal.aborted)) return;
+             if (!isGenerationModeEnabled(mode)) { message.info("不支持的生成模式。"); return; }
+             const sourceNode = nodesRef.current.find((node) => node.id === nodeId);
+             const generationConfig = buildGenerationConfig(effectiveConfig, generationNodeForExecution(sourceNode, nodeId, nodesRef.current, connectionsRef.current), mode);
+@@ -2306,7 +2277,7 @@ function InfiniteCanvasPage() {
+             if (sourceNode && builtinPanel?.writeBackToSelf && builtinPanel.mode === "image") {
+                 const scene = prompt.trim();
+                 if (!scene) return;
+-                setRunningNodeId(nodeId);
++
+                 const controller = startGenerationRequest(nodeId, nodeId, nodeId);
+                 setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, prompt: scene, status: NODE_STATUS_LOADING, errorDetails: undefined } } : node)));
+                 try {
+@@ -2333,31 +2304,22 @@ function InfiniteCanvasPage() {
+                 return;
+             }
+ 
+-            setRunningNodeId(nodeId);
+             const overwriteExisting = effectiveConfig.nodeRegenerateBehavior === "overwrite";
+             const runController = startGenerationRequest(nodeId, nodeId, nodeId);
+             const sourceTextContent = sourceNode?.type === CanvasNodeType.Text ? sourceNode.metadata?.content?.trim() || "" : "";
+             const editingTextNode = mode === "text" && Boolean(sourceTextContent);
+-            const generationContext = await hydrateNodeGenerationContext(
+-                buildNodeGenerationContext(nodeId, nodesRef.current, connectionsRef.current, editingTextNode ? t("canvas.projectPage.editTextPrompt", { source: sourceTextContent, prompt }) : prompt),
+-            );
+-            const effectivePrompt = generationContext.prompt.trim();
+-            if (runController.signal.aborted) {
+-                finishGenerationRequest(nodeId, runController);
+-                setRunningNodeId(null);
+-                return;
+-            }
+             const markSourceStatus = sourceNode?.type !== CanvasNodeType.Image && !editingTextNode;
+-            if (!effectivePrompt && (mode === "text" || mode === "audio")) {
+-                finishGenerationRequest(nodeId, runController);
+-                setRunningNodeId(null);
+-                return;
+-            }
+             let pendingChildIds: string[] = [];
+-            const generationStartedAt = Date.now();
+-            if (markSourceStatus) setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, ...(node.type === CanvasNodeType.Config ? {} : { prompt }), generationStartedAt, status: NODE_STATUS_LOADING, errorDetails: undefined } } : node)));
+-
+             try {
++                const generationContext = await hydrateNodeGenerationContext(
++                    buildNodeGenerationContext(nodeId, nodesRef.current, connectionsRef.current, editingTextNode ? t("canvas.projectPage.editTextPrompt", { source: sourceTextContent, prompt }) : prompt),
++                );
++                const effectivePrompt = generationContext.prompt.trim();
++                if (runController.signal.aborted) return;
++                if (!effectivePrompt && (mode === "text" || mode === "audio")) return;
++                const generationStartedAt = Date.now();
++                if (markSourceStatus) setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, ...(node.type === CanvasNodeType.Config ? {} : { prompt }), generationStartedAt, status: NODE_STATUS_LOADING, errorDetails: undefined } } : node)));
++
+                 if (mode === "image") {
+                     const count = getGenerationCount(generationConfig.count);
+                     const isConfigNode = sourceNode?.type === CanvasNodeType.Config;
+@@ -2728,10 +2690,9 @@ function InfiniteCanvasPage() {
+                 );
+             } finally {
+                 finishGenerationRequest(nodeId, runController);
+-                setRunningNodeId(null);
+             }
+         },
+-        [completeVideoNodeTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, projectId, recordImageGatewayTask, requestNodeText, requestNodeAudio, saveCanvasImageResult, setNodes, startGenerationRequest, t],
++        [completeVideoNodeTask, generationRequestsRef, nodesRef, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, projectId, recordImageGatewayTask, requestNodeText, requestNodeAudio, saveCanvasImageResult, setNodes, startGenerationRequest, t],
+     );
+     useEffect(() => {
+         generateNodeRef.current = handleGenerateNode;
+@@ -2789,7 +2750,6 @@ function InfiniteCanvasPage() {
+                 // Another action may have removed or started this node while references were loading.
+                 if (!nodesRef.current.some(item => item.id === node.id) || generationRequestsRef.current.has(node.id)) return;
+ 
+-                setRunningNodeId(node.id);
+                 setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, generationStartedAt: Date.now(), status: NODE_STATUS_LOADING, errorDetails: undefined, images: item.metadata?.images?.map((image) => (image.id === imageId ? { ...image, status: NODE_STATUS_LOADING, errorDetails: undefined } : image)) } } : item)));
+                 const controller = startGenerationRequest(node.id, sourceNode.id, node.id);
+ 
+@@ -2873,11 +2833,10 @@ function InfiniteCanvasPage() {
+                     );
+                 } finally {
+                     finishGenerationRequest(node.id, controller);
+-                    setRunningNodeId(null);
+                 }
+             } finally { retryingNodeIdsRef.current.delete(node.id); }
+         },
+-        [completeVideoNodeTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, pollVideoNodeTask, projectId, recordImageGatewayTask, requestNodeText, requestNodeAudio, saveCanvasImageResult, setNodes, startGenerationRequest, t],
++        [completeVideoNodeTask, generationRequestsRef, nodesRef, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, pollVideoNodeTask, projectId, recordImageGatewayTask, requestNodeText, requestNodeAudio, saveCanvasImageResult, setNodes, startGenerationRequest, t],
+     );
+ 
+     const retryBatchImage = useCallback((node: CanvasNodeData, imageId: string) => void handleRetryNode(node, imageId), [handleRetryNode]);
+@@ -3021,7 +2980,7 @@ function InfiniteCanvasPage() {
+                 <CanvasNodePromptPanel
+                     node={panelNode}
+                     nodes={contentNodes}
+-                    isRunning={runningNodeId === panelNode.id}
++                    isRunning={runningNodeIds.has(panelNode.id)}
+                     mentionReferences={mentionReferencesByNodeId.get(panelNode.id) || EMPTY_REFERENCES}
+                     connectedNodes={connectedNodesByNodeId.get(panelNode.id) || []}
+                     onPromptChange={handleNodePromptChange}
+@@ -3037,14 +2996,14 @@ function InfiniteCanvasPage() {
+                     }}
+                 />
+             ),
+-        [configInputsById, confirmStopGeneration, connectedNodesByNodeId, disconnectNodeReference, handleConfigNodeChange, handleGenerateNode, handleNodePromptChange, mentionReferencesByNodeId, contentNodes, renderPluginPanel, runningNodeId, startNodeReferenceSelection],
++        [configInputsById, confirmStopGeneration, connectedNodesByNodeId, disconnectNodeReference, handleConfigNodeChange, handleGenerateNode, handleNodePromptChange, mentionReferencesByNodeId, contentNodes, renderPluginPanel, runningNodeIds, startNodeReferenceSelection],
+     );
+ 
+     const renderNodeContentPanel = useCallback(
+         (contentNode: CanvasNodeData) => (
+             <CanvasConfigNodePanel
+                 node={contentNode}
+-                isRunning={runningNodeId === contentNode.id}
++                isRunning={runningNodeIds.has(contentNode.id)}
+                 inputSummary={getInputSummary(configInputsById.get(contentNode.id) || [])}
+                 onConfigChange={handleConfigNodeChange}
+                 onComposerToggle={() => setDialogNodeId((current) => (current === contentNode.id ? null : contentNode.id))}
+@@ -3055,7 +3014,7 @@ function InfiniteCanvasPage() {
+                 }}
+             />
+         ),
+-        [configInputsById, confirmStopGeneration, handleConfigNodeChange, handleGenerateNode, runningNodeId],
++        [configInputsById, confirmStopGeneration, handleConfigNodeChange, handleGenerateNode, runningNodeIds],
+     );
+ 
+     const hoverPreviewNode = hoverPreviewNodeId ? nodeById.get(hoverPreviewNodeId) || null : null;

@@ -1,0 +1,32 @@
+diff --git a/web/src/components/layout/prompt-source-editor-drawer.tsx b/web/src/components/layout/prompt-source-editor-drawer.tsx
+index fcb0ce3..23be402 100644
+--- a/web/src/components/layout/prompt-source-editor-drawer.tsx
++++ b/web/src/components/layout/prompt-source-editor-drawer.tsx
+@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
+ 
+ import type { PromptSource } from "@/services/api/prompt-source-presets";
+ 
+-export function PromptSourceEditorDrawer({ open, source, onSave, onClose }: { open: boolean; source: PromptSource | null; onSave: (source: PromptSource) => void; onClose: () => void }) {
++export function PromptSourceEditorDrawer({ open, source, managed = false, onSave, onClose }: { open: boolean; source: PromptSource | null; managed?: boolean; onSave: (source: PromptSource) => void; onClose: () => void }) {
+     const { message } = App.useApp();
+     const { t } = useTranslation();
+     const [draft, setDraft] = useState<PromptSource | null>(source);
+@@ -21,7 +21,7 @@ export function PromptSourceEditorDrawer({ open, source, onSave, onClose }: { op
+         const name = draft.name.trim();
+         const url = draft.url.trim();
+         if (!name) return message.warning(t("config.promptSources.editor.nameRequired"));
+-        if (!isHttpUrl(url)) return message.warning(t("config.promptSources.editor.invalidUrl"));
++        if (!managed && !isHttpUrl(url)) return message.warning(t("config.promptSources.editor.invalidUrl"));
+         if (draft.homepage.trim() && !isHttpUrl(draft.homepage.trim())) return message.warning(t("config.promptSources.editor.invalidHomepage"));
+         onSave({ ...draft, name, url, homepage: draft.homepage.trim(), builtIn: false });
+         onClose();
+@@ -50,7 +50,8 @@ export function PromptSourceEditorDrawer({ open, source, onSave, onClose }: { op
+                 </label>
+                 <label className="block">
+                     <span className="mb-1.5 block text-sm font-medium">JSON URL</span>
+-                    <Input value={draft.url} onChange={(event) => patch({ url: event.target.value })} placeholder="https://example.com/prompts.json" />
++                    <Input value={draft.url} readOnly={managed} onChange={(event) => patch({ url: event.target.value })} placeholder="https://example.com/prompts.json" />
++                    {managed ? <div className="mt-1.5 text-xs text-stone-500">内容随当前产品的 Excel 更新。</div> : null}
+                 </label>
+                 <label className="block">
+                     <span className="mb-1.5 block text-sm font-medium">{t("config.promptSources.editor.homepage")}</span>

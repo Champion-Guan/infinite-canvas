@@ -1,0 +1,22 @@
+diff --git a/web/src/styles/globals.css b/web/src/styles/globals.css
+index efbf5f9..590f993 100644
+--- a/web/src/styles/globals.css
++++ b/web/src/styles/globals.css
+@@ -1191,11 +1191,15 @@
+     }
+ 
+     .ant-upload-drag,
+-    [data-upload-dropzone],
+-    .guan-history-list-card {
++    [data-upload-dropzone] {
+         transition: border-color var(--guan-motion-fast) var(--guan-motion-gentle), background-color var(--guan-motion-fast) var(--guan-motion-gentle), transform var(--guan-motion-normal) var(--guan-motion-spring), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle);
+     }
+ 
++    /* 列表位置由 Motion 接管，CSS 不再对同一 transform 二次缓动。 */
++    .guan-history-list-card {
++        transition: border-color var(--guan-motion-fast) var(--guan-motion-gentle), background-color var(--guan-motion-fast) var(--guan-motion-gentle);
++    }
++
+     .ant-upload-drag:hover,
+     .ant-upload-drag.ant-upload-drag-hover,
+     [data-upload-dropzone]:hover {

@@ -1,0 +1,53 @@
+diff --git a/web/src/services/image-storage.ts b/web/src/services/image-storage.ts
+index e492cf0..73c55cf 100644
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -1,3 +1,4 @@
++import { createMediaUrlCache } from "@/扩展功能/媒体交付/媒体地址缓存";
+ import { 本地转发请求 as fetch } from "@/扩展功能/网络代理/本地转发请求";
+ import { sqliteForage as localforage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ 
+@@ -35,8 +36,8 @@ const store = localforage.createInstance({ name: "infinite-canvas", storeName: "
+ const previewStore = localforage.createInstance({ name: "infinite-canvas", storeName: "image_previews" });
+ const imageLogStore = localforage.createInstance({ name: "infinite-canvas", storeName: "image_generation_logs" });
+ const videoLogStore = localforage.createInstance({ name: "infinite-canvas", storeName: "video_generation_logs" });
+-const objectUrls = new Map<string, string>();
+-const previewUrls = new Map<string, string>();
++const objectUrls = createMediaUrlCache();
++const previewUrls = createMediaUrlCache();
+ const previewListeners = new Set<() => void>();
+ let previewRevision = 0;
+ let previewQueue: Promise<unknown> = Promise.resolve();
+@@ -187,13 +188,7 @@ function throwIfAborted(signal?: AbortSignal) {
+ 
+ export async function resolveImageUrl(storageKey?: string, fallback = "") {
+     if (!storageKey) return fallback;
+-    const cached = objectUrls.get(storageKey);
+-    if (cached) return cached;
+-    const blob = await store.getItem<Blob>(storageKey);
+-    if (!blob) return fallback;
+-    const url = URL.createObjectURL(blob);
+-    objectUrls.set(storageKey, url);
+-    return url;
++    return objectUrls.resolve(storageKey, () => store.getItem<Blob>(storageKey), fallback);
+ }
+ 
+ export async function getImageBlob(storageKey: string) {
+@@ -268,8 +263,6 @@ function cacheImagePreview(storageKey: string, preview: Blob) {
+ }
+ 
+ async function deleteImagePreview(storageKey: string) {
+-    const url = previewUrls.get(storageKey);
+-    if (url) URL.revokeObjectURL(url);
+     previewUrls.delete(storageKey);
+     await previewStore.removeItem(storageKey).catch(() => undefined);
+ }
+@@ -292,8 +285,6 @@ export async function imageToDataUrl(image: { url?: string; dataUrl?: string; st
+ export async function deleteStoredImages(keys: Iterable<string>) {
+     await Promise.all(
+         Array.from(new Set(keys)).map(async (key) => {
+-            const url = objectUrls.get(key);
+-            if (url) URL.revokeObjectURL(url);
+             objectUrls.delete(key);
+             await deleteImagePreview(key);
+             await store.removeItem(key);

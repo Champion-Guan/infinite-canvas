@@ -1,0 +1,26 @@
+diff --git a/web/src/components/canvas/canvas-config-composer.tsx b/web/src/components/canvas/canvas-config-composer.tsx
+index 1bfd87b..039f812 100644
+--- a/web/src/components/canvas/canvas-config-composer.tsx
++++ b/web/src/components/canvas/canvas-config-composer.tsx
+@@ -1,3 +1,4 @@
++import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { useEffect, useMemo, useRef, useState } from "react";
+ import type { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent } from "react";
+ import { Button, Image } from "antd";
+@@ -40,6 +41,7 @@ export function CanvasConfigComposer({ nodeId, nodes, value, inputs, connectedNo
+     const composingRef = useRef(false);
+     const [mention, setMention] = useState<MentionState | null>(null);
+     const [activeIndex, setActiveIndex] = useState(0);
++    const productActive = useProductActive();
+     const [imagePreview, setImagePreview] = useState<string | null>(null);
+     const tokens = useMemo(() => parseComposerTokens(value), [value]);
+     const referenceById = useMemo(() => new Map(inputs.map((input) => [input.nodeId, input])), [inputs]);
+@@ -184,7 +186,7 @@ export function CanvasConfigComposer({ nodeId, nodes, value, inputs, connectedNo
+                 />
+                 {mention && candidates.length ? <MentionMenu inputs={candidates} allInputs={inputs} activeIndex={Math.min(activeIndex, candidates.length - 1)} theme={theme} onSelect={insertReference} /> : null}
+             </div>
+-            {imagePreview ? <Image src={imagePreview} alt={t("canvas.composer.imagePreview")} style={{ display: "none" }} preview={{ visible: true, src: imagePreview, onVisibleChange: (visible) => !visible && setImagePreview(null) }} /> : null}
++            {imagePreview ? <Image src={imagePreview} alt={t("canvas.composer.imagePreview")} style={{ display: "none" }} preview={{ visible: productActive, src: imagePreview, onVisibleChange: (visible) => !visible && setImagePreview(null) }} /> : null}
+         </div>
+     );
+ 

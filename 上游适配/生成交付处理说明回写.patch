@@ -1,0 +1,12 @@
+diff --git a/web/src/lib/canvas/canvas-node-factory.ts b/web/src/lib/canvas/canvas-node-factory.ts
+index 19bd9d7..908ffc9 100644
+--- a/web/src/lib/canvas/canvas-node-factory.ts
++++ b/web/src/lib/canvas/canvas-node-factory.ts
+@@ -30,6 +30,7 @@ export function imageMetadata(image: UploadedImage, details?: { requestedSize?:
+         storageKey: image.deliveryStorageKey || image.storageKey,
+         deliveryStorageKey: image.deliveryStorageKey || image.storageKey,
+         originalStorageKey: image.originalStorageKey,
++        deliveryNote: image.deliveryNote,
+         status: "success",
+         naturalWidth: image.width,
+         naturalHeight: image.height,

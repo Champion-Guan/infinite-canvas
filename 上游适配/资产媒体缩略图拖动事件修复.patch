@@ -1,0 +1,29 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index 87f2473..24344d8 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -1,3 +1,4 @@
++import { isAudioFile } from "@/lib/canvas/canvas-generation-helpers";
+ import { ASSET_DRAG_TYPE, assetDragData } from "@/扩展功能/素材/上传资产规则";
+ import { hasHeicNameOrType } from "@/扩展功能/媒体交付/HEIC格式识别.mjs";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+@@ -486,8 +487,8 @@ const CanvasAssetsTab = memo(function CanvasAssetsTab({ projectId, onInsert, the
+                 if (file.type.startsWith("image/") || hasHeicNameOrType(file)) {
+                     await uploadImage(file, { assetProjectId: projectId });
+                     added += 1;
+-                } else if (file.type.startsWith("video/") || file.type.startsWith("audio/")) {
+-                    await uploadMediaFile(file, file.type.startsWith("audio/") ? "audio" : "video", { assetProjectId: projectId });
++                } else if (file.type.startsWith("video/") || isAudioFile(file)) {
++                    await uploadMediaFile(file, isAudioFile(file) ? "audio" : "video", { assetProjectId: projectId });
+                     added += 1;
+                 }
+             }
+@@ -656,7 +657,7 @@ function AssetCard({ asset, projectId, theme, onInsert, onRemove }: { asset: Ass
+             onPointerDown={event => event.stopPropagation()} onMouseDown={event => event.stopPropagation()}
+             onDragStart={event => { event.stopPropagation(); event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData(ASSET_DRAG_TYPE, assetDragData(asset.id, projectId)); }}
+             className="guan-card-surface group relative aspect-square cursor-grab overflow-hidden rounded-xl border active:cursor-grabbing" style={{ borderColor: theme.node.stroke, background: theme.node.panel }}>
+-            <AssetCover asset={asset} />
++            <div className="pointer-events-none size-full"><AssetCover asset={asset} /></div>
+             <div className="absolute inset-0 flex items-center justify-center gap-2.5 opacity-0 transition duration-200 group-hover:opacity-100">
+                 <button
+                     type="button"

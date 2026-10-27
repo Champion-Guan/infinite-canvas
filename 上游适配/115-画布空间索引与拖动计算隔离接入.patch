@@ -1,0 +1,208 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index d0fd326..aede14d 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,3 +1,6 @@
++import { canvasContentSnapshot } from "@/扩展功能/画布布局/坐标独立内容";
++import { createVisibilityIndex } from "@/扩展功能/画布布局/空间可见索引";
++import { CachedConnectionLayer } from "@/扩展功能/画布布局/连线缓存层";
+ import { ignoreCanvasShortcut } from "@/扩展功能/画布交互/快捷键边界";
+ import { useCanvasImageResults } from "@/扩展功能/媒体交付/图片结果保存操作";
+ import { usePromptTranslation } from "@/扩展功能/画布生成/提示词翻译操作";
+@@ -52,7 +55,7 @@ import { useCanvasNodeArrangement } from "@/扩展功能/画布布局/重叠卡
+ import { captureVideoFrame, type VideoFramePosition } from "@/lib/canvas/canvas-video-frame";
+ import { App, Button, Modal } from "antd";
+ import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
+-import { ActiveConnectionPath, ConnectionPath } from "@/components/canvas/canvas-connections";
++import { ActiveConnectionPath } from "@/components/canvas/canvas-connections";
+ import { CanvasConfigComposer } from "@/components/canvas/canvas-config-composer";
+ import { CanvasConfigNodePanel } from "@/components/canvas/canvas-config-node-panel";
+ import { CanvasNodeContextMenu } from "@/components/canvas/canvas-context-menu";
+@@ -266,6 +269,12 @@ function InfiniteCanvasPage() {
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+     const { nodes, nodesRef, nodeTransactionRef, getCurrentNode, setRawNodes, setNodes } = useCanvasNodeTransactions();
+     const [connections, setConnections] = useState<CanvasConnection[]>([]);
++    const contentSnapshotRef = useRef<CanvasNodeData[]>([]);
++    const contentNodes = useMemo(() => {
++        const snapshot = canvasContentSnapshot(contentSnapshotRef.current, nodes);
++        contentSnapshotRef.current = snapshot;
++        return snapshot;
++    }, [nodes]);
+     const [chatSessions, setChatSessions] = useState<CanvasAssistantSession[]>([]);
+     const [activeChatId, setActiveChatId] = useState<string | null>(null);
+     const [viewport, setViewport] = useState<ViewportTransform>({ x: 0, y: 0, k: 1 });
+@@ -284,7 +293,7 @@ function InfiniteCanvasPage() {
+     const [runningNodeId, setRunningNodeId] = useState<string | null>(null);
+     const [isMiniMapOpen, setIsMiniMapOpen] = useState(false);
+     const [backgroundMode, setBackgroundMode] = useState<CanvasBackgroundMode>("lines");
+-    const [showImageInfo, setShowImageInfo] = useState(false);
++    const [showImageInfo, setShowImageInfo] = useState(true);
+     const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+     const [assetPickerOpen, setAssetPickerOpen] = useState(false);
+     const [projectLoaded, setProjectLoaded] = useState(false);
+@@ -522,7 +531,7 @@ function InfiniteCanvasPage() {
+             setChatSessions(restoredSessions);
+             setActiveChatId(project.activeChatId || null);
+             setBackgroundMode(project.backgroundMode);
+-            setShowImageInfo(project.showImageInfo || false);
++            setShowImageInfo(project.showImageInfo ?? true);
+             setViewport(project.viewport);
+             historyRef.current = { past: [], future: [] };
+             if (historyCommitTimerRef.current) {
+@@ -535,7 +544,7 @@ function InfiniteCanvasPage() {
+                 chatSessions: restoredSessions,
+                 activeChatId: project.activeChatId || null,
+                 backgroundMode: project.backgroundMode,
+-                showImageInfo: project.showImageInfo || false,
++                showImageInfo: project.showImageInfo ?? true,
+             };
+             setHistoryState({ canUndo: false, canRedo: false });
+             restoredProjectIdRef.current = projectId;
+@@ -783,31 +792,32 @@ function InfiniteCanvasPage() {
+         // `nodes` keeps the container rect re-read on node changes, matching the previous behaviour when the container resizes without a size update.
+     }, [nodes, size.height, size.width, viewport.k, viewport.x, viewport.y]);
+ 
+-    const visibleNodes = useMemo(
+-        () => nodes.filter((node) => node.position.x + node.width > viewBounds.left && node.position.x < viewBounds.right && node.position.y + node.height > viewBounds.top && node.position.y < viewBounds.bottom),
+-        [nodes, viewBounds],
+-    );
+-
+-    const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
+-
+-    // Connections are culled like nodes; a cubic curve stays inside its control-point hull, so endpoint bounds widened by the curvature is a safe test.
+-    const visibleConnections = useMemo(
+-        () =>
+-            connections.flatMap((connection) => {
+-                const from = nodeById.get(connection.fromNodeId);
+-                const to = nodeById.get(connection.toNodeId);
+-                if (!from || !to) return [];
+-                const startX = from.position.x + from.width;
+-                const startY = from.position.y + from.height / 2;
+-                const endX = to.position.x;
+-                const endY = to.position.y + to.height / 2;
+-                const curvature = Math.max(Math.abs(endX - startX) * 0.5, 50);
+-                const inView =
+-                    Math.max(startX + curvature, endX) > viewBounds.left && Math.min(startX, endX - curvature) < viewBounds.right && Math.max(startY, endY) > viewBounds.top && Math.min(startY, endY) < viewBounds.bottom;
+-                return inView ? [{ connection, from, to }] : [];
+-            }),
+-        [connections, nodeById, viewBounds],
+-    );
++    const queryVisibleNodes = useMemo(() => createVisibilityIndex(nodes, node => ({
++        left: node.position.x, top: node.position.y, right: node.position.x + node.width, bottom: node.position.y + node.height,
++    })), [nodes]);
++    const visibleNodes = useMemo(() => queryVisibleNodes(viewBounds), [queryVisibleNodes, viewBounds]);
++    const nodeById = useMemo(() => new Map(nodes.map(node => [node.id, node])), [nodes]);
++    const contentNodeById = useMemo(() => new Map(contentNodes.map(node => [node.id, node])), [contentNodes]);
++    const connectionGeometry = useMemo(() => connections.flatMap(connection => {
++        const from = nodeById.get(connection.fromNodeId), to = nodeById.get(connection.toNodeId);
++        if (!from || !to) return [];
++        const startX = from.position.x + from.width, startY = from.position.y + from.height / 2;
++        const endX = to.position.x, endY = to.position.y + to.height / 2;
++        const curvature = Math.max(Math.abs(endX - startX) * 0.5, 50);
++        return [{ connection, from, to, bounds: {
++            left: Math.min(startX, endX - curvature), right: Math.max(startX + curvature, endX),
++            top: Math.min(startY, endY), bottom: Math.max(startY, endY),
++        } }];
++    }), [connections, nodeById]);
++    const queryVisibleConnections = useMemo(() => createVisibilityIndex(connectionGeometry, item => item.bounds), [connectionGeometry]);
++    const visibleConnections = useMemo(() => queryVisibleConnections(viewBounds), [queryVisibleConnections, viewBounds]);
++    const selectConnection = useCallback((id: string) => {
++        setSelectedConnectionId(id); setSelectedNodeIds(new Set()); setContextMenu(null);
++    }, []);
++    const openConnectionMenu = useCallback((id: string, event: ReactMouseEvent<SVGPathElement>) => {
++        setSelectedConnectionId(id); setSelectedNodeIds(new Set());
++        setContextMenu({ type: "connection", x: event.clientX, y: event.clientY, connectionId: id });
++    }, []);
+     // The toolbar follows a single selected node selected by click, creation, marquee, or keyboard.
+     // It stays hidden for multi-selection and while isNodeDragging is true.
+     const singleSelectedNodeId = selectedNodeIds.size === 1 ? Array.from(selectedNodeIds)[0] : null;
+@@ -857,28 +867,28 @@ function InfiniteCanvasPage() {
+ 
+     const configInputsById = useMemo(() => {
+         const map = new Map<string, NodeGenerationInput[]>();
+-        nodes.forEach((node) => {
++        contentNodes.forEach((node) => {
+             if (node.type !== CanvasNodeType.Config) return;
+-            map.set(node.id, buildNodeGenerationInputs(node.id, nodes, connections));
++            map.set(node.id, buildNodeGenerationInputs(node.id, contentNodes, connections));
+         });
+         return map;
+-    }, [connections, nodes]);
++    }, [connections, contentNodes]);
+     const mentionReferencesByNodeId = useMemo(() => {
+         const map = new Map<string, ReturnType<typeof buildNodeMentionReferences>>();
+-        nodes.forEach((node) => map.set(node.id, buildNodeMentionReferences(node, nodes, connections)));
++        contentNodes.forEach((node) => map.set(node.id, buildNodeMentionReferences(node, contentNodes, connections)));
+         return map;
+-    }, [connections, nodes]);
++    }, [connections, contentNodes]);
+     const connectedNodesByNodeId = useMemo(() => {
+         const map = new Map<string, CanvasNodeData[]>();
+         connections.forEach((connection) => {
+-            const source = nodeById.get(connection.fromNodeId);
++            const source = contentNodeById.get(connection.fromNodeId);
+             if (!source) return;
+             const connected = map.get(connection.toNodeId);
+             if (connected) connected.push(source);
+             else map.set(connection.toNodeId, [source]);
+         });
+         return map;
+-    }, [connections, nodeById]);
++    }, [connections, contentNodeById]);
+     const referenceConnectedNodeIds = useMemo(() => new Set([referencePickerNodeId, ...(referencePickerNodeId ? connectedNodesByNodeId.get(referencePickerNodeId)?.flatMap((node) => node.type === CanvasNodeType.Group ? [node.id, ...getGroupResourceNodes(node.id, nodes).map((child) => child.id)] : [node.id]) || [] : [])].filter((id): id is string => Boolean(id))), [connectedNodesByNodeId, nodes, referencePickerNodeId]);
+     const { applyAgentOps } = useAgentBridge({
+         projectId,
+@@ -2997,7 +3007,7 @@ function InfiniteCanvasPage() {
+             ) : panelNode.type === CanvasNodeType.Config ? (
+                 <CanvasConfigComposer
+                     nodeId={panelNode.id}
+-                    nodes={nodes}
++                    nodes={contentNodes}
+                     value={panelNode.metadata?.composerContent ?? panelNode.metadata?.prompt ?? ""}
+                     inputs={configInputsById.get(panelNode.id) || []}
+                     connectedNodes={connectedNodesByNodeId.get(panelNode.id) || []}
+@@ -3009,7 +3019,7 @@ function InfiniteCanvasPage() {
+             ) : (
+                 <CanvasNodePromptPanel
+                     node={panelNode}
+-                    nodes={nodes}
++                    nodes={contentNodes}
+                     isRunning={runningNodeId === panelNode.id}
+                     mentionReferences={mentionReferencesByNodeId.get(panelNode.id) || EMPTY_REFERENCES}
+                     connectedNodes={connectedNodesByNodeId.get(panelNode.id) || []}
+@@ -3026,7 +3036,7 @@ function InfiniteCanvasPage() {
+                     }}
+                 />
+             ),
+-        [configInputsById, confirmStopGeneration, connectedNodesByNodeId, disconnectNodeReference, handleConfigNodeChange, handleGenerateNode, handleNodePromptChange, mentionReferencesByNodeId, nodes, renderPluginPanel, runningNodeId, startNodeReferenceSelection],
++        [configInputsById, confirmStopGeneration, connectedNodesByNodeId, disconnectNodeReference, handleConfigNodeChange, handleGenerateNode, handleNodePromptChange, mentionReferencesByNodeId, contentNodes, renderPluginPanel, runningNodeId, startNodeReferenceSelection],
+     );
+ 
+     const renderNodeContentPanel = useCallback(
+@@ -3118,25 +3128,7 @@ function InfiniteCanvasPage() {
+                     onDrop={handleDrop}
+                 >
+                     <svg className="absolute left-0 top-0 h-[10000px] w-[10000px] overflow-visible" style={{ pointerEvents: "none", transform: "translateZ(0)", zIndex: 0 }}>
+-                        {visibleConnections.map(({ connection, from, to }) => (
+-                            <ConnectionPath
+-                                key={connection.id}
+-                                connection={connection}
+-                                from={from}
+-                                to={to}
+-                                active={selectedConnectionId === connection.id || relatedHighlight.connectionIds.has(connection.id)}
+-                                onSelect={() => {
+-                                    setSelectedConnectionId(connection.id);
+-                                    setSelectedNodeIds(new Set());
+-                                    setContextMenu(null);
+-                                }}
+-                                onContextMenu={(event) => {
+-                                    setSelectedConnectionId(connection.id);
+-                                    setSelectedNodeIds(new Set());
+-                                    setContextMenu({ type: "connection", x: event.clientX, y: event.clientY, connectionId: connection.id });
+-                                }}
+-                            />
+-                        ))}
++                        <CachedConnectionLayer geometry={visibleConnections} selectedId={selectedConnectionId} relatedIds={relatedHighlight.connectionIds} onSelect={selectConnection} onContextMenu={openConnectionMenu} />
+                         {connectingParams ? <ActiveConnectionPath node={nodeById.get(connectingParams.nodeId)} handle={connectingParams} mouseWorld={mouseWorld} target={connectionTargetNodeId ? nodeById.get(connectionTargetNodeId) : undefined} /> : null}
+                     </svg>
+ 

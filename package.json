@@ -4,6 +4,8 @@
   "version": "1.2.8",
   "description": "Local AI image workbench with an embedded infinite canvas.",
   "scripts": {
+    "test:update-channels": "node --test 开发工具/开发者更新渠道.test.mjs 开发工具/在线安装入口边界.test.mjs 开发工具/更新进度观察.test.mjs 开发工具/更新状态读取合并.test.mjs",
+    "test:desktop-entry": "node --test 开发工具/客户桌面入口.test.mjs",
     "start": "node server.mjs",
     "dev": "node server.mjs",
     "backup": "bash scripts/create-backup.sh",
@@ -27,7 +29,23 @@
     "secrets:history": "node scripts/scan-secrets.mjs --history",
     "secrets:install-hooks": "node scripts/install-git-hooks.mjs",
     "release": "node scripts/create-release.mjs",
-    "start:portable": "node scripts/start-portable.mjs"
+    "start:portable": "node scripts/start-portable.mjs",
+    "web:build": "node 开发工具/构建Web客户包.mjs",
+    "web:test-update": "node --test 开发工具/Web客户更新边界.test.mjs",
+    "web:sign": "node 开发工具/签名Web客户包.mjs",
+    "web:publish-preview": "node 开发工具/发布Web预览版.mjs",
+    "test:disk-guards": "node --test 开发工具/磁盘写入保护.test.mjs 开发工具/Web客户更新边界.test.mjs 开发工具/Web构建缓存清理.test.mjs 开发工具/自动备份.test.mjs 开发工具/本机存储.test.mjs 开发工具/异常退出写盘.test.mjs 开发工具/内置网络代理.test.mjs 开发工具/升级遗留清理.test.mjs",
+    "test:boundaries": "node --test 开发工具/目录装配.test.mjs 开发工具/画布业务边界.test.mjs 开发工具/Excel画布操作边界.test.mjs 开发工具/翻译配置与下载边界.test.mjs 开发工具/图片结果回写边界.test.mjs 开发工具/生成历史总览边界.test.mjs 开发工具/批量结果排布边界.test.mjs 开发工具/产品变量使用边界.test.mjs 开发工具/图片默认尺寸边界.test.mjs 开发工具/保存自动重连边界.test.mjs 开发工具/保存状态显示边界.test.mjs 开发工具/Fallback自定义排序边界.test.mjs 开发工具/主题过渡生命周期边界.test.mjs 开发工具/页面授权释放边界.test.mjs 开发工具/业务端口会话恢复边界.test.mjs 开发工具/画布状态与参考图边界.test.mjs 开发工具/节点删除与整理边界.test.mjs 开发工具/图片批次操作边界.test.mjs 开发工具/节点复制边界.test.mjs 开发工具/生成连线保护边界.test.mjs 开发工具/工作台端口与运行地址.test.mjs",
+    "test:ux": "node --test 开发工具/配置持久化筛选.test.mjs 开发工具/侧栏快切生命周期.test.mjs 开发工具/首页播放生命周期.test.mjs 开发工具/更新状态读取合并.test.mjs 开发工具/主题过渡生命周期边界.test.mjs 开发工具/生成历史总览边界.test.mjs 开发工具/参数卡初始化生命周期.test.mjs",
+    "test:all-current": "node 开发工具/全面体验回归.mjs",
+    "test:update-progress": "node --test 开发工具/更新进度观察.test.mjs 开发工具/在线安装入口边界.test.mjs 开发工具/更新状态读取合并.test.mjs",
+    "test:migration-remaining": "node --test 开发工具/画布性能迁移.test.mjs 开发工具/媒体任务迁移.test.mjs 开发工具/图片结果回写边界.test.mjs 开发工具/画布业务边界.test.mjs 开发工具/批量结果排布边界.test.mjs 开发工具/视频任务迁移.test.mjs 开发工具/文本流式迁移.test.mjs 开发工具/渠道读取迁移.test.mjs 开发工具/凭据后端隔离.test.mjs",
+    "test:connections": "node --test 开发工具/卡片避障路由.test.mjs 开发工具/共享网络数据流.test.mjs 开发工具/关系面板避让.test.mjs 开发工具/并排图片关系透视.test.mjs 开发工具/连线端口吸附.test.mjs 开发工具/连线稳定与聚焦规则.test.mjs 开发工具/共享主干关系选择.test.mjs 开发工具/连线交点整理.test.mjs 开发工具/连线交互体验.test.mjs 开发工具/连线迁移接入.test.mjs 开发工具/生成连线保护边界.test.mjs 开发工具/画布性能迁移.test.mjs 开发工具/Excel画布操作边界.test.mjs 开发工具/节点复制边界.test.mjs 开发工具/节点删除与整理边界.test.mjs",
+    "test:upgrade-continuity": "node --test 开发工具/升级管理器接续.test.mjs 开发工具/自动更新重启.test.mjs 开发工具/延迟凭据保管.test.mjs 开发工具/内置Smart核心.test.mjs 开发工具/Smart资源自动更新.test.mjs",
+    "test:heic": "node --test 开发工具/HEIC自动转换.test.mjs 开发工具/HEIC上传保存.test.mjs",
+    "test:clean-address": "node --test 开发工具/工作台纯净地址.test.mjs",
+    "test:image-delivery": "node --test 开发工具/生成图片尺寸交付.test.mjs 开发工具/图片默认尺寸边界.test.mjs 开发工具/图片结果回写边界.test.mjs 开发工具/图片批次操作边界.test.mjs 开发工具/图片详情恢复边界.test.mjs 开发工具/HEIC上传保存.test.mjs",
+    "test:concurrent-generation": "node --test 开发工具/并发生成卡片状态.test.mjs 开发工具/画布业务边界.test.mjs 开发工具/图片结果回写边界.test.mjs 开发工具/画布状态与参考图边界.test.mjs 开发工具/生成连线保护边界.test.mjs"
   },
   "engines": {
     "node": ">=18"

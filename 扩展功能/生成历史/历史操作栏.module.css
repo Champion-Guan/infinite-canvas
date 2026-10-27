@@ -1,0 +1,60 @@
+.panel {
+    container: history-actions / inline-size;
+}
+
+.heading {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.actions {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    flex: 1 1 280px;
+    min-inline-size: min(100%, 280px);
+    max-inline-size: 100%;
+}
+
+.actions .trigger {
+    min-width: 0;
+}
+
+.actions .button {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+    padding-inline: 4px;
+}
+
+.trigger {
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+.button {
+    min-height: 28px;
+    white-space: nowrap;
+}
+
+.label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@container history-actions (max-width: 320px) {
+    .button {
+        width: 28px;
+        min-width: 28px;
+        justify-content: center;
+        gap: 0;
+        padding-inline: 0;
+    }
+
+    .label {
+        display: none;
+    }
+}

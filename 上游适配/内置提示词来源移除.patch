@@ -1,0 +1,30 @@
+diff --git a/web/src/services/api/prompt-source-presets.ts b/web/src/services/api/prompt-source-presets.ts
+index e6a9618..30a31c5 100644
+--- a/web/src/services/api/prompt-source-presets.ts
++++ b/web/src/services/api/prompt-source-presets.ts
+@@ -10,7 +10,6 @@ export type PromptSource = {
+ };
+ 
+ export const PROMPT_REGISTRY_HOMEPAGE = "https://github.com/yukkcat/image-prompts";
+-const PROMPT_REGISTRY_SOURCE_BASE = "https://raw.githubusercontent.com/yukkcat/image-prompts/main/dist/sources";
+ 
+ export function createPromptSource(source?: Partial<PromptSource>): PromptSource {
+     return {
+@@ -23,15 +22,10 @@ export function createPromptSource(source?: Partial<PromptSource>): PromptSource
+     };
+ }
+ 
+-export const DEFAULT_PROMPT_SOURCES: PromptSource[] = [
+-    registrySource("banana-prompt-quicker", "Banana Prompt Quicker", "https://glidea.github.io/banana-prompt-quicker/"),
+-];
++// 不再预装网站提示词来源；已有 Excel 和自定义来源继续使用。
++export const DEFAULT_PROMPT_SOURCES: PromptSource[] = [];
+ 
+ // 恢复旧配置时只过滤已移除的内置来源；自定义来源和缓存不删除。
+ export function filterWorkbenchPromptSources(sources: PromptSource[]): PromptSource[] {
+     return sources.filter((source) => !source.builtIn || DEFAULT_PROMPT_SOURCES.some((item) => item.id === source.id));
+ }
+-
+-function registrySource(id: string, name: string, homepage: string): PromptSource {
+-    return { id, name, url: `${PROMPT_REGISTRY_SOURCE_BASE}/${id}.json`, homepage, enabled: true, builtIn: true };
+-}

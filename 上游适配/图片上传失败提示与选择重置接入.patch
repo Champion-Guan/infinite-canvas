@@ -1,0 +1,56 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 6baaaec..2689b4e 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -43,6 +43,7 @@ import { useTranslation } from "react-i18next";
+ import { requestEdit, requestGeneration } from "@/services/api/image";
+ import { createVideoGenerationTask, isVideoTaskFailed, storeGeneratedVideo } from "@/services/api/video";
+ import { defaultConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
++import { attemptImageUpload } from "@/扩展功能/媒体交付/图片上传预检.mjs";
+ import { ensureImagePreview, uploadImage } from "@/services/image-storage";
+ import { uploadMediaFile, type UploadedFile } from "@/services/file-storage";
+ import { nanoid } from "nanoid";
+@@ -1500,7 +1501,7 @@ function InfiniteCanvasPage() {
+         };
+     }, [productActive, finishNodeDrag, handleGlobalMouseMove, handleGlobalMouseUp, handleGlobalPointerMove]);
+ 
+-    const createImageFileNode = useCallback(async (file: File, position: Position) => {
++    const createImageFileNode = useCallback(async (file: File, position: Position) => attemptImageUpload(async () => {
+         const image = await uploadImage(file);
+         const size = fitNodeSize(image.width, image.height);
+         const id = `image-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+@@ -1518,7 +1519,7 @@ function InfiniteCanvasPage() {
+         setSelectedNodeIds(new Set([id]));
+         setSelectedConnectionId(null);
+         setDialogNodeId(id);
+-    }, []);
++    }, text => message.error(text)), [message]);
+ 
+     const createVideoFileNode = useCallback(async (file: File, position: Position) => {
+         const video = await uploadMediaFile(file, "video");
+@@ -2092,6 +2093,8 @@ function InfiniteCanvasPage() {
+ 
+     const handleImageInputChange = useCallback(
+         async (event: ReactChangeEvent<HTMLInputElement>) => {
++            const input = event.target;
++            try { await attemptImageUpload(async () => {
+             const files = Array.from(event.target.files || []).filter(
+                 (f) => f.type.startsWith("image/") || f.type.startsWith("video/") || isAudioFile(f),
+             );
+@@ -2216,10 +2219,13 @@ function InfiniteCanvasPage() {
+                 }
+             }
+ 
+-            uploadTargetRef.current = null;
+-            event.target.value = "";
++            }, text => message.error(text));
++            } finally {
++                uploadTargetRef.current = null;
++                input.value = "";
++            }
+         },
+-        [createAudioFileNode, createImageFileNode, createVideoFileNode, screenToCanvas, size.height, size.width],
++        [createAudioFileNode, createImageFileNode, createVideoFileNode, message, screenToCanvas, size.height, size.width],
+     );
+ 
+     const handleDrop = useCallback(

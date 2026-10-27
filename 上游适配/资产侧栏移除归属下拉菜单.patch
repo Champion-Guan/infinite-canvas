@@ -1,0 +1,33 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index aecca87..c94211c 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -26,7 +26,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
+ import { CanvasNodeType, type CanvasNodeData, type CanvasConnection } from "@/types/canvas";
+ 
+ import { CanvasGenerationHistoryTab } from "@/扩展功能/生成历史/生成历史页签";
+-import { assetInScope, type AssetScope } from "@/扩展功能/素材/素材归属";
++import { assetInScope } from "@/扩展功能/素材/素材归属";
+ 
+ import type { InsertAssetPayload } from "./asset-picker-modal";
+ 
+@@ -466,8 +466,7 @@ const CanvasAssetsTab = memo(function CanvasAssetsTab({ projectId, onInsert, the
+     const [uploading, setUploading] = useState(false);
+     const fileInputRef = useRef<HTMLInputElement>(null);
+ 
+-    const [scope, setScope] = useState<AssetScope>("product");
+-    const scopedAssets = useMemo(() => assets.filter(asset => assetInScope(asset, projectId, scope)), [assets, projectId, scope]);
++    const scopedAssets = useMemo(() => assets.filter(asset => assetInScope(asset, projectId, "product")), [assets, projectId]);
+     const allTags = useMemo(() => Array.from(new Set(scopedAssets.flatMap((asset) => asset.tags || []))).slice(0, 20), [scopedAssets]);
+ 
+     const filtered = useMemo(() => {
+@@ -524,9 +523,6 @@ const CanvasAssetsTab = memo(function CanvasAssetsTab({ projectId, onInsert, the
+                 </button>
+                 <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif,video/*" multiple className="hidden" onChange={(e) => void handleFiles(e.target.files)} />
+             </div>
+-            <div className="flex items-center gap-2 px-3 pb-2">
+-                <Select size="small" aria-label="素材归属" value={scope} onChange={value => { setScope(value); setTagFilter("all"); }} className="w-full" options={[{ value: "product", label: "当前产品与共享提示词" }, { value: "unassigned", label: "未归属素材" }]} />
+-            </div>
+             {allTags.length ? (
+                 <div className="flex flex-wrap gap-1.5 px-3 pb-2">
+                     <Tag.CheckableTag checked={tagFilter === "all"} className={cn("prompt-filter-tag", tagFilter === "all" && "is-active")} onChange={() => setTagFilter("all")}>

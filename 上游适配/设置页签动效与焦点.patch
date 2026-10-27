@@ -1,0 +1,39 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index 4701d72..5e669a0 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -173,7 +173,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+     };
+ 
+     return (
+-        <>
++        <div className="guan-settings-surface guan-motion-panel">
+             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-3 dark:border-stone-800">
+                 <div className="text-xs text-stone-500">{t("config.fileSecurity")}</div>
+                 <div className="flex gap-2">
+@@ -188,7 +188,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                 </div>
+             </div>
+             <Tabs
+-                className="[&>.ant-tabs-nav_.ant-tabs-nav-list]:gap-1"
++                className="guan-settings-tabs guan-apple-transition [&>.ant-tabs-nav_.ant-tabs-nav-list]:gap-1"
+                 activeKey={activeTab}
+                 onChange={(key) => {
+                     const nextTab = resolveBusinessConfigTab(resolveConfigTab(key as ConfigTabKey));
+@@ -384,7 +384,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                 </div>
+             ) : null}
+             <ChannelEditorDrawer open={Boolean(editingChannel)} channel={editingChannel} onSave={saveChannel} onClose={() => setEditingChannelId("")} />
+-        </>
++        </div>
+     );
+ }
+ 
+@@ -412,6 +412,7 @@ export function AppConfigModal() {
+                 ...(viewport ? { wrapper: { position: "absolute" }, mask: { position: "absolute" } } : {}),
+                 body: { height: viewport ? "72cqh" : "72vh", maxHeight: viewport ? "72cqh" : "72vh", overflowY: "auto", paddingRight: 12 },
+             }}
++            className="guan-config-modal"
+             footer={null}
+         >
+             <AppConfigPanel showDoneButton initialTab={configTab} />

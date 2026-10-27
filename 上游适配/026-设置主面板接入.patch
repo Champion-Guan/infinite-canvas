@@ -1,0 +1,111 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index 4f2e08b..f40e762 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -1,3 +1,7 @@
++import { businessFeatures, resolveBusinessConfigTab } from "@/扩展功能/产品配置/脚本与提示词来源";
++import { productFeatures, resolveConfigTab } from "@/扩展功能/产品配置/功能开关";
++import { useSettingsViewport } from "@/扩展功能/存储界面/设置视区";
++import { OriginalFallbackPanel } from "@/扩展功能/故障切换/原版Fallback面板";
+ import { App, Button, Form, Input, Modal, Progress, Radio, Select, Switch, Tabs } from "antd";
+ import type { TFunction } from "i18next";
+ import { Cloud, Download, Pencil, Plus, RefreshCw, Trash2, Upload, Wifi } from "lucide-react";
+@@ -10,6 +14,7 @@ import { ChannelEditorDrawer } from "@/components/layout/channel-editor-drawer";
+ import { ConfigLocalProxy } from "@/components/layout/config-local-proxy";
+ import { ConfigPromptSources } from "@/components/layout/config-prompt-sources";
+ import { ConfigLocalStorage } from "@/components/layout/config-local-storage";
++import { ConfigSoftwareUpdates } from "@/扩展功能/软件更新/软件更新设置";
+ import type { AppLocale } from "@/i18n";
+ import { exportAppConfig, importAppConfig } from "@/services/config-file";
+ import { syncAppDataToWebdav, type AppSyncDomainKey, type AppSyncProgressEvent } from "@/services/app-sync";
+@@ -53,7 +58,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+     const { message } = App.useApp();
+     const { i18n, t } = useTranslation();
+     const configInputRef = useRef<HTMLInputElement>(null);
+-    const [activeTab, setActiveTab] = useState<ConfigTabKey>(initialTab);
++    const [activeTab, setActiveTab] = useState<ConfigTabKey>(() => resolveBusinessConfigTab(resolveConfigTab(initialTab)));
+     const [editingChannelId, setEditingChannelId] = useState("");
+     const [testingWebdav, setTestingWebdav] = useState(false);
+     const [syncingWebdav, setSyncingWebdav] = useState(false);
+@@ -65,12 +70,13 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+     const updateWebdavConfig = useConfigStore((state) => state.updateWebdavConfig);
+     const shouldPromptContinue = useConfigStore((state) => state.shouldPromptContinue);
+     const setConfigDialogOpen = useConfigStore((state) => state.setConfigDialogOpen);
++    const setConfigTab = useConfigStore((state) => state.setConfigTab);
+     const clearPromptContinue = useConfigStore((state) => state.clearPromptContinue);
+     const webdavReady = Boolean(webdav.url.trim());
+     const editingChannel = config.channels.find((channel) => channel.id === editingChannelId) || null;
+     const locale = i18n.resolvedLanguage as AppLocale;
+     const imageResolutionOptions = mediaScaleOptions.map((value) => ({ value, label: value === "auto" ? t("settingsPanels.common.auto") : value.toUpperCase() }));
+-    useEffect(() => setActiveTab(initialTab), [initialTab]);
++    useEffect(() => setActiveTab(resolveBusinessConfigTab(resolveConfigTab(initialTab))), [initialTab]);
+ 
+     const saveConfig = (nextConfig: AiConfig) => {
+         (Object.keys(nextConfig) as Array<keyof AiConfig>).forEach((key) => updateConfig(key, nextConfig[key]));
+@@ -180,8 +186,13 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                 </div>
+             </div>
+             <Tabs
++                className="[&>.ant-tabs-nav_.ant-tabs-nav-list]:gap-1"
+                 activeKey={activeTab}
+-                onChange={(key) => setActiveTab(key as ConfigTabKey)}
++                onChange={(key) => {
++                    const nextTab = resolveBusinessConfigTab(resolveConfigTab(key as ConfigTabKey));
++                    setActiveTab(nextTab);
++                    setConfigTab(nextTab);
++                }}
+                 items={[
+                     {
+                         key: "channels",
+@@ -215,9 +226,15 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                             </div>
+                         ),
+                     },
++                    {
++                        key: "fallback",
++                        label: "Fallback 配置",
++                        forceRender: true,
++                        children: <OriginalFallbackPanel />,
++                    },
+                     {
+                         key: "local-proxy",
+-                        label: t("config.tabs.localProxy"),
++                        label: "代理设置",
+                         children: <ConfigLocalProxy />,
+                     },
+                     {
+@@ -350,7 +367,12 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                         label: t("config.tabs.localStorage"),
+                         children: <ConfigLocalStorage active={activeTab === "local-storage"} />,
+                     },
+-                ]}
++                    {
++                        key: "software-updates",
++                        label: "软件更新",
++                        children: <ConfigSoftwareUpdates />,
++                    },
++                ].filter((item) => (item.key !== "webdav" || productFeatures.webdav) && (item.key !== "local-proxy" || productFeatures.localProxy) && (item.key !== "prompt-sources" || businessFeatures.promptSources))}
+             />
+             {showDoneButton ? (
+                 <div className="mt-4 flex justify-end">
+@@ -365,6 +387,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+ }
+ 
+ export function AppConfigModal() {
++    const viewport = useSettingsViewport();
+     const { t } = useTranslation();
+     const isConfigOpen = useConfigStore((state) => state.isConfigOpen);
+     const configTab = useConfigStore((state) => state.configTab);
+@@ -381,7 +404,11 @@ export function AppConfigModal() {
+             width={980}
+             centered
+             onCancel={() => setConfigDialogOpen(false)}
+-            styles={{ body: { maxHeight: "72vh", overflowY: "auto", paddingRight: 12 } }}
++            getContainer={viewport ?? undefined}
++            styles={{
++                ...(viewport ? { wrapper: { position: "absolute" }, mask: { position: "absolute" } } : {}),
++                body: { height: viewport ? "72cqh" : "72vh", maxHeight: viewport ? "72cqh" : "72vh", overflowY: "auto", paddingRight: 12 },
++            }}
+             footer={null}
+         >
+             <AppConfigPanel showDoneButton initialTab={configTab} />

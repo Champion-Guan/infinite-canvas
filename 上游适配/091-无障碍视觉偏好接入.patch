@@ -1,0 +1,51 @@
+--- a/web/src/styles/globals.css
++++ b/web/src/styles/globals.css
+@@ -168,6 +168,48 @@
+             transition-duration: 1ms !important;
+         }
+     }
++
++    /* Keep translucent surfaces legible for users who disable transparency. */
++    @media (prefers-reduced-transparency: reduce) {
++        :root,
++        .dark {
++            --guan-motion-shadow: 0 8px 24px rgb(28 25 23 / 16%);
++            --guan-motion-shadow-dark: 0 10px 28px rgb(0 0 0 / 38%);
++        }
++
++        .backdrop-blur,
++        .backdrop-blur-sm,
++        .backdrop-blur-md,
++        .backdrop-blur-lg,
++        .backdrop-blur-xl,
++        .backdrop-blur-2xl,
++        .backdrop-blur-3xl {
++            -webkit-backdrop-filter: none !important;
++            backdrop-filter: none !important;
++        }
++    }
++
++    @media (prefers-contrast: more) {
++        :root {
++            --border: oklch(0.62 0 0);
++            --muted-foreground: oklch(0.32 0 0);
++        }
++
++        .dark {
++            --border: oklch(0.76 0 0 / 55%);
++            --muted-foreground: oklch(0.84 0 0);
++        }
++
++        button:focus-visible,
++        a:focus-visible,
++        input:focus-visible,
++        textarea:focus-visible,
++        select:focus-visible,
++        [role="button"]:focus-visible {
++            outline: 2px solid currentColor !important;
++            outline-offset: 3px;
++        }
++    }
+ }
+ 
+ @layer utilities {

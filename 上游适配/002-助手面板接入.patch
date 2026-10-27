@@ -1,0 +1,18 @@
+diff --git a/web/src/components/agent/agent-panel.tsx b/web/src/components/agent/agent-panel.tsx
+index c2c288c..24eadea 100644
+--- a/web/src/components/agent/agent-panel.tsx
++++ b/web/src/components/agent/agent-panel.tsx
+@@ -1,3 +1,4 @@
++import { sqlitePreferences } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { useState, type PointerEvent as ReactPointerEvent } from "react";
+ import { motion } from "motion/react";
+ import { useTranslation } from "react-i18next";
+@@ -28,7 +29,7 @@ export function AgentPanel() {
+             setAgentState({ width: nextWidth });
+         };
+         const onUp = () => {
+-            localStorage.setItem("canvas-agent-panel-width", String(nextWidth));
++            sqlitePreferences.setItem("canvas-agent-panel-width", String(nextWidth));
+             window.removeEventListener("pointermove", onMove);
+             window.removeEventListener("pointerup", onUp);
+             setResizing(false);

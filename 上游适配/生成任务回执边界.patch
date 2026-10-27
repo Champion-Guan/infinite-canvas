@@ -1,0 +1,84 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 288b4b5..2dc173d 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,5 +1,5 @@
++import { useCanvasTaskReceipts } from "@/扩展功能/画布生成/生成任务回执操作";
+ import { promptGenerationPatch, detectedPromptConfig, generationSettingsFromNode, generationNodeForExecution } from "@/扩展功能/画布生成/生成参数继承";
+-import { requestCanvasText } from "@/扩展功能/画布生成/原画布文本调用";
+ import { ExcelCanvasScope, useExcelPromptContext } from "@/扩展功能/Excel画布/Excel画布上下文";
+ import { registerExcelParameterNode } from "@/扩展功能/Excel画布/Excel参数节点注册";
+ import { PROMPT_VARIABLES_NODE_TYPE } from "@/扩展功能/Excel画布/旧版参数规则";
+@@ -8,9 +8,8 @@ import { syncExcelPromptNodes } from "@/扩展功能/Excel画布/旧版提示词
+ import { bindExcelParameters, createProductParameterNode, insertExcelPromptCards, reconcileExcelPreviews, disconnectExcelParameters, remapCopiedExcelRelations, type ExcelInsertRequest } from "@/扩展功能/Excel画布/Excel卡片事务";
+ import { EXCEL_PROMPT_DRAG_TYPE } from "@/扩展功能/Excel画布/Excel提示词列表";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+-import { clearConfirmedImageErrors } from "@/扩展功能/画布生成/图片任务确认恢复.mjs";
+-import { ImageTaskConfirmation, type ConfirmedImageTarget } from "@/扩展功能/画布生成/图片任务确认状态";
+-import { requestCanvasImage, type CanvasImageTask } from "@/扩展功能/画布生成/原画布图片调用";
++import { ImageTaskConfirmation } from "@/扩展功能/画布生成/图片任务确认状态";
++import { requestCanvasImage } from "@/扩展功能/画布生成/原画布图片调用";
+ import { saveProductCanvas, useProductCanvasSave } from "@/扩展功能/产品/产品操作";
+ import { observeActivity } from "@/扩展功能/安全与批量/update-activity";
+ import { flushSQLiteStorage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+@@ -23,7 +22,7 @@ import { saveAs } from "file-saver";
+ import { readDownloadBlob } from "@/扩展功能/画布迁移扩展/media-download";
+ import { useTranslation } from "react-i18next";
+ 
+-import { requestEdit, requestGeneration, type AiTextMessage } from "@/services/api/image";
++import { requestEdit, requestGeneration } from "@/services/api/image";
+ import { requestAudioGeneration, storeGeneratedAudio } from "@/services/api/audio";
+ import { createVideoGenerationTask, isVideoTaskFailed, storeGeneratedVideo, waitForVideoGenerationTask } from "@/services/api/video";
+ import { defaultConfig, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+@@ -634,50 +633,7 @@ function InfiniteCanvasPage() {
+             }
+         }, () => generationRequestsRef.current.size === 0 && runningNodeId === null);
+ 
+-    const pendingImageErrorSaves = useRef(new Set<string>());
+-    const clearConfirmedImageError = useCallback(async (target: ConfirmedImageTarget) => {
+-        if (target.productId !== projectId || restoredProjectIdRef.current !== projectId) return;
+-        const previous = nodesRef.current;
+-        const next = clearConfirmedImageErrors(previous, target) as CanvasNodeData[];
+-        if (next !== previous) {
+-            pendingImageErrorSaves.current.add(target.id);
+-            setNodes(next);
+-        }
+-        // 清理保存失败时保留重试标记；下次仅保存，不重新交付或生成图片。
+-        if (pendingImageErrorSaves.current.has(target.id)) {
+-            await saveProductCanvas(projectId);
+-            pendingImageErrorSaves.current.delete(target.id);
+-        }
+-    }, [projectId, setNodes]);
+-
+-    const recordImageGatewayTask = useCallback(async (id: string, task: CanvasImageTask) => {
+-        if (!nodesRef.current.some(node => node.id === id)) throw new Error("原结果卡片已删除，未发送生成请求。");
+-        setNodes(prev => prev.map(node => node.id !== id ? node : { ...node, metadata: {
+-            ...node.metadata, gatewayGenerationTasks: [...(node.metadata?.gatewayGenerationTasks || []).filter(item => item.slotId !== task.slotId), task],
+-        } }));
+-        await saveProductCanvas(projectId);
+-    }, [projectId, setNodes]);
+-
+-    const requestNodeText = useCallback(async (config: AiConfig, messages: AiTextMessage[], onDelta: (text: string) => void, options: { signal: AbortSignal; nodeId: string; slotId: string; retry?: boolean }) => {
+-        const current = nodesRef.current.find(node => node.id === options.nodeId);
+-        if (!current) throw Error("原文本卡片已删除，未发送生成请求");
+-        return requestCanvasText({
+-            config, messages, signal: options.signal, retry: options.retry,
+-            scope: { productId: projectId, nodeId: options.nodeId, slotId: options.slotId },
+-            previous: current.metadata?.gatewayGenerationTasks?.find(task => task.slotId === options.slotId),
+-            recordTask: task => recordImageGatewayTask(options.nodeId, task),
+-            applyAndSave: async (text, receipt) => {
+-                if (!nodesRef.current.some(node => node.id === options.nodeId)) throw Error("原文本卡片已删除，结果保留在任务账本");
+-                onDelta(text);
+-                setNodes(prev => prev.map(node => node.id !== options.nodeId ? node : { ...node, metadata: {
+-                    ...node.metadata, status: NODE_STATUS_SUCCESS, errorDetails: undefined,
+-                    texts: node.metadata?.texts?.map(item => item.id !== options.slotId ? item : { ...item, content: text, status: NODE_STATUS_SUCCESS, errorDetails: undefined }),
+-                    gatewayGenerationReceipts: [...(node.metadata?.gatewayGenerationReceipts || []).filter(item => item.taskId !== receipt.taskId), receipt],
+-                } }));
+-                await saveProductCanvas(projectId);
+-            },
+-        });
+-    }, [projectId, recordImageGatewayTask, setNodes]);
++    const { clearConfirmedImageError, recordImageGatewayTask, requestNodeText } = useCanvasTaskReceipts({ projectId, nodesRef, restoredProjectIdRef, setNodes });
+ 
+     useEffect(() => {
+         if (!dialogNodeId) setNodeImageSettingsOpen(false);

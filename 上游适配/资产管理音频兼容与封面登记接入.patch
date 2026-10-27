@@ -1,0 +1,141 @@
+diff --git a/web/src/pages/assets/index.tsx b/web/src/pages/assets/index.tsx
+index a236e47..ad5e35d 100644
+--- a/web/src/pages/assets/index.tsx
++++ b/web/src/pages/assets/index.tsx
+@@ -5,7 +5,7 @@ import { saveAs } from "file-saver";
+ import { useTranslation } from "react-i18next";
+ 
+ import { useCopyText } from "@/hooks/use-copy-text";
+-import { formatBytes, readFileAsDataUrl } from "@/lib/image-utils";
++import { formatBytes } from "@/lib/image-utils";
+ import { getMediaBlob } from "@/services/file-storage";
+ import { getImageBlob, getImagePreviewRevision, subscribeImagePreviews, uploadImage } from "@/services/image-storage";
+ import { cn } from "@/lib/utils";
+@@ -24,7 +24,7 @@ type AssetFormValues = {
+ 
+ type ImageDraft = ImageAsset["data"] | null;
+ 
+-const kindOptions = ["all", "text", "image", "video"] as const;
++const kindOptions = ["all", "text", "image", "video", "audio"] as const;
+ 
+ export default function AssetsPage() {
+     const { message } = App.useApp();
+@@ -52,7 +52,7 @@ export default function AssetsPage() {
+     const title = Form.useWatch("title", form) || "";
+     const tags = Form.useWatch("tags", form) || [];
+     const content = Form.useWatch("content", form) || "";
+-    const validAssets = useMemo(() => assets.filter((asset) => asset.kind === "text" || asset.kind === "image" || asset.kind === "video"), [assets]);
++    const validAssets = useMemo(() => assets.filter((asset) => asset.kind === "text" || asset.kind === "image" || asset.kind === "video" || asset.kind === "audio"), [assets]);
+ 
+     const filteredAssets = useMemo(() => {
+         const query = keyword.trim().toLowerCase();
+@@ -126,14 +126,16 @@ export default function AssetsPage() {
+ 
+     const readCoverFile = async (file?: File) => {
+         if (!file) return;
+-        const dataUrl = await readFileAsDataUrl(file);
++        const image = await uploadImage(file);
++        const dataUrl = image.url;
+         form.setFieldValue("coverUrl", dataUrl);
+     };
+ 
+     const readImageFile = async (file?: File) => {
+         if (!file || !file.type.startsWith("image/")) return;
+         const image = await uploadImage(file);
+-        const draft = { dataUrl: image.url, storageKey: image.storageKey, width: image.width, height: image.height, bytes: image.bytes, mimeType: image.mimeType };
++        const { url, ...stored } = image;
++        const draft = { ...stored, dataUrl: url };
+         setImageDraft(draft);
+         if (!form.getFieldValue("coverUrl")) form.setFieldValue("coverUrl", draft.dataUrl);
+         if (!form.getFieldValue("title")) form.setFieldValue("title", file.name);
+@@ -145,7 +147,7 @@ export default function AssetsPage() {
+     };
+ 
+     const downloadImage = async (asset: Asset) => {
+-        if (asset.kind !== "image" && asset.kind !== "video") return;
++        if (asset.kind === "text") return;
+         try {
+             const blob = await readAssetMediaBlob(asset);
+             if (!blob) {
+@@ -236,7 +238,7 @@ export default function AssetsPage() {
+                                                 setKindFilter(option);
+                                             }}
+                                         >
+-                                            {option === "all" ? t("common.all") : t(`assets.kinds.${option}`)}
++                                            {option === "all" ? t("common.all") : option === "audio" ? "音频" : t(`assets.kinds.${option}`)}
+                                         </Tag.CheckableTag>
+                                     ))}
+                                 </div>
+@@ -439,7 +441,7 @@ function AssetCard({ asset, onOpen, onEdit, onCopy, onDownload, onDelete }: { as
+                                 {asset.source || t("assets.unknownSource")}
+                             </Typography.Text>
+                         </div>
+-                        <Tag className="m-0 shrink-0 text-[11px]">{t(`assets.kinds.${asset.kind}`)}</Tag>
++                        <Tag className="m-0 shrink-0 text-[11px]">{asset.kind === "audio" ? "音频" : t(`assets.kinds.${asset.kind}`)}</Tag>
+                     </div>
+                     <Typography.Paragraph type="secondary" ellipsis={{ rows: 3 }} className="!mb-0 !mt-2 !text-xs !leading-5">
+                         {summary}
+@@ -458,7 +460,7 @@ function AssetCard({ asset, onOpen, onEdit, onCopy, onDownload, onDelete }: { as
+                 <Button size="small" onClick={onOpen}>
+                     {t("common.view")}
+                 </Button>
+-                {asset.kind !== "video" ? (
++                {asset.kind === "text" || asset.kind === "image" ? (
+                     <Button size="small" icon={<PencilLine className="size-3.5" />} onClick={onEdit}>
+                         {t("common.edit")}
+                     </Button>
+@@ -468,7 +470,7 @@ function AssetCard({ asset, onOpen, onEdit, onCopy, onDownload, onDelete }: { as
+                         {t("common.copy")}
+                     </Button>
+                 ) : null}
+-                {asset.kind === "image" || asset.kind === "video" ? (
++                {asset.kind !== "text" ? (
+                     <Button size="small" icon={<Download className="size-3.5" />} onClick={() => onDownload(asset)}>
+                         {t("common.download")}
+                     </Button>
+@@ -499,7 +501,7 @@ function AssetDrawer({ asset, onClose, onCopy, onDownload }: { asset: Asset | nu
+                             {asset.title}
+                         </Typography.Title>
+                         <Space size={[4, 4]} wrap>
+-                            <Tag>{t(`assets.kinds.${asset.kind}`)}</Tag>
++                            <Tag>{asset.kind === "audio" ? "音频" : t(`assets.kinds.${asset.kind}`)}</Tag>
+                             {(asset.tags || []).map((tag) => (
+                                 <Tag key={tag}>{tag}</Tag>
+                             ))}
+@@ -511,6 +513,8 @@ function AssetDrawer({ asset, onClose, onCopy, onDownload }: { asset: Asset | nu
+                         </Typography.Text>
+                         {asset.kind === "text" ? (
+                             <Typography.Paragraph className="mt-2 whitespace-pre-wrap">{asset.data.content}</Typography.Paragraph>
++                        ) : asset.kind === "audio" ? (
++                            <audio src={asset.data.url} controls className="mt-2 w-full" />
+                         ) : asset.kind === "video" ? (
+                             <video src={asset.data.url} controls className="mt-2 aspect-video w-full rounded-lg bg-black" />
+                         ) : (
+@@ -531,9 +535,9 @@ function AssetDrawer({ asset, onClose, onCopy, onDownload }: { asset: Asset | nu
+                                 {t("assets.copyText")}
+                             </Button>
+                         ) : null}
+-                        {asset.kind === "image" || asset.kind === "video" ? (
++                        {asset.kind !== "text" ? (
+                             <Button type="primary" icon={<Download className="size-4" />} onClick={() => onDownload(asset)}>
+-                                {asset.kind === "video" ? t("assets.downloadVideo") : t("assets.downloadImage")}
++                                {asset.kind === "audio" ? "下载音频" : asset.kind === "video" ? t("assets.downloadVideo") : t("assets.downloadImage")}
+                             </Button>
+                         ) : null}
+                     </Space>
+@@ -543,13 +547,13 @@ function AssetDrawer({ asset, onClose, onCopy, onDownload }: { asset: Asset | nu
+     );
+ }
+ 
+-async function readAssetMediaBlob(asset: Extract<Asset, { kind: "image" | "video" }>) {
++async function readAssetMediaBlob(asset: Extract<Asset, { kind: "image" | "video" | "audio" }>) {
+     const storageKey = asset.data.storageKey;
+     if (storageKey) {
+         const stored = asset.kind === "image" ? await getImageBlob(storageKey) : await getMediaBlob(storageKey);
+         if (stored) return stored;
+     }
+-    const url = asset.kind === "video" ? asset.data.url : asset.data.dataUrl || asset.coverUrl;
++    const url = asset.kind !== "image" ? asset.data.url : asset.data.dataUrl || asset.coverUrl;
+     if (!url) return null;
+     const response = await fetch(url);
+     return response.ok ? response.blob() : null;

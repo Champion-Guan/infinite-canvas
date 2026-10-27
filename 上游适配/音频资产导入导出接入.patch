@@ -1,0 +1,13 @@
+diff --git a/web/src/pages/assets/asset-transfer.ts b/web/src/pages/assets/asset-transfer.ts
+index c4d632d..27b426f 100644
+--- a/web/src/pages/assets/asset-transfer.ts
++++ b/web/src/pages/assets/asset-transfer.ts
+@@ -26,7 +26,7 @@ export async function exportAssets(assets: Asset[], filename: string) {
+ 
+     await Promise.all(
+         assets.map(async (asset) => {
+-            if (asset.kind !== "image" && asset.kind !== "video") return;
++            if (asset.kind === "text") return;
+             const storageKey = asset.data.storageKey;
+             if (!storageKey) return;
+             const blob = asset.kind === "image" ? await getImageBlob(storageKey) : await getMediaBlob(storageKey);

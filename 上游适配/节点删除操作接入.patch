@@ -1,0 +1,66 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 95d8e05..a808d90 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -4,6 +4,7 @@ import { useSinglePromptConfig } from "@/扩展功能/画布生成/单卡配置
+ import { useCanvasMediaDownloads } from "@/扩展功能/媒体交付/画布下载操作";
+ import { useCanvasBatchGeneration } from "@/扩展功能/画布生成/批量生成操作";
+ import { useCanvasNodeRecycle } from "@/扩展功能/画布回收/节点回收操作";
++import { useCanvasNodeDeletion } from "@/扩展功能/画布回收/节点删除操作";
+ import { useCanvasContentImport } from "@/扩展功能/画布导入/当前画布导入操作";
+ import { useCanvasTaskReceipts } from "@/扩展功能/画布生成/生成任务回执操作";
+ import { applyConnectedPromptConfig, detectedPromptConfig, generationNodeForExecution } from "@/扩展功能/画布生成/生成参数继承";
+@@ -34,7 +35,6 @@ import { createVideoGenerationTask, isVideoTaskFailed, storeGeneratedVideo, wait
+ import { defaultConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
+ import { ensureImagePreview, uploadImage } from "@/services/image-storage";
+ import { uploadMediaFile, type UploadedFile } from "@/services/file-storage";
+-import { recycleCanvasNodes } from "@/扩展功能/画布回收/画布节点回收";
+ import { nanoid } from "nanoid";
+ import { getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
+ import { imageReferenceLabel } from "@/lib/image-reference-prompt";
+@@ -967,39 +967,12 @@ function InfiniteCanvasPage() {
+         }
+     }, [nodes, size.width, size.height]);
+ 
+-    const deleteNodes = useCallback(
+-        (ids: Set<string>) => {
+-            if (!ids.size) return;
+-            const stored = useCanvasStore.getState().openProject(projectId);
+-            if (!stored) return;
+-            const result = recycleCanvasNodes(nodesRef.current, connectionsRef.current, ids, stored.deletedNodeBatches || []);
+-            if (!result) return;
+-            const { allIds } = result;
+-            updateProject(projectId, { nodes: result.nodes, connections: result.connections, deletedNodeBatches: result.batches });
+-            setNodes(result.nodes);
+-            connectionsRef.current = result.connections;
+-            setConnections(result.connections);
+-            setSelectedNodeIds(new Set());
+-            setSelectedConnectionId(null);
+-            setHoveredNodeId((current) => (current && allIds.has(current) ? null : current));
+-            setToolbarNodeId((current) => (current && allIds.has(current) ? null : current));
+-            setDialogNodeId((current) => (current && allIds.has(current) ? null : current));
+-            setInfoNodeId((current) => (current && allIds.has(current) ? null : current));
+-            setCropNodeId((current) => (current && allIds.has(current) ? null : current));
+-            setMaskEditNodeId((current) => (current && allIds.has(current) ? null : current));
+-            setAngleNodeId((current) => (current && allIds.has(current) ? null : current));
+-            setPreviewNodeId((current) => (current && allIds.has(current) ? null : current));
+-            setPreviewImageId(null);
+-            setSplitNodeId((current) => (current && allIds.has(current) ? null : current));
+-            setUpscaleNodeId((current) => (current && allIds.has(current) ? null : current));
+-            setRunningNodeId((current) => (current && allIds.has(current) ? null : current));
+-            setReferencePickerNodeId((current) => (current && allIds.has(current) ? null : current));
+-            setExpandedBatchNodeIds((current) => new Set([...current].filter((nodeId) => !allIds.has(nodeId))));
+-            setContextMenu((current) => (current?.type === "node" && allIds.has(current.nodeId) ? null : current));
+-            cleanupCanvasFiles({ projectId, nodes: nodesRef.current.filter((node) => !allIds.has(node.id)), chatSessions });
+-        },
+-        [chatSessions, cleanupCanvasFiles, projectId, setNodes, updateProject],
+-    );
++    const deletedNodeIdSetters = useMemo(() => [setHoveredNodeId, setToolbarNodeId, setDialogNodeId, setInfoNodeId,
++        setCropNodeId, setMaskEditNodeId, setAngleNodeId, setPreviewNodeId, setSplitNodeId, setUpscaleNodeId,
++        setRunningNodeId, setReferencePickerNodeId], []);
++    const deleteNodes = useCanvasNodeDeletion({ projectId, nodesRef, connectionsRef, chatSessions, updateProject,
++        setNodes, setConnections, nodeIdSetters: deletedNodeIdSetters, setSelectedNodeIds, setSelectedConnectionId,
++        setPreviewImageId, setExpandedBatchNodeIds, setContextMenu, cleanupCanvasFiles });
+ 
+     const groupSelection = useCallback(() => {
+         const selectedIds = selectedNodeIdsRef.current;

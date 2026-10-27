@@ -1,0 +1,65 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index 5e669a0..b69d2cd 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -1,3 +1,4 @@
++import { SettingsDoneButton } from "@/扩展功能/存储界面/设置完成按钮";
+ import { businessFeatures, resolveBusinessConfigTab } from "@/扩展功能/产品配置/脚本与提示词来源";
+ import { productFeatures, resolveConfigTab } from "@/扩展功能/产品配置/功能开关";
+ import { useSettingsViewport } from "@/扩展功能/存储界面/设置视区";
+@@ -69,10 +70,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+     const webdav = useConfigStore((state) => state.webdav);
+     const updateConfig = useConfigStore((state) => state.updateConfig);
+     const updateWebdavConfig = useConfigStore((state) => state.updateWebdavConfig);
+-    const shouldPromptContinue = useConfigStore((state) => state.shouldPromptContinue);
+-    const setConfigDialogOpen = useConfigStore((state) => state.setConfigDialogOpen);
+     const setConfigTab = useConfigStore((state) => state.setConfigTab);
+-    const clearPromptContinue = useConfigStore((state) => state.clearPromptContinue);
+     const webdavReady = Boolean(webdav.url.trim());
+     const editingChannel = config.channels.find((channel) => channel.id === editingChannelId) || null;
+     const locale = i18n.resolvedLanguage as AppLocale;
+@@ -83,14 +81,6 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+         (Object.keys(nextConfig) as Array<keyof AiConfig>).forEach((key) => updateConfig(key, nextConfig[key]));
+     };
+ 
+-    const finishConfig = () => {
+-        const ready = config.channels.some((channel) => channel.baseUrl.trim() && channel.apiKey.trim() && channel.models.length);
+-        setConfigDialogOpen(false);
+-        if (!ready) return;
+-        message.success(t(shouldPromptContinue ? "config.savedContinue" : "config.saved"));
+-        clearPromptContinue();
+-    };
+-
+     const loadConfigFile = async (file: File) => {
+         try {
+             await importAppConfig(file);
+@@ -378,9 +368,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+             />
+             {showDoneButton ? (
+                 <div className="mt-4 flex justify-end">
+-                    <Button type="primary" onClick={finishConfig}>
+-                        {t("common.done")}
+-                    </Button>
++                    <SettingsDoneButton />
+                 </div>
+             ) : null}
+             <ChannelEditorDrawer open={Boolean(editingChannel)} channel={editingChannel} onSave={saveChannel} onClose={() => setEditingChannelId("")} />
+@@ -410,12 +398,15 @@ export function AppConfigModal() {
+             getContainer={viewport ?? undefined}
+             styles={{
+                 ...(viewport ? { wrapper: { position: "absolute" }, mask: { position: "absolute" } } : {}),
+-                body: { height: viewport ? "72cqh" : "72vh", maxHeight: viewport ? "72cqh" : "72vh", overflowY: "auto", paddingRight: 12 },
++                container: { display: "flex", flexDirection: "column", maxHeight: viewport ? "calc(100cqh - 24px)" : "calc(100dvh - 24px)" },
++                header: { flexShrink: 0 },
++                body: { height: viewport ? "72cqh" : "72dvh", minHeight: 0, overflowY: "auto", paddingRight: 12 },
++                footer: { flexShrink: 0 },
+             }}
+             className="guan-config-modal"
+-            footer={null}
++            footer={<SettingsDoneButton />}
+         >
+-            <AppConfigPanel showDoneButton initialTab={configTab} />
++            <AppConfigPanel initialTab={configTab} />
+         </Modal>
+     );
+ }

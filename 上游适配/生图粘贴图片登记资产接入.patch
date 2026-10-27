@@ -1,0 +1,13 @@
+diff --git a/web/src/pages/image/index.tsx b/web/src/pages/image/index.tsx
+index 8ae80ba..df62e11 100644
+--- a/web/src/pages/image/index.tsx
++++ b/web/src/pages/image/index.tsx
+@@ -137,7 +137,7 @@ export default function ImagePage() {
+             }
+             const nextReferences = await Promise.all(
+                 blobs.map(async (blob, index) => {
+-                    const image = await uploadImage(blob);
++                    const image = await uploadImage(new File([blob], `剪贴板图片-${index + 1}.png`, { type: blob.type }));
+                     return { id: nanoid(), name: `clipboard-${index + 1}.png`, type: image.mimeType, dataUrl: image.url, storageKey: image.storageKey };
+                 }),
+             );

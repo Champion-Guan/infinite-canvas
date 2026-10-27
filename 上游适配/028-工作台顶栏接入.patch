@@ -1,0 +1,59 @@
+diff --git a/web/src/components/layout/app-top-nav.tsx b/web/src/components/layout/app-top-nav.tsx
+index 28a85e7..7b27938 100644
+--- a/web/src/components/layout/app-top-nav.tsx
++++ b/web/src/components/layout/app-top-nav.tsx
+@@ -1,3 +1,4 @@
++import { productFeatures } from "@/扩展功能/产品配置/功能开关";
+ import { Bot, Menu } from "lucide-react";
+ import { Button, Tooltip } from "antd";
+ import { Link, useLocation } from "react-router-dom";
+@@ -27,7 +28,7 @@ export function AppTopNav() {
+     const activeToolSlug = navigationTools.some((tool) => tool.slug === slug) ? (slug as NavigationToolSlug) : undefined;
+ 
+     useEffect(() => {
+-        if (autoConnectRef.current || agentEnabled || agentConnected || !agentToken.trim()) return;
++        if (!productFeatures.externalAgent || autoConnectRef.current || agentEnabled || agentConnected || !agentToken.trim()) return;
+         autoConnectRef.current = true;
+         connectAgent({ silent: true });
+     }, [agentConnected, agentEnabled, agentToken, connectAgent]);
+@@ -49,7 +50,7 @@ export function AppTopNav() {
+                                 <span className="text-base font-medium">{t("meta.title")}</span>
+                             </Link>
+ 
+-                            <button
++                            {navigationTools.length ? <button
+                                 type="button"
+                                 className="ml-3 inline-flex size-8 shrink-0 items-center justify-center text-stone-600 transition hover:text-stone-950 md:hidden dark:text-stone-300 dark:hover:text-white"
+                                 onClick={() => setMobileNavOpen(true)}
+@@ -57,7 +58,7 @@ export function AppTopNav() {
+                                 title={t("topNav.menu")}
+                             >
+                                 <Menu className="size-5" />
+-                            </button>
++                            </button> : null}
+ 
+                             <nav className="hide-scrollbar ml-8 hidden h-14 min-w-0 items-center gap-7 overflow-x-auto md:flex">
+                                 {navigationTools.map((tool) => {
+@@ -83,16 +84,18 @@ export function AppTopNav() {
+                         </div>
+ 
+                         <div className="my-auto flex h-9 min-w-0 items-center justify-end gap-2 justify-self-end whitespace-nowrap">
+-                            <Tooltip title={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")}>
+-                                <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" icon={<Bot className="size-4" />} onClick={togglePanel} aria-label={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")} />
+-                            </Tooltip>
++                            {productFeatures.externalAgent ? (
++                                <Tooltip title={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")}>
++                                    <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" icon={<Bot className="size-4" />} onClick={togglePanel} aria-label={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")} />
++                                </Tooltip>
++                            ) : null}
+                             <UserStatusActions />
+                         </div>
+                     </div>
+                 </header>
+             ) : null}
+ 
+-            <MobileNavDrawer open={mobileNavOpen} activeToolSlug={activeToolSlug} onClose={() => setMobileNavOpen(false)} />
++            {navigationTools.length ? <MobileNavDrawer open={mobileNavOpen} activeToolSlug={activeToolSlug} onClose={() => setMobileNavOpen(false)} /> : null}
+             <AppConfigModal />
+         </>
+     );

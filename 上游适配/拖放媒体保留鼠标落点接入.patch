@@ -1,0 +1,93 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index aeeac71..173779e 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -29,7 +29,7 @@ import { PROMPT_VARIABLES_NODE_TYPE } from "@/扩展功能/Excel画布/旧版参
+ import { useExcelParameterOperations } from "@/扩展功能/Excel画布/Excel参数操作";
+ import { useExcelCanvasInsertion } from "@/扩展功能/Excel画布/Excel插入操作";
+ import { useCanvasNodeCopy } from "@/扩展功能/画布布局/节点复制操作";
+-import { useCanvasNodeTransactions } from "@/扩展功能/画布生成/画布节点事务";
++import { useCanvasNodeTransactions, type CanvasNodePlacement } from "@/扩展功能/画布生成/画布节点事务";
+ import { useGlobalImageReference } from "@/扩展功能/画布生成/全局参考图操作";
+ import { EXCEL_PROMPT_DRAG_TYPE } from "@/扩展功能/Excel画布/Excel拖入校验";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+@@ -1477,7 +1477,7 @@ function InfiniteCanvasPage() {
+         };
+     }, [productActive, finishNodeDrag, handleGlobalMouseMove, handleGlobalMouseUp, handleGlobalPointerMove]);
+ 
+-    const createImageFileNode = useCallback(async (file: File, position: Position) => attemptImageUpload(async () => {
++    const createImageFileNode = useCallback(async (file: File, position: Position, placement: CanvasNodePlacement = "auto") => attemptImageUpload(async () => {
+         const image = await uploadImage(file, { assetProjectId: projectId });
+         const size = fitNodeSize(image.width, image.height);
+         const id = `image-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+@@ -1491,13 +1491,13 @@ function InfiniteCanvasPage() {
+             metadata: imageMetadata(image),
+         };
+ 
+-        setNodes((prev) => [...prev, newNode]);
++        setNodes((prev) => [...prev, newNode], placement);
+         setSelectedNodeIds(new Set([id]));
+         setSelectedConnectionId(null);
+         setDialogNodeId(id);
+-    }, text => message.error(text)), [message, projectId]);
++    }, text => message.error(text)), [message, projectId, setNodes]);
+ 
+-    const createVideoFileNode = useCallback(async (file: File, position: Position) => {
++    const createVideoFileNode = useCallback(async (file: File, position: Position, placement: CanvasNodePlacement = "auto") => {
+         const video = await uploadMediaFile(file, "video", { assetProjectId: projectId });
+         const size = fitNodeSize(video.width || 1280, video.height || 720, VIDEO_NODE_MAX_WIDTH, VIDEO_NODE_MAX_HEIGHT);
+         const id = `video-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+@@ -1512,13 +1512,13 @@ function InfiniteCanvasPage() {
+                 height: size.height,
+                 metadata: videoMetadata(video),
+             },
+-        ]);
++        ], placement);
+         setSelectedNodeIds(new Set([id]));
+         setSelectedConnectionId(null);
+         setDialogNodeId(id);
+-    }, [projectId]);
++    }, [projectId, setNodes]);
+ 
+-    const createAudioFileNode = useCallback(async (file: File, position: Position) => {
++    const createAudioFileNode = useCallback(async (file: File, position: Position, placement: CanvasNodePlacement = "auto") => {
+         const audio = await uploadMediaFile(file, "audio", { assetProjectId: projectId });
+         const spec = NODE_DEFAULT_SIZE[CanvasNodeType.Audio];
+         const id = `audio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+@@ -1533,10 +1533,10 @@ function InfiniteCanvasPage() {
+                 height: spec.height,
+                 metadata: audioMetadata(audio),
+             },
+-        ]);
++        ], placement);
+         setSelectedNodeIds(new Set([id]));
+         setSelectedConnectionId(null);
+-    }, [projectId]);
++    }, [projectId, setNodes]);
+ 
+     const createTextNodeFromClipboard = useCallback(
+         (text: string) => {
+@@ -2218,7 +2218,7 @@ function InfiniteCanvasPage() {
+             if (event.dataTransfer.types.includes(ASSET_DRAG_TYPE)) {
+                 event.stopPropagation();
+                 const assetId = readAssetDrag(event.dataTransfer.getData(ASSET_DRAG_TYPE), projectId);
+-                if (assetId) void insertStoredAsset(assetId, screenToCanvas(event.clientX, event.clientY));
++                if (assetId) void insertStoredAsset(assetId, screenToCanvas(event.clientX, event.clientY), "exact");
+                 return;
+             }
+             if (dropExcelCards(event.dataTransfer.getData(EXCEL_PROMPT_DRAG_TYPE), screenToCanvas(event.clientX, event.clientY))) return;
+@@ -2250,11 +2250,11 @@ function InfiniteCanvasPage() {
+                 const pos = { x: basePos.x + i * STAGGER, y: basePos.y + i * STAGGER };
+                 const f = files[i];
+                 if (isAudioFile(f)) {
+-                    void createAudioFileNode(f, pos);
++                    void createAudioFileNode(f, pos, "exact");
+                 } else if (f.type.startsWith("video/")) {
+-                    void createVideoFileNode(f, pos);
++                    void createVideoFileNode(f, pos, "exact");
+                 } else {
+-                    void createImageFileNode(f, pos);
++                    void createImageFileNode(f, pos, "exact");
+                 }
+             }
+         },

@@ -1,0 +1,4 @@
+/* 仅改变遮挡结果的视觉层，保留鼠标命中，防止悬浮状态抖动。 */
+.node-element[data-inline-result-obscured="true"] { opacity: .28; z-index: 6; }
+.node-element[data-inline-result-obscured] { transition: opacity 180ms ease !important; }
+@media (prefers-reduced-motion: reduce) { .node-element[data-inline-result-obscured] { transition: none !important; } }

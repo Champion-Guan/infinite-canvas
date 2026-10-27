@@ -1,0 +1,46 @@
+diff --git a/web/src/components/model-picker.tsx b/web/src/components/model-picker.tsx
+index d262156..5fc9c88 100644
+--- a/web/src/components/model-picker.tsx
++++ b/web/src/components/model-picker.tsx
+@@ -1,11 +1,12 @@
+-import { useEffect, useId, useMemo, useState } from "react";
+-import { Cpu } from "lucide-react";
++import { useEffect, useId, useState } from "react";
++import { useFallbackRevision } from "@/扩展功能/故障切换/浏览器状态";
++import { Cpu, Repeat2 } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 
+ import i18n from "@/i18n";
+ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+ import { cn } from "@/lib/utils";
+-import { modelOptionLabel, modelOptionName, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
++import { FALLBACK_MODEL_OPTION, hasEnabledFallback, modelOptionLabel, modelOptionName, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
+ 
+ type ModelPickerProps = {
+     config: AiConfig;
+@@ -22,7 +23,8 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
+     const { t } = useTranslation();
+     const pickerId = useId();
+     const [open, setOpen] = useState(false);
+-    const options = useMemo(() => Array.from(new Set([...(config.channelMode === "local" && !capability ? [value] : []), ...selectableModelsByCapability(config, capability)].filter((model): model is string => Boolean(model)))), [capability, config, value]);
++    useFallbackRevision();
++    const options = Array.from(new Set([...(capability === "image" && hasEnabledFallback(capability, config) ? [FALLBACK_MODEL_OPTION] : []), ...(config.channelMode === "local" && !capability ? [value] : []), ...selectableModelsByCapability(config, capability)].filter((model): model is string => Boolean(model))));
+     const current = value || "";
+     const pickerPlaceholder = placeholder || t("settingsPanels.model.select");
+ 
+@@ -92,6 +94,7 @@ function emptyModelLabel(config: AiConfig, capability?: ModelCapability) {
+ }
+ 
+ function ModelLabel({ config, model }: { config: AiConfig; model: string }) {
++    if (model === FALLBACK_MODEL_OPTION) return <span className="flex min-w-0 items-center gap-2"><Repeat2 className="size-4 shrink-0 opacity-70" /><span className="truncate">按 Fallback 自动选择</span></span>;
+     return (
+         <span className="flex min-w-0 items-center gap-2">
+             <ModelIcon model={model} />
+@@ -101,6 +104,7 @@ function ModelLabel({ config, model }: { config: AiConfig; model: string }) {
+ }
+ 
+ function ModelIcon({ model }: { model: string }) {
++    if (model === FALLBACK_MODEL_OPTION) return <Repeat2 className="size-4 shrink-0 opacity-70" />;
+     const icon = resolveModelIcon(modelOptionName(model));
+     return icon ? <img src={icon} alt="" className="size-4 shrink-0 dark:invert" /> : <Cpu className="size-4 shrink-0 opacity-70" />;
+ }

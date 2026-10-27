@@ -1,0 +1,12 @@
+diff --git a/web/src/types/canvas.ts b/web/src/types/canvas.ts
+index ab54e69..4a6abb6 100644
+--- a/web/src/types/canvas.ts
++++ b/web/src/types/canvas.ts
+@@ -65,6 +65,7 @@ export type CanvasNodeMetadata = {
+     status?: CanvasNodeStatus;
+     errorDetails?: string;
+     generationStartedAt?: number;
++    generationBatchId?: string;
+     generationNameBase?: string;
+     // Parameters parsed from an image prompt and copied to generated config cards.
+     generationAspectRatio?: string;

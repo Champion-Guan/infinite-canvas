@@ -1,0 +1,36 @@
+diff --git a/web/src/components/canvas/canvas-node-generation.ts b/web/src/components/canvas/canvas-node-generation.ts
+index 850fb4d..f8977b0 100644
+--- a/web/src/components/canvas/canvas-node-generation.ts
++++ b/web/src/components/canvas/canvas-node-generation.ts
+@@ -6,6 +6,7 @@ import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
+ import { CanvasNodeType, type CanvasConnection, type CanvasNodeData } from "@/types/canvas";
+ import { getGenerationResourceNodes, getGroupResourceNodes } from "@/lib/canvas/canvas-resource-references";
+ import { getNodeDefinition } from "@/lib/canvas/node-registry";
++import { readProtectedGenerationText } from "@/扩展功能/提示词/生成文本读取";
+ 
+ export type NodeGenerationContext = {
+     prompt: string;
+@@ -128,10 +129,10 @@ function buildComposerGenerationContext(inputs: NodeGenerationInput[], prompt: s
+ export function buildNodeGenerationInputs(nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[]): NodeGenerationInput[] {
+     return getGenerationResourceNodes(nodeId, nodes, connections).flatMap((node): NodeGenerationInput[] => {
+         if (node.type === CanvasNodeType.Group) {
+-            const children = getGroupResourceNodes(node.id, nodes).flatMap(readNodeGenerationResource);
++            const children = getGroupResourceNodes(node.id, nodes).flatMap(child => readNodeGenerationResource(child, nodes));
+             return children.length ? [{ nodeId: node.id, type: "group", title: node.title, children }] : [];
+         }
+-        return readNodeGenerationResource(node);
++        return readNodeGenerationResource(node, nodes);
+     });
+ }
+ 
+@@ -140,7 +141,9 @@ function flattenGenerationInputs(inputs: NodeGenerationInput[]) {
+     return [...new Map(resources.map((input) => [input.nodeId, input])).values()];
+ }
+ 
+-function readNodeGenerationResource(node: CanvasNodeData): NodeGenerationResourceInput[] {
++function readNodeGenerationResource(node: CanvasNodeData, nodes: CanvasNodeData[]): NodeGenerationResourceInput[] {
++    const protectedText = readProtectedGenerationText(node, nodes);
++    if (protectedText !== undefined) return protectedText.trim() ? [{ nodeId: node.id, type: "text", title: node.title, text: protectedText }] : [];
+     const image = readReferenceImage(node);
+     if (image) return [{ nodeId: node.id, type: "image", title: node.title, image }];
+     const video = readReferenceVideo(node);
