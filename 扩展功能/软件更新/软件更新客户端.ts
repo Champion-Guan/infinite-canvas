@@ -1,4 +1,4 @@
-export type UpdatePreferences = { version: 1; repository: string; autoCheck: boolean; autoDownload: boolean; autoInstall: boolean; network: "auto" | "direct" | "proxy" };
+export type UpdatePreferences = { version: 1; repository: string; autoCheck: boolean; autoDownload: boolean; autoInstall: boolean; developerMode: boolean; network: "auto" | "direct" | "proxy" };
 export type UpdateBlocker = { id: string; state: string; reason: string; createdAt: number; canConfirmNoResult: boolean; productId?: string; nodeId?: string };
 export type StartupDiagnostic = { code: string; stage: string; field?: string };
 export type SoftwareUpdateStatus = {
@@ -19,7 +19,9 @@ export const updateMessages: Record<string, string> = {
     update_progress_unavailable: "独立安装进度暂不可用，尚未确认安装；请通过原启动入口重启客户安装器后重试",
     update_repository_locked: "更新仓库固定为 Champion-Guan/infinite-canvas",
     asset_download_timeout: "安装包下载超时，请检查本机代理后重试",
-    unconfigured: "尚未配置仓库", unchecked: "尚未检查", available: "有新的稳定版本（签名结果见下载状态）", "up-to-date": "没有更高的稳定版本",
+    update_channel_excluded: "此更新不属于当前更新渠道，开启开发者模式后可继续接收 Beta 版",
+    update_channel_busy: "正在准备或安装更新，完成后可切换开发者模式",
+    unconfigured: "尚未配置仓库", unchecked: "尚未检查", available: "有可用更新（签名结果见下载状态）", "up-to-date": "当前渠道没有更高版本",
     "no-stable-release": "仓库暂无符合当前渠道的发布包", error: "检查未完成", repository_required: "请先填写私有仓库 OWNER/REPOSITORY",
     authorization_required: "请在本机终端独立授权 GitHub", authorization_expired: "GitHub 授权失效，请重新授权",
     authorization_denied: "GitHub 权限不足，需要指定仓库 Contents 只读权限", repository_unavailable: "仓库不存在或授权不可访问",
@@ -38,7 +40,7 @@ export const updateMessages: Record<string, string> = {
     release_assets_invalid: "稳定版文件缺失或尺寸不匹配", asset_download_failed: "更新下载失败，请稍后重试",
     asset_redirect_rejected: "下载重定向不受信任", asset_access_denied: "更新文件访问失败或受到限流",
     asset_size_invalid: "下载文件超出安全大小限制", download_storage_failed: "暂存失败，当前版本和用户数据保留",
-    release_not_available: "请先检查并获得更高的稳定版本", download_in_progress: "另一项更新下载尚未结束，请稍后重试",
+    release_not_available: "请先检查并获得当前渠道的更高版本", download_in_progress: "另一项更新下载尚未结束，请稍后重试",
     update_manager_unavailable: "独立更新管理器未就绪，当前工作台不受影响", update_manager_invalid: "更新器通信结果无效，已安全停止",
     update_stage_unavailable: "尚无已验证的更新包可暂存", update_stage_invalid: "更新包身份不符合固定渠道",
     update_stage_failed: "暂存复核失败，原版本及用户数据保留", update_bootstrap_required: "尚未完成首次安全接管，仅允许暂存，不执行安装",

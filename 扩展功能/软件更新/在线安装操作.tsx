@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { App, Button } from "antd";
-import { updateRequest, type SoftwareUpdateStatus } from "./软件更新客户端";
+import { updateMessages, updateRequest, type SoftwareUpdateStatus } from "./软件更新客户端";
 import { useProductActive } from "../产品/产品界面边界";
 import { connectUpdateProgressWindow } from "./独立进度窗口";
 import { UpdateProgressPanel } from "./更新进度面板";
@@ -48,6 +48,7 @@ export function OnlineInstallActions({ status, refresh }: Props) {
         } });
     const reason = !status ? "正在读取安装状态" : install?.state === "source-development" ? "当前为源码开发版，只检查和下载；在线安装请通过“启动工作台.command”打开客户安装版。"
         : !managed ? "独立安装管理器尚未就绪，请通过“启动工作台.command”重新打开客户安装版。"
+        : install?.reason === "update_channel_excluded" ? updateMessages.update_channel_excluded
         : waiting ? "已确认，等待关闭所有工作台页面；请保留独立进度窗口，完成后可从进度窗口返回工作台。"
         : canApprove ? "安装包已暂存并再次验签，请确认后安装。"
         : staging ? "正在解包并再次验证签名和全部文件，请稍候。"

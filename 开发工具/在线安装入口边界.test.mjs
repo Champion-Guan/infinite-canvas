@@ -19,6 +19,7 @@ async function fixture(overrides = {}) {
         downloader:{status:()=>({state:'verified'}),stageIdentity:()=>identity},
         manager:{status:async()=>({allowed:true,state:'staged',canApprove:true}),stagedIdentity:async()=>identity,
             approve:async(...args)=>calls.push(args),...overrides}});
+    await updates.configure({developerMode:true});
     return {updates,calls};
 }
 test('手动安装在自动安装关闭时仍可明确确认，且不改变安装偏好',async()=>{
@@ -92,6 +93,7 @@ test('授权HTTP手动入口保持偏好关闭，不接受额外身份并保留�
         let statusCode,body;const res={destroyed:false,writableEnded:false,writeHead(code){statusCode=code;},end(value){body=JSON.parse(value);}};
         req.end(JSON.stringify(input));await service.handle(req,res);return {statusCode,body};
     }
+    assert.equal((await request({operation:'preferences',preferences:{developerMode:true}})).statusCode,200);authorizations=0;
     const result=await request({operation:'approve-manual'});assert.equal(result.statusCode,200);assert.equal(approvals,1);assert.equal(authorizations,3);
     assert.equal(result.body.result.preferences.autoInstall,false);
     assert.equal((await request({operation:'approve-manual',identity})).statusCode,409);assert.equal(approvals,1);

@@ -15,6 +15,7 @@ import { prepareManagerHandoff } from './管理器版本接续.mjs';
 import { processIdentity, ownedProcess } from './管理进程身份.mjs';
 import { assertWebHealth, safeStartupDiagnostic, startupError } from './启动健康诊断.mjs';
 import { clearInstallConfirmation, saveInstallConfirmation, restoreInstallConfirmation } from './本次安装确认.mjs';
+import { requireSavedUpdateChannel } from '../软件更新/更新发布渠道.mjs';
 export { processIdentity, ownedProcess } from './管理进程身份.mjs';
 
 export async function runWebSupervisor(paths = webInstallPaths()) {
@@ -28,6 +29,7 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
   let child = null, childStatus = null, childStopped = true, current = state.current, staged = null, installing = false, approved = false;
   let phase = 'idle', reason = null, targetVersion = null, timer, handingOff = false, diagnostic = state.diagnostic || null;
   const verify = identity => verifySignedWebDirectory(versionPath(paths, identity), { releaseVersion: identity.version });
+  const updateDirectory = join(dailyWorkbenchPaths().dataRoot, 'software-updates');
   const save = async value => {
     state = { app: WEB_APP, ...value }; await writeState(paths.state, state);
     const ready = ['committed', 'rolled-back'].includes(state.phase) && childStatus?.ready === true && childStatus.version === state.current?.version;
@@ -49,6 +51,7 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
   let stageJob = null;
   async function stage(identity) {
     validateStageIdentity(identity, current);
+    await requireSavedUpdateChannel(updateDirectory, identity.version);
     if (installing || !['committed', 'rolled-back'].includes(state.phase)) fail('update_stage_unavailable');
     const download = join(dailyWorkbenchPaths().dataRoot, 'software-updates/packages', identity.downloadId);
     staged = await stageWebPackage({ paths, workspaceId: state.workspaceId, current, identity, download });
@@ -68,6 +71,7 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
       stageJob = stage(identity); try { await stageJob; } finally { stageJob = null; }
     } else if (operation === 'approve') {
       if (!canApprove() || JSON.stringify(identity) !== JSON.stringify(staged.identity) || acknowledgement !== 'saved-and-all-tasks-ended') fail('install_operator_confirmation_required');
+      await requireSavedUpdateChannel(updateDirectory, identity.version);
       const restored = await restoreWebStage(paths, state.workspaceId, current);
       if (!restored || JSON.stringify(restored) !== JSON.stringify(staged)) fail('update_stage_invalid');
       await saveInstallConfirmation(paths, state.workspaceId, current, staged);
@@ -133,17 +137,22 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
       staged = await restoreWebStage(paths, ready.workspaceId, current);
       if (staged) {
         targetVersion = staged.next.version;
+        await requireSavedUpdateChannel(updateDirectory, targetVersion);
         approved = await restoreInstallConfirmation(paths, ready.workspaceId, current, staged);
         phase = approved ? 'awaiting-browser-exit' : 'staged';
         reason = approved ? 'install_browsers_running' : null;
       }
-    } catch (error) { phase = 'blocked'; reason = error.code || 'update_stage_invalid'; }
+    } catch (error) {
+      if (error.code === 'update_channel_excluded') await clearInstallConfirmation(paths);
+      phase = 'blocked'; reason = error.code || 'update_stage_invalid';
+    }
     timer = setInterval(() => {
       if (handingOff || !approved || installing || !staged || !childStatus?.ready || childStatus.authorization?.authorizedPages !== 0) return;
       if (childStatus.authorization.pendingTickets !== 0 || childStatus.authorization.activeRequests !== 0) { reason = 'install_pages_releasing'; return; }
       installing = true; approved = false;
-      void switchWebVersion({ previous: current, target: staged.next, workspaceId: state.workspaceId, verify, save,
-        stop: () => stop(true), start, report: next => { phase = next; reason = null; } })
+      void requireSavedUpdateChannel(updateDirectory, staged.next.version).then(() =>
+        switchWebVersion({ previous: current, target: staged.next, workspaceId: state.workspaceId, verify, save,
+          stop: () => stop(true), start, report: next => { phase = next; reason = null; } }))
         .then(async result => {
           current = result.current; reason = result.error || null; diagnostic = result.diagnostic || null; staged = null;
           await clearInstallConfirmation(paths);
@@ -152,7 +161,11 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
             else await cleanupDownloads();
           }
         })
-        .catch(error => { phase = 'blocked'; reason = error.code || 'update_activation_unconfirmed'; diagnostic = error.diagnostic || safeStartupDiagnostic(error); log.write('更新未完成：' + JSON.stringify({ reason, diagnostic }) + '\n'); })
+        .catch(async error => {
+          if (error.code === 'update_channel_excluded') await clearInstallConfirmation(paths);
+          phase = 'blocked'; reason = error.code || 'update_activation_unconfirmed'; diagnostic = error.diagnostic || safeStartupDiagnostic(error);
+          log.write('更新未完成：' + JSON.stringify({ reason, diagnostic }) + '\n');
+        })
         .finally(() => { installing = false; });
     }, 1000);
     async function handoffManager() {

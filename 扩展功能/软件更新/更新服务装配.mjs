@@ -43,7 +43,7 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
   updates.proxyUrl = () => networkProxy.getStatus().enabled ? 'managed-proxy' : null;
   const status = async () => {
     const value = await updates.status();
-    return { ...value, channel: webPackage ? 'GitHub Public / Web预览版' : 'GitHub Public / Stable',
+    return { ...value, channel: webPackage ? `GitHub Public / Web ${value.preferences.developerMode ? 'Beta + Stable' : 'Stable'}` : value.channel,
       install: { ...(!manager ? { allowed: false, state: 'source-development', reason: 'web_release_required' } : value.install), blockers: await generation?.updateBlockers() || [] } };
   };
   const handle = async (request, response) => {

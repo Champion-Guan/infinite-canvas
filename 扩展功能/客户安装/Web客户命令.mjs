@@ -8,6 +8,7 @@ import { verifySignedWebDirectory } from './Web安装包核验.mjs';
 import { WEB_REPOSITORY, WEB_MANIFEST_NAMES, webReleaseAssetName, fail } from './Web发布协议.mjs';
 import { readReleaseAsset } from '../软件更新/github-assets.mjs';
 import { readWebAddress, waitWebAddress } from './Web运行地址.mjs';
+import { acceptsWebRelease } from '../软件更新/更新发布渠道.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url)), paths = webInstallPaths();
 async function bootstrapProof() {
@@ -20,7 +21,7 @@ async function bootstrapProof() {
   let size = 0; const chunks = [];
   for await (const bytes of response.body) { size += bytes.length; if (size > 1024 * 1024) fail('web_release_unavailable'); chunks.push(bytes); }
   const release = JSON.parse(Buffer.concat(chunks));
-  if (release.draft !== false || release.prerelease !== true || release.tag_name !== 'web-v' + m.version || !Array.isArray(release.assets)) fail('web_release_unavailable');
+  if (!acceptsWebRelease(release, { developerMode: true }) || release.tag_name !== 'web-v' + m.version || !Array.isArray(release.assets)) fail('web_release_unavailable');
   for (const [index, name] of WEB_MANIFEST_NAMES.entries()) {
     const assets = release.assets.filter(a => a.name === webReleaseAssetName(name) && a.state === 'uploaded');
     if (assets.length !== 1) fail('release_assets_invalid');

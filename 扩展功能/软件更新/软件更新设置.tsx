@@ -13,13 +13,19 @@ export function ConfigSoftwareUpdates() {
     const [saving, setSaving] = useState(false);
     const save = async (input: Partial<UpdatePreferences>) => {
         setSaving(true);
-        try { await updateRequest("preferences", input); await refresh(); message.success("软件更新设置已保存"); }
+        try {
+            await updateRequest("preferences", input);
+            await refresh();
+            if (input.developerMode !== undefined) await checkLatestRelease();
+            message.success("软件更新设置已保存");
+        }
         catch (e) { message.error(e instanceof Error ? e.message : "更新设置未保存"); }
         finally { setSaving(false); }
     };
     const prefs = status?.preferences;
     const downloading = ["verifying-manifest", "downloading"].includes(status?.download.state || "");
     const managed = Boolean(status?.install.allowed);
+    const channelBusy = status?.install.staging || ["prepared", "stopping", "switching", "starting", "restarting-manager", "rolling-back"].includes(status?.install.state || "");
     const download = async () => {
         try { await updateRequest("download"); await refresh(); }
         catch (e) { message.error(e instanceof Error ? e.message : "下载未开始"); }
@@ -34,6 +40,7 @@ export function ConfigSoftwareUpdates() {
                 <label className="flex items-center gap-2"><Switch aria-label="自动检查更新" checked={prefs?.autoCheck ?? true} disabled={!prefs || saving} onChange={autoCheck => void save({ autoCheck })} />自动检查（启动及每 6 小时）</label>
                 <label className="flex items-center gap-2"><Switch aria-label="自动下载更新" checked={prefs?.autoDownload ?? true} disabled={!prefs || saving} onChange={autoDownload => void save({ autoDownload })} />自动下载（仅可信签名包）</label>
                 <label className="flex items-center gap-2"><Switch aria-label="自动安装更新" checked={prefs?.autoInstall ?? false} disabled={!managed || saving} onChange={autoInstall => void save({ autoInstall })} />确认并关闭页面后安装</label>
+                <label className="flex items-center gap-2" title="开启后接收 Beta 和 Stable；关闭后仅接收 Stable"><Switch aria-label="开发者模式" checked={prefs?.developerMode ?? false} disabled={!prefs || saving || checking || Boolean(channelBusy)} onChange={developerMode => void save({ developerMode })} />开发者模式</label>
             </div>
             <div className="flex items-center gap-3"><span>更新网络</span><Select aria-label="更新网络" className="min-w-44" value={prefs?.network || "auto"} disabled={!prefs || saving} options={[{ value: "auto", label: "自动（有代理则使用代理）" }, { value: "direct", label: "直连" }, { value: "proxy", label: "本地代理" }]} onChange={network => void save({ network })} /></div>
             <div className="flex items-center gap-3"><Button loading={checking} onClick={() => void checkLatestRelease(true)}>检查更新</Button><Button disabled={!status?.hasNewVersion || status?.download.state === "trust-not-configured" || status?.download.state === "verified" || downloading} onClick={() => void download()}>{status?.download.state === "verified" ? "已下载并验证" : "下载更新"}</Button><VersionReleaseModal label="更新日志" /></div>

@@ -85,7 +85,8 @@ test('观察目标来自管理器已验证身份；不接受任意版本或从�
   const root = await mkdtemp(join(tmpdir(), '更新进度-')); t.after(() => rm(root, { recursive: true, force: true }));
   let received = null;
   const updates = new SoftwareUpdates({ directory: root, currentVersion: '2.0.0-beta.9', auth: {},
-    manager: { stagedIdentity: async () => identity }, progress: { open: async version => { received = version; return { url: 'observed' }; } } });
+    manager: { status: async () => ({ allowed: true, state: 'staged' }), stagedIdentity: async () => identity }, progress: { open: async version => { received = version; return { url: 'observed' }; } } });
+  await updates.configure({ developerMode: true });
   assert.deepEqual(await updates.progressWindow(), { url: 'observed' }); assert.equal(received, target);
   updates.manager.stagedIdentity = async () => ({ ...identity, version: '2.0.0-beta.9' }); await assert.rejects(updates.progressWindow());
   updates.manager.stagedIdentity = async () => ({ ...identity, repository: 'other/repo' }); await assert.rejects(updates.progressWindow());
@@ -97,7 +98,7 @@ test('授权HTTP观察入口返回URL，不接受网页身份或URL，不调用a
   const url = 'http://127.0.0.1:34567/' + 'a'.repeat(48) + '/';
   const service = assembleSoftwareUpdates({ dataRoot: root, origin: 'http://localhost:3001', currentVersion: '2.0.0-beta.9',
     authorize: async () => { authorizations++; }, networkProxy: { getStatus: () => ({ enabled: false }) },
-    manager: { stagedIdentity: async () => identity, progressWindow: async version => { assert.equal(version, target); return { url }; }, approve: () => { approvals++; } } });
+    manager: { status: async () => ({ allowed: true, state: 'staged' }), stagedIdentity: async () => identity, progressWindow: async version => { assert.equal(version, target); return { url }; }, approve: () => { approvals++; } } });
   t.after(() => service.close());
   async function request(value) {
     const req = new PassThrough(); req.url = '/__guan-local/software-updates'; req.method = 'POST';
@@ -105,6 +106,7 @@ test('授权HTTP观察入口返回URL，不接受网页身份或URL，不调用a
     const result = {}; const res = { writeHead: code => result.code = code, end: body => result.body = JSON.parse(body) };
     req.end(JSON.stringify(value)); await service.handle(req, res); return result;
   }
+  assert.equal((await request({ operation: 'preferences', preferences: { developerMode: true } })).code, 200); authorizations = 0;
   assert.deepEqual((await request({ operation: 'progress-window' })).body.result, { url }); assert.equal(authorizations, 3);
   assert.equal((await request({ operation: 'progress-window', identity })).code, 409);
   assert.equal((await request({ operation: 'progress-window', preferences: { target } })).code, 409);

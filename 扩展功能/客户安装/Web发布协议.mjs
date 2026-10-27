@@ -3,6 +3,7 @@ import { keyId, sha256, MAX_STABLE_PACKAGE_BYTES } from '../软件更新/stable-
 import { parseVersion, compareVersions } from '../软件更新/stable-version.mjs';
 import { STABLE_TRUSTED_KEYS } from '../软件更新/stable-trust.mjs';
 import { UpdateError } from '../软件更新/update-auth.mjs';
+import { acceptsWebRelease } from '../软件更新/更新发布渠道.mjs';
 
 export const WEB_REPOSITORY = 'Champion-Guan/infinite-canvas';
 export const WEB_MANIFEST_NAMES = ['Web更新清单.json', 'Web更新清单.sig'];
@@ -23,7 +24,7 @@ export function webReleaseAssetName(name) {
 export function validateWebManifest(m) {
   const v = parseVersion(m?.version);
   if (!exact(m, ['format', 'app', 'channel', 'repository', 'version', 'commit', 'builtAt', 'keyId', 'inventorySHA256', 'packages']) ||
-    m.format !== 1 || m.app !== WEB_APP || m.channel !== 'web-preview' || m.repository !== WEB_REPOSITORY ||
+    m.format !== 1 || m.app !== WEB_APP || (m.channel !== 'web-preview' && !(m.channel === 'web-stable' && v && !v.pre.length)) || m.repository !== WEB_REPOSITORY ||
     !v || v.version !== m.version || !/^[a-f0-9]{40}$/.test(m.commit) || !/^[a-f0-9]{64}$/.test(m.keyId) ||
     !/^[a-f0-9]{64}$/.test(m.inventorySHA256) || !Number.isFinite(Date.parse(m.builtAt)) || new Date(m.builtAt).toISOString() !== m.builtAt ||
     !Array.isArray(m.packages) || m.packages.length !== 1) fail('web_manifest_invalid');
@@ -49,12 +50,12 @@ export function verifyWebManifest(bytes, signature, { trustedKeys = STABLE_TRUST
   if (arch !== 'arm64' || platform !== 'darwin') fail('architecture_unsupported');
   return { manifest: m, selected: m.packages[0] };
 }
-export function selectWebRelease(releases) {
+export function selectWebRelease(releases, _token = '', { developerMode = false } = {}) {
   if (!Array.isArray(releases)) fail('invalid_release_response');
   let latest = null;
   for (const r of releases) {
     const v = parseVersion(r?.tag_name?.replace(/^web-v/, ''));
-    if (!v || r.tag_name !== 'web-v' + v.version || r.draft !== false || r.prerelease !== true ||
+    if (!acceptsWebRelease(r, { developerMode }) ||
       !Number.isSafeInteger(r.id) || !Number.isFinite(Date.parse(r.published_at)) || !Array.isArray(r.assets) ||
       ![...WEB_MANIFEST_NAMES, packageName(v.version)].every(name => r.assets.filter(a => a?.name === webReleaseAssetName(name) && a.state === 'uploaded' && a.size > 0).length === 1)) continue;
     const assets = r.assets.filter(a => a?.state === 'uploaded' && typeof a.name === 'string' &&

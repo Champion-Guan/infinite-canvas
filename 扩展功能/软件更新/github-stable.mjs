@@ -35,7 +35,7 @@ async function boundedJson(response) {
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
   catch { throw new UpdateError('invalid_release_response'); }
 }
-export async function readGitHubStable({ repository, token, proxyUrl, signal, fetchImpl = fetch, selectRelease = selectStableRelease }) {
+export async function readGitHubStable({ repository, token, proxyUrl, signal, developerMode = false, fetchImpl = fetch, selectRelease = selectStableRelease }) {
   if (!validRepository(repository)) throw new UpdateError('repository_required');
   if (!(isPublicUpdateRepository(repository) && !token) && (typeof token !== 'string' || !/^[A-Za-z0-9_]{20,255}$/.test(token))) throw new UpdateError('authorization_required');
   const dispatcher = proxyUrl ? new ProxyAgent(proxyUrl) : undefined;
@@ -56,7 +56,7 @@ export async function readGitHubStable({ repository, token, proxyUrl, signal, fe
       }
       const rows = await boundedJson(response);
       if (!Array.isArray(rows) || rows.length > 100) throw new UpdateError('invalid_release_response');
-      const found = selectRelease(rows, token);
+      const found = selectRelease(rows, token, { developerMode });
       if (found && (!latest || compareVersions(found.version, latest.version) > 0)) latest = found;
       if (rows.length < 100) return latest;
     }

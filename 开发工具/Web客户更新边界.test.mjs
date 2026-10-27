@@ -44,11 +44,12 @@ test('拒绝篡改、未知公钥、降级、重复版本和其他架构', () =>
 });
 const release = (version, extra = {}) => ({ id: 12, tag_name: 'web-v' + version, published_at: '2026-10-23T00:00:00Z', draft: false, prerelease: true,
   assets: [...WEB_MANIFEST_NAMES, packageName(version)].map((name, index) => ({ name: webReleaseAssetName(name), id: index + 1, state: 'uploaded', size: index === 1 ? 64 : 2048 })), ...extra });
-test('选择Web预发布，忽略旧正式版、草稿、缺签名和普通提交', () => {
+test('按渠道选择Web发布，忽略旧应用、草稿、缺签名和普通提交', () => {
   const rows = [release('2.0.0-beta.1'), release('2.0.0-beta.2'), release('2.1.0-beta.1', { draft: true }),
     release('2.2.0-beta.1', { assets: [] }), release('3.0.0', { prerelease: false }), { tag_name: 'v1.2.8', draft: false, prerelease: false, assets: [] }];
-  assert.equal(selectWebRelease(rows).version, '2.0.0-beta.2');
-  assert.equal(selectWebRelease(rows.slice(2)), null);
+  assert.equal(selectWebRelease(rows).version, '3.0.0');
+  assert.equal(selectWebRelease(rows.slice(0, 4), '', { developerMode: true }).version, '2.0.0-beta.2');
+  assert.equal(selectWebRelease(rows.slice(0, 4)), null);
 });
 test('GitHub实际资产名映射：本地中文不变，缺包、重复资产及任意名称拒绝', () => {
   assert.equal(webReleaseAssetName('Web更新清单.json'), 'Web.json');
@@ -56,9 +57,9 @@ test('GitHub实际资产名映射：本地中文不变，缺包、重复资产�
   assert.equal(webReleaseAssetName(packageName('2.0.0-beta.2')), 'Web-v2.0.0-beta.2-macos-arm64.zip');
   for (const name of ['other.json', '../Web.json', '生图工作台Web-vinvalid-macos-arm64.zip']) assert.throws(() => webReleaseAssetName(name));
   const r = release('2.0.0-beta.2');
-  assert.equal(selectWebRelease([{ ...r, assets: r.assets.slice(0, 2) }]), null);
-  assert.equal(selectWebRelease([{ ...r, assets: [...r.assets, r.assets[0]] }]), null);
-  assert.equal(selectWebRelease([{ ...r, assets: r.assets.map(a => ({ ...a, name: a.name === 'Web.json' ? 'Web更新清单.json' : a.name })) }]), null);
+  assert.equal(selectWebRelease([{ ...r, assets: r.assets.slice(0, 2) }], '', { developerMode: true }), null);
+  assert.equal(selectWebRelease([{ ...r, assets: [...r.assets, r.assets[0]] }], '', { developerMode: true }), null);
+  assert.equal(selectWebRelease([{ ...r, assets: r.assets.map(a => ({ ...a, name: a.name === 'Web.json' ? 'Web更新清单.json' : a.name })) }], '', { developerMode: true }), null);
 });
 test('从GitHub净化后的资产名验签下载，磁盘仍保存中文清单；篡改包拒绝', async () => {
   const parent = await 临时目录('Web远程命名-'), zip = Buffer.from('signed-package');
@@ -240,7 +241,7 @@ test('服务重启后确认安装取管理器已复核身份，不依赖下载�
   const updates = new SoftwareUpdates({ directory, currentVersion: old.version, auth: {}, downloader: { status: () => ({ state: 'idle' }), stageIdentity() { throw Error('no in-memory download'); } },
     manager: { status: async () => ({ allowed: true, state: 'staged', canApprove: true }), stagedIdentity: async () => identity,
       approve: async (received, ack) => { assert.deepEqual(received, identity); assert.equal(ack, 'saved-and-all-tasks-ended'); approved++; } } });
-  await updates.configure({ autoInstall: true }); await updates.approve('saved-and-all-tasks-ended'); assert.equal(approved, 1);
+  await updates.configure({ autoInstall: true, developerMode: true }); await updates.approve('saved-and-all-tasks-ended'); assert.equal(approved, 1);
 });
 
 
