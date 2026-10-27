@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { App, Button, Select, Switch } from "antd";
 import { useVersionCheck } from "@/hooks/use-version-check";
-import { VersionReleaseModal } from "@/components/layout/version-release-modal";
 import { formatDisplayVersion } from "@/constant/env";
 import { updateMessages, updateRequest, type UpdatePreferences } from "./软件更新客户端";
 import { UpgradeTaskReview } from "./升级任务核实";
@@ -43,7 +42,7 @@ export function ConfigSoftwareUpdates() {
                 <label className="flex items-center gap-2" title="开启后接收 Beta 和 Stable；关闭后仅接收 Stable"><Switch aria-label="开发者模式" checked={prefs?.developerMode ?? false} disabled={!prefs || saving || checking || Boolean(channelBusy)} onChange={developerMode => void save({ developerMode })} />开发者模式</label>
             </div>
             <div className="flex items-center gap-3"><span>更新网络</span><Select aria-label="更新网络" className="min-w-44" value={prefs?.network || "auto"} disabled={!prefs || saving} options={[{ value: "auto", label: "自动（有代理则使用代理）" }, { value: "direct", label: "直连" }, { value: "proxy", label: "本地代理" }]} onChange={network => void save({ network })} /></div>
-            <div className="flex items-center gap-3"><Button loading={checking} onClick={() => void checkLatestRelease(true)}>检查更新</Button><Button disabled={!status?.hasNewVersion || status?.download.state === "trust-not-configured" || status?.download.state === "verified" || downloading} onClick={() => void download()}>{status?.download.state === "verified" ? "已下载并验证" : "下载更新"}</Button><VersionReleaseModal label="更新日志" /></div>
+            <div className="flex items-center gap-3"><Button loading={checking} onClick={() => void checkLatestRelease(true)}>检查更新</Button><Button disabled={!status?.hasNewVersion || status?.download.state === "trust-not-configured" || status?.download.state === "verified" || downloading} onClick={() => void download()}>{status?.download.state === "verified" ? "已下载并验证" : "下载更新"}</Button></div>
             <OnlineInstallActions status={status} refresh={refresh} />
             <UpgradeTaskReview blockers={status?.install.blockers || []} refresh={refresh} />
             <div role="status">{status ? updateMessages[status.state] || status.state : unavailable ? "本机更新服务不可用，请刷新页面后重试" : "本机更新服务读取中"}{status?.error ? `：${updateMessages[status.error] || "检查未完成，原版本保留"}` : ""}</div>
