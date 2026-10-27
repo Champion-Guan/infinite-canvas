@@ -1,0 +1,15 @@
+diff --git a/web/src/types/canvas.ts b/web/src/types/canvas.ts
+index a2c1e5d..f1cc385 100644
+--- a/web/src/types/canvas.ts
++++ b/web/src/types/canvas.ts
+@@ -46,6 +46,10 @@ export type CanvasNodeImage = {
+     originalHeight?: number;
+     originalBytes?: number;
+     originalMimeType?: string;
++    requestedSize?: string;
++    upstreamSize?: string;
++    deliverySize?: string;
++    deliveryNote?: string;
+ };
+ 
+ export type CanvasNodeText = {

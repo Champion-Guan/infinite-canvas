@@ -41,7 +41,8 @@
     "test:connections": "node --test 开发工具/卡片避障路由.test.mjs 开发工具/共享网络数据流.test.mjs 开发工具/关系面板避让.test.mjs 开发工具/并排图片关系透视.test.mjs 开发工具/连线端口吸附.test.mjs 开发工具/连线稳定与聚焦规则.test.mjs 开发工具/共享主干关系选择.test.mjs 开发工具/连线交点整理.test.mjs 开发工具/连线交互体验.test.mjs 开发工具/连线迁移接入.test.mjs 开发工具/生成连线保护边界.test.mjs 开发工具/画布性能迁移.test.mjs 开发工具/Excel画布操作边界.test.mjs 开发工具/节点复制边界.test.mjs 开发工具/节点删除与整理边界.test.mjs",
     "test:upgrade-continuity": "node --test 开发工具/升级管理器接续.test.mjs 开发工具/自动更新重启.test.mjs 开发工具/延迟凭据保管.test.mjs 开发工具/内置Smart核心.test.mjs 开发工具/Smart资源自动更新.test.mjs",
     "test:heic": "node --test 开发工具/HEIC自动转换.test.mjs 开发工具/HEIC上传保存.test.mjs",
-    "test:clean-address": "node --test 开发工具/工作台纯净地址.test.mjs"
+    "test:clean-address": "node --test 开发工具/工作台纯净地址.test.mjs",
+    "test:image-delivery": "node --test 开发工具/生成图片尺寸交付.test.mjs 开发工具/图片默认尺寸边界.test.mjs 开发工具/图片结果回写边界.test.mjs 开发工具/图片批次操作边界.test.mjs 开发工具/图片详情恢复边界.test.mjs 开发工具/HEIC上传保存.test.mjs"
   },
   "engines": {
     "node": ">=18"

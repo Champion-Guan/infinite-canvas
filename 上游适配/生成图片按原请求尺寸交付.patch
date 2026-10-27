@@ -1,0 +1,82 @@
+diff --git a/web/src/services/image-storage.ts b/web/src/services/image-storage.ts
+index 1b66749..952f8ac 100644
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -7,6 +7,7 @@ import { decodeInlineImage } from "@/扩展功能/画布迁移扩展/内嵌图
+ import { createPersistenceCheckpoint } from "@/扩展功能/安全与批量/persistence-checkpoint";
+ import { settleActivityGroup } from "@/扩展功能/安全与批量/settle-activity-group";
+ const previewCheckpoint = createPersistenceCheckpoint();
++import { parseDeliverySize, prepareGeneratedDelivery } from "@/扩展功能/媒体交付/生成图片尺寸交付.mjs";
+ import i18n from "@/i18n";
+ import { preflightImageUpload } from "@/扩展功能/媒体交付/图片上传预检.mjs";
+ import { prepareCompatibleImage } from "@/扩展功能/媒体交付/HEIC上传兼容.mjs";
+@@ -32,6 +33,7 @@ export type UploadedImage = {
+     originalHeight?: number;
+     originalBytes?: number;
+     originalMimeType?: string;
++    deliveryNote?: string;
+ };
+ 
+ const store = localforage.createInstance({ name: "infinite-canvas", storeName: "image_files" });
+@@ -52,7 +54,12 @@ const IMAGE_TIMEOUT_ERROR = "ImageTimeoutError";
+ 
+ type StoredImagePreview = { version: number; blob?: Blob };
+ 
+-type ImageReadOptions = { signal?: AbortSignal };
++type ImageReadOptions = { signal?: AbortSignal; targetSize?: string; requireLocalCache?: boolean };
++
++export async function uploadGeneratedImage(input: string | Blob, options?: { signal?: AbortSignal; targetSize?: string }): Promise<UploadedImage> {
++    parseDeliverySize(options?.targetSize);
++    return uploadImage(input, { ...options, requireLocalCache: true });
++}
+ 
+ export async function uploadImage(input: string | Blob, options?: ImageReadOptions): Promise<UploadedImage> {
+     if (typeof input !== "string") return storeImage(input, options);
+@@ -65,7 +72,7 @@ export async function uploadImage(input: string | Blob, options?: ImageReadOptio
+     try {
+         blob = await fetchImageBlob(input, options);
+     } catch (error) {
+-        if (options?.signal?.aborted || isNamedError(error, IMAGE_RESPONSE_ERROR) || isNamedError(error, IMAGE_TIMEOUT_ERROR) || !/^https?:\/\//i.test(input)) throw error;
++        if (options?.requireLocalCache || options?.signal?.aborted || isNamedError(error, IMAGE_RESPONSE_ERROR) || isNamedError(error, IMAGE_TIMEOUT_ERROR) || !/^https?:\/\//i.test(input)) throw error;
+         const meta = await loadImageMeta(input, options, IMAGE_REMOTE_LOAD_TIMEOUT_MS);
+         if (!meta) throw error;
+         return { url: input, width: meta.width, height: meta.height, bytes: 0, mimeType: "" };
+@@ -78,14 +85,21 @@ async function storeImage(blob: Blob, options?: ImageReadOptions): Promise<Uploa
+     blob = delivery;
+     const storageKey = `image:${nanoid()}`;
+     const originalStorageKey = `${storageKey}:original`;
+-    const url = URL.createObjectURL(blob);
++    let url = URL.createObjectURL(blob);
+     let submitted = false;
+     try {
+         throwIfAborted(options?.signal);
+-        const meta = await preflightImageUpload(blob, () => loadImageMeta(url, options));
++        const originalMeta = await preflightImageUpload(blob, () => loadImageMeta(url, options));
++        const prepared = await prepareGeneratedDelivery(blob, originalMeta, options);
++        const meta = prepared.metadata;
++        if (prepared.blob !== blob) {
++            URL.revokeObjectURL(url);
++            blob = prepared.blob;
++            url = URL.createObjectURL(blob);
++        }
+         throwIfAborted(options?.signal);
+         submitted = true;
+-        // HEIC 原始字节独立保留，预览、编辑和生图只读取兼容交付图。
++        // 一次保存原始字节与最终交付图；不二次调用上传，不产生中间图副本。
+         await store.setItem(storageKey, blob);
+         await store.setItem(originalStorageKey, original);
+         throwIfAborted(options?.signal);
+@@ -106,10 +120,11 @@ async function storeImage(blob: Blob, options?: ImageReadOptions): Promise<Uploa
+             deliveryHeight: meta.height,
+             deliveryBytes: blob.size,
+             deliveryMimeType: mimeType,
+-            originalWidth: meta.width,
+-            originalHeight: meta.height,
++            originalWidth: originalMeta.width,
++            originalHeight: originalMeta.height,
+             originalBytes: original.size,
+             originalMimeType: original.type,
++            deliveryNote: prepared.deliveryNote,
+         };
+     } catch (error) {
+         URL.revokeObjectURL(url);

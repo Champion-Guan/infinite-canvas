@@ -32,7 +32,7 @@ const variables = await load('扩展功能/提示词/变量使用规则.ts');
 const video = await load('.运行/3100源/画布副本/web/src/lib/media-size.ts');
 const protocol = await load('扩展功能/画布生成/原版图片协议.ts', {
     '@/i18n/index': { t: key => key }, nanoid: { nanoid: () => 'id' },
-    '@/stores/use-config-store': { resolveModelRequestConfig: config => config, resolveModelScript: () => null },
+    '@/stores/use-config-store': { resolveModelRequestConfig: config => config, resolveModelChannel: () => ({ id: "test-channel", name: "测试渠道" }), resolveModelScript: () => null },
     '@/lib/image-utils': {}, '@/lib/image-reference-prompt': {}, '@/services/image-storage': {},
     '../提示词/变量使用规则': variables, '../图片设置/图片尺寸规则': sizes,
 });
@@ -100,4 +100,13 @@ test('Gemini保持能力适配，默认3:4和8:5映射合法比例与1K', async 
         const body = await bodyFor({ apiFormat: 'gemini', model: 'gemini-3-pro-image-preview', size });
         assert.deepEqual(body.generationConfig.imageConfig, { aspectRatio, imageSize: '1K' });
     }
+});
+
+test('900×1200交付请求以912×1216合法尺寸提交，响应仍记住用户原尺寸', async () => {
+    const original = { ...config, size: '900x1200' };
+    assert.equal((await bodyFor({ size: original.size })).size, '912x1216');
+    const images = protocol.parseOriginalImageResponse(original, Buffer.from(JSON.stringify({ data: [{ b64_json: 'c3ludGhldGlj' }] })).toString('base64'));
+    assert.equal(images[0].deliverySize, '900x1200');
+    assert.equal(images[0].upstreamSize, '912x1216');
+    assert.equal(original.size, '900x1200');
 });

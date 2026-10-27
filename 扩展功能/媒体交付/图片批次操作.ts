@@ -14,6 +14,9 @@ function imageFields(image?: CanvasNodeImage) {
         originalWidth: image?.originalWidth, originalHeight: image?.originalHeight, originalBytes: image?.originalBytes, originalMimeType: image?.originalMimeType,
         deliveryWidth: image?.deliveryWidth, deliveryHeight: image?.deliveryHeight, deliveryBytes: image?.deliveryBytes, deliveryMimeType: image?.deliveryMimeType,
         deliverySize: image?.content ? `${image.deliveryWidth || image.naturalWidth}x${image.deliveryHeight || image.naturalHeight}` : undefined,
+        deliveryNote: image?.deliveryNote,
+        requestedSize: image?.requestedSize,
+        upstreamSize: image?.upstreamSize,
     };
 }
 
@@ -52,7 +55,7 @@ export function copyBatchImage(node: CanvasNodeData, imageId: string, id: string
             ...imageFields(image), status: "success", prompt: metadata?.prompt,
             generationType: metadata?.generationType, model: metadata?.model, size: metadata?.size,
             quality: metadata?.quality, background: metadata?.background, references: metadata?.references?.slice(),
-            requestedSize: metadata?.requestedSize, upstreamSize: metadata?.upstreamSize,
+            requestedSize: image.requestedSize || metadata?.requestedSize, upstreamSize: image.upstreamSize || metadata?.upstreamSize,
         },
     };
 }

@@ -40,15 +40,19 @@ for (const sample of samples) test('与拆分前原回调一致：' + sample.名
     const input = { slotId: sample.槽位, uploaded: sample.上传结果, receipt: sample.回执, requestedSize: sample.图片.deliverySize, upstreamSize: sample.图片.upstreamSize };
     const actual = sample.模式 === 'batch' ? results.applyBatchImageResult(node, input)
         : results.applyRetriedImageResult(node, input, { imageId: sample.重试槽位, prompt: sample.提示词, generationMetadata: sample.生成快照 });
-    assert.deepEqual(normalize(actual), sample.原回调结果);
+    const comparable = normalize(actual);
+    for (const item of comparable.metadata.images || []) {
+        delete item.requestedSize; delete item.upstreamSize; delete item.deliverySize;
+    }
+    assert.deepEqual(comparable, sample.原回调结果);
     assert.deepEqual(node, before, '原节点不能被就地修改');
     assert.equal(actual.title, node.title, '稳定编号不能改变');
     assert.equal(actual.metadata.images.find(item => item.id === sample.槽位).name, node.metadata.images.find(item => item.id === sample.槽位).name);
 });
 
 async function fixture(options = {}) {
-    const sample = structuredClone(samples[0]), order = [];
-    let uploads = 0, saves = 0, applied = 0;
+    const sample = structuredClone(samples[0]), order = [], cleaned = [];
+    let uploads = 0, saves = 0, applied = 0; const targets = [];
     const port = {
         projectId: 'product', nodesRef: { current: [sample.原节点, { id: 'config', type: 'config', metadata: { status: 'loading' } }] },
         restoredProjectIdRef: { current: 'product' }, surfaceRef: { current: { projectId: 'product', mounted: true, active: true } },
@@ -56,7 +60,8 @@ async function fixture(options = {}) {
     };
     const { useCanvasImageResults } = await load('扩展功能/媒体交付/图片结果保存操作.ts', {
         react: { useCallback: callback => callback }, './图片结果回写': results,
-        '@/services/image-storage': { uploadImage: async (_input, { signal }) => {
+        '@/services/image-storage': { deleteStoredImages: async keys => { cleaned.push(...keys); }, uploadGeneratedImage: async (_input, { signal, targetSize }) => {
+            targets.push(targetSize);
             uploads++; order.push('upload'); assert.equal(signal, request.signal);
             if (options.uploadGate) await options.uploadGate;
             if (options.uploadError) throw Error('图片落盘失败');
@@ -70,7 +75,7 @@ async function fixture(options = {}) {
     const controller = new AbortController();
     const request = { mode: 'batch', nodeId: 'result', slotId: 'one', image: sample.图片, receipt: sample.回执,
         signal: controller.signal, sourceConfigId: 'config', onApplied: () => { applied++; order.push('applied'); } };
-    return { port, request, controller, order, run: useCanvasImageResults(port), counts: () => ({ uploads, saves, applied }) };
+    return { port, request, controller, order, targets, cleaned, run: useCanvasImageResults(port), counts: () => ({ uploads, saves, applied }) };
 }
 
 test('图片先落盘、再同步回写结果及源配置、最后保存原产品', async () => {
@@ -127,6 +132,7 @@ test('落盘期间关闭画布、删除卡片或槽位、改变产品或替换�
         release(); await assert.rejects(pending, /关闭|切换|删除|新任务/);
         assert.deepEqual(api.counts(), { uploads: 1, saves: 0, applied: 0 }, change);
         assert.deepEqual(api.order, ['upload']);
+        assert.deepEqual(api.cleaned, ['image:交付', 'image:原图']);
     }
 });
 
@@ -161,7 +167,7 @@ test('旧单图没有批次槽位时仍可整卡重试；尺寸回落到原请�
     await api.run({ ...api.request, mode: 'retry', image: { dataUrl: api.request.image.dataUrl }, requestedSize: '900x1200',
         prompt: '用户提示词', generationMetadata: { size: '900x1200', quality: 'high' } });
     const node = api.port.nodesRef.current[0];
-    assert.equal(node.metadata.requestedSize, '900x1200'); assert.equal(node.metadata.quality, 'high');
+    assert.equal(api.targets.at(-1), '900x1200'); assert.equal(node.metadata.requestedSize, '900x1200'); assert.equal(node.metadata.quality, 'high');
     assert.equal(node.metadata.images, undefined); assert.equal(node.metadata.primaryImageId, 'one');
     assert.deepEqual(node.position, { x: 20, y: 40 });
     assert.equal(api.counts().saves, 1); assert.equal(api.counts().applied, 0);
@@ -199,4 +205,14 @@ test('整批图片完成与空主图重试保留批次左边线及垂直中心',
         assert.equal(actual.position.y + actual.height / 2, node.position.y + node.height / 2);
         assert.equal(actual.metadata.generationBatchId, 'aligned-batch');
     }
+});
+
+test('批次逐图保留原请求、上游尺寸、交付说明，后续结果不能覆盖主图说明', () => {
+    const sample = structuredClone(samples[0]);
+    const result = { slotId: sample.槽位, uploaded: { ...sample.上传结果, deliveryNote: '已等比例缩放', width: 900, height: 1200 }, receipt: sample.回执, requestedSize: '900x1200', upstreamSize: '960x1280' };
+    const node = results.applyBatchImageResult(sample.原节点, result);
+    const slot = node.metadata.images.find(image => image.id === sample.槽位);
+    assert.equal(slot.requestedSize, '900x1200'); assert.equal(slot.upstreamSize, '960x1280');
+    assert.equal(slot.deliverySize, '900x1200'); assert.equal(slot.deliveryNote, '已等比例缩放');
+    assert.equal(node.metadata.deliveryNote, '已等比例缩放');
 });

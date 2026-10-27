@@ -22,11 +22,12 @@ function storedImageFields(image: UploadedImage) {
         deliveryStorageKey: image.deliveryStorageKey, originalStorageKey: image.originalStorageKey,
         originalWidth: image.originalWidth, originalHeight: image.originalHeight, originalBytes: image.originalBytes, originalMimeType: image.originalMimeType,
         deliveryWidth: image.deliveryWidth, deliveryHeight: image.deliveryHeight, deliveryBytes: image.deliveryBytes, deliveryMimeType: image.deliveryMimeType,
+        deliveryNote: image.deliveryNote,
     };
 }
 
 function resultImages(node: CanvasNodeData, result: ImageResult) {
-    const image: CanvasNodeImage = { id: result.slotId, status: "success", ...storedImageFields(result.uploaded) };
+    const image: CanvasNodeImage = { id: result.slotId, status: "success", ...storedImageFields(result.uploaded), ...deliveryDetails(result) };
     return node.metadata?.images?.map(current => current.id === image.id ? { ...current, ...image, errorDetails: undefined } : current);
 }
 

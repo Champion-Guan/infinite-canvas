@@ -1,6 +1,6 @@
 // 首次生成和重试共用图片落盘、回写、保存边界；沿用原任务确认协议。
 import { useCallback, type RefObject } from "react";
-import { uploadImage } from "@/services/image-storage";
+import { deleteStoredImages, uploadGeneratedImage } from "@/services/image-storage";
 import type { CanvasNodeData, CanvasNodeMetadata } from "@/types/canvas";
 import type { GeneratedImage } from "../画布生成/原版图片协议";
 import type { CanvasImageReceipt } from "../画布生成/原画布图片调用";
@@ -40,8 +40,15 @@ export function useCanvasImageResults({ projectId, nodesRef, restoredProjectIdRe
             if (task && task.taskId !== request.receipt.taskId) throw Error("图片槽位已开始新任务，旧响应保留在任务账本。");
         };
         assertTarget();
-        const uploaded = await uploadImage(request.image.dataUrl, { signal: request.signal });
-        assertTarget();
+        const uploaded = await uploadGeneratedImage(request.image.dataUrl, {
+            signal: request.signal, targetSize: request.image.deliverySize || request.requestedSize,
+        });
+        try { assertTarget(); }
+        catch (error) {
+            // 保存期间原目标消失时，只回收本次上传尚未被节点引用的文件。
+            await deleteStoredImages([uploaded.storageKey, uploaded.originalStorageKey].filter((key): key is string => Boolean(key)));
+            throw error;
+        }
         const result: ImageResult = {
             slotId: request.slotId, uploaded, receipt: request.receipt,
             requestedSize: request.image.deliverySize || request.requestedSize, upstreamSize: request.image.upstreamSize,
