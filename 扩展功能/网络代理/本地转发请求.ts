@@ -37,7 +37,14 @@ const instance = originalAxios.create({ adapter: async config => {
         const response = { data, status: raw.status, statusText: raw.statusText, headers: AxiosHeaders.from(Object.fromEntries(raw.headers)), config };
         if (config.validateStatus && !config.validateStatus(raw.status)) throw new AxiosError("本地转发返回HTTP " + raw.status, raw.status >= 500 ? AxiosError.ERR_BAD_RESPONSE : AxiosError.ERR_BAD_REQUEST, config, undefined, response);
         return response;
-    } catch (error) { if (controller.signal.aborted) throw new CanceledError("请求已取消，未自动重发", config); throw error; }
+    } catch (error) {
+        if (controller.signal.aborted) {
+            const canceled = new CanceledError("请求已取消，未自动重发");
+            canceled.config = config;
+            throw canceled;
+        }
+        throw error;
+    }
     finally { clearTimeout(timer); config.signal?.removeEventListener?.("abort", abort); }
 } });
 export const 本地转发Axios = Object.assign(instance, { isCancel: originalAxios.isCancel, isAxiosError: originalAxios.isAxiosError });

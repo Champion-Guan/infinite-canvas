@@ -44,3 +44,15 @@ test('取消fetch保留AbortError，取消Axios保留isCancel，均不自动重�
   }
   assert.equal(f.calls.length, 2);
 });
+test('Axios内部超时保留取消类型与请求配置，只发送一次', async () => {
+  const f = fixture((_request, { signal }) => new Promise((_, reject) => { signal.addEventListener('abort', () => reject(Error('synthetic timeout')), { once: true }); }));
+  const url = f.api.本地转发地址('https://api.example.com/test');
+  await assert.rejects(f.api.本地转发Axios.get(url, { timeout: 30 }), error => {
+    assert.equal(f.api.本地转发Axios.isCancel(error), true);
+    assert.equal(error.code, 'ERR_CANCELED');
+    assert.equal(error.config.url, url);
+    assert.equal(error.config.timeout, 30);
+    return true;
+  });
+  assert.equal(f.calls.length, 1);
+});
