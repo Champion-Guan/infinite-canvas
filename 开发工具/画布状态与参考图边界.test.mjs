@@ -72,6 +72,21 @@ test('节点事务仍调用真实Excel预览规则，源文更新后空变量保
     assert.equal(api.getCurrentNode('source').metadata.excelPromptResolved, resolved);
     assert.equal(source.metadata.content, '[LENGTH]');
 });
+test('指定拖放位置只跳过本次自动布局，重叠坐标与原节点事务保持，后续普通新增仍避让', async () => {
+    const api = await transactions(), old = node('old');
+    api.setRawNodes([old]);
+    api.setNodes(previous => [...previous, node('drop')], 'exact');
+    const dropped = api.getCurrentNode('drop');
+    assert.deepEqual(dropped.position, old.position, '松手位置有卡片时也不向下避让');
+    assert.equal(api.nodesRef.current, api.nodeTransactionRef.current);
+    assert.equal(api.renders.at(-1), api.nodesRef.current);
+    api.setNodes(previous => previous.map(item => item.id === 'drop' ? { ...item, title: '已编辑' } : item));
+    assert.deepEqual(api.getCurrentNode('drop').position, old.position, '后续编辑不能重新推走拖入的卡片');
+    api.setNodes(previous => [...previous, node('automatic')]);
+    assert.notDeepEqual(api.getCurrentNode('automatic').position, old.position, '本次指定位置不能关闭其他入口的自动布局');
+    assert.equal(api.getCurrentNode('old'), old);
+    assert.equal(Object.hasOwn(dropped.metadata, 'placement'), false, '落点策略不写入画布数据');
+});
 
 async function persistence(options = {}) {
     const effects = [], updates = [], pendingTimers = new Map(), cleared = [];

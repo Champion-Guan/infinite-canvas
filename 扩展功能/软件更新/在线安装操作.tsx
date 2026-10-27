@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { App, Button } from "antd";
 import { updateMessages, updateRequest, type SoftwareUpdateStatus } from "./软件更新客户端";
 import { useProductActive } from "../产品/产品界面边界";
 import { connectUpdateProgressWindow } from "./独立进度窗口";
 import { UpdateProgressPanel } from "./更新进度面板";
 
-type Props = { status: SoftwareUpdateStatus | null; refresh: () => Promise<void> };
+type Props = { status: SoftwareUpdateStatus | null; refresh: () => Promise<void>; leadingActions?: ReactNode };
 
 // 设置与版本弹窗共用入口；版本切换始终由独立管理器在页面退出后执行。
-export function OnlineInstallActions({ status, refresh }: Props) {
+export function OnlineInstallActions({ status, refresh, leadingActions }: Props) {
     const productActive = useProductActive();
     const { message, modal } = App.useApp();
     const [operating, setOperating] = useState(false);
@@ -55,13 +55,15 @@ export function OnlineInstallActions({ status, refresh }: Props) {
         : status.download.state === "verified" ? "已下载并验证，点击安装更新进行暂存复核。"
         : "下载并验签完成后即可安装。";
     return <div data-guan-online-install className="space-y-2">
-        <UpdateProgressPanel status={status} />
-        <div className="flex flex-wrap items-center gap-3">
+        {leadingActions ? null : <UpdateProgressPanel status={status} />}
+        <div role="group" aria-label="软件更新操作" className="flex flex-wrap items-center gap-3">
+            {leadingActions}
             <Button type="primary" loading={operating || staging} disabled={!managed || staging || operating || waiting || switching || (!canApprove && status?.download.state !== "verified")}
                 onClick={() => canApprove ? approve() : void operate("stage").catch(() => {})}>{canApprove ? "确认并安装" : "安装更新"}</Button>
             {waiting ? <Button disabled={operating} onClick={() => void operate("defer").catch(() => {})}>稍后安装</Button> : null}
             {managed && (canApprove || waiting || switching) ? <Button disabled={operating} onClick={() => void openProgress().catch(error => message.error(error instanceof Error ? error.message : "进度窗口未能打开"))}>查看安装进度</Button> : null}
         </div>
+        {leadingActions ? <UpdateProgressPanel status={status} /> : null}
         <div role="status" className="text-xs leading-5 text-stone-500 dark:text-stone-400">{reason}</div>
     </div>;
 }

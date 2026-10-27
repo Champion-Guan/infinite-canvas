@@ -88,6 +88,7 @@ export function createRecoverableShardedApplicationStorage(options) {
         return enqueue(space, () => { const snapshot = structuredClone(value); return () => instance.setItem(key, snapshot); }, value);
       },
       removeItem: key => enqueue(space, () => () => instance.removeItem(key)),
+      removeItems: keys => enqueue(space, () => { const snapshot = [...keys]; return () => instance.removeItems(snapshot); }),
       clear: () => enqueue(space, () => () => instance.clear()),
     };
   }
@@ -96,6 +97,8 @@ export function createRecoverableShardedApplicationStorage(options) {
   }
   return Object.freeze({
     createInstance, getStatus: status, readUsage: () => base.readUsage(),
+    mediaIdsForKeys: groups => base.mediaIdsForKeys(groups),
+    purgeMedia: ids => base.purgeMedia(ids),
     subscribe(callback) {
       requireValue(typeof callback === 'function', 'invalid_listener', '保存状态订阅器无效。');
       listeners.add(callback); try { callback(status()); } catch { /* 同其他状态通知一致。 */ }

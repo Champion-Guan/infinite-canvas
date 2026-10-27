@@ -24,6 +24,8 @@
 .taskHeading > span { min-width: 0; flex: 1; overflow-wrap: anywhere; }
 .taskHeading small { flex: none; opacity: .6; }
 .file { display: flex; align-items: center; gap: 8px; min-width: 0; margin-top: 10px; }
+.singleFile { margin-top: 0; }
+.fileStatus { flex: none; font-size: 10px; opacity: .6; }
 .thumbnail { display: grid; place-items: center; width: 48px; height: 48px; flex: none; overflow: hidden; border-radius: 6px; background: var(--历史底色); }
 .thumbnail img { width: 100%; height: 100%; object-fit: cover; }
 .fileName { min-width: 0; flex: 1; align-self: stretch; text-align: left; overflow-wrap: anywhere; font-size: 12px; }

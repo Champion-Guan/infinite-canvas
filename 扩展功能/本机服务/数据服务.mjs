@@ -78,10 +78,18 @@ export async function startDataService({ workspace, allowedOrigins, port = 0, se
       }
       if (rawPath === '/health' && request.method === 'GET') { json(200, { protocol: PROTOCOL, workspaceId: workspace.workspaceId }); return; }
       if (rawPath === '/usage' && request.method === 'GET') { const usage = await workspace.readDetailedUsage(); requireValue(sessions.get(token) === session && session.expiresAt > now(), 'session_denied', '统计期间会话已失效，请重新授权。', 401); json(200, usage); return; }
-      const match = rawPath.match(/^\/v1\/workspaces\/([^/]+)\/(documents|media|namespace-snapshots)(?:\/([^/]+))?(?:\/([^/]+))?$/);
+      const match = rawPath.match(/^\/v1\/workspaces\/([^/]+)\/(documents|media|namespace-snapshots|media-cleanup)(?:\/([^/]+))?(?:\/([^/]+))?$/);
       requireValue(match, 'route_not_found', '接口不存在。', 404);
       const [, workspaceId, resource, first, second] = match;
       requireValue(validUUID(workspaceId) && workspaceId === workspace.workspaceId, 'workspace_denied', '工作区未授权。', 403);
+      if (resource === 'media-cleanup') {
+        requireValue(request.method === 'POST' && !first && !second && request.headers['content-type'] === 'application/json', 'method_denied', '媒体清理需要授权的 JSON 提交。', 405);
+        let body;
+        try { body = JSON.parse((await readBody(request, 40_000)).toString('utf8')); }
+        catch { throw new StorageError('invalid_json', '清理候选格式无效。'); }
+        requireValue(body && Object.keys(body).length === 1 && Array.isArray(body.ids), 'invalid_media', '清理候选格式无效。');
+        json(200, await commitWrite(() => workspace.purgeMedia(body.ids))); return;
+      }
       if (resource === 'namespace-snapshots') {
         requireValue(request.method === 'GET' && !second, 'method_denied', '命名空间快照只支持读取。', 405);
         const snapshot = await readNamespaceSnapshot(first, (...args) => workspace.readDocument(...args));

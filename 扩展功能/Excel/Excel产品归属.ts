@@ -15,7 +15,16 @@ export type WorkbookContract = {
   schema: string; workspace: { activeProductSetId: string | null; activeProductId: string | null };
   productSets: Workbook[]; products: ImportedProduct[]; [key: string]: unknown;
 };
-export type ExcelWorkbooks = { version: 1; contract: WorkbookContract; activeByWorkbook: Record<string, string> };
+export type ExcelWorkbookRecycleEntry = {
+  id: string;
+  deletedAt: string;
+  workbook: Workbook;
+  products: ImportedProduct[];
+  projects: CanvasProject[];
+  records: Partial<Record<"importRecords" | "slots" | "prompts" | "tasks" | "runs" | "providerAttempts" | "assets", Record<string, unknown>[]>>;
+  activeProductId: string | null;
+};
+export type ExcelWorkbooks = { version: 1; contract: WorkbookContract; activeByWorkbook: Record<string, string>; recycledWorkbooks?: ExcelWorkbookRecycleEntry[] };
 export type WorkbookSnapshot = { projects: CanvasProject[]; deletedProjects: CanvasDeletedProject[]; guanWorkbooks: ExcelWorkbooks | null };
 export type ExcelImportInput = { fileName: string; kind: string; fileSha256?: string; sheetName: string; promptSheetName: string; promptTemplates: PromptTemplate[]; productRows?: Record<string, unknown>[]; sourceRowNumbers?: number[]; headerMap?: Record<string, string> };
 
@@ -116,7 +125,8 @@ export function planExcelImport(snapshot: WorkbookSnapshot, input: ExcelImportIn
     backgroundMode: "lines" as const, ...imageInfoDefaults, viewport: { x: 0, y: 0, k: 1 },
   }));
   projects = [...additions.reverse(), ...projects];
-  const guanWorkbooks: ExcelWorkbooks = { version: 1, contract, activeByWorkbook: { ...snapshot.guanWorkbooks?.activeByWorkbook } };
+  const guanWorkbooks: ExcelWorkbooks = { version: 1, contract, activeByWorkbook: { ...snapshot.guanWorkbooks?.activeByWorkbook },
+    ...(snapshot.guanWorkbooks?.recycledWorkbooks ? { recycledWorkbooks: snapshot.guanWorkbooks.recycledWorkbooks } : {}) };
   const selected = workbookEntry({ ...snapshot, projects, guanWorkbooks }, owner);
   if (selected) guanWorkbooks.activeByWorkbook[workbookSelectionKey(owner)] = selected;
   return { projects, deletedProjects: snapshot.deletedProjects, guanWorkbooks };
@@ -151,5 +161,31 @@ export function assertWorkbookSnapshot(value: WorkbookSnapshot) {
   for (const book of books.contract.productSets) {
     if (new Set(book.productIds).size !== book.productIds.length || book.productIds.some(id => !books.contract.products.some(product => product.id === id && product.productSetId === book.id))) fail();
     if (book.source.promptTemplates.some(template => !template || typeof template.id !== "string" || typeof template.route !== "string" || !template.prompts || typeof template.prompts !== "object" || Array.isArray(template.prompts))) fail();
+  }
+  if (books.recycledWorkbooks !== undefined) {
+    if (!Array.isArray(books.recycledWorkbooks)) fail();
+    const recycledIds = new Set<string>();
+    for (const entry of books.recycledWorkbooks) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry) || typeof entry.id !== "string" || !entry.id
+        || recycledIds.has(entry.id) || typeof entry.deletedAt !== "string" || !entry.workbook
+        || entry.workbook.id !== entry.id || !Array.isArray(entry.products) || !Array.isArray(entry.projects)
+        || !entry.records || typeof entry.records !== "object" || Array.isArray(entry.records)
+        || (entry.activeProductId !== null && typeof entry.activeProductId !== "string")) fail();
+      recycledIds.add(entry.id);
+      const entryProductIds = new Set<string>();
+      for (const product of entry.products) {
+        if (!product || typeof product.id !== "string" || entryProductIds.has(product.id) || product.productSetId !== entry.id) fail();
+        entryProductIds.add(product.id);
+      }
+      if (entry.workbook.productIds.some(id => !entryProductIds.has(id)) || new Set(entry.workbook.productIds).size !== entry.workbook.productIds.length) fail();
+      const projectIds = new Set<string>();
+      for (const project of entry.projects) {
+        if (!project || typeof project.id !== "string" || projectIds.has(project.id) || project.productSetId !== entry.id) fail();
+        projectIds.add(project.id);
+      }
+      for (const rows of Object.values(entry.records)) if (!Array.isArray(rows) || rows.some(row => !row || typeof row !== "object" || Array.isArray(row) || typeof row.id !== "string")) fail();
+      if (entry.activeProductId !== null && !entryProductIds.has(entry.activeProductId) && !projectIds.has(entry.activeProductId)) fail();
+    }
+    if (books.recycledWorkbooks.some(entry => books.contract.productSets.some(book => book.id === entry.id))) fail();
   }
 }

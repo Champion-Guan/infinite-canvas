@@ -1,0 +1,31 @@
+diff --git a/web/src/services/file-storage.ts b/web/src/services/file-storage.ts
+index 3ecdda7..ab94726 100644
+--- a/web/src/services/file-storage.ts
++++ b/web/src/services/file-storage.ts
+@@ -1,3 +1,4 @@
++import { captureUserUpload } from "@/扩展功能/素材/上传资产规则";
+ import { createMediaUrlCache } from "@/扩展功能/媒体交付/媒体地址缓存";
+ import { 本地转发请求 as fetch } from "@/扩展功能/网络代理/本地转发请求";
+ import { sqliteForage as localforage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+@@ -10,7 +11,8 @@ export type UploadedFile = { url: string; storageKey: string; bytes: number; mim
+ const store = localforage.createInstance({ name: "infinite-canvas", storeName: "media_files" });
+ const objectUrls = createMediaUrlCache();
+ 
+-export async function uploadMediaFile(input: string | Blob, prefix = "file"): Promise<UploadedFile> {
++export async function uploadMediaFile(input: string | Blob, prefix = "file", options?: { assetProjectId?: string }): Promise<UploadedFile> {
++    const owner = captureUserUpload(input, options?.assetProjectId);
+     let blob: Blob;
+     if (typeof input === "string") {
+         const response = await fetch(withLocalProxy(input), { signal: AbortSignal.timeout(10 * 60_000) });
+@@ -23,7 +25,10 @@ export async function uploadMediaFile(input: string | Blob, prefix = "file"): Pr
+     const url = URL.createObjectURL(blob);
+     objectUrls.set(storageKey, url);
+     const meta = blob.type.startsWith("video/") ? await readVideoMeta(url) : blob.type.startsWith("audio/") ? await readAudioMeta(url) : {};
+-    return { url, storageKey, bytes: blob.size, mimeType: blob.type || "application/octet-stream", ...meta };
++    const uploaded = { url, storageKey, bytes: blob.size, mimeType: blob.type || "application/octet-stream", ...meta };
++    const kind = blob.type.startsWith("audio/") || prefix === "audio" ? "audio" : blob.type.startsWith("video/") || prefix === "video" ? "video" : null;
++    if (owner && kind) await (await import("@/扩展功能/素材/上传资产登记")).registerUploadedAsset(owner, kind, uploaded);
++    return uploaded;
+ }
+ 
+ export async function resolveMediaUrl(storageKey?: string, fallback = "") {

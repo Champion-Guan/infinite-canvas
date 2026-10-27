@@ -122,6 +122,7 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
   } catch (error) { db?.close(); if (lockOwned) unlinkSync(lockPath); throw error; }
 
   let usagePending;
+  const recentUploads = new Map();
   function active(write = false) {
     requireValue(!closed, 'workspace_closed', '工作区已关闭。', 503);
     requireValue(!write || !maintenance, 'workspace_busy', '工作区正在备份，请稍后重试。', 503);
@@ -206,6 +207,8 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
       requireValue(Buffer.isBuffer(bytes) && bytes.length > 0 && bytes.length <= MAX_MEDIA_BYTES && MEDIA_TYPES.includes(mime), 'invalid_media', '媒体类型或大小不支持。');
       space(bytes.length);
       const id = sha(bytes), row = db.prepare('SELECT * FROM media WHERE id=?').get(id);
+      recentUploads.set(id, Date.now());
+      for (const [key, time] of recentUploads) if (Date.now() - time > 15_000) recentUploads.delete(key);
       if (row) { checkMedia(root, row); return row; }
       const folder = join(root, '媒体'); safePath(folder, true);
       const target = join(folder, id), staging = join(folder, `.暂存-${randomUUID()}`);
@@ -229,6 +232,33 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
       return { id, mime, size: bytes.length };
     },
     readMedia(id) { active(); requireValue(validHash(id), 'invalid_media', '媒体标识无效。'); return checkMedia(root, db.prepare('SELECT * FROM media WHERE id=?').get(id)); },
+    // 仅接收用户明确清理产生的候选；当前文档引用和刚上传尚未发布的内容始终受保护。
+    purgeMedia(ids) {
+      active(true);
+      requireValue(Array.isArray(ids) && ids.length <= 512 && ids.every(validHash), 'invalid_media', '清理候选格式或数量无效。');
+      const deleted = [], retained = [], deferred = [];
+      const unreferenced = transaction(() => {
+        const result = [];
+        for (const id of new Set(ids)) {
+          if (db.prepare('SELECT 1 FROM document_media WHERE media_id=? LIMIT 1').get(id)) { retained.push(id); continue; }
+          if (Date.now() - (recentUploads.get(id) ?? 0) < 15_000) { deferred.push(id); continue; }
+          const path = join(root, '媒体', id);
+          safePath(path, false, false);
+          db.prepare('DELETE FROM media WHERE id=?').run(id);
+          result.push(id);
+        }
+        return result;
+      });
+      // 先提交索引，再删文件。中断最多留下无索引文件；持久清理清单可以幂等重试，绝不先删后回滚。
+      for (const id of unreferenced) {
+        const path = join(root, '媒体', id);
+        safePath(path, false, false);
+        if (existsSync(path)) unlinkSync(path);
+        deleted.push(id);
+      }
+      syncDirectory(join(root, '媒体'));
+      return { deleted, retained, deferred };
+    },
     async createBackup() {
       active(true); space(); maintenance = true;
       let backupTarget = null, backupComplete = false;

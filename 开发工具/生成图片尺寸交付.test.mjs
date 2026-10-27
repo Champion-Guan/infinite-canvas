@@ -22,8 +22,12 @@ globalThis.document = { createElement() { return {
 async function fixture({ width = 1086, height = 1448, failAt, failFetch = false, compatible = prepareCompatibleImage, abortOnWrite } = {}) {
   const media = new Map(), writes = [], removed = [], urls = new Map();
   const { code } = await transformWithEsbuild(await readFile(new URL('../.运行/3100源/画布副本/web/src/services/image-storage.ts', import.meta.url), 'utf8'), 'storage.ts', { loader: 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
+  const rules = { exports: {} };
+  const { code: rulesCode } = await transformWithEsbuild(await readFile(new URL('../扩展功能/素材/上传资产规则.ts', import.meta.url), 'utf8'), '上传资产规则.ts', { loader: 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
+  new Function('module', 'exports', rulesCode)(rules, rules.exports);
   let id = 0;
   const dependencies = {
+    '@/扩展功能/素材/上传资产规则': rules.exports,
     '@/扩展功能/媒体交付/媒体地址缓存': { createMediaUrlCache: () => ({ set() {}, get() {}, delete() {} }) },
     '@/扩展功能/网络代理/本地转发请求': { 本地转发请求: async () => { if (failFetch) throw Error('network'); return new Response(original); } },
     '@/扩展功能/本机存储/上游浏览器存储桥': { sqliteForage: { createInstance: ({ storeName }) => ({

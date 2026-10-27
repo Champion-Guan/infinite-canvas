@@ -53,7 +53,7 @@ export function placeCanvasNode(node: CanvasNodeData, occupied: CanvasNodeData[]
     return { ...node, position };
 }
 
-function expandChangedGroups(nodes: CanvasNodeData[], moved: Set<string>) {
+export function expandChangedGroups(nodes: CanvasNodeData[], moved: Set<string>) {
     const groups = new Set(nodes.filter((node) => moved.has(node.id)).map((node) => node.metadata?.groupId).filter(Boolean));
     return nodes.map((group) => {
         if (group.type !== "group" || !groups.has(group.id)) return group;

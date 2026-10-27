@@ -122,6 +122,7 @@ export function createRenewingDataClient({ url, host, origin = globalThis.locati
     }),
     writeMedia: blob => run('media:upload', 'writeMedia', [blob]),
     readMedia: id => run(`media:${id}`, 'readMedia', [id]),
+    purgeMedia: ids => run('media:cleanup', 'purgeMedia', [ids]),
     async close() {
       requireValue(!pending && !errors.size && !reconnectFlight, 'save_not_confirmed', '仍有未确认或失败操作，不能关闭数据客户端。', 409);
       if (closed) return;

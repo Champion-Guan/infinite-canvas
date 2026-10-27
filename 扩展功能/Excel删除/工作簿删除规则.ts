@@ -1,6 +1,7 @@
 import { assertWorkbookSnapshot, type WorkbookSnapshot } from "../Excel/Excel产品归属";
 import { canvasTaskSummary } from "../产品/产品任务摘要.js";
 import { deleteLegacyWorkbook } from "./旧版工作簿删除.js";
+import { createWorkbookRecycleEntry } from "./Excel回收站规则";
 
 export type WorkbookDeletionPlan = { workbookId: string; deletedIds: string[]; navigate: boolean; state: WorkbookSnapshot };
 const recordCollections = ["importRecords", "slots", "prompts", "tasks", "runs", "providerAttempts", "assets"] as const;
@@ -56,6 +57,7 @@ export function planWorkbookDeletion(snapshot: WorkbookSnapshot, workbookId: str
   const books = snapshot.guanWorkbooks!;
   const contract = structuredClone(books.contract);
   const previousSelection = { ...contract.workspace };
+  const recycleEntry = createWorkbookRecycleEntry(snapshot, workbookId, new Date().toISOString());
   deleteLegacyWorkbook(contract, workbookId);
   // 不扩大旧级联的删除范围：关联冲突或自建产品出现旧合同不支持的记录时停止，禁止留下悬空记录。
   const targets = { productId: ids, productSetId: new Set([workbookId]), taskId: taskIds, runId: runIds };
@@ -88,8 +90,9 @@ export function planWorkbookDeletion(snapshot: WorkbookSnapshot, workbookId: str
   const activeByWorkbook = { ...books.activeByWorkbook };
   delete activeByWorkbook[workbookId];
   for (const [owner, id] of Object.entries(activeByWorkbook)) if (ids.has(id)) delete activeByWorkbook[owner];
+  const recycledWorkbooks = [...(books.recycledWorkbooks ?? []).filter(entry => entry.id !== workbookId), recycleEntry];
   const state: WorkbookSnapshot = { projects: snapshot.projects.filter(project => !ids.has(project.id)), deletedProjects: snapshot.deletedProjects,
-    guanWorkbooks: { ...books, contract, activeByWorkbook } };
+    guanWorkbooks: { ...books, contract, activeByWorkbook, recycledWorkbooks } };
   assertWorkbookSnapshot(state);
   return { workbookId, deletedIds, navigate: ids.has(activeId) || (!activeId && previousSelection.activeProductSetId === workbookId), state };
 }

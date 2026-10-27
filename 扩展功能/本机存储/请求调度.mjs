@@ -55,6 +55,7 @@ export function createPacedDataClient(client, { reserveWrites = false, requestLi
   // 仅存储内部使用；请求仍经过原客户端鉴权、完整校验及同一总窗口。
   port.readForWrite = (...args) => request('readDocument', args, true);
   if (typeof client.readNamespace === 'function') port.readNamespace = namespace => request('readNamespace', [namespace]);
+  if (typeof client.purgeMedia === 'function') port.purgeMedia = ids => request('purgeMedia', [ids], true);
   shared.port = port; windows.set(client, shared);
   return port;
 }

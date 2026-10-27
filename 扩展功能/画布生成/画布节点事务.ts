@@ -4,6 +4,9 @@ import type { CanvasNodeData } from "@/types/canvas";
 import { reconcileExcelPreviews } from "../Excel画布/Excel卡片事务";
 import { placeNewCanvasNodes } from "../画布布局/卡片自动避让";
 
+export type CanvasNodePlacement = "auto" | "exact";
+export type CanvasNodeSetter = (update: CanvasNodeData[] | ((previous: CanvasNodeData[]) => CanvasNodeData[]), placement?: CanvasNodePlacement) => void;
+
 export function useCanvasNodeTransactions() {
     const [nodes, setNodeState] = useState<CanvasNodeData[]>([]);
     const nodesRef = useRef(nodes);
@@ -14,9 +17,11 @@ export function useCanvasNodeTransactions() {
         nodesRef.current = next;
         setNodeState(next);
     }, []);
-    const setNodes = useCallback((update: CanvasNodeData[] | ((previous: CanvasNodeData[]) => CanvasNodeData[])) => {
+    const setNodes = useCallback<CanvasNodeSetter>((update, placement = "auto") => {
         const previous = nodeTransactionRef.current;
-        setRawNodes(placeNewCanvasNodes(previous, reconcileExcelPreviews(previous, typeof update === "function" ? update(previous) : update)));
+        const next = reconcileExcelPreviews(previous, typeof update === "function" ? update(previous) : update);
+        // 拖放已经给出用户指定位置；只跳过本次自动布局，仍使用同一节点事务和预览同步。
+        setRawNodes(placement === "exact" ? next : placeNewCanvasNodes(previous, next));
     }, [setRawNodes]);
     return { nodes, nodesRef, nodeTransactionRef, getCurrentNode, setRawNodes, setNodes };
 }

@@ -15,6 +15,7 @@ async function load(file, dependencies = {}) {
 }
 const layout = await load('扩展功能/画布布局/卡片自动避让.ts');
 const columns = await load('扩展功能/画布布局/批量结果排布.ts', { './卡片自动避让': layout });
+const { createCanvasGenerationRegistry } = await load('扩展功能/画布生成/并发生成状态.ts', { react: {} });
 const box = (id, x, y, width = 340, height = 240, type = 'config', metadata = {}) => ({ id, type, position: { x, y }, width, height, metadata });
 const slots = sources => sources.map(source => ({ source, width: 340, height: 240 }));
 const centers = (nodes, placements) => nodes.forEach(node => {
@@ -89,6 +90,7 @@ const { code: generateCode } = await transformWithEsbuild('export const generate
 const types = { Config: 'config', Image: 'image', Video: 'video', Audio: 'audio', Text: 'text' };
 const sizes = { image: { width: 340, height: 240 }, config: { width: 340, height: 240 }, text: { width: 340, height: 240 }, video: { width: 420, height: 236 }, audio: { width: 340, height: 120 } };
 function generatorFixture() {
+    const registry = createCanvasGenerationRegistry();
     const sources = ['image', 'video', 'audio', 'text'].map((mode, i) => box(mode + '-config', 0, i * 600, 340, 240, 'config', { prompt: '验收提示词', generationMode: mode }));
     const nodesRef = { current: [...sources, box('old-result', 388, 0, 340, 240, 'image', { status: 'error' })] }, connectionsRef = { current: [] };
     let counter = 0;
@@ -100,10 +102,11 @@ function generatorFixture() {
         isGenerationModeEnabled: () => true, isAiConfigReady: () => true, getNodeDefinition: () => null,
         generationNodeForExecution: source => source, buildGenerationConfig: () => ({ model: 'local-sample', count: '1', size: '900x1200' }),
         hydrateNodeGenerationContext: async context => context, buildNodeGenerationContext: (_id, _nodes, _edges, prompt) => ({ prompt, referenceImages: [], referenceVideos: [], referenceAudios: [] }),
-        startGenerationRequest: () => new AbortController(), finishGenerationRequest: () => {},
+        generationRequestsRef: { current: registry.requests },
+        startGenerationRequest: registry.startGenerationRequest, finishGenerationRequest: registry.finishGenerationRequest,
         setNodes: update => { nodesRef.current = layout.placeNewCanvasNodes(nodesRef.current, update(nodesRef.current)); },
         setConnections: update => { connectionsRef.current = update(connectionsRef.current); },
-        setExpandedBatchNodeIds: () => {}, setRunningNodeId: () => {}, setSelectedNodeIds: () => {}, setSelectedConnectionId: () => {}, setDialogNodeId: () => {},
+        setExpandedBatchNodeIds: () => {}, setSelectedNodeIds: () => {}, setSelectedConnectionId: () => {}, setDialogNodeId: () => {},
         getGenerationCount: value => Number(value), buildImageGenerationMetadata: () => ({}), generatedImageCardTitle: () => '验收图片', findGeneratedImageSourcePrompt: () => sources[0], numberGeneratedImages: nodes => nodes,
         requestCanvasImage: async input => { requests.push('image'); await input.applyAndSave({}, { taskId: 'local' }); },
         saveCanvasImageResult: async input => { input.onApplied(); },

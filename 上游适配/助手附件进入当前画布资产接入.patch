@@ -1,0 +1,12 @@
+diff --git a/web/src/components/agent/local-agent-panel.tsx b/web/src/components/agent/local-agent-panel.tsx
+index f9ed38a..2b9da21 100644
+--- a/web/src/components/agent/local-agent-panel.tsx
++++ b/web/src/components/agent/local-agent-panel.tsx
+@@ -760,6 +760,7 @@ export function LocalAgentPanel({ embedded, headless, autoConnect }: { embedded?
+         try {
+             const next = await Promise.all(
+                 images.slice(0, Math.max(0, MAX_ATTACHMENTS - prev.length)).map(async (file) => {
++                    await uploadImage(file);
+                     const dataUrl = await readDataUrl(file);
+                     const meta = await readImageMeta(dataUrl);
+                     const url = URL.createObjectURL(file);

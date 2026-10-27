@@ -5,16 +5,18 @@ import { isAbsolute, join } from 'node:path';
 import { setImmediate } from 'node:timers/promises';
 import { MEDIA_TYPES, PROTOCOL, SCHEMA_VERSION, StorageError, requireValue, validHash, validUUID } from './协议.mjs';
 import { readFragmentGraph } from './分片值编码.mjs';
+import { recycleOwnership, recycleCategory } from './回收站归属.mjs';
 
 export const USAGE_FORMAT = 'guan-sqlite-usage.v1';
 const sha = value => createHash('sha256').update(value).digest('hex');
 const namespaces = {
-  app_state: 'workspace', preferences: 'workspace', image_files: 'images', image_previews: 'previews',
-  media_files: 'media_index', prompt_cache: 'prompts', image_generation_logs: 'image_logs', video_generation_logs: 'video_logs',
+  app_state: 'workspace', preferences: 'workspace', image_generation_logs: 'image_logs', video_generation_logs: 'video_logs',
+  image_files: 'images', image_previews: 'previews', media_files: 'media_index', prompt_cache: 'prompts',
 };
 const labels = {
   images: '图片', previews: '图片缩略图', videos: '视频', audio: '音频', media_index: '通用媒体索引',
   prompts: '提示词缓存', workspace: '画布与应用配置', image_logs: '图片生成记录', video_logs: '视频生成记录',
+  product_recycle: '产品回收站', workbook_recycle: 'Excel回收站',
   other_media: '其他媒体', shared: '跨分类共享内容', other: '其他扩展数据', history: '历史及未发布分片', retained_media: '当前未引用的保留媒体',
 };
 function safeStat(path, directory = false, optional = false) {
@@ -44,7 +46,9 @@ export async function readCategorizedUsage({ dataRoot, workspaceId }) {
     check(db.prepare('PRAGMA application_id').get().application_id === 0x47574149 && db.prepare('PRAGMA user_version').get().user_version === SCHEMA_VERSION);
     check(db.prepare("SELECT value FROM workspace WHERE key='id'").get()?.value === workspaceId);
     const categories = new Map(Object.entries(labels).map(([name, label]) => [name, { name, label, records: 0, files: 0, blocks: 0, documentBytes: 0, mediaBytes: 0, bytes: 0 }]));
-    const docs = new Map(), docOwners = new Map(), media = new Map(), mediaOwners = new Map(), files = new Map();
+    const docs = new Map(), docOwners = new Map(), media = new Map(), mediaOwners = new Map(), files = new Map(), storageKeyOwners = new Map();
+    let ownership = recycleOwnership({});
+    const docWeights = new Map();
     let documentBytes = 0, indexedMediaBytes = 0, steps = 0;
     const yieldPeriodically = async () => { if (++steps % 128 === 0) await setImmediate(); };
     for (const row of db.prepare('SELECT collection,id,length(CAST(body AS BLOB)) AS bytes FROM documents').iterate()) {
@@ -63,12 +67,67 @@ export async function readCategorizedUsage({ dataRoot, workspaceId }) {
       check(row && sha(row.body) === row.hash, '当前文档或分片缺失、哈希不符，统计已停止。');
       return { collection, id, value: JSON.parse(row.body), mediaIds: db.prepare('SELECT media_id FROM document_media WHERE collection=? AND document_id=? ORDER BY media_id').all(collection, id).map(ref => ref.media_id) };
     };
+    // 回收站快照和当前画布都保存在同一个 canvas_store 文档中；只把快照里的媒体归到对应回收站，
+    // 这样不会把回收站误报成普通画布，也不会把当前产品的共享媒体重复计入。
+    function childCategory(category, field) {
+      if (category === 'canvas-root' && field === 'deletedProjects') return 'product_recycle';
+      if (category === 'canvas-root' && field === 'guanWorkbooks') return 'workbook-root';
+      if (category === 'workbook-root' && field === 'recycledWorkbooks') return 'workbook_recycle';
+      if (category === 'workbook-root' && field === 'contract') return 'contract-root';
+      if (category === 'contract-root') return field === 'workspace' ? 'workspace' : 'owned-records';
+      if (category === 'workbook-root') return 'workspace';
+      return category;
+    }
+    function treeString(tree) {
+      return Array.isArray(tree) && tree[0] === 'string' && typeof tree[1] === 'string' ? tree[1] : null;
+    }
+    function objectField(tree, name) {
+      if (!Array.isArray(tree) || tree[0] !== 'object' || !Array.isArray(tree[1])) return null;
+      return tree[1].find(pair => Array.isArray(pair) && pair[0] === name)?.[1] ?? null;
+    }
+    function plainTree(tree) {
+      if (!Array.isArray(tree)) return null;
+      if (tree[0] === 'object') return Object.fromEntries(tree[1].map(([key, child]) => [key, plainTree(child)]));
+      if (tree[0] === 'array') return tree[1].map(plainTree);
+      return ['string', 'number', 'boolean'].includes(tree[0]) ? tree[1] : null;
+    }
+    function collectRecycleIds(tree) {
+      const value = plainTree(tree);
+      ownership = recycleOwnership(value?.state ?? value ?? {});
+    }
+    function assetCategory(tree) { return recycleCategory(plainTree(tree), ownership); }
+    function walkAssetTree(tree, refs) {
+      if (!Array.isArray(tree) || tree[0] !== 'object' || !Array.isArray(tree[1])) { walkTree(tree, 'workspace', refs); return; }
+      for (const pair of tree[1]) {
+        if (!Array.isArray(pair) || pair.length !== 2) continue;
+        if (pair[0] === 'state' && pair[1]?.[0] === 'object') {
+          const assets = objectField(pair[1], 'assets');
+          if (assets?.[0] === 'array' && Array.isArray(assets[1])) {
+            for (const [name, child] of pair[1][1]) {
+              if (name === 'assets') for (const asset of assets[1]) walkTree(asset, assetCategory(asset), refs);
+              else walkTree(child, 'workspace', refs);
+            }
+            continue;
+          }
+        }
+        walkTree(pair[1], 'workspace', refs);
+      }
+    }
+    const mediaCategory = category => ['canvas-root', 'workbook-root', 'contract-root', 'owned-records'].includes(category) ? 'workspace' : category;
     function walkTree(tree, category, refs, depth = 0) {
       check(depth <= 32 && Array.isArray(tree));
       const [tag, value] = tree;
+      if (category === 'owned-records') {
+        if (tag === 'array') { for (const child of value) walkTree(child, assetCategory(child), refs, depth + 1); return; }
+        category = assetCategory(tree);
+      }
       if ((tag === 'null' || tag === 'undefined') && tree.length === 1) return;
       check(tree.length === 2);
-      if (tag === 'string') { check(typeof value === 'string' && !value.startsWith('blob:')); return; }
+      if (tag === 'string') {
+        check(typeof value === 'string' && !value.startsWith('blob:'));
+        if (/^(?:image|video|audio|file|video-reference|audio-reference):/.test(value)) own(storageKeyOwners, value, mediaCategory(category));
+        return;
+      }
       if (tag === 'boolean') { check(typeof value === 'boolean'); return; }
       if (tag === 'number') { check(Number.isFinite(value)); return; }
       if (tag === 'date') { check(typeof value === 'string' && Number.isFinite(Date.parse(value))); return; }
@@ -77,7 +136,11 @@ export async function readCategorizedUsage({ dataRoot, workspaceId }) {
       if (tag === 'provider') { check(typeof value === 'string' && /^provider:[a-f0-9]{64}$/.test(value), '渠道凭据引用格式无效，容量统计已停止。'); return; }
       if (['blob', 'blob-url', 'array-buffer'].includes(tag)) {
         check(value && typeof value.mime === 'string' && (!value.mime || MEDIA_TYPES.includes(value.mime)) && Number.isSafeInteger(value.size) && value.size >= 0 && value.size <= 512 * 1024 * 1024 && Array.isArray(value.parts) && value.parts.every(validHash) && value.parts.length === Math.ceil(value.size / (16 * 1024 * 1024)));
-        const kind = category === 'previews' ? 'previews' : !value.mime || value.mime === 'application/octet-stream' ? category === 'images' ? 'images' : 'other_media' : mimeCategory(value.mime);
+        const ownerCategory = mediaCategory(category);
+        const kind = ['product_recycle', 'workbook_recycle', 'shared'].includes(ownerCategory) ? ownerCategory
+          : ownerCategory === 'previews' ? 'previews'
+          : !value.mime || value.mime === 'application/octet-stream' ? ownerCategory === 'images' ? 'images' : 'other_media'
+          : mimeCategory(value.mime);
         const fileKey = JSON.stringify([value.mime, value.size, value.parts]);
         own(files, fileKey, kind);
         for (let i = 0; i < value.parts.length; i++) {
@@ -93,8 +156,55 @@ export async function readCategorizedUsage({ dataRoot, workspaceId }) {
         if (tag === 'array') walkTree(item, category, refs, depth + 1);
         else {
           check(Array.isArray(item) && item.length === 2 && typeof item[0] === 'string' && !names.has(item[0]));
-          names.add(item[0]); walkTree(item[1], category, refs, depth + 1);
+          names.add(item[0]); walkTree(item[1], childCategory(category, item[0]), refs, depth + 1);
         }
+      }
+    }
+    function addWeight(weights, kind, bytes) { kind = mediaCategory(kind); weights.set(kind, (weights.get(kind) ?? 0) + bytes); }
+    function weighTree(tree, kind, weights) {
+      if (kind === 'owned-records') {
+        if (tree?.[0] === 'array') { addWeight(weights, 'workspace', 12 + Math.max(0, tree[1].length - 1)); for (const child of tree[1]) weighTree(child, assetCategory(child), weights); return; }
+        kind = assetCategory(tree);
+      }
+      if (kind === 'asset-root') {
+        const value = plainTree(tree), assets = value?.state?.assets;
+        if (Array.isArray(assets)) {
+          const state = objectField(tree, 'state');
+          const assetTrees = objectField(state, 'assets');
+          const total = Buffer.byteLength(JSON.stringify(tree));
+          let assigned = 0;
+          for (const asset of assetTrees[1]) { const size = Buffer.byteLength(JSON.stringify(asset)); addWeight(weights, assetCategory(asset), size); assigned += size; }
+          addWeight(weights, 'workspace', total - assigned); return;
+        }
+        kind = 'workspace';
+      }
+      if (!['array', 'object'].includes(tree?.[0])) { addWeight(weights, kind, Buffer.byteLength(JSON.stringify(tree))); return; }
+      const [tag, children] = tree;
+      // 容器、逗号和字段名也参与分配，全部分类相加仍严格等于内容字节。
+      addWeight(weights, kind, Buffer.byteLength(JSON.stringify([tag, []])) + Math.max(0, children.length - 1));
+      for (const child of children) {
+        if (tag === 'array') weighTree(child, kind, weights);
+        else {
+          const next = childCategory(kind, child[0]);
+          addWeight(weights, next, Buffer.byteLength(JSON.stringify(child[0])) + 3);
+          weighTree(child[1], next, weights);
+        }
+      }
+    }
+    function countRecycleRecords(tree, depth = 0) {
+      check(depth <= 32 && Array.isArray(tree));
+      const [tag, value] = tree;
+      if (tag === 'array' && Array.isArray(value)) {
+        for (const item of value) countRecycleRecords(item, depth + 1);
+        return;
+      }
+      if (tag !== 'object' || !Array.isArray(value)) return;
+      for (const pair of value) {
+        if (!Array.isArray(pair) || pair.length !== 2) continue;
+        const [name, child] = pair;
+        if (name === 'deletedProjects' && child?.[0] === 'array' && Array.isArray(child[1])) categories.get('product_recycle').records += child[1].length;
+        if (name === 'recycledWorkbooks' && child?.[0] === 'array' && Array.isArray(child[1])) categories.get('workbook_recycle').records += child[1].length;
+        countRecycleRecords(child, depth + 1);
       }
     }
     const rootIds = new Set();
@@ -105,27 +215,45 @@ export async function readCategorizedUsage({ dataRoot, workspaceId }) {
       const document = getDocument('extension', id), value = document.value;
       check(value.namespace === namespace);
       own(docOwners, key, category);
+      const namespaceDocs = new Set([key]);
       let entries;
       if (value.format === 'guan-app-storage.v1') entries = value.entries;
       else {
         check(value.format === 'guan-app-storage.v2' && Object.keys(value).length === 4 && Number.isSafeInteger(value.entryCount) && value.entryCount >= 0);
         entries = await readFragmentGraph({ head: value.head, readDocument: async (collection, part) => {
-          await yieldPeriodically(); own(docOwners, collection + '/' + part, category); return getDocument(collection, part);
+          await yieldPeriodically(); own(docOwners, collection + '/' + part, category); namespaceDocs.add(collection + '/' + part); return getDocument(collection, part);
         } });
         check(Array.isArray(entries) && entries.length === value.entryCount);
       }
       check(Array.isArray(entries));
-      const keys = new Set(), rootRefs = new Set();
+      if (namespace === 'app_state') {
+        const canvasEntry = entries.find(pair => Array.isArray(pair) && pair[0] === 'infinite-canvas:canvas_store');
+        if (canvasEntry) collectRecycleIds(canvasEntry[1]?.tree);
+      }
+      const keys = new Set(), rootRefs = new Set(), weights = new Map();
       for (const pair of entries) {
         check(Array.isArray(pair) && pair.length === 2 && typeof pair[0] === 'string' && pair[0].length > 0 && pair[0].length <= 512 && !keys.has(pair[0]));
         keys.add(pair[0]);
-        const refs = new Set(); walkTree(pair[1]?.tree, category, refs);
+        const refs = new Set(), entryKey = pair[0];
+        const treeCategory = namespace === 'app_state' && entryKey === 'infinite-canvas:canvas_store' ? 'canvas-root' : category;
+        if (treeCategory === 'canvas-root') collectRecycleIds(pair[1]?.tree);
+        const assetTreeCategory = namespace === 'app_state' && entryKey === 'infinite-canvas:asset_store' ? 'asset-root' : treeCategory;
+        const owners = storageKeyOwners.get(entryKey);
+        const logCategory = ['image_generation_logs', 'video_generation_logs'].includes(namespace) ? assetCategory(pair[1]?.tree) : 'workspace';
+        const effectiveCategory = owners?.size ? owner(owners) : logCategory !== 'workspace' ? logCategory : assetTreeCategory;
+        weighTree(pair[1]?.tree, effectiveCategory, weights);
+        // 回收站记录数只计产品/工作簿条目，关联媒体索引不再混入业务条目数。
+        if (!['product_recycle', 'workbook_recycle'].includes(effectiveCategory)) categories.get(category).records++;
+        const rootTree = effectiveCategory === 'asset-root' ? pair[1]?.tree : null;
+        if (rootTree) walkAssetTree(rootTree, refs);
+        else walkTree(pair[1]?.tree, effectiveCategory, refs);
+        if (treeCategory === 'canvas-root') countRecycleRecords(pair[1]?.tree);
         check(Array.isArray(pair[1]?.mediaIds) && pair[1].mediaIds.every(validHash) && pair[1].mediaIds.length === refs.size && pair[1].mediaIds.every(id => refs.has(id)) && new Set(pair[1].mediaIds).size === refs.size);
         for (const id of refs) rootRefs.add(id);
         await yieldPeriodically();
       }
       check(document.mediaIds.length === rootRefs.size && document.mediaIds.every(id => rootRefs.has(id)));
-      categories.get(category).records += entries.length;
+      for (const docKey of namespaceDocs) docWeights.set(docKey, weights);
     }
     for (const [key, row] of docs) {
       let kind;
@@ -136,7 +264,15 @@ export async function readCategorizedUsage({ dataRoot, workspaceId }) {
         kind = row.collection === 'canvas' ? 'workspace' : 'other';
         categories.get(kind).records++;
       }
-      categories.get(kind).documentBytes += row.bytes;
+      const weights = kind !== 'shared' ? docWeights.get(key) : null;
+      const totalWeight = weights ? [...weights.values()].reduce((sum, n) => sum + n, 0) : 0;
+      if (totalWeight) {
+        const rows = [...weights].filter(([, bytes]) => bytes > 0); let assigned = 0;
+        for (let i = 0; i < rows.length; i++) {
+          const [name, weight] = rows[i], bytes = i === rows.length - 1 ? row.bytes - assigned : Math.floor(row.bytes * weight / totalWeight);
+          categories.get(name).documentBytes += bytes; assigned += bytes;
+        }
+      } else categories.get(kind).documentBytes += row.bytes;
       if (kind === 'history') categories.get(kind).blocks++;
     }
     // 普通业务文档的直接媒体引用兼容；已有类型描述优先，不把同一图片另算一份。

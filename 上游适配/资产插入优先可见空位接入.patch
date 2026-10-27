@@ -1,0 +1,20 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 08558f6..aeeac71 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -2203,7 +2203,14 @@ function InfiniteCanvasPage() {
+     );
+ 
+     const assetInsertError = useCallback((text: string) => { message.error(text); }, [message]);
+-    const insertStoredAsset = useCanvasAssetInsertion({ projectId, setNodes, setSelectedNodeIds, setSelectedConnectionId, onError: assetInsertError });
++    const assetVisibleBounds = useCallback(() => {
++        const rect = containerRef.current?.getBoundingClientRect();
++        if (!rect) return undefined;
++        const start = screenToCanvas(rect.left + 24, rect.top + 64);
++        const end = screenToCanvas(rect.right - 24, rect.bottom - 100);
++        return { x: start.x, y: start.y, width: Math.max(1, end.x - start.x), height: Math.max(1, end.y - start.y) };
++    }, [screenToCanvas]);
++    const insertStoredAsset = useCanvasAssetInsertion({ projectId, setNodes, setSelectedNodeIds, setSelectedConnectionId, getVisibleBounds: assetVisibleBounds, onError: assetInsertError });
+ 
+     const handleDrop = useCallback(
+         (event: ReactDragEvent<HTMLDivElement>) => {

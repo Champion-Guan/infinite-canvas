@@ -55,8 +55,9 @@ function render(status, { blockedPopup = false, progressError = false } = {}){
         {installationMessages:{},updateMessages:{},updateRequest:async operation=>{calls.push(operation);}};
     new Function('require','module','exports','window',compiled)(fakeRequire,module,module.exports,{open:()=>blockedPopup?null:{close(){}}});
     const tree=module.exports.OnlineInstallActions({status,refresh:async()=>{calls.push('refresh');}});
-    const button=tree.props.children[1].props.children[0];
-    return {tree,button,calls,confirmations};
+    const buttons=tree.props.children[1].props.children.filter(child=>child?.type==='button');
+    const button=buttons[0];
+    return {tree,button,buttons,calls,confirmations};
 }
 const status=(extra={})=>({download:{state:'verified'},preferences:{autoInstall:false},install:{allowed:true,state:'idle'},...extra});
 test('共享入口先暂存，再经确认提交手动安装；不会为安装自动开启偏好',async()=>{
@@ -79,7 +80,7 @@ test('共享入口在源码、未验签、暂存中及切换中禁用，页面�
     for(const input of [status({install:{allowed:false,state:'source-development'}}),status({download:{state:'downloading'}}),
         status({install:{allowed:true,state:'idle',staging:true}}),status({install:{allowed:true,state:'switching'}})])assert.equal(render(input).button.props.disabled,true);
     const waiting=render(status({install:{allowed:true,state:'awaiting-browser-exit'}}));
-    assert.equal(waiting.button.props.disabled,true);assert.equal(waiting.tree.props.children[1].props.children[1].props.children,'稍后安装');
+    assert.equal(waiting.button.props.disabled,true);assert.equal(waiting.buttons[1].props.children,'稍后安装');
 });
 test('授权HTTP手动入口保持偏好关闭，不接受额外身份并保留双重授权',async()=>{
     const { assembleSoftwareUpdates }=await import('../扩展功能/软件更新/更新服务装配.mjs');

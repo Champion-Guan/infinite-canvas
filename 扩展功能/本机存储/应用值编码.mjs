@@ -9,8 +9,9 @@ const credentialKey = /^(api[_-]?key|authorization|password|token|access[_-]?tok
 // 值使用带类型的树，保留逻辑storageKey，不把临时网址或Blob对象写进JSON。
 // 凭据只能交给显式注入的安全端口；没有端口时拒绝，不删字段、不明文降级。
 export function createValueCodec({ client, secretPort, readBlobUrl, createObjectURL = blob => URL.createObjectURL(blob), revokeObjectURL = url => URL.revokeObjectURL(url) }) {
-  const urls = new Set(), savedUrls = new Map(), savedBlobs = new WeakMap(), savedMediaKeys = new Map();
+  const urls = new Set(), savedUrls = new Map(), savedMediaKeys = new Map();
   const loadedMedia = new Map(), decodedUrls = new Map(), confirmedMedia = new Map(), mediaWrites = new Map();
+  let savedBlobs = new WeakMap();
   const credentialChecks = new Map();
   function credentialCheck(key, operation) {
     if (!credentialChecks.has(key)) {
@@ -257,5 +258,9 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
   function stableMediaKeysOutsideCodec(value) {
     return Object.entries(value).filter(([name, entry]) => /(?:^|)storageKey$/i.test(name) && typeof entry === 'string' && entry.length > 0).map(([, entry]) => entry);
   }
-  return { encode, decode, close() { for (const url of urls) revokeObjectURL(url); urls.clear(); savedUrls.clear(); savedBlobs.clear?.(); savedMediaKeys.clear(); loadedMedia.clear(); decodedUrls.clear(); confirmedMedia.clear(); mediaWrites.clear(); credentialChecks.clear(); } };
+  function invalidateMedia() {
+    // 保留正在显示的对象URL；只撤销已落盘缓存，重新导入相同字节必须重新确认上传。
+    savedBlobs = new WeakMap(); savedUrls.clear(); savedMediaKeys.clear(); loadedMedia.clear(); decodedUrls.clear(); confirmedMedia.clear();
+  }
+  return { encode, decode, invalidateMedia, close() { for (const url of urls) revokeObjectURL(url); urls.clear(); savedUrls.clear(); savedBlobs.clear?.(); savedMediaKeys.clear(); loadedMedia.clear(); decodedUrls.clear(); confirmedMedia.clear(); mediaWrites.clear(); credentialChecks.clear(); } };
 }

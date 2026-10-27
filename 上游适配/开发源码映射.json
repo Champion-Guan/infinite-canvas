@@ -39,14 +39,14 @@
       "目标": "画布副本/web/src/扩展功能/生成历史/历史总览面板.tsx",
       "原位置": "新增功能模块",
       "类型": "前端",
-      "SHA256": "3e3f7d72e7384ec73e51044a29afdbe35b5e6d44813825b46e9381e09e08e3ff"
+      "SHA256": "29f7f5784266cb3a6091e948c50d519106a82de3ed2feb34354d28ee87da8516"
     },
     {
       "来源": "扩展功能/生成历史/历史总览面板.module.css",
       "目标": "画布副本/web/src/扩展功能/生成历史/历史总览面板.module.css",
       "原位置": "新增功能模块",
       "类型": "前端",
-      "SHA256": "973c4a573adf47c02a3d4f7f89ef432a8ba927479761647da96d74aad8567325"
+      "SHA256": "b489f269ffb3d5ba3630bc2c03e07b1b7213dff6b3c5ff9d907c4048733b41a6"
     },
     {
       "来源": "扩展功能/Excel/Excel产品归属.ts",
@@ -54,7 +54,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/Excel产品归属.ts",
       "原SHA256": "ae2a492eaa962cf32e1db97407c34393ac01682fa6d20e6ca791fb50d3939ff7",
       "类型": "前端",
-      "SHA256": "1d4ce9b6545b8dbd9d830a8fe88bca98e9032542548e256b58b04c9aeab5a59a"
+      "SHA256": "f4a1a17168dae5446d37b3053f539e8fd212f5570524cc72b18fe9eee6910c97"
     },
     {
       "来源": "扩展功能/Excel/Excel保存导航.ts",
@@ -110,7 +110,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/Excel工作簿选择.tsx",
       "原SHA256": "ddbbac4a064adfa9a25a3fba2e131e26868aaa2ec67a8008f8f9217627c8cb07",
       "类型": "前端",
-      "SHA256": "875e780db0ac0f5e070b6fcf2de819a314f872383be243dcfdbdc4063133d0d5"
+      "SHA256": "a449fd1363704273d07e5171f209fabac760104539d70fe8021ce20985c32e2d"
     },
     {
       "来源": "扩展功能/Excel画布/Excel提示词列表.css",
@@ -134,7 +134,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/Excel提示词来源.ts",
       "原SHA256": "5ed3753cf2d82b27f4c9b09a2f16d8c7aff5c1c1a07df692b00eac3623414c2d",
       "类型": "前端",
-      "SHA256": "5ed3753cf2d82b27f4c9b09a2f16d8c7aff5c1c1a07df692b00eac3623414c2d"
+      "SHA256": "bc0be3f0f711df1ae6e04af36034fe803439771186b9f6d5bcce1b3541024865"
     },
     {
       "来源": "扩展功能/Excel/Excel文件读取.ts",
@@ -150,7 +150,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/Excel画布上下文.tsx",
       "原SHA256": "1b6a418598cfbf80aa07a346b925cbdce74711de3ef722f4cca34cde6bda9d63",
       "类型": "前端",
-      "SHA256": "1b6a418598cfbf80aa07a346b925cbdce74711de3ef722f4cca34cde6bda9d63"
+      "SHA256": "b29b6138dc4a2fdc09b681c9591d953d8528cc787a36f1c12d430d6ca32982f1"
     },
     {
       "来源": "扩展功能/存储界面/SQLite分类容量面板.tsx",
@@ -158,7 +158,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/SQLite分类容量面板.tsx",
       "原SHA256": "cf1ab3419b27c2c208f464ff0b38c8e476924ad9d40f7e6df45a64d094c3b758",
       "类型": "前端",
-      "SHA256": "cf1ab3419b27c2c208f464ff0b38c8e476924ad9d40f7e6df45a64d094c3b758"
+      "SHA256": "5e8493213d530598f7e5df15b96b4bc09244e28fa34ad19a9d743bd1884854d2"
     },
     {
       "来源": "扩展功能/存储界面/SQLite应用入口.tsx",
@@ -414,7 +414,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/sqlite/分片应用存储.mjs",
       "原SHA256": "894149d415db16300a4f95fb1077983dc0fb308a435f973544800340efa150c3",
       "类型": "前端",
-      "SHA256": "88f44e5c67063e53e1b09399342864f249c994dadf97780a72a630e7ce72d8b8"
+      "SHA256": "5cb53b132148bb650ef0e5f6f6eaeea6dda70e3179ed2ebcb769cbf804645c7d"
     },
     {
       "来源": "扩展功能/本机存储/协议.mjs",
@@ -430,7 +430,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/sqlite/可恢复分片应用存储.mjs",
       "原SHA256": "05e003634b3a0bd2cd3ed8f4d0c8d390527e934afbba7ce54a01a277dc034a43",
       "类型": "前端",
-      "SHA256": "35df7e857c7e6eb1fa8c458b5ba387d28c1c12919008e1f2375018d2507e6f9c"
+      "SHA256": "525f4436c8ee8c904878cc928a91a51b3defab71ebc7d6c40d8905bb160d89d5"
     },
     {
       "来源": "扩展功能/本机存储/可恢复应用存储.mjs",
@@ -470,7 +470,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/sqlite/应用值编码.mjs",
       "原SHA256": "ef0ab5cde710b405755cb4cf63688f91c9a965e321d63a9d655411a3756a863f",
       "类型": "前端",
-      "SHA256": "4465271b1b15b031a0502e99f3c70c6df42bb72f09cc24b2e6644e3d9b70add7"
+      "SHA256": "d73c3ae1612fb989db799d0b68eee4eb74c7702fa1fe9e6db2c17f20aae493f3"
     },
     {
       "来源": "扩展功能/本机存储/应用存储适配.mjs",
@@ -494,7 +494,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/sqlite/浏览器适配.mjs",
       "原SHA256": "54a9772480928c9660e495816acbc8cb4098c44ff258c8502635d862e5fa8da3",
       "类型": "前端",
-      "SHA256": "910689424ddf502508862fbba840065f5abf695737f8f7c7dd845f3f4239fca7"
+      "SHA256": "d552ed84ddfc6209a745f12303030629014ab6594f682eb8bd3b3d4bb0403c29"
     },
     {
       "来源": "扩展功能/本机存储/续期数据客户端.mjs",
@@ -502,7 +502,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/sqlite/续期数据客户端.mjs",
       "原SHA256": "d3e926fb101ededc9305b84b368d1b8eb92abcfddf833ab3a5f0cc8407c0df2f",
       "类型": "前端",
-      "SHA256": "03aeeb9043576b8e7541f4770b927965c55ecabe4362d84b789b6e2d37a7ef10"
+      "SHA256": "12c4dd0c48ebc077312717d38548e40b4249b0f3ffb03988284a900fa22e8a44"
     },
     {
       "来源": "扩展功能/主题/三态主题状态.ts",
@@ -526,7 +526,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/上游浏览器存储桥.ts",
       "原SHA256": "9bd9d38d869ab5609870a940b0aed287b8c6b2fb978d685fc2a03d90a225e67b",
       "类型": "前端",
-      "SHA256": "d80cca7ea642bd4b0508154eba7e677f110f299cfa537e31a1c7476c31ffd2e1"
+      "SHA256": "28b5235ae69c7c30e0078b8d74e1d115ee024127a5e89c95fe93b5a88b479e41"
     },
     {
       "来源": "扩展功能/Excel画布/主题校准规则.ts",
@@ -574,7 +574,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/产品工作区.tsx",
       "原SHA256": "d58edceb72287b87ff962d0a064c9eb1681ff699dada52611788b92494aa57bf",
       "类型": "前端",
-      "SHA256": "2f579644522871626e980e1df31cf314d004b3aae8885698c4df36eff7a52797"
+      "SHA256": "9a771c4b697249cb2e50b03b3fb9ae28e0b9a471722ab1caedc0304ed4cd7bf2"
     },
     {
       "来源": "扩展功能/产品/产品恢复挂载门禁.ts",
@@ -590,7 +590,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/产品操作.ts",
       "原SHA256": "3bd9720038a9f993e7aca60ca55be4c14dcd423e7bd3ef326cad181ee4db196e",
       "类型": "前端",
-      "SHA256": "b73cb1e760b402997b994119489d3150bcd7fdd30c15ed549d3ca2ac61be2fcf"
+      "SHA256": "950f7df85b06ee69cba37a2c0a7dd5aa8bd8a66294675521b26074629dbe4581"
     },
     {
       "来源": "扩展功能/产品/产品界面边界.tsx",
@@ -638,7 +638,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/卡片自动避让.ts",
       "原SHA256": "9e95193590ca10d83866d36e645c9d1324785fe27fce9286dcb39dc3b8779889",
       "类型": "前端",
-      "SHA256": "4ef92d5f60aba0e0587ea9e884524fee3ee1433cb687330f8f40e20a2e7a482d"
+      "SHA256": "b841de8bc15cd688e5a3c381b7c78b30e1527f83b97430200ebde78583d5d98e"
     },
     {
       "来源": "扩展功能/产品配置/右上双入口.ts",
@@ -662,7 +662,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/工作簿删除弹窗.tsx",
       "原SHA256": "b3f6bf9e971aacdbb1cf6de4285b2f29d3dec8f3e7c0f37dd16e49d808db1b66",
       "类型": "前端",
-      "SHA256": "88a48aa1c4387d0875be8a4ca5c42fde3e05a267a4ee5af9e0fffe3e6818ed5c"
+      "SHA256": "222935f598ebd3a0120049926bb675a3fc31efd19731f27af18c18901a3515d0"
     },
     {
       "来源": "扩展功能/Excel删除/工作簿删除规则.ts",
@@ -670,7 +670,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/工作簿删除规则.ts",
       "原SHA256": "49fcb9d2d276601c027f9c199f32ed9bcc694127e2754ed39826c1d069de984f",
       "类型": "前端",
-      "SHA256": "cbf1e8344687351bf71fe5e4c064d5c7dfc2dbfc21717b6c59c635b648c5210b"
+      "SHA256": "cfa3153263b361165a03fcd47d19c50bf082a40ee317d9beb3fd50a2731babc3"
     },
     {
       "来源": "扩展功能/Excel删除/工作簿删除门禁.ts",
@@ -702,7 +702,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/旧版Excel样式.css",
       "原SHA256": "b7736093113810f89f9800dff23ebe001b6b6b4649b34e6c8f8c0682c0c0dd30",
       "类型": "前端",
-      "SHA256": "b7736093113810f89f9800dff23ebe001b6b6b4649b34e6c8f8c0682c0c0dd30"
+      "SHA256": "b1a51336ad659802d46ce13b1a4c2d8c6ec204c47aef2733af2ec77fb25bf910"
     },
     {
       "来源": "扩展功能/Excel/旧版Excel解析.js",
@@ -886,7 +886,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/components/layout/config-software-updates.tsx",
       "原SHA256": "ea23272cddcb7651b63debcc4b6f08bd32046c9df038a8d7eb2e5004275a46e6",
       "类型": "前端",
-      "SHA256": "caaf65de62e7de67fcef7df864d11b0fa1ac4a8ca8c718fbae556a13d3772e37"
+      "SHA256": "52ba967ce11d788648e68c731a23deb6af315b3e738691695e28ba9ab10a6c24"
     },
     {
       "来源": "扩展功能/生成历史/生成历史页签.tsx",
@@ -1518,7 +1518,7 @@
       "原位置": ".运行/3100源/服务包/扩展功能/本机存储/SQLite工作区.mjs",
       "原SHA256": "0a38416ecd66e75580aa95a6884cf8f6ed8f7401d8b289a432135823edd76f1f",
       "类型": "服务",
-      "SHA256": "1811c409b7441388ce2791634feb6df746aa11592182059252820bda4c1431e4"
+      "SHA256": "19c43525359709d828c76475973d745ecdf8e7d6f418fa8dfa439f791f531efa"
     },
     {
       "来源": "扩展功能/本机存储/分片值编码.mjs",
@@ -1534,7 +1534,7 @@
       "原位置": ".运行/3100源/服务包/扩展功能/本机存储/分类容量统计.mjs",
       "原SHA256": "06342c022eff01c67051eeafcdd97c761abb8569226ff8863089237e97241f09",
       "类型": "服务",
-      "SHA256": "4983b6ca38b92a782e3c1a9cbd5ef9b0ef3eca5abd13480b9c22962477b8efae"
+      "SHA256": "0d3d2295edbba487d281a538dd5bebff0c9a141f54eed472ce5a86eb42f63e5d"
     },
     {
       "来源": "扩展功能/本机存储/协议.mjs",
@@ -1558,7 +1558,7 @@
       "原位置": ".运行/3100源/服务包/扩展功能/本机服务/数据服务.mjs",
       "原SHA256": "e0342edba18b2ac9638177efc9e11b6c9d22a08cc77460f2347c92ed90777a70",
       "类型": "服务",
-      "SHA256": "11102e527bf758ebcc04dfe6eeabe47a382a969433983475c8f826e93da4c8ff"
+      "SHA256": "e4fd96ccb314085c10b3cee0b9a1d26942db2daa93564471e96f097d10fc1fe4"
     },
     {
       "来源": "开发文档/画布开发规范.md",
@@ -2039,7 +2039,7 @@
       "目标": "画布副本/web/src/扩展功能/画布生成/画布节点事务.ts",
       "原位置": "新增单功能模块",
       "类型": "前端",
-      "SHA256": "b9e7c33bd6bfb4e769a45be474bfa15d418e85764fab95a7f74aceb2797dc412"
+      "SHA256": "3bdc405aae95df02d811be7fc0e5973976b7ee9f4fdb0bd29a742afe74457cbb"
     },
     {
       "来源": "扩展功能/产品/画布保存接线.ts",
@@ -2067,7 +2067,7 @@
       "目标": "画布副本/web/src/扩展功能/画布布局/重叠卡片整理操作.ts",
       "原位置": "新增单功能模块",
       "类型": "前端",
-      "SHA256": "2423db9ae14ce149c945d0079d3c4a5101adc24e609d7fd818290e6a1eb75410"
+      "SHA256": "a5b4240f0b30452342bdea77291c892312f7da21473589346989518d0c668639"
     },
     {
       "来源": "扩展功能/媒体交付/图片批次操作.ts",
@@ -2166,7 +2166,7 @@
       "原位置": ".运行/3100源/画布副本/扩展功能/本机存储/SQLite工作区.mjs",
       "原SHA256": "0a38416ecd66e75580aa95a6884cf8f6ed8f7401d8b289a432135823edd76f1f",
       "类型": "服务",
-      "SHA256": "1811c409b7441388ce2791634feb6df746aa11592182059252820bda4c1431e4"
+      "SHA256": "19c43525359709d828c76475973d745ecdf8e7d6f418fa8dfa439f791f531efa"
     },
     {
       "来源": "扩展功能/本机存储/分类容量统计.mjs",
@@ -2174,7 +2174,7 @@
       "原位置": ".运行/3100源/画布副本/扩展功能/本机存储/分类容量统计.mjs",
       "原SHA256": "06342c022eff01c67051eeafcdd97c761abb8569226ff8863089237e97241f09",
       "类型": "服务",
-      "SHA256": "4983b6ca38b92a782e3c1a9cbd5ef9b0ef3eca5abd13480b9c22962477b8efae"
+      "SHA256": "0d3d2295edbba487d281a538dd5bebff0c9a141f54eed472ce5a86eb42f63e5d"
     },
     {
       "来源": "扩展功能/本机服务/写入协调.mjs",
@@ -2190,7 +2190,7 @@
       "原位置": ".运行/3100源/画布副本/扩展功能/本机服务/数据服务.mjs",
       "原SHA256": "e0342edba18b2ac9638177efc9e11b6c9d22a08cc77460f2347c92ed90777a70",
       "类型": "服务",
-      "SHA256": "11102e527bf758ebcc04dfe6eeabe47a382a969433983475c8f826e93da4c8ff"
+      "SHA256": "e4fd96ccb314085c10b3cee0b9a1d26942db2daa93564471e96f097d10fc1fe4"
     },
     {
       "来源": "扩展功能/生成任务/未决任务核实.mjs",
@@ -2260,7 +2260,7 @@
       "目标": "画布副本/web/src/扩展功能/本机存储/请求调度.mjs",
       "原位置": "新增存储调度模块",
       "类型": "前端",
-      "SHA256": "bcf3ed6995fc1f5213c53cdd329e1fba0f66d5e63f59d52dbd5373932753cbeb"
+      "SHA256": "f2b120ae93228d1be481c4d4c755e81b38e9f48bd91bbf27ec65d039ff832bdd"
     },
     {
       "来源": "扩展功能/本机存储/画布时间去重.mjs",
@@ -2274,7 +2274,7 @@
       "目标": "画布副本/web/src/扩展功能/软件更新/在线安装操作.tsx",
       "原位置": "新增共享在线安装操作模块",
       "类型": "前端",
-      "SHA256": "dfd353e0cd7f319cb4441581643dbb83efc93e85a37b9f6b4003e8716ffda131"
+      "SHA256": "47647af0d326f3d4f1eb020464c4d21d607ab367844cc4cb5d7ec43690cd0793"
     },
     {
       "来源": "扩展功能/本机存储/备份节省空间.mjs",
@@ -3163,6 +3163,100 @@
       "类型": "服务",
       "职责": "版本更新后检查并创建稳定桌面入口",
       "SHA256": "20182d32b884b3795adcc983889453e992f70b16a4a0d5fe1b6a42395076a056"
+    },
+    {
+      "来源": "扩展功能/Excel删除/Excel回收站规则.ts",
+      "目标": "画布副本/web/src/扩展功能/Excel删除/Excel回收站规则.ts",
+      "原位置": "新增 Excel 回收站模块",
+      "类型": "前端",
+      "职责": "Excel 工作簿回收、恢复和永久删除规则",
+      "SHA256": "4a1d2fdd3bc34a94792d5250b29bf5a3d59f51d76c6eaa62aabdc6c696cb42a5"
+    },
+    {
+      "来源": "扩展功能/Excel删除/Excel回收站面板.tsx",
+      "目标": "画布副本/web/src/扩展功能/Excel删除/Excel回收站面板.tsx",
+      "原位置": "新增 Excel 回收站模块",
+      "类型": "前端",
+      "职责": "Excel 下拉菜单回收站面板",
+      "SHA256": "9eaa5bbb2c25834332908e5af8a4643374b2068898daae7679873a4137b19537"
+    },
+    {
+      "来源": "扩展功能/存储界面/回收站存储操作.ts",
+      "目标": "画布副本/web/src/扩展功能/存储界面/回收站存储操作.ts",
+      "原位置": "新增本地存储回收站清理模块",
+      "类型": "前端",
+      "职责": "按分类清理产品与Excel回收站及其媒体",
+      "SHA256": "6f9144fe7563c7339b528be1b153a76be7be1c6f61e9ca9c75e41c3d34d26364"
+    },
+    {
+      "来源": "扩展功能/本机存储/回收站归属.mjs",
+      "目标": "画布副本/web/src/扩展功能/本机存储/回收站归属.mjs",
+      "原位置": "新增功能模块",
+      "类型": "前端",
+      "SHA256": "fe2636bb95b69d455186ca6be5083517512c6dfea438277bcc04237ed7e588f2"
+    },
+    {
+      "来源": "扩展功能/本机存储/回收站归属.mjs",
+      "目标": "画布副本/扩展功能/本机存储/回收站归属.mjs",
+      "原位置": "新增功能模块",
+      "类型": "服务",
+      "SHA256": "fe2636bb95b69d455186ca6be5083517512c6dfea438277bcc04237ed7e588f2"
+    },
+    {
+      "来源": "扩展功能/本机存储/回收站归属.mjs",
+      "目标": "服务包/扩展功能/本机存储/回收站归属.mjs",
+      "原位置": "新增功能模块",
+      "类型": "服务",
+      "SHA256": "fe2636bb95b69d455186ca6be5083517512c6dfea438277bcc04237ed7e588f2"
+    },
+    {
+      "来源": "扩展功能/素材/上传资产规则.ts",
+      "目标": "画布副本/web/src/扩展功能/素材/上传资产规则.ts",
+      "原位置": "新增功能模块",
+      "类型": "前端",
+      "SHA256": "bb03846d3d61fa7b1cd7b2a6d6600fdc4d9d02b050287e48f7af79deb1fc4c29"
+    },
+    {
+      "来源": "扩展功能/素材/资产插入操作.ts",
+      "目标": "画布副本/web/src/扩展功能/素材/资产插入操作.ts",
+      "原位置": "新增功能模块",
+      "类型": "前端",
+      "SHA256": "0d6b1b91414be8ba5bcafbe72159a66119e356b577fc72cc321be24b6a5d1d7d"
+    },
+    {
+      "来源": "扩展功能/素材/资产画布节点.ts",
+      "目标": "画布副本/web/src/扩展功能/素材/资产画布节点.ts",
+      "原位置": "新增功能模块",
+      "类型": "前端",
+      "SHA256": "70a472338a0f0d81a461ec7f8b89578aa4d1977d04007c82530a3e91b5a8e616"
+    },
+    {
+      "来源": "扩展功能/素材/上传资产登记.ts",
+      "目标": "画布副本/web/src/扩展功能/素材/上传资产登记.ts",
+      "原位置": "新增功能模块",
+      "类型": "前端",
+      "SHA256": "e54a272e72e19ad08cd3fdb32b79f50329a89c97f4671e73a91f9e9cffa96702"
+    },
+    {
+      "来源": "扩展功能/素材/资产可见落点.ts",
+      "目标": "画布副本/web/src/扩展功能/素材/资产可见落点.ts",
+      "原位置": "新增功能模块",
+      "类型": "前端",
+      "SHA256": "a0d5cdb7ef71daf1df96da80e383bca6a2d74fc8ed9fef45db5efc0d62091c44"
+    },
+    {
+      "来源": "扩展功能/画布布局/配置结果横排.ts",
+      "目标": "画布副本/web/src/扩展功能/画布布局/配置结果横排.ts",
+      "原位置": "新增功能模块",
+      "类型": "前端",
+      "SHA256": "3dc5d7e5907980719e87e1327fd7d2a39ad60687dbc3f0e9a116e95af17e691c"
+    },
+    {
+      "来源": "扩展功能/Excel画布/Excel工作簿来源.ts",
+      "目标": "画布副本/web/src/扩展功能/Excel画布/Excel工作簿来源.ts",
+      "原位置": "新增功能模块",
+      "类型": "前端",
+      "SHA256": "8629a9c90cfc41ff43a56331be98b77644e7c3eaa0bca67fa4a472732e71c28e"
     }
   ],
   "接入差异": [
@@ -3645,6 +3739,14 @@
       "目标": "web/src/components/canvas/canvas-connections.tsx",
       "基线SHA256": "877a068eb577d4a03bb079aa9b4b4108c2606b82a94c04707d68bf5b886b16b8",
       "原SHA256": "877a068eb577d4a03bb079aa9b4b4108c2606b82a94c04707d68bf5b886b16b8"
+    },
+    {
+      "目标": "web/src/pages/assets/asset-transfer.ts",
+      "基线SHA256": "fa4b47e62c59197b8b718bd03afb584661e9e9640d128aee8a3f0acf45277e75"
+    },
+    {
+      "目标": "web/src/pages/assets/index.tsx",
+      "基线SHA256": "25b6aa2fbc89247a967fa3c3f2a41bcf0dc880cba924855b071710c1d25583eb"
     }
   ],
   "接入补丁": [
@@ -5065,6 +5167,158 @@
       "SHA256": "b497ce22697f88f5b0976c41c3094ad5bb8c5a97b835bbad1b7c6c819b30422f",
       "前态SHA256": "8c2bb4d104e844c86f4b9327b2900f418569c1415d94088ed57636d4845ff214",
       "后态SHA256": "31e43cd2b68fd6ce59b045dd412a3cff6ad49e610c1dd31ffaed2f6be9d7775c"
+    },
+    {
+      "文件": "上游适配/当前画布资产类型与去重接入.patch",
+      "目标": "web/src/stores/use-asset-store.ts",
+      "职责": "当前画布资产类型与去重接入",
+      "SHA256": "a6cf3e561f721356581062f699f3396b395b64b37f94520deebc4e8115f534e8",
+      "前态SHA256": "23b917ad6d83e83e5c014a906b333d77ca30a009a61026aa023b07449b38c8be",
+      "后态SHA256": "e68171459b38de5bc31ac1640e3c4349eefc96580e77e49b68b2ef2f83cbdec2"
+    },
+    {
+      "文件": "上游适配/图片上传自动归属资产接入.patch",
+      "目标": "web/src/services/image-storage.ts",
+      "职责": "图片上传自动归属资产接入",
+      "SHA256": "98e50e3db3120288e20298198eb125c28e6b5976779d0a6e023ddf0e80139f40",
+      "前态SHA256": "5cb6a8b2fd82d830c71a382188f23d578da42953428ab77dbd385fc49b849328",
+      "后态SHA256": "db1aacd23799a49c09c96fc01bd1d322f31663222b674ce23cd6b860c8a9a4b5"
+    },
+    {
+      "文件": "上游适配/音视频上传自动归属资产接入.patch",
+      "目标": "web/src/services/file-storage.ts",
+      "职责": "音视频上传自动归属资产接入",
+      "SHA256": "b35d0b085384da81d5ea78ad27be056c80fcba1549d8dd315a67ca33afad8e3f",
+      "前态SHA256": "87eea09bb5b3bc1c89c68ce5b73c360d5d1b4ef5124c723b105c9fe404683cdd",
+      "后态SHA256": "229baeaa9613b3799b6952dfc6ea9963deefadf54eb60cd79cd176e3926d9cbe"
+    },
+    {
+      "文件": "上游适配/画布资产音频与拖动入口接入.patch",
+      "目标": "web/src/components/canvas/canvas-side-panel.tsx",
+      "职责": "画布资产音频与拖动入口接入",
+      "SHA256": "3c7a2edcd49e27937c795d0d1782264375d571310cb97e0d78613ce406ddd99d",
+      "前态SHA256": "1d5ce91969718b9762287259287a12879b1a60d55d4a6285055ac8b5e7cfd8d6",
+      "后态SHA256": "f0db782d0425d94fac8ec6ae0ca9cb2dfeec51fdcf22144511fc8b1665972f48"
+    },
+    {
+      "文件": "上游适配/素材选择复用资产标识接入.patch",
+      "目标": "web/src/components/canvas/asset-picker-modal.tsx",
+      "职责": "素材选择复用资产标识接入",
+      "SHA256": "8a0c4b41636f00b5eaa36b3d382648a559273fe182cb3f51d5a22098594c692f",
+      "前态SHA256": "f9b9c917f3c2eeae156c0eb064a84c862b03e654fc9ed492a8384508bfec7307",
+      "后态SHA256": "fa8fb76557e7ac651d9cc21f627887036febfe90d4d6a450396b6d133c5c0835"
+    },
+    {
+      "文件": "上游适配/上传归属与资产落点接入.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "上传归属与资产落点接入",
+      "SHA256": "68afd5227c871f4bbd2428fd9158d13e9c497533e4b8e5f4fca9353ded58d255",
+      "前态SHA256": "33f9645cd56392b2a2d58a6359eac88e8512509463b98661d8cc5ff6cdb43cba",
+      "后态SHA256": "fe16f42089bf159715ba9d5f45ac0d87dd6e3adbe6f8607d9b5dd00fe66d72d0"
+    },
+    {
+      "文件": "上游适配/音频资产恢复接入.patch",
+      "目标": "web/src/services/app-sync.ts",
+      "职责": "音频资产恢复接入",
+      "SHA256": "060b596c2a39c5c0fb5225363d964d2d182d0cec1d90a37037f52304cfa2276f",
+      "前态SHA256": "32386cfb1e20718f938593e8b94bc1c8a9cef4c287dafe5333ecff7033764fa3",
+      "后态SHA256": "7ea57c5a479e23002e094b2a5d4bc0030db3cabeb905159f777a2ebb9150b69b"
+    },
+    {
+      "文件": "上游适配/资产管理音频兼容与封面登记接入.patch",
+      "目标": "web/src/pages/assets/index.tsx",
+      "职责": "资产管理音频兼容与封面登记接入",
+      "SHA256": "c4e1f65c93070ed66e667cd12e9ffc351297a3eb8efab52ada953456a95dbb87",
+      "前态SHA256": "25b6aa2fbc89247a967fa3c3f2a41bcf0dc880cba924855b071710c1d25583eb",
+      "后态SHA256": "25712e895143d899e62f660090e29129a4ecc3e770d9abfdaa43bd3447d6911b"
+    },
+    {
+      "文件": "上游适配/音频资产导入导出接入.patch",
+      "目标": "web/src/pages/assets/asset-transfer.ts",
+      "职责": "音频资产导入导出接入",
+      "SHA256": "9b010c7fe1f49d124d60f1576ab181be0d89b31fedd1f61983cff11d79a791f7",
+      "前态SHA256": "fa4b47e62c59197b8b718bd03afb584661e9e9640d128aee8a3f0acf45277e75",
+      "后态SHA256": "6328a8e6896b77466ec3bddb9c765a89e6ec6ecfec1fb65cd3ede6cbcfe96900"
+    },
+    {
+      "文件": "上游适配/助手附件进入当前画布资产接入.patch",
+      "目标": "web/src/components/agent/local-agent-panel.tsx",
+      "职责": "助手附件进入当前画布资产接入",
+      "SHA256": "43c24977050324ffa6a598021ac030534c01f3db354eb742da93f39c8b37965f",
+      "前态SHA256": "54f0a00a78760786652faca25ce0191ef5d831dc4a2ae4361b3a92d4a8bfd2cd",
+      "后态SHA256": "10262ab5132b0ba05f6d6ba3d89bb7956a825d324ba99f1b236bdd0187b9ef36"
+    },
+    {
+      "文件": "上游适配/生图粘贴图片登记资产接入.patch",
+      "目标": "web/src/pages/image/index.tsx",
+      "职责": "生图粘贴图片登记资产接入",
+      "SHA256": "84406089088b4374710e35a8ab9cb9d0e8fec3bff8da2d90db1d66197d1b9577",
+      "前态SHA256": "cda6ca4e32cc9070fb2152a75b7d2972a3447342b08049eac9b8ba631f1ca306",
+      "后态SHA256": "3f2b2156bd9496861911ca063fda439a25b067ecbb2a20a8a78f2754020bf722"
+    },
+    {
+      "文件": "上游适配/视频粘贴图片登记资产接入.patch",
+      "目标": "web/src/pages/video/index.tsx",
+      "职责": "视频粘贴图片登记资产接入",
+      "SHA256": "bf8481e3e6b85776238214befc6f8fc9f051e4defe7b39d2926d5fe11488b6c6",
+      "前态SHA256": "4a285c5d5c48f852642862da069ea4ba1b8e31c5eec4771430bbcbb85a269985",
+      "后态SHA256": "54dd3fa41c48e943382e39cd3ab20db560e8ed268ad4f3b7416bab6ff00e72ea"
+    },
+    {
+      "文件": "上游适配/卡片替换媒体明确归属接入.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "卡片替换媒体明确归属接入",
+      "SHA256": "f6be101ca7ebd2323b700c7ce33172dd068128614f7dd1ddc619d81d417060fc",
+      "前态SHA256": "fe16f42089bf159715ba9d5f45ac0d87dd6e3adbe6f8607d9b5dd00fe66d72d0",
+      "后态SHA256": "6f70f840ecf92c9563f97accffce30ed37a88ef6b089db6e62e6dd3ad0cc2399"
+    },
+    {
+      "文件": "上游适配/资产媒体缩略图拖动事件修复.patch",
+      "目标": "web/src/components/canvas/canvas-side-panel.tsx",
+      "职责": "资产媒体缩略图拖动事件修复",
+      "SHA256": "cc7cce6a72a98e2346859975874996d5f6204643bb997162b32bfedf908ce8a5",
+      "前态SHA256": "f0db782d0425d94fac8ec6ae0ca9cb2dfeec51fdcf22144511fc8b1665972f48",
+      "后态SHA256": "f56f297c5792661da330067caf8bbad35105b7fd1ec801b528cdbca70a942adc"
+    },
+    {
+      "文件": "上游适配/资产插入优先可见空位接入.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "资产插入优先可见空位接入",
+      "SHA256": "658139d3acc0f46b75c89ac39fdfba28b47968815ab05aa86a2584b15ea63fb5",
+      "前态SHA256": "6f70f840ecf92c9563f97accffce30ed37a88ef6b089db6e62e6dd3ad0cc2399",
+      "后态SHA256": "651e0783a58187132a6bc342da5609bc3ecb103de2d11ae7a5f081a12884f1a1"
+    },
+    {
+      "文件": "上游适配/拖放媒体保留鼠标落点接入.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "拖放媒体保留鼠标落点接入",
+      "SHA256": "2de7ef67078e2a844bab53388aa750f22f6315f719e9ca9ee5244d670aac6929",
+      "前态SHA256": "651e0783a58187132a6bc342da5609bc3ecb103de2d11ae7a5f081a12884f1a1",
+      "后态SHA256": "eac12a1e879edbc94f6045b4f6fee50ba8952a18f329ed7a3ad02eae57b266f2"
+    },
+    {
+      "文件": "上游适配/版本弹窗更新按钮同排.patch",
+      "目标": "web/src/components/layout/version-release-modal.tsx",
+      "职责": "版本弹窗更新按钮同排",
+      "SHA256": "72c721377160e9fb13c44415d9fa8a97779f39bcb555bb84962ce903afce8998",
+      "前态SHA256": "f68c5a09cd6815dcdb417df6d7c59dec5571a9353f4c572bbe4a5ecc60fe91bf",
+      "后态SHA256": "6a804ce8b5ddd869a10d34a7cc86e683bbf8a17d29687203ec9ce3ee42894d36"
+    },
+    {
+      "文件": "上游适配/Excel全部工作簿提示词来源接入.patch",
+      "目标": "web/src/components/layout/config-prompt-sources.tsx",
+      "职责": "Excel全部工作簿提示词来源接入",
+      "SHA256": "c72992da83c38ca464eeeb2948a7c3187f22a0dbe68b33413af8d37dfb5f3a26",
+      "前态SHA256": "00ecae0ac2795f8769182e1d4cf659696a6eea565077f3b42d2d6ff110c7589b",
+      "后态SHA256": "243c904f3f359ea59f467321171ea8fc4a65e3b9c9d7d0cb8cbeb615428ce253"
+    },
+    {
+      "文件": "上游适配/Excel来源工作簿说明修正.patch",
+      "目标": "web/src/components/layout/prompt-source-editor-drawer.tsx",
+      "职责": "Excel来源工作簿说明修正",
+      "SHA256": "69e36459fc4d66c70624298d9e7cb2c6b1389e0e238852e6f69b1f46692fb978",
+      "前态SHA256": "610fa4fb2ea733456fcb5a9505da4f1c8d6e79a0a844c07422e644d9b49ac6d4",
+      "后态SHA256": "987663c22a796b6339c797686e9113aa412b262c126615e485b42a251eb7b64e"
     }
   ]
 }

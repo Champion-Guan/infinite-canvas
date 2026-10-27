@@ -5,6 +5,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { useProductNavigation } from "../产品/产品操作";
 import { visibleWorkbookId } from "./Excel产品归属";
 import { WorkbookDeleteDialog } from "../Excel删除字体平滑/工作簿删除弹窗";
+import { ExcelRecycleBinEntry } from "../Excel删除/Excel回收站面板";
 import { ExcelImportPanel } from "./Excel导入面板";
 import "./旧版Excel样式.css";
 
@@ -58,6 +59,7 @@ export function ExcelWorkbookPicker() {
           onClick={() => { closeMenu(); void selectWorkbook(null).catch(error => message.error(error instanceof Error ? error.message : String(error))); }}>
           <span className="guan-dc-file-option-label">未关联工作簿的产品</span>
         </button> : null}
+        <ExcelRecycleBinEntry disabled={busy} onOpen={closeMenu} />
         <button type="button" className="guan-dc-file-upload" aria-label="上传 Excel" disabled={busy}
           onClick={() => { setMenu("closed"); input.current?.click(); }}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg><span>上传 Excel</span>

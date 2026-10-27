@@ -1,0 +1,62 @@
+diff --git a/web/src/components/canvas/asset-picker-modal.tsx b/web/src/components/canvas/asset-picker-modal.tsx
+index 7f7fc1a..cb7151b 100644
+--- a/web/src/components/canvas/asset-picker-modal.tsx
++++ b/web/src/components/canvas/asset-picker-modal.tsx
+@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
+ import { getImagePreviewRevision, subscribeImagePreviews } from "@/services/image-storage";
+ import { assetCoverUrl, useAssetStore, type Asset } from "@/stores/use-asset-store";
+ 
+-export type InsertAssetPayload = { kind: "excel-batch"; productId: string; includeVideo: boolean } | { kind: "text"; content: string; title: string; excelProductId?: string; excelPrompt?: { templateId?: string; key?: string; label?: string; theme?: string; compositionLock?: string; purpose?: string; tokens?: string[] } } | { kind: "image"; dataUrl: string; title: string; storageKey?: string } | { kind: "video"; url: string; title: string; storageKey?: string; width?: number; height?: number };
++export type InsertAssetPayload = { kind: "asset"; assetId: string } | { kind: "excel-batch"; productId: string; includeVideo: boolean } | { kind: "text"; content: string; title: string; excelProductId?: string; excelPrompt?: { templateId?: string; key?: string; label?: string; theme?: string; compositionLock?: string; purpose?: string; tokens?: string[] } } | { kind: "image"; dataUrl: string; title: string; storageKey?: string } | { kind: "video"; url: string; title: string; storageKey?: string; width?: number; height?: number };
+ 
+ type Props = {
+     projectId?: string;
+@@ -29,7 +29,7 @@ export function AssetPickerModal({ projectId, open, onInsert, onClose }: Props)
+ 
+ const PAGE_SIZE = 8;
+ 
+-const kindOptions = ["all", "text", "image", "video"];
++const kindOptions = ["all", "text", "image", "video", "audio"];
+ 
+ function PickerCard({ title, kind, cover, onClick }: { title: string; kind: string; cover: string; onClick: () => void }) {
+     const { t } = useTranslation();
+@@ -47,7 +47,7 @@ function PickerCard({ title, kind, cover, onClick }: { title: string; kind: stri
+             <div className="p-2.5">
+                 <div className="flex items-center justify-between gap-2">
+                     <span className="line-clamp-1 text-xs font-medium text-stone-800 dark:text-stone-200">{title}</span>
+-                    <Tag className="m-0 shrink-0 text-[10px]">{t(`assets.kinds.${kind}`)}</Tag>
++                    <Tag className="m-0 shrink-0 text-[10px]">{kind === "audio" ? "音频" : t(`assets.kinds.${kind}`)}</Tag>
+                 </div>
+             </div>
+             <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-stone-950/0 text-sm font-medium text-white opacity-0 transition group-hover:bg-stone-950/55 group-hover:opacity-100">{t("canvas.assetPicker.insert")}</div>
+@@ -68,7 +68,7 @@ function MyAssetsTab({ projectId, onInsert }: { projectId?: string; onInsert: (p
+         const query = keyword.trim().toLowerCase();
+         return assets
+             .filter(asset => assetInScope(asset, projectId, scope))
+-            .filter((a) => a.kind === "text" || a.kind === "image" || a.kind === "video")
++            .filter((a) => a.kind === "text" || a.kind === "image" || a.kind === "video" || a.kind === "audio")
+             .filter((a) => kindFilter === "all" || a.kind === kindFilter)
+             .filter((a) => !query || [a.title, ...(a.tags || [])].join(" ").toLowerCase().includes(query));
+     }, [assets, keyword, kindFilter, projectId, scope]);
+@@ -81,11 +81,7 @@ function MyAssetsTab({ projectId, onInsert }: { projectId?: string; onInsert: (p
+     }, [filtered.length]);
+ 
+     const handleInsert = (asset: Asset) => {
+-        if (asset.kind === "text") {
+-            onInsert({ kind: "text", content: asset.data.content, title: asset.title });
+-        } else {
+-            onInsert(asset.kind === "video" ? { kind: "video", url: asset.data.url, storageKey: asset.data.storageKey, title: asset.title, width: asset.data.width, height: asset.data.height } : { kind: "image", dataUrl: asset.data.dataUrl, storageKey: asset.data.storageKey, title: asset.title });
+-        }
++        onInsert({ kind: "asset", assetId: asset.id });
+     };
+ 
+     return (
+@@ -115,7 +111,7 @@ function MyAssetsTab({ projectId, onInsert }: { projectId?: string; onInsert: (p
+                                 setKindFilter(option);
+                             }}
+                         >
+-                            {option === "all" ? t("common.all") : t(`assets.kinds.${option}`)}
++                            {option === "all" ? t("common.all") : option === "audio" ? "音频" : t(`assets.kinds.${option}`)}
+                         </Tag.CheckableTag>
+                     ))}
+                 </div>

@@ -8,13 +8,17 @@ export type ExcelSourcePreference = {
   removedRevision?: string;
 };
 
-// 来源只引用产品自己的工作簿，不另存模板或借用其他产品的缓存。
-export function excelPromptSource(context: ProductExcelContext, updatedAt: string, preference: ExcelSourcePreference = {}) {
-  if (!context.fileName) return null;
+export function excelPromptSourceRevision(context: ProductExcelContext, updatedAt: string) {
   const signature = JSON.stringify([context.fileName, context.templates]);
   let hash = 0;
   for (let index = 0; index < signature.length; index += 1) hash = (hash * 31 + signature.charCodeAt(index)) | 0;
-  const revision = `${updatedAt}:${signature.length}:${hash}`;
+  return `${updatedAt}:${signature.length}:${hash}`;
+}
+
+// 来源只引用产品自己的工作簿，不另存模板或借用其他产品的缓存。
+export function excelPromptSource(context: ProductExcelContext, updatedAt: string, preference: ExcelSourcePreference = {}) {
+  if (!context.fileName) return null;
+  const revision = excelPromptSourceRevision(context, updatedAt);
   if (preference.removedRevision === revision) return null;
   const source: PromptSource = {
     id: `guan-excel-prompts:${context.productId}`,

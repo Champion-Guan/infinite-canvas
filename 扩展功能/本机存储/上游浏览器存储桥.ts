@@ -9,6 +9,7 @@ export interface SQLiteInstance {
     getItem<T>(key: string): Promise<T | null>;
     setItem<T>(key: string, value: T): Promise<T>;
     removeItem(key: string): Promise<unknown>;
+    removeItems(keys: string[]): Promise<unknown>;
     clear(): Promise<unknown>;
     iterate<T, U>(iterator: (value: T, key: string, index: number) => U | void): Promise<U | void>;
 }
@@ -23,6 +24,8 @@ export interface SQLiteRuntime {
     getStatus(): RuntimeStatus;
     readUsage(): Promise<SQLiteUsage>;
     retryPending(): Promise<unknown>;
+    mediaIdsForKeys(groups: Record<string, string[]>): Promise<string[]>;
+    purgeMedia(ids: string[]): Promise<{ deleted: string[]; retained: string[]; deferred: string[] }>;
     subscribe(callback: () => void): () => void;
 }
 declare global { interface Window { __guanSQLiteHost?: { initialize(): Promise<SQLiteRuntime>; reconnect?(): Promise<void> }; } }
@@ -162,3 +165,6 @@ function retryStorage(reconnect: boolean): Promise<void> {
 export function retrySQLiteStorage(): Promise<void> { return retryStorage(false); }
 export function reconnectAndRetrySQLiteStorage(): Promise<void> { return retryStorage(true); }
 export function readSQLiteUsage() { return ready().readUsage(); }
+
+export function recycleMediaIds(groups: Record<string, string[]>) { return ready().mediaIdsForKeys(groups); }
+export function purgeRecycleMedia(ids: string[]) { return ready().purgeMedia(ids); }

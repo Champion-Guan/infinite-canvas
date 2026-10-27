@@ -15,6 +15,7 @@ import { planProductRecycle, planProductRestore, recycledProducts } from "./产�
 import { orderedProducts } from "./产品规则";
 import { planWorkbookDeletion, workbookDeletionIds } from "../Excel删除/工作簿删除规则";
 import { workbookDeletionGate } from "../Excel删除/工作簿删除门禁";
+import { planWorkbookPermanentDelete, planWorkbookRestore, recycledWorkbookEntries } from "../Excel删除/Excel回收站规则";
 import { commitWorkbookChange } from "../Excel/Excel保存导航";
 import { visibleWorkbookId, withVisibleSelection, planExcelImport, prepareWorkbookEntry, rememberWorkbookProduct, selectWorkbook as planWorkbookSelection, workbookEntry, workbookProjects, type ExcelImportInput, type WorkbookSnapshot } from "../Excel/Excel产品归属";
 import { productRestoreMountGate } from "./产品恢复挂载门禁";
@@ -249,7 +250,7 @@ export function useProductNavigation() {
         else sqlitePreferences.setItem(ACTIVE_PRODUCT_KEY, previousPreference);
       },
     });
-  }), [commitCurrent, navigatePreparedWorkbook]);
+  }), [activeId, commitCurrent, navigatePreparedWorkbook]);
   const selectWorkbook = useCallback((owner: string | null) => commitPreparedWorkbook(() => {
     const state = withVisibleSelection(useCanvasStore.getState(), activeId);
     return { ...state, guanWorkbooks: planWorkbookSelection(state, owner) };
@@ -291,5 +292,24 @@ export function useProductNavigation() {
       },
     });
   }), [activeId, commitCurrent, finishWorkbook]);
-  return { activeId, busy, operationBusy, pendingWorkbookDeletion, createProduct, importProduct, selectProduct, recycleProduct, restoreProduct, selectWorkbook, importWorkbook, deleteWorkbook };
+  const restoreWorkbook = useCallback((owner: string, retry = false) => operations.run(async () => {
+    if (retry) await retrySQLiteStorage();
+    await commitCurrent();
+    const before = useCanvasStore.getState();
+    const entry = recycledWorkbookEntries(before.guanWorkbooks).find(item => item.id === owner);
+    if (!entry) throw new Error("Excel 回收站中没有可恢复的工作簿。");
+    const target = entry.activeProductId || entry.projects[0]?.id || entry.products[0]?.id || null;
+    const next = planWorkbookRestore(before, owner);
+    useCanvasStore.setState(next);
+    await flushSQLiteStorage();
+    if (target && useCanvasStore.getState().openProject(target)) await enter(target);
+  }), [commitCurrent, enter]);
+  const permanentlyDeleteWorkbook = useCallback((owner: string, retry = false) => operations.run(async () => {
+    if (retry) await retrySQLiteStorage();
+    await commitCurrent();
+    const next = planWorkbookPermanentDelete(useCanvasStore.getState(), owner);
+    useCanvasStore.setState(next);
+    await flushSQLiteStorage();
+  }), [commitCurrent]);
+  return { activeId, busy, operationBusy, pendingWorkbookDeletion, createProduct, importProduct, selectProduct, recycleProduct, restoreProduct, selectWorkbook, importWorkbook, deleteWorkbook, restoreWorkbook, permanentlyDeleteWorkbook };
 }

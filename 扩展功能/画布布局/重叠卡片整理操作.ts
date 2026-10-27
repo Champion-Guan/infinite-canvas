@@ -1,8 +1,9 @@
-// 单线并排与重叠避让共用原历史和视区；没有位置变化时不写入。
+// 同配置结果横排、单线并排与重叠避让共用原历史和视区；没有位置变化时不写入。
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { CanvasNodeType, type ViewportTransform } from "@/types/canvas";
 import { nodeBounds } from "@/lib/canvas/canvas-node-geometry";
 import { arrangeOverlappingCanvasNodes } from "./卡片自动避让";
+import { arrangeConfigResultRows } from "./配置结果横排";
 import type { CanvasHistoryPort, CanvasHistorySnapshot } from "../扩展边界/画布历史接口";
 
 type ArrangementPort<T extends CanvasHistorySnapshot> = Pick<CanvasHistoryPort<T>, "historyRef" | "createHistoryEntry" | "applyHistory" | "message"> & {
@@ -13,7 +14,7 @@ type ArrangementPort<T extends CanvasHistorySnapshot> = Pick<CanvasHistoryPort<T
 export function useCanvasNodeArrangement<T extends CanvasHistorySnapshot>({ historyRef, createHistoryEntry, applyHistory, message, size, setViewport }: ArrangementPort<T>) {
     return useCallback(() => {
         const before = createHistoryEntry();
-        const arranged = arrangeOverlappingCanvasNodes(before.nodes, before.connections);
+        const arranged = arrangeOverlappingCanvasNodes(arrangeConfigResultRows(before.nodes, before.connections), before.connections);
         if (arranged === before.nodes) {
             message.info("没有需要整理的卡片");
             return;

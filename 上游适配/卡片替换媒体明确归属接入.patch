@@ -1,0 +1,31 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 9287424..08558f6 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -2093,7 +2093,7 @@ function InfiniteCanvasPage() {
+ 
+                 // Replace the target node with the first file.
+                 if (isAudioFile(first)) {
+-                    const audio = await uploadMediaFile(first, "audio");
++                    const audio = await uploadMediaFile(first, "audio", { assetProjectId: projectId });
+                     const spec = NODE_DEFAULT_SIZE[CanvasNodeType.Audio];
+                     setNodes((prev) =>
+                         prev.map((node) =>
+@@ -2113,7 +2113,7 @@ function InfiniteCanvasPage() {
+                     setSelectedNodeIds(new Set([target.nodeId]));
+                     setSelectedConnectionId(null);
+                 } else if (first.type.startsWith("video/")) {
+-                    const video = await uploadMediaFile(first, "video");
++                    const video = await uploadMediaFile(first, "video", { assetProjectId: projectId });
+                     const nextSize = fitNodeSize(video.width || 1280, video.height || 720, VIDEO_NODE_MAX_WIDTH, VIDEO_NODE_MAX_HEIGHT);
+                     setNodes((prev) =>
+                         prev.map((node) =>
+@@ -2133,7 +2133,7 @@ function InfiniteCanvasPage() {
+                     setSelectedNodeIds(new Set([target.nodeId]));
+                     setSelectedConnectionId(null);
+                 } else {
+-                    const image = await uploadImage(first);
++                    const image = await uploadImage(first, { assetProjectId: projectId });
+                     const s = fitNodeSize(image.width, image.height);
+                     setNodes((prev) =>
+                         prev.map((node) =>

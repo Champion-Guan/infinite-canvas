@@ -89,6 +89,15 @@ export function createDataClient({ url, session, fetchImpl = globalThis.fetch, o
         requireValue(media.id === id && media.size === blob.size, 'invalid_ack', '媒体落盘确认不匹配。'); return media;
       });
     },
+    purgeMedia(ids) {
+      return operation('media:cleanup', async () => {
+        requireValue(Array.isArray(ids) && ids.length <= 512 && ids.every(validHash), 'invalid_media', '清理候选无效。');
+        const result = await (await request(`${base}/media-cleanup`, 'POST', JSON.stringify({ ids }), 'application/json')).json();
+        const allowed = new Set(ids), all = ['deleted', 'retained', 'deferred'].flatMap(key => result?.[key] ?? []);
+        requireValue(['deleted', 'retained', 'deferred'].every(key => Array.isArray(result?.[key])) && all.every(id => allowed.has(id)) && new Set(all).size === allowed.size && all.length === allowed.size, 'invalid_ack', '清理回执不完整，保留清单供重试。');
+        return result;
+      });
+    },
     readMedia(id) {
       return operation(`media:${id}`, async () => {
         requireValue(validHash(id), 'invalid_media', '媒体标识无效。');

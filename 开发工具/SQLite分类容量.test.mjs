@@ -62,6 +62,32 @@ test('v1全部八种namespace按逻辑记录统计，不把根文档数当记录
   assert.equal(category(usage, 'history').blocks, 0); sums(usage);
 }));
 
+test('产品与Excel回收站按快照归类并带出图片、视频资产', () => using(async f => {
+  const app = f.app(false);
+  const canvas = {
+    state: {
+      projects: [],
+      deletedProjects: [{ id: 'deleted-product', deletedAt: '2026-01-01', project: { id: 'deleted-product', title: '已删除产品', nodes: [{ id: 'image-node', metadata: { storageKey: 'image:recycled' } }], connections: [] } }],
+      guanWorkbooks: {
+        version: 1, activeByWorkbook: {}, contract: { schema: 'guan-workbench.v1', workspace: { activeProductSetId: null, activeProductId: null }, productSets: [], products: [] },
+        recycledWorkbooks: [{ id: 'deleted-workbook', deletedAt: '2026-01-01', workbook: { id: 'deleted-workbook', source: { fileName: '已删除.xlsx', promptTemplates: [] }, productIds: [] }, products: [],
+          projects: [{ id: 'deleted-workbook-product', title: '工作簿产品', nodes: [{ id: 'video-node', metadata: { storageKey: 'video:recycled' } }], connections: [] }], records: {}, activeProductId: null }],
+      },
+    },
+  };
+  await app.createInstance({ storeName: 'app_state' }).setItem('infinite-canvas:canvas_store', JSON.stringify(canvas));
+  await app.createInstance({ storeName: 'image_files' }).setItem('image:recycled', new Blob(['recycled-image'], { type: 'image/png' }));
+  await app.createInstance({ storeName: 'media_files' }).setItem('video:recycled', new Blob(['recycled-video'], { type: 'video/mp4' }));
+  const usage = await f.workspace.readDetailedUsage();
+  assert.equal(category(usage, 'product_recycle').records, 1);
+  assert.equal(category(usage, 'product_recycle').mediaBytes, 14);
+  assert.equal(category(usage, 'workbook_recycle').records, 1);
+  assert.equal(category(usage, 'workbook_recycle').mediaBytes, 14);
+  assert.equal(category(usage, 'images').mediaBytes, 0);
+  assert.equal(category(usage, 'videos').mediaBytes, 0);
+  sums(usage);
+}));
+
 test('v2反复保存只计当前两条业务记录，旧代与未发布分片单列', () => using(async f => {
   const store = f.app().createInstance({ storeName: 'prompt_cache' });
   await store.setItem('one', '第一版'); await store.setItem('two', '第二项'); await store.setItem('one', '修订');

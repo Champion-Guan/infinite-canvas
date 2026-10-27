@@ -81,19 +81,21 @@ export function HistoryOverviewPanel({ history, files, selectedFiles, selectedId
                 <div className={styles.tasks}>
                     {history.length ? history.map(node => {
                         const nodeFiles = filesByNode.get(node.id) || [];
+                        const singleFile = nodeFiles.length === 1;
                         const selectedCount = nodeFiles.filter(file => selectedIds.has(file.id)).length;
                         const status = ({ loading: "生成中", error: "生成失败", success: "已完成" } as Record<string, string>)[node.metadata?.status || "idle"] || "等待生成";
                         return <article key={node.id} className={styles.task}>
-                            <div className={styles.taskHeading}>
+                            {!singleFile ? <div className={styles.taskHeading}>
                                 <Checkbox aria-label={`勾选任务 ${node.title || "生成任务"}`} disabled={downloading || !nodeFiles.length} checked={nodeFiles.length > 0 && selectedCount === nodeFiles.length} indeterminate={selectedCount > 0 && selectedCount < nodeFiles.length} onChange={event => onSelect(nodeFiles.map(file => file.id), event.target.checked)} />
                                 <span>{node.title || "生成任务"}</span><small>{status}</small>
-                            </div>
-                            {nodeFiles.map(file => <div key={file.id} className={styles.file}>
+                            </div> : null}
+                            {nodeFiles.map(file => <div key={file.id} className={singleFile ? `${styles.file} ${styles.singleFile}` : styles.file}>
                                 <Checkbox aria-label={`勾选图片 ${file.name}`} disabled={downloading} checked={selectedIds.has(file.id)} onChange={event => onSelect([file.id], event.target.checked)} />
                                 <button type="button" className={styles.thumbnail} onClick={() => setPreviewFile(file)} aria-label={`预览 ${file.name}`}>
                                     {node.type === CanvasNodeType.Image ? <img src={previewUrlFor(file.storageKey) || file.content} alt="" loading="lazy" decoding="async" /> : <Video size={20} />}
                                 </button>
                                 <button type="button" className={styles.fileName} disabled={downloading} onClick={() => onSelect([file.id])}>{file.name}</button>
+                                {singleFile ? <small className={styles.fileStatus}>{status}</small> : null}
                             </div>)}
                             {!nodeFiles.length ? <div className={styles.unavailable}><ImageIcon size={16} /><span>{node.metadata?.status === "loading" ? "图片生成中" : node.metadata?.status === "error" ? "暂无成功图片" : "暂无可读取的文件"}</span></div> : null}
                         </article>;

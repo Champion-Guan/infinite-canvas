@@ -30,11 +30,16 @@ function fixture(options = {}) {
 }
 const instance = (app, storeName = 'app_state') => app.createInstance({ storeName });
 
-test('分片恢复队列只替换工厂并修正完成边界竞态，历史模块原字节保留', () => {
+test('分片恢复队列仅保留已接入的工厂、诊断、队列和回收接口差异', () => {
   const old = readFileSync(new URL('../扩展功能/本机存储/可恢复应用存储.mjs', import.meta.url), 'utf8');
   const next = readFileSync(new URL('../扩展功能/本机存储/可恢复分片应用存储.mjs', import.meta.url), 'utf8');
   assert.equal(next, old.replace("import { createApplicationStorage, APP_NAMESPACES } from './应用存储适配.mjs';", "import { createShardedApplicationStorage as createApplicationStorage } from './分片应用存储.mjs';\nimport { APP_NAMESPACES } from './应用存储适配.mjs';")
     .replace('export function createRecoverableApplicationStorage(options) {', 'export function createRecoverableShardedApplicationStorage(options) {')
+    // 批量回收接口的真实删除、失败重试和共享素材保护另由回收站容量专项覆盖。
+    .replace('      removeItem: key => enqueue(space, () => () => instance.removeItem(key)),',
+      '      removeItem: key => enqueue(space, () => () => instance.removeItem(key)),\n      removeItems: keys => enqueue(space, () => { const snapshot = [...keys]; return () => instance.removeItems(snapshot); }),')
+    .replace('    createInstance, getStatus: status, readUsage: () => base.readUsage(),',
+      '    createInstance, getStatus: status, readUsage: () => base.readUsage(),\n    mediaIdsForKeys: groups => base.mediaIdsForKeys(groups),\n    purgeMedia: ids => base.purgeMedia(ids),')
     // 后续已接入的分片错误阶段透传；不把既有诊断差异误报为队列行为变更。
     .replace("failures: failed.map(space => ({ namespace: space.name, code: typeof space.error?.code === 'string' ? space.error.code : 'save_unconfirmed' })) };",
       "failures: [...(baseStatus?.failures ?? []), ...failed.filter(space => !baseStatus?.failures?.some(item => item.namespace === space.name))\n        .map(space => ({ namespace: space.name, code: /^[a-z_]{3,64}$/.test(space.error?.code) ? space.error.code : 'save_unconfirmed', stage: 'prepare', status: null }))] };")

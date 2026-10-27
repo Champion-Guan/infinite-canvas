@@ -1,0 +1,13 @@
+diff --git a/web/src/components/layout/prompt-source-editor-drawer.tsx b/web/src/components/layout/prompt-source-editor-drawer.tsx
+index 23be402..9146b8e 100644
+--- a/web/src/components/layout/prompt-source-editor-drawer.tsx
++++ b/web/src/components/layout/prompt-source-editor-drawer.tsx
+@@ -51,7 +51,7 @@ export function PromptSourceEditorDrawer({ open, source, managed = false, onSave
+                 <label className="block">
+                     <span className="mb-1.5 block text-sm font-medium">JSON URL</span>
+                     <Input value={draft.url} readOnly={managed} onChange={(event) => patch({ url: event.target.value })} placeholder="https://example.com/prompts.json" />
+-                    {managed ? <div className="mt-1.5 text-xs text-stone-500">内容随当前产品的 Excel 更新。</div> : null}
++                    {managed ? <div className="mt-1.5 text-xs text-stone-500">内容随对应的 Excel 工作簿更新。</div> : null}
+                 </label>
+                 <label className="block">
+                     <span className="mb-1.5 block text-sm font-medium">{t("config.promptSources.editor.homepage")}</span>

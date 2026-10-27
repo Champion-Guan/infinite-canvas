@@ -1,4 +1,5 @@
-import { memo, useEffect, useState, useSyncExternalStore } from "react";
+import { memo, useEffect, useLayoutEffect, useState, useSyncExternalStore } from "react";
+import { activateAssetProject } from "../素材/上传资产规则";
 import { Route, Routes, useMatch } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
@@ -29,6 +30,7 @@ const ProductCanvas = memo(function ProductCanvas({
 
 export function ProductWorkspace() {
   const activeId = useMatch("/canvas/:id")?.params.id || "";
+  useLayoutEffect(() => activateAssetProject(activeId || undefined), [activeId]);
   const home = useMatch("/");
   const blockedRestores = useSyncExternalStore(productRestoreMountGate.subscribe, productRestoreMountGate.getSnapshot, productRestoreMountGate.getSnapshot);
   const activeRestorePending = blockedRestores.includes(activeId);

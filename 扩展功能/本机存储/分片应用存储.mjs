@@ -158,6 +158,11 @@ export function createShardedApplicationStorage({ client, secretPort, readBlobUr
         }, { write: true });
       },
       removeItem(key) { return queue(space, () => { const entries = new Map(space.entries); entries.delete(key); return commit(space, entries); }, { write: true }); },
+      removeItems(keys) {
+        requireValue(Array.isArray(keys) && keys.length <= 1024 && keys.every(key => typeof key === 'string' && key.length > 0 && key.length <= 512), 'invalid_key', '批量删除的记录键无效。');
+        const snapshot = [...new Set(keys)];
+        return queue(space, () => { const entries = new Map(space.entries); for (const key of snapshot) entries.delete(key); return commit(space, entries); }, { write: true });
+      },
       clear() { return queue(space, () => commit(space, new Map()), { write: true }); },
       keys() { return queue(space, () => [...space.entries.keys()]); },
       length() { return queue(space, () => space.entries.size); },
@@ -170,6 +175,19 @@ export function createShardedApplicationStorage({ client, secretPort, readBlobUr
   }
   return {
     createInstance, getStatus: status, readUsage: () => client.readUsage(),
+    async mediaIdsForKeys(groups) {
+      const ids = new Set();
+      for (const [name, keys] of Object.entries(groups)) {
+        const space = state(name);
+        await queue(space, () => { for (const key of keys) for (const id of space.entries.get(key)?.mediaIds ?? []) ids.add(id); });
+      }
+      return [...ids];
+    },
+    async purgeMedia(ids) {
+      requireValue(typeof client.purgeMedia === 'function', 'cleanup_unavailable', '当前服务不支持媒体清理，请重启服务后重试。');
+      codec.invalidateMedia();
+      try { return await client.purgeMedia(ids); } finally { codec.invalidateMedia(); }
+    },
     retry(name) { const space = state(name); return queue(space, () => retryWrite(space), { retry: true, write: true }); },
     async flush() {
       // 保存排空只等待写入；后台历史/缩略图读取不应拖住产品切换。

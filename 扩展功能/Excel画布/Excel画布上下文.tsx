@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { productExcelContext } from "./Excel卡片上下文";
-import { excelPromptSource } from "./Excel提示词来源";
+import { excelProductPromptSource, excelWorkbookPromptSources } from "./Excel工作簿来源";
 import { usePromptSourceStore } from "@/stores/use-prompt-source-store";
 
 const ProductIdContext = createContext<string | null>(null);
@@ -23,11 +23,16 @@ export function useExcelPromptContext(productId: string) {
 
 export function useExcelPromptSource(productId: string) {
   const context = useExcelPromptContext(productId);
-  const updatedAt = useCanvasStore(state => {
+  const book = useCanvasStore(state => {
     const owner = state.projects.find(item => item.id === productId)?.productSetId;
-    const book = state.guanWorkbooks?.contract.productSets.find(item => item.id === owner);
-    return book?.updatedAt || book?.source.importedAt || "";
+    return state.guanWorkbooks?.contract.productSets.find(item => item.id === owner);
   });
-  const preference = usePromptSourceStore(state => state.excelSources[productId]);
-  return useMemo(() => excelPromptSource(context, updatedAt, preference), [context, updatedAt, preference]);
+  const preferences = usePromptSourceStore(state => state.excelSources);
+  return useMemo(() => excelProductPromptSource(context, book, preferences), [context, book, preferences]);
+}
+
+export function useExcelWorkbookSources() {
+  const books = useCanvasStore(state => state.guanWorkbooks?.contract.productSets);
+  const preferences = usePromptSourceStore(state => state.excelSources);
+  return useMemo(() => excelWorkbookPromptSources(books ?? [], preferences), [books, preferences]);
 }

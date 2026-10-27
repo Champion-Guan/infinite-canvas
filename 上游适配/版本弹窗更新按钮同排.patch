@@ -1,0 +1,19 @@
+diff --git a/web/src/components/layout/version-release-modal.tsx b/web/src/components/layout/version-release-modal.tsx
+index 1b89e4b..e043cc1 100644
+--- a/web/src/components/layout/version-release-modal.tsx
++++ b/web/src/components/layout/version-release-modal.tsx
+@@ -79,12 +79,11 @@ export function VersionReleaseModal({ className, style, label }: VersionReleaseM
+                     </div>
+                 </div>
+                 <div data-guan-version-update-actions className="guan-update-timeline mb-5 space-y-2">
+-                    <div className="flex flex-wrap gap-2">
++                    <OnlineInstallActions status={status} refresh={refresh} leadingActions={
+                         <Button loading={downloading} disabled={!hasNewVersion || downloading || status?.download.state === "verified" || status?.download.state === "trust-not-configured"} onClick={() => void download()}>{status?.download.state === "verified" ? "已下载并验证" : "下载更新"}</Button>
+-                    </div>
++                    } />
+                     {downloading ? <Progress percent={status?.download.progress || 0} size="small" /> : null}
+                     <div role="status" className="text-xs leading-5 text-stone-600 dark:text-stone-300">下载：{updateMessages[status?.download.error || status?.download.state || "idle"] || "下载未完成"}</div>
+-                    <OnlineInstallActions status={status} refresh={refresh} />
+                     {status?.latest?.publishedAt ? <div className="text-xs text-stone-500 dark:text-stone-400">发布时间：{new Date(status.latest.publishedAt).toLocaleString()}</div> : null}
+                 </div>
+                 <div className="overflow-y-auto pr-2" style={{ maxHeight: viewport ? "56cqh" : "56vh" }}>

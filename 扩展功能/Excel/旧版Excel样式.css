@@ -239,6 +239,20 @@
   pointer-events: none;
 }
 
+.guan-dc-file-recycle-entry { justify-content: flex-start; gap: 8px; margin-top: 4px; }
+.guan-dc-file-recycle-entry .guan-dc-file-option-label { display: inline-flex; align-items: center; gap: 8px; }
+.guan-dc-file-recycle-entry svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.guan-excel-recycle-card { display: block; width: min(660px, calc(100vw - 32px)); }
+.guan-excel-recycle-heading { display: flex; align-items: flex-start; gap: 12px; }
+.guan-excel-recycle-heading > svg { flex: 0 0 24px; width: 24px; height: 24px; margin-top: 2px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; }
+.guan-excel-recycle-heading h2 { margin: 0 0 8px; font-size: 18px; }
+.guan-excel-recycle-heading p { margin: 0; color: var(--dc-muted, #72757a); font-size: 13px; }
+.guan-excel-recycle-row { align-items: center; }
+.guan-excel-recycle-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; }
+.guan-excel-recycle-actions button { white-space: nowrap; }
+.guan-excel-recycle-actions button.danger { color: #b42318; border-color: rgba(180, 35, 24, .25); }
+@media(max-width:640px) { .guan-excel-recycle-actions { flex-wrap: wrap; justify-content: flex-end; } .guan-excel-recycle-row { align-items: flex-start; } }
+
 
 .guan-dc-excel-import-modal {
   --dc-bg: #ffffff;

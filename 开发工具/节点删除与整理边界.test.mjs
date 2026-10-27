@@ -30,6 +30,7 @@ const excel = await load('Excel画布/Excel卡片事务.ts', { './旧版参数�
 let serial = 0;
 const recycle = await load('画布回收/画布节点回收.ts', { nanoid: { nanoid: () => 'batch-' + ++serial }, '../Excel画布/Excel卡片事务': excel });
 const layout = await load('画布布局/卡片自动避让.ts');
+const outputRows = await load('画布布局/配置结果横排.ts', { './卡片自动避让': layout });
 const geometry = await load(resolve(root, '.运行/3100源/画布副本/web/src/lib/canvas/canvas-node-geometry.ts'), {
     '@/types/canvas': { CanvasNodeType: { Group: 'group' } },
 });
@@ -107,6 +108,9 @@ test('再次删除已恢复的节点只更新对应批次，其他回收节点�
 
 const serviceRoot = resolve(root, '.运行/3100源/画布副本/web/src');
 const servicePorts = {
+    '@/扩展功能/素材/上传资产规则': await load('素材/上传资产规则.ts'),
+    '@/扩展功能/媒体交付/生成图片尺寸交付.mjs': {}, '@/扩展功能/媒体交付/图片上传预检.mjs': {},
+    '@/扩展功能/媒体交付/HEIC上传兼容.mjs': {},
     "@/扩展功能/媒体交付/媒体地址缓存": await load("媒体交付/媒体地址缓存.ts"),
     '@/扩展功能/网络代理/本地转发请求': { 本地转发请求: globalThis.fetch, 本地转发Axios: {} },
     '@/扩展功能/本机存储/上游浏览器存储桥': { sqliteForage: { createInstance: () => ({}) } },
@@ -173,7 +177,7 @@ async function arrangement(nodes, size = { width: 1200, height: 720 }, connectio
     const historyRef = { current: { past: Array.from({ length: 55 }, (_, index) => ({ id: index })), future: [{ id: 'redo' }] } };
     const applied = [], viewports = [], messages = [];
     const { useCanvasNodeArrangement } = await load('画布布局/重叠卡片整理操作.ts', {
-        react: hooks, './卡片自动避让': layout, '@/types/canvas': { CanvasNodeType: { Group: 'group' } },
+        react: hooks, './卡片自动避让': layout, './配置结果横排': outputRows, '@/types/canvas': { CanvasNodeType: { Group: 'group' } },
         '@/lib/canvas/canvas-node-geometry': geometry,
     });
     const run = useCanvasNodeArrangement({ historyRef, createHistoryEntry: () => snapshot, applyHistory: value => applied.push(value),
@@ -248,6 +252,80 @@ test('分支与汇入节点及其关联端点全部保持原位', () => {
     assert.deepEqual(ordered.find(item => item.id === 'junction').position, junction.position);
     assert.notDeepEqual(ordered.find(item => item.id === overlapBeforeJunction.id).position, overlapBeforeJunction.position);
 });
+const imageOutput = (id, title, x, y, width = 100, height = 140) => ({ ...node(id, { content: '原图:' + id }, x, y), type: 'image', title, width, height });
+const resultConfig = (id, x = 0, y = 0) => ({ ...node(id, { generationMode: 'image' }, x, y), type: 'config', width: 340, height: 240 });
+const outputEdges = (source, outputs) => outputs.map(target => ({ id: '旧数据重复ID', fromNodeId: source.id, toNodeId: target.id }));
+test('同配置多图按名称自然排序横排，端点精确同高、间距一致且不修改原数据和连线', async () => {
+    const config = resultConfig('config', 20, 100);
+    const images = [imageOutput('ten', '详情页09-10', 900, 10), imageOutput('two', '详情页09-2', 600, 500, 130, 180),
+        imageOutput('one', '详情页09-1', 450, 200, 110, 150), imageOutput('eleven', '详情页09-11', 1400, 300)];
+    const nodes = [config, ...images], original = structuredClone(nodes), connections = outputEdges(config, images);
+    const api = await arrangement(nodes, undefined, connections); api.run();
+    assert.equal(api.applied.length, 1);
+    const arranged = api.applied[0].nodes, row = arranged.filter(item => item.type === 'image').sort((a, b) => a.position.x - b.position.x);
+    assert.deepEqual(row.map(item => item.title), ['详情页09-1', '详情页09-2', '详情页09-10', '详情页09-11']);
+    assert.equal(row[0].position.x, 20 + 340 + 96);
+    for (const [index, item] of row.entries()) {
+        assert.equal(item.position.y + item.height / 2, 220);
+        if (index) assert.equal(item.position.x - row[index - 1].position.x - row[index - 1].width, 48);
+        const old = images.find(value => value.id === item.id);
+        assert.equal(item.metadata, old.metadata); assert.equal(item.title, old.title); assert.equal(item.width, old.width); assert.equal(item.height, old.height);
+    }
+    assert.equal(arranged[0], config); assert.deepEqual(nodes, original);
+    assert.equal(api.applied[0].connections, connections); assert.equal(api.historyRef.current.past.at(-1), api.snapshot);
+    assert.equal(api.applied[0].chatSessions, api.snapshot.chatSessions);
+    assert.equal(outputRows.arrangeConfigResultRows(arranged, connections), arranged, '重复整理必须无变化');
+    const again = await arrangement(arranged, undefined, connections); again.run();
+    assert.equal(again.applied.length, 0); assert.equal(again.historyRef.current.future.length, 1);
+});
+test('横排行只根据真实配置归属，同名无连线图片、汇入和有后续分支的结果不强行改排', () => {
+    const config = resultConfig('a'), other = resultConfig('b', 0, 600);
+    const first = imageOutput('first', '详情页09-1', 450, 500), second = imageOutput('second', '详情页09-2', 700, 300);
+    const unrelated = imageOutput('unrelated', '详情页09-3', 1100, 900);
+    const nodes = [config, other, first, second, unrelated], edges = outputEdges(config, [first, second]);
+    const normal = outputRows.arrangeConfigResultRows(nodes, edges);
+    assert.equal(normal.find(item => item.id === unrelated.id), unrelated);
+    assert.equal(outputRows.arrangeConfigResultRows(nodes, [...edges, { id: 'merge', fromNodeId: other.id, toNodeId: second.id }]), nodes);
+    assert.equal(outputRows.arrangeConfigResultRows(nodes, [...edges, { id: 'downstream', fromNodeId: first.id, toNodeId: unrelated.id }]), nodes);
+    const single = [config, first];
+    assert.equal(outputRows.arrangeConfigResultRows(single, edges.slice(0, 1)), single);
+});
+test('横排遇到其他卡片时整行向右让位，不能拆散行或把单张推下去，分组背景不阻挡', () => {
+    const config = resultConfig('config'), a = imageOutput('a', '详情页09-2', 450, 500), b = imageOutput('b', '详情页09-1', 800, 350);
+    const blocker = { ...node('blocker', {}, 500, 0), width: 120, height: 240 };
+    const group = { ...node('background', {}, -200, -200), type: 'group', width: 3000, height: 3000 };
+    const nodes = [config, a, b, blocker, group], edges = outputEdges(config, [a, b]);
+    const arranged = outputRows.arrangeConfigResultRows(nodes, edges), row = [b, a].map(old => arranged.find(item => item.id === old.id));
+    assert.equal(row[0].position.x, 620 + 48); assert.equal(row[1].position.x, row[0].position.x + row[0].width + 48);
+    for (const item of row) { assert.equal(item.position.y + item.height / 2, 120); assert.equal(layout.nodesOverlap(item, blocker, 48), false); }
+    assert.equal(arranged.find(item => item.id === blocker.id), blocker); assert.equal(arranged.find(item => item.id === group.id), group);
+});
+test('多配置同时规划只参考最终行位置，不把其他行的旧结果当作障碍；同名结果不串组', () => {
+    const top = resultConfig('top'), bottom = resultConfig('bottom', 0, 500);
+    const a = imageOutput('a', '详情页09-2', 700, 800), b = imageOutput('b', '详情页09-1', 900, 900);
+    const c = imageOutput('c', '详情页09-2', 450, 80), d = imageOutput('d', '详情页09-1', 600, 80);
+    const nodes = [bottom, c, d, top, a, b], edges = [...outputEdges(bottom, [c, d]), ...outputEdges(top, [a, b])];
+    const arranged = outputRows.arrangeConfigResultRows(nodes, edges);
+    for (const [config, outputs] of [[top, [b, a]], [bottom, [d, c]]]) for (const [index, old] of outputs.entries()) {
+        const item = arranged.find(value => value.id === old.id);
+        assert.equal(item.position.x, 436 + index * 148); assert.equal(item.position.y + item.height / 2, config.position.y + 120);
+    }
+    assert.equal(outputRows.arrangeConfigResultRows(arranged, edges), arranged);
+});
+test('横排后扩展已有分组包围盒，异常尺寸不参与排布，重复关系不会重复摆一张图', () => {
+    const config = resultConfig('config'), a = imageOutput('a', '09-1', 450, 700), b = imageOutput('b', '09-2', 500, 900);
+    a.metadata.groupId = 'group'; b.metadata.groupId = 'group';
+    const group = { ...node('group', {}, 0, 500), type: 'group', width: 200, height: 100 };
+    const nodes = [group, config, a, b], edges = [...outputEdges(config, [a, b]), ...outputEdges(config, [a])];
+    const arranged = outputRows.arrangeConfigResultRows(nodes, edges), wrap = arranged[0];
+    for (const item of arranged.filter(item => item.type === 'image')) {
+        assert.ok(wrap.position.x <= item.position.x && wrap.position.y <= item.position.y);
+        assert.ok(wrap.position.x + wrap.width >= item.position.x + item.width);
+        assert.ok(wrap.position.y + wrap.height >= item.position.y + item.height);
+    }
+    const invalid = [config, a, { ...b, height: NaN }];
+    assert.equal(outputRows.arrangeConfigResultRows(invalid, edges), invalid);
+});
 test('单线整理遇到候选位置障碍时跳过所有相关移动', () => {
     const a = node('a', {}, 0, 0), b = node('b', {}, 700, 220);
     const blockers = [node('blocker-target', {}, 148, 0), node('blocker-source', {}, 552, 220)];
@@ -255,7 +333,7 @@ test('单线整理遇到候选位置障碍时跳过所有相关移动', () => {
     const arranged = layout.arrangeOverlappingCanvasNodes(nodes, [{ id: 'ab', fromNodeId: 'a', toNodeId: 'b' }]);
     assert.equal(arranged, nodes);
 });
-test('新增操作Hook依赖完整，稳定的节点界面setter集合覆盖原来的全部十二个入口', () => {
+test('操作Hook依赖完整，删除清理全部界面入口，生成状态继续由请求表管理', () => {
     const linter = new Linter();
     for (const name of ['画布回收/节点删除操作.ts', '画布布局/重叠卡片整理操作.ts', '画布生成/生成连线保护.ts']) {
         const file = resolve(root, '扩展功能', name);
@@ -266,5 +344,6 @@ test('新增操作Hook依赖完整，稳定的节点界面setter集合覆盖原�
     const source = readFileSync(resolve(root, '.运行/3100源/画布副本/web/src/pages/canvas/project.tsx'), 'utf8');
     const setters = source.match(/const deletedNodeIdSetters = useMemo\(\(\) => \[([\s\S]+?)\], \[\]\)/)?.[1].match(/set\w+/g);
     assert.deepEqual(setters, ['setHoveredNodeId', 'setToolbarNodeId', 'setDialogNodeId', 'setInfoNodeId', 'setCropNodeId', 'setMaskEditNodeId',
-        'setAngleNodeId', 'setPreviewNodeId', 'setSplitNodeId', 'setUpscaleNodeId', 'setRunningNodeId', 'setReferencePickerNodeId']);
+        'setAngleNodeId', 'setPreviewNodeId', 'setSplitNodeId', 'setUpscaleNodeId', 'setReferencePickerNodeId']);
+    assert.ok(source.includes('useCanvasGenerationRequests()'), '运行状态不能退回单个全局节点ID');
 });
