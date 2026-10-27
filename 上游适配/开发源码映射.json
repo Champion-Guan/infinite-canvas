@@ -422,7 +422,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/sqlite/协议.mjs",
       "原SHA256": "7233efe46bfb06d5e509c6da2f16c871d8b397387edf2d90ddf91a48fbe4a095",
       "类型": "前端",
-      "SHA256": "72685f4001a3418cc2ca6a9502613594f313b744528403d4a3e531efd4ab895c"
+      "SHA256": "afe0324077ac1d0b3c6c6cb4337bd99c0848d2e6b3dea2e7e5975b9dd0183770"
     },
     {
       "来源": "扩展功能/本机存储/可恢复分片应用存储.mjs",
@@ -1174,7 +1174,7 @@
       "原位置": ".运行/3100源/画布副本/扩展功能/本机存储/协议.mjs",
       "原SHA256": "7233efe46bfb06d5e509c6da2f16c871d8b397387edf2d90ddf91a48fbe4a095",
       "类型": "服务",
-      "SHA256": "72685f4001a3418cc2ca6a9502613594f313b744528403d4a3e531efd4ab895c"
+      "SHA256": "afe0324077ac1d0b3c6c6cb4337bd99c0848d2e6b3dea2e7e5975b9dd0183770"
     },
     {
       "来源": "扩展功能/本机服务/受控会话.mjs",
@@ -1542,7 +1542,7 @@
       "原位置": ".运行/3100源/服务包/扩展功能/本机存储/协议.mjs",
       "原SHA256": "7233efe46bfb06d5e509c6da2f16c871d8b397387edf2d90ddf91a48fbe4a095",
       "类型": "服务",
-      "SHA256": "72685f4001a3418cc2ca6a9502613594f313b744528403d4a3e531efd4ab895c"
+      "SHA256": "afe0324077ac1d0b3c6c6cb4337bd99c0848d2e6b3dea2e7e5975b9dd0183770"
     },
     {
       "来源": "扩展功能/本机服务/写入协调.mjs",
@@ -3101,6 +3101,12 @@
       "原位置": "新增独立模块",
       "类型": "服务端",
       "SHA256": "cab28adb24b47b23552818af7340481a81af01d76564c9955ef8ed1b78c13ffb"
+    },
+    {
+      "来源": "扩展功能/媒体交付/图片上传预检.mjs",
+      "目标": "画布副本/web/src/扩展功能/媒体交付/图片上传预检.mjs",
+      "类型": "前端",
+      "SHA256": "4440b35177c52ed80577e0b55cec659cb8b459389d1458a7973c02ffec0979c2"
     }
   ],
   "接入差异": [
@@ -4859,6 +4865,22 @@
       "SHA256": "5b8655d7b33f93e64be94f2bd74a78c9ab55002fc31589e5a1e1d5f3b0961954",
       "前态SHA256": "f3cc64f5a442fdc0d8a144e3d5b1e420674f12aec8b9dfb61b51e603d6e5ffcf",
       "后态SHA256": "42ce4029d8f30aa9969dd7cf1f36aba60479dd1503791bba13b7cf3139651205"
+    },
+    {
+      "文件": "上游适配/图片上传解码与存储前置校验接入.patch",
+      "目标": "web/src/services/image-storage.ts",
+      "职责": "图片上传解码与存储前置校验接入",
+      "SHA256": "e653f8d3903adb6bbf9be2ac529d20bc521ffacbb419bbb9ffdfa95b1128eeaf",
+      "前态SHA256": "cf3c60ce9d9a212dde4ef81e3af8faa2c1f6e38ed5d4d6a06a7df49fcc17a8cf",
+      "后态SHA256": "e0c6dd28c6afa0872de806c2ca4c4a9c95b4e626173e65a9639af3ab61a6070f"
+    },
+    {
+      "文件": "上游适配/图片上传失败提示与选择重置接入.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "图片上传失败提示与选择重置接入",
+      "SHA256": "cb037a021f7059dc19fdeeef04052aa74d1a885658dcf0f5a13ccbff8b528010",
+      "前态SHA256": "397794f9154bd37fbd445b3b0cd8ee3ebc8d29561fca678283be27b7bd2f4621",
+      "后态SHA256": "69224fbb9e7eba4b0ce424da166ad8d844e362ad2fd05ce61a1c9b9bc9e5bd0e"
     }
   ]
 }

@@ -5,7 +5,7 @@ export const SCHEMA_VERSION = 1;
 export const MAX_DOCUMENT_BYTES = 2 * 1024 * 1024;
 export const MAX_MEDIA_BYTES = 32 * 1024 * 1024;
 export const COLLECTIONS = Object.freeze(['canvas', 'extension']);
-export const MEDIA_TYPES = Object.freeze(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'video/mp4', 'video/webm', 'audio/mpeg', 'audio/wav', 'audio/ogg', 'application/octet-stream']);
+export const MEDIA_TYPES = Object.freeze(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'video/mp4', 'video/webm', 'audio/mpeg', 'audio/wav', 'audio/ogg', 'application/octet-stream']);
 
 export class StorageError extends Error {
   constructor(code, message, status = 400) { super(message); this.name = 'StorageError'; this.code = code; this.status = status; }
