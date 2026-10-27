@@ -111,7 +111,7 @@ export async function buildWebPackage({ root = sourceRoot, runtimeDirectory, ups
     // shell标识符需ASCII；面向客户的文件名称仍为中文。
     writeFileSync(join(stage, file), readFileSync(join(stage, file), 'utf8').replaceAll('工作台目录', 'GUAN_WEB_ROOT'), { mode: 0o700 });
   }
-  writeFileSync(join(stage, '安装使用说明.txt'), 'Apple Silicon Web预览版。\n先双击“安装工作台.command”，联网验证固定仓库签名后安装；再双击“启动工作台.command”，按启动器显示的实际地址打开。默认 http://localhost:3000，被占用时自动顺延空闲端口。\n个人SQLite数据位于AI-Workbench-重建版/工作区，安装版本单独保存，更新不清空或替换私人数据。\n旧版用户在保存旧数据的浏览器中打开旧地址/local-app/port-migration，导出当前浏览器完整备份；新版设置→旧版整批迁移，一次导入所有产品、工作簿、回收快照、引用素材和普通配置，也可选补充配置JSON。保留旧工作台及备份。API密钥、WebDAV密码、请求脚本和受保护本机端点需补充配置；协议默认地址不代表原渠道。\n更新在设置的软件更新页操作；确认保存且任务结束后关闭工作台页面，其余网站可继续使用。\n', { mode: 0o600 });
+  writeFileSync(join(stage, '安装使用说明.txt'), 'Apple Silicon Web预览版。\n先双击“安装工作台.command”，联网验证固定仓库签名后安装；再双击“启动工作台.command”，按启动器显示的实际地址打开。默认 http://localhost:3000，被占用时自动顺延空闲端口。\n个人SQLite数据位于AI-Workbench-重建版/工作区，安装版本单独保存，更新不清空或替换私人数据。\n更新在设置的软件更新页操作；确认保存且任务结束后关闭工作台页面，其余网站可继续使用。\n', { mode: 0o600 });
   // 统一包权限，包含npm依赖；不带链接或构建机身份信息。
   execFileSync('/bin/chmod', ['-R', 'go-w', stage]);
   const inventory = { format: 1, app: WEB_APP, repository: WEB_REPOSITORY, version: release.版本, commit,

@@ -590,7 +590,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/产品操作.ts",
       "原SHA256": "3bd9720038a9f993e7aca60ca55be4c14dcd423e7bd3ef326cad181ee4db196e",
       "类型": "前端",
-      "SHA256": "6f85d649d02e6521a477856e2ba91c4b07478009aba448a6848ee156241d70ef"
+      "SHA256": "b73cb1e760b402997b994119489d3150bcd7fdd30c15ed549d3ca2ac61be2fcf"
     },
     {
       "来源": "扩展功能/产品/产品界面边界.tsx",
@@ -2226,55 +2226,6 @@
       "原位置": "新增端口与运行地址模块",
       "类型": "服务",
       "SHA256": "f3eec2e10c3a73e758fc59d64d615a242e35c0e781930823a8f10e46428a6f24"
-    },
-    {
-      "来源": "扩展功能/整批迁移/旧版备份读取.ts",
-      "目标": "画布副本/web/src/扩展功能/整批迁移/旧版备份读取.ts",
-      "原位置": "新增功能模块",
-      "类型": "前端",
-      "SHA256": "80b1b1156f5ad1cff7cd9f7de3005ebfd285ad6b113e7671874b50cf0588e4bb"
-    },
-    {
-      "来源": "扩展功能/整批迁移/整批迁移面板.tsx",
-      "目标": "画布副本/web/src/扩展功能/整批迁移/整批迁移面板.tsx",
-      "原位置": "新增功能模块",
-      "类型": "前端",
-      "SHA256": "bb0a3c950ce3390131c1484e1b609e7df77b29fdf931cdf9087828dc752f2f08"
-    },
-    {
-      "来源": "扩展功能/整批迁移/旧版产品转换.ts",
-      "目标": "画布副本/web/src/扩展功能/整批迁移/旧版产品转换.ts",
-      "原位置": "新增功能模块",
-      "类型": "前端",
-      "SHA256": "decbd0a3eb479e60aa2a9854db90ae9f88fbc4c4c79e611fcb66d3a5e2370715"
-    },
-    {
-      "来源": "扩展功能/整批迁移/整批迁移操作.ts",
-      "目标": "画布副本/web/src/扩展功能/整批迁移/整批迁移操作.ts",
-      "原位置": "新增功能模块",
-      "类型": "前端",
-      "SHA256": "f37beeeb5dabb56f41c30a374cb5ac016ececc6b7e313055e256af7710a00feb"
-    },
-    {
-      "来源": "扩展功能/整批迁移/旧版配置转换.ts",
-      "目标": "画布副本/web/src/扩展功能/整批迁移/旧版配置转换.ts",
-      "原位置": "新增功能模块",
-      "类型": "前端",
-      "SHA256": "a812f116ee997479583283217234604a00eadb3654897ce73a0f111e6ce6191e"
-    },
-    {
-      "来源": "扩展功能/整批迁移/旧版故障切换转换.ts",
-      "目标": "画布副本/web/src/扩展功能/整批迁移/旧版故障切换转换.ts",
-      "原位置": "新增功能模块",
-      "类型": "前端",
-      "SHA256": "3e552e1ab93e1af2643762bcbabf9df148c8da29dc403ab267f53ecfc3ef683a"
-    },
-    {
-      "来源": "扩展功能/整批迁移/旧版媒体引用归一.ts",
-      "目标": "画布副本/web/src/扩展功能/整批迁移/旧版媒体引用归一.ts",
-      "原位置": "新增功能模块",
-      "类型": "前端",
-      "SHA256": "576723c96b2f352f4b35453590ee013758e36e0412eb4c7c740ed7c7be3fa3eb"
     },
     {
       "来源": "扩展功能/本机存储/命名空间快照.mjs",
@@ -4484,14 +4435,6 @@
       "后态SHA256": "32fda6f8346697cef47120191a9eb77a3c41ca5d3781ac196b8907c49eeeb37a"
     },
     {
-      "文件": "上游适配/旧版整批迁移设置入口.patch",
-      "目标": "web/src/components/layout/app-config-modal.tsx",
-      "职责": "旧版整批迁移设置入口",
-      "SHA256": "fae093ce5d2cb111a98d42ead9ced53377edc0865486526ba06caa9f2f29c574",
-      "前态SHA256": "5c4afa45dc463339475db24336e619cf5830b1ce8ecf6449ad13bf5d1313a146",
-      "后态SHA256": "f0a586c3d26127f340797b3f76ff4bb991ab7e27d88827b32b286800cd52dac7"
-    },
-    {
       "文件": "上游适配/持久图片无缓存恢复.patch",
       "目标": "web/src/lib/canvas/canvas-generation-helpers.ts",
       "职责": "持久图片无缓存恢复",
@@ -4626,8 +4569,8 @@
       "目标": "web/src/components/layout/app-config-modal.tsx",
       "职责": "设置页签动效与焦点",
       "SHA256": "1d28bee2904ebcba8f63912615ac8b8ece83000434c501a4ae8f4542c04576df",
-      "前态SHA256": "229823ac687c9df6ab938d9aef067e9a8660dcab16118c15911da6210c0e5781",
-      "后态SHA256": "b9a2d95dd5bce64946c25e07f7692f4e8f88a17203116551fefe25f6fd19d5fc"
+      "前态SHA256": "1eac13a44d2eb8e2db5329dbb326de9cb3f4babda5f5281dc8a8346280b4c67a",
+      "后态SHA256": "20ea8500c5b0187456515c0c950fd2ff8acac3af30066c00128f013c16ad2740"
     },
     {
       "文件": "上游适配/093-界面动态偏好接入.patch",
@@ -4770,16 +4713,16 @@
       "目标": "web/src/components/layout/app-config-modal.tsx",
       "职责": "设置完成按钮固定页脚接入",
       "SHA256": "4c4357a1147d0d6fc2e34dcf17a242b0f38db68162d412b1eb97dcb973c88c0f",
-      "前态SHA256": "b9a2d95dd5bce64946c25e07f7692f4e8f88a17203116551fefe25f6fd19d5fc",
-      "后态SHA256": "1f3dda013b2d1a06b88046bafacec9cc67a209444789a53ae656a2052c29ef1b"
+      "前态SHA256": "20ea8500c5b0187456515c0c950fd2ff8acac3af30066c00128f013c16ad2740",
+      "后态SHA256": "732d000143baf2851689a458fbda456a5c65c0401289e48e2e231fc5b00d0c38"
     },
     {
       "文件": "上游适配/111-渠道删除按钮名称接入.patch",
       "目标": "web/src/components/layout/app-config-modal.tsx",
       "职责": "111-渠道删除按钮名称接入",
       "SHA256": "9881e4aa659f11fbd32bfe054711f07c5f70a544a6558d1136e53379053d279f",
-      "前态SHA256": "1f3dda013b2d1a06b88046bafacec9cc67a209444789a53ae656a2052c29ef1b",
-      "后态SHA256": "e97deb58b025dbb066a1e799336d81126e027838bf421c443e760e427a5f235d"
+      "前态SHA256": "732d000143baf2851689a458fbda456a5c65c0401289e48e2e231fc5b00d0c38",
+      "后态SHA256": "77cb014fb623ae077290432ecfc731469db885fbdc76c0ae1173e1a69c6aa64c"
     },
     {
       "文件": "上游适配/112-模型删除按钮名称接入.patch",
@@ -5058,8 +5001,8 @@
       "目标": "web/src/components/layout/app-config-modal.tsx",
       "职责": "设置页签入场测量修复",
       "SHA256": "057b4406791711021069f47a232b7788cec16eb21c0b2beec77bf128b4782009",
-      "前态SHA256": "e97deb58b025dbb066a1e799336d81126e027838bf421c443e760e427a5f235d",
-      "后态SHA256": "ddc2ed96b1c53ce11e1fc5b6aa99da1a6c5fae0c59abe031a497355491c5cdbe"
+      "前态SHA256": "77cb014fb623ae077290432ecfc731469db885fbdc76c0ae1173e1a69c6aa64c",
+      "后态SHA256": "d88fe0d45232956f913cd4a0011c2eec2eda6b8e931615db169d77ff57925ef9"
     }
   ]
 }
