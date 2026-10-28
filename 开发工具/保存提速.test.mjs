@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { createValueCodec, MAX_VALUE_MEDIA_BYTES } from '../扩展功能/本机存储/应用值编码.mjs';
+import { createValueCodec } from '../扩展功能/本机存储/应用值编码.mjs';
 import { buildFragmentPlan, readFragmentGraph } from '../扩展功能/本机存储/分片值编码.mjs';
 import { createShardedApplicationStorage } from '../扩展功能/本机存储/分片应用存储.mjs';
 import { syntheticCanvas } from './分片合成数据.mjs';
@@ -111,26 +111,23 @@ test('读验过的媒体换临时地址不会重新上传，错误ACK不能进�
   assert.equal(writes,2);
 });
 
-test('重复媒体引用按唯一分片计入1GiB限额并复用同一个Blob', async () => {
+test('重复媒体引用只保留一个媒体引用并复用同一个Blob', async () => {
   const f = fixture(), blob = new Blob([new Uint8Array(1024 * 1024)]);
   await f.codec.encode(blob);
-  const repeated = Array(Math.floor(MAX_VALUE_MEDIA_BYTES / blob.size) + 1).fill(blob);
+  const repeated = Array(2048).fill(blob);
   const encoded = await f.codec.encode(repeated);
   assert.equal(encoded.mediaIds.length, 1);
   const decoded = await f.codec.decode(encoded.tree);
   assert.equal(decoded.length, repeated.length);
   assert.ok(decoded.every(item => item === decoded[0]));
   assert.equal(f.calls.writes, 1); assert.equal(f.calls.reads, 1);
-  const tooLarge = ['blob', { mime: 'image/png', size: MAX_VALUE_MEDIA_BYTES + 1,
-    parts: Array.from({ length: Math.ceil((MAX_VALUE_MEDIA_BYTES + 1) / (16 * 1024 * 1024)) }, (_, index) => String(index).padStart(64, '0')) }];
-  await assert.rejects(f.codec.decode(tooLarge), error => error.code === 'invalid_media');
   await assert.rejects(f.codec.encode({ token: 'blob:原图' }), error => error.code === 'secret_port_required');
   f.codec.close();
 });
 
-test('一键批量生成540MiB仍逐片取得媒体ACK并提交画布根记录', async () => {
-  const chunkIds = new WeakMap(); let mediaWrites = 0, documentWrites = 0;
-  const imageCount = 18, imageBytes = 30 * 1024 * 1024;
+test('一键批量生成逐项保存超过1GiB的图片并为每次画布提交取得ACK', async () => {
+  const chunkIds = new WeakMap(); let mediaWrites = 0, documentWrites = 0, rootWrites = 0;
+  const imageCount = 40, imageBytes = 30 * 1024 * 1024;
   const images = Array.from({ length: imageCount }, (_, imageIndex) => {
     const image = { size: imageBytes, type: 'image/png', slice(start, end) {
       const chunk = { size: Math.max(0, Math.min(end, imageBytes) - start), type: 'application/octet-stream' };
@@ -151,21 +148,36 @@ test('一键批量生成540MiB仍逐片取得媒体ACK并提交画布根记录',
     async writeMedia(chunk) { mediaWrites++; return { id: chunkIds.get(chunk) }; },
     async writeDocument(write) {
       documentWrites++;
+      if (write.value?.namespace === 'app_state' && write.value?.format === 'guan-app-storage.v2') rootWrites++;
       return { persisted: true, collection: write.collection, id: write.id, operationId: write.operationId,
         revision: write.expectedRevision + 1, hash: createHash('sha256').update(JSON.stringify(write.value)).digest('hex') };
     },
   };
-  const storage = createShardedApplicationStorage({ client, readBlobUrl: async url => images[Number(url.slice('blob:batch-'.length))] });
+  const storage = createShardedApplicationStorage({ client, requestLimit: 0, readBlobUrl: async url => images[Number(url.slice('blob:batch-'.length))] });
   const instance = storage.createInstance();
-  const urls = Array.from({ length: imageCount }, (_, index) => `blob:batch-${index}`);
-  await instance.setItem('infinite-canvas:canvas_store', JSON.stringify({ generatedBatch: urls }));
-  assert.equal(imageCount * imageBytes, 540 * 1024 * 1024);
-  assert.ok(imageCount * imageBytes > 512 * 1024 * 1024);
-  assert.equal(MAX_VALUE_MEDIA_BYTES, 1024 * 1024 * 1024);
+  const urls = [];
+  for (let index = 0; index < imageCount; index++) {
+    urls.push(`blob:batch-${index}`);
+    await instance.setItem('infinite-canvas:canvas_store', JSON.stringify({ generatedBatch: urls }));
+    assert.deepEqual(storage.getStatus(), { state: 'saved', pending: 0, reads: 0, errors: [], failures: [] }, `第${index + 1}张结果必须先保存确认`);
+  }
+  assert.equal(imageCount * imageBytes, 1200 * 1024 * 1024);
+  assert.ok(imageCount * imageBytes > 1024 * 1024 * 1024);
   assert.equal(mediaWrites, imageCount * 2);
-  assert.ok(documentWrites > 1);
+  assert.equal(rootWrites, imageCount);
+  assert.ok(documentWrites > rootWrites);
   assert.deepEqual(storage.getStatus(), { state: 'saved', pending: 0, reads: 0, errors: [], failures: [] });
   storage.close();
+});
+
+test('解码不因整画布超过1GiB预先拒绝，仍逐片校验格式与大小', async () => {
+  const reachedRead = Error('media-read-reached');
+  const codec = createValueCodec({ client: { async readMedia() { throw reachedRead; } } });
+  const size = 1024 * 1024 * 1024 + 1;
+  const descriptor = ['blob', { mime: 'image/png', size,
+    parts: Array.from({ length: Math.ceil(size / (16 * 1024 * 1024)) }, (_, index) => String(index + 1).padStart(64, '0')) }];
+  await assert.rejects(codec.decode(descriptor), error => error === reachedRead);
+  codec.close();
 });
 
 test('分片大小精确覆盖中文、代理项、转义、空容器及原内联深度边界', async () => {

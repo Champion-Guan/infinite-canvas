@@ -3,9 +3,6 @@ import { isChannelBinding, sealedCredentialRef } from '../本机凭据/页面凭
 import { validCredentialRef } from '../本机凭据/凭据协议.mjs';
 
 const CHUNK_BYTES = 16 * 1024 * 1024;
-// canvas_store contains every product; 512 MiB was too low for ordinary image batches.
-// Keep a finite decode bound while leaving per-file, disk-reserve and reference limits intact.
-export const MAX_VALUE_MEDIA_BYTES = 1024 * 1024 * 1024;
 const credentialKey = /^(api[_-]?key|authorization|password|token|access[_-]?token|refresh[_-]?token|private[_-]?key|secret)$/i;
 
 // 值使用带类型的树，保留逻辑storageKey，不把临时网址或Blob对象写进JSON。
@@ -54,7 +51,6 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
   async function encode(value, { credential = false } = {}) {
     const started = performance.now(), stats = { uploaded: 0, reused: 0, blobReads: 0, secrets: 0 };
     const visiting = new Set(), mediaIds = new Set(), mediaPartSizes = new Map();
-    let totalBytes = 0;
     async function visit(item, depth = 0, key = '', parent) {
       requireValue(depth <= 32, 'value_too_deep', '应用数据层级超过当前安全限制。');
       if (credentialKey.test(key) && item !== null && item !== undefined && item !== '') {
@@ -124,11 +120,7 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
       for (let index = 0; index < descriptor.parts.length; index++) {
         const id = descriptor.parts[index], size = Math.min(CHUNK_BYTES, descriptor.size - index * CHUNK_BYTES), known = mediaPartSizes.get(id);
         requireValue(size > 0 && (known === undefined || known === size), 'invalid_media', '同一媒体分片的大小不一致。');
-        if (known === undefined) {
-          totalBytes += size;
-          requireValue(totalBytes <= MAX_VALUE_MEDIA_BYTES, 'invalid_media', '单次应用值唯一媒体内容总量超过1GiB。');
-          mediaPartSizes.set(id, size);
-        }
+        if (known === undefined) mediaPartSizes.set(id, size);
         mediaIds.add(id);
       }
     }
@@ -179,12 +171,9 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
         if (known === undefined) pendingSizes.set(id, chunk.size);
         chunks.push({ chunk, id });
       }
-      const additionalBytes = [...pendingSizes.values()].reduce((sum, size) => sum + size, 0);
-      requireValue(totalBytes + additionalBytes <= MAX_VALUE_MEDIA_BYTES, 'invalid_media', '单次应用值唯一媒体内容总量超过1GiB。');
       const parts = [];
       for (const { chunk, id } of chunks) parts.push(await persistMedia(chunk, stats, id));
       for (const [id, size] of pendingSizes) mediaPartSizes.set(id, size);
-      totalBytes += additionalBytes;
       // 只缓存全部媒体分片均已ACK的不可变Blob；失败或可变ArrayBuffer不复用。
       const descriptor = { mime: blob.type, size: blob.size, parts };
       savedBlobs.set(blob, structuredClone(descriptor));
@@ -195,7 +184,6 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
     return { tree, mediaIds: [...mediaIds].sort() };
   }
   async function decode(tree) {
-    let bytes = 0;
     const decodedMedia = new Map(), mediaPartSizes = new Map();
     async function binary(value) {
       requireValue(value && typeof value.mime === 'string' && (!value.mime || MEDIA_TYPES.includes(value.mime)) && Number.isSafeInteger(value.size) && value.size >= 0 && Array.isArray(value.parts) && value.parts.every(validHash) && value.parts.length === Math.ceil(value.size / CHUNK_BYTES), 'invalid_value', '本机媒体描述不完整。');
@@ -205,11 +193,7 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
         for (let index = 0; index < value.parts.length; index++) {
           const id = value.parts[index], size = Math.min(CHUNK_BYTES, value.size - index * CHUNK_BYTES), known = mediaPartSizes.get(id);
           requireValue(size > 0 && (known === undefined || known === size), 'invalid_value', '同一媒体分片的大小不一致。');
-          if (known === undefined) {
-            bytes += size;
-            requireValue(bytes <= MAX_VALUE_MEDIA_BYTES, 'invalid_media', '单次应用值唯一媒体内容总量超过1GiB。');
-            mediaPartSizes.set(id, size);
-          }
+          if (known === undefined) mediaPartSizes.set(id, size);
         }
         const chunks = [];
         for (let index = 0; index < value.parts.length; index++) {

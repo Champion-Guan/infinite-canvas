@@ -1,10 +1,10 @@
 # Web客户安装与升级
 
-仓库固定为`Champion-Guan/infinite-canvas`。当前公开预览版为[Web 2.0.0-beta.16](https://github.com/Champion-Guan/infinite-canvas/releases/tag/web-v2.0.0-beta.16)，修复一键批量生成后超过旧媒体累计门槛导致保存失败的问题：按唯一内容分片累计，普通画布容量上限提高到1 GiB，540 MiB端到端保存回归通过。沿用原可信签名，仅支持Apple Silicon macOS；默认从3000端口启动，占用时顺延。下文历史记录供追溯。
+仓库固定为`Champion-Guan/infinite-canvas`。当前预览版为[Web 2.0.0-beta.17](https://github.com/Champion-Guan/infinite-canvas/releases/tag/web-v2.0.0-beta.17)，移除画布累计媒体字节上限，批量生成逐项保存超过1 GiB的合成回归通过；保留单媒体、哈希分片、10,000个媒体引用和磁盘余量保护。沿用原可信签名，仅支持Apple Silicon macOS；默认从3000端口启动，占用时顺延。下文历史记录供追溯。
 
 ## 客户使用
 
-1. 下载Release中的`Web-v2.0.0-beta.10-macos-arm64.zip`（展示标签为中文），解压后双击`安装工作台.command`。安装器联网取得本Release的签名清单，核验固定可信公钥、全部库存、Node和系统助手。Source code ZIP不是客户安装包。
+1. 下载Release中的`Web-v2.0.0-beta.17-macos-arm64.zip`（展示标签为中文），解压后双击`安装工作台.command`。安装器联网取得本Release的签名清单，核验固定可信公钥、全部库存、Node和系统助手。Source code ZIP不是客户安装包。
 2. 双击`启动工作台.command`，按输出的实际地址打开。包内带Node，无需安装npm。3000被占用时自动顺延，不接管或强杀占用进程。旧beta.3管理器主持的首次升级仍暂用3100；新版管理器下一次正常冷启动即使用自动端口策略。
 3. 首次安装、启动和每次版本更新完成后都会检查`~/Desktop/生图工作台.app`。入口只在缺失或属于本工作台时创建，不覆盖桌面上其他同名应用；它读取当前安装指针，因此更新和旧版本清理不会使入口失效。点击入口时，服务未运行会先启动当前版本，确认本机工作台健康后再打开实际的`http://localhost:端口`地址。
 4. 2026-10-27起已移除“旧版整批迁移”。已有迁入产品、工作簿、素材和配置继续保留；日常产品导入导出、配置导入导出沿用原入口。下方历史验收记录仅说明当时的迁移流程。
