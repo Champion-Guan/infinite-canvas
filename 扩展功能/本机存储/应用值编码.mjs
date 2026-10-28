@@ -3,7 +3,9 @@ import { isChannelBinding, sealedCredentialRef } from '../本机凭据/页面凭
 import { validCredentialRef } from '../本机凭据/凭据协议.mjs';
 
 const CHUNK_BYTES = 16 * 1024 * 1024;
-export const MAX_VALUE_MEDIA_BYTES = 512 * 1024 * 1024;
+// canvas_store contains every product; 512 MiB was too low for ordinary image batches.
+// Keep a finite decode bound while leaving per-file, disk-reserve and reference limits intact.
+export const MAX_VALUE_MEDIA_BYTES = 1024 * 1024 * 1024;
 const credentialKey = /^(api[_-]?key|authorization|password|token|access[_-]?token|refresh[_-]?token|private[_-]?key|secret)$/i;
 
 // 值使用带类型的树，保留逻辑storageKey，不把临时网址或Blob对象写进JSON。
@@ -34,8 +36,7 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
     }
     return loadedMedia.get(id);
   }
-  async function persistMedia(chunk, stats) {
-    const id = [...new Uint8Array(await crypto.subtle.digest('SHA-256', await chunk.arrayBuffer()))].map(byte => byte.toString(16).padStart(2, '0')).join('');
+  async function persistMedia(chunk, stats, id) {
     if (confirmedMedia.get(id) === chunk.size) { stats.reused++; return id; }
     if (!mediaWrites.has(id)) {
       stats.uploaded++;
@@ -52,7 +53,7 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
   }
   async function encode(value, { credential = false } = {}) {
     const started = performance.now(), stats = { uploaded: 0, reused: 0, blobReads: 0, secrets: 0 };
-    const visiting = new Set(), mediaIds = new Set();
+    const visiting = new Set(), mediaIds = new Set(), mediaPartSizes = new Map();
     let totalBytes = 0;
     async function visit(item, depth = 0, key = '', parent) {
       requireValue(depth <= 32, 'value_too_deep', '应用数据层级超过当前安全限制。');
@@ -119,10 +120,20 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
       visiting.delete(item);
       return tree;
     }
+    function includeMedia(descriptor) {
+      for (let index = 0; index < descriptor.parts.length; index++) {
+        const id = descriptor.parts[index], size = Math.min(CHUNK_BYTES, descriptor.size - index * CHUNK_BYTES), known = mediaPartSizes.get(id);
+        requireValue(size > 0 && (known === undefined || known === size), 'invalid_media', '同一媒体分片的大小不一致。');
+        if (known === undefined) {
+          totalBytes += size;
+          requireValue(totalBytes <= MAX_VALUE_MEDIA_BYTES, 'invalid_media', '单次应用值唯一媒体内容总量超过1GiB。');
+          mediaPartSizes.set(id, size);
+        }
+        mediaIds.add(id);
+      }
+    }
     function reuse(descriptor) {
-      totalBytes += descriptor.size;
-      requireValue(totalBytes <= MAX_VALUE_MEDIA_BYTES, 'invalid_media', '单次应用值媒体总量超过512MiB或类型不支持。');
-      for (const id of descriptor.parts) mediaIds.add(id);
+      includeMedia(descriptor);
       return structuredClone(descriptor);
     }
     function stableMediaKeys(item) {
@@ -148,9 +159,7 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
       const key = stableKeys.find(candidate => stableMediaMatches(item, candidate, savedMediaKeys.get(candidate)));
       const descriptor = key ? savedMediaKeys.get(key) : undefined;
       if (!descriptor) return null;
-      totalBytes += descriptor.size;
-      requireValue(totalBytes <= MAX_VALUE_MEDIA_BYTES, 'invalid_media', '单次应用值媒体总量超过512MiB或类型不支持。');
-      for (const id of descriptor.parts) mediaIds.add(id);
+      includeMedia(descriptor);
       stats.reused++;
       return [typeof entry === 'string' ? 'blob-url' : entry instanceof ArrayBuffer ? 'array-buffer' : 'blob', structuredClone(descriptor)];
     }
@@ -159,13 +168,23 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
     }
     async function binary(blob) {
       if (savedBlobs.has(blob)) return reuse(savedBlobs.get(blob));
-      requireValue(!blob.type || MEDIA_TYPES.includes(blob.type), 'invalid_media', '单次应用值媒体总量超过512MiB或类型不支持。');
-      requireValue(totalBytes + blob.size <= MAX_VALUE_MEDIA_BYTES, 'invalid_media', '单次应用值媒体总量超过512MiB或类型不支持。');
-      const parts = [];
+      requireValue(!blob.type || MEDIA_TYPES.includes(blob.type), 'invalid_media', '媒体类型不受支持。');
+      const chunks = [], pendingSizes = new Map();
       for (let offset = 0; offset < blob.size; offset += CHUNK_BYTES) {
         // structuredClone、原图/交付图双主键和恢复URL会创建新Blob身份；按已确认内容去重。
-        parts.push(await persistMedia(blob.slice(offset, offset + CHUNK_BYTES, 'application/octet-stream'), stats));
+        const chunk = blob.slice(offset, offset + CHUNK_BYTES, 'application/octet-stream');
+        const id = [...new Uint8Array(await crypto.subtle.digest('SHA-256', await chunk.arrayBuffer()))].map(byte => byte.toString(16).padStart(2, '0')).join('');
+        const known = mediaPartSizes.get(id) ?? pendingSizes.get(id);
+        requireValue(known === undefined || known === chunk.size, 'invalid_media', '同一媒体分片的大小不一致。');
+        if (known === undefined) pendingSizes.set(id, chunk.size);
+        chunks.push({ chunk, id });
       }
+      const additionalBytes = [...pendingSizes.values()].reduce((sum, size) => sum + size, 0);
+      requireValue(totalBytes + additionalBytes <= MAX_VALUE_MEDIA_BYTES, 'invalid_media', '单次应用值唯一媒体内容总量超过1GiB。');
+      const parts = [];
+      for (const { chunk, id } of chunks) parts.push(await persistMedia(chunk, stats, id));
+      for (const [id, size] of pendingSizes) mediaPartSizes.set(id, size);
+      totalBytes += additionalBytes;
       // 只缓存全部媒体分片均已ACK的不可变Blob；失败或可变ArrayBuffer不复用。
       const descriptor = { mime: blob.type, size: blob.size, parts };
       savedBlobs.set(blob, structuredClone(descriptor));
@@ -177,17 +196,35 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
   }
   async function decode(tree) {
     let bytes = 0;
+    const decodedMedia = new Map(), mediaPartSizes = new Map();
     async function binary(value) {
       requireValue(value && typeof value.mime === 'string' && (!value.mime || MEDIA_TYPES.includes(value.mime)) && Number.isSafeInteger(value.size) && value.size >= 0 && Array.isArray(value.parts) && value.parts.every(validHash) && value.parts.length === Math.ceil(value.size / CHUNK_BYTES), 'invalid_value', '本机媒体描述不完整。');
-      bytes += value.size;
-      requireValue(bytes <= MAX_VALUE_MEDIA_BYTES, 'invalid_media', '媒体总量超过当前安全限制。');
-      const chunks = [];
-      for (let index = 0; index < value.parts.length; index++) {
-        const chunk = await readMedia(value.parts[index]);
-        requireValue(chunk.size === Math.min(CHUNK_BYTES, value.size - index * CHUNK_BYTES), 'media_corrupt', '媒体分片大小不匹配。');
-        chunks.push(chunk);
-      }
-      return new Blob(chunks, { type: value.mime });
+      const identity = JSON.stringify([value.mime, value.size, value.parts]);
+      if (decodedMedia.has(identity)) return decodedMedia.get(identity);
+      const pending = (async () => {
+        for (let index = 0; index < value.parts.length; index++) {
+          const id = value.parts[index], size = Math.min(CHUNK_BYTES, value.size - index * CHUNK_BYTES), known = mediaPartSizes.get(id);
+          requireValue(size > 0 && (known === undefined || known === size), 'invalid_value', '同一媒体分片的大小不一致。');
+          if (known === undefined) {
+            bytes += size;
+            requireValue(bytes <= MAX_VALUE_MEDIA_BYTES, 'invalid_media', '单次应用值唯一媒体内容总量超过1GiB。');
+            mediaPartSizes.set(id, size);
+          }
+        }
+        const chunks = [];
+        for (let index = 0; index < value.parts.length; index++) {
+          const chunk = await readMedia(value.parts[index]);
+          requireValue(chunk.size === Math.min(CHUNK_BYTES, value.size - index * CHUNK_BYTES), 'media_corrupt', '媒体分片大小不匹配。');
+          chunks.push(chunk);
+        }
+        const blob = new Blob(chunks, { type: value.mime });
+        decodedMedia.set(identity, blob);
+        savedBlobs.set(blob, structuredClone(value));
+        return blob;
+      })();
+      decodedMedia.set(identity, pending);
+      try { return await pending; }
+      catch (error) { if (decodedMedia.get(identity) === pending) decodedMedia.delete(identity); throw error; }
     }
     async function visit(node, depth = 0, key = '', parent) {
       requireValue(depth <= 32 && Array.isArray(node), 'invalid_value', '本机应用值格式无效。');

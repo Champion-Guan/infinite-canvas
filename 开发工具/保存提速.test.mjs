@@ -111,12 +111,61 @@ test('读验过的媒体换临时地址不会重新上传，错误ACK不能进�
   assert.equal(writes,2);
 });
 
-test('缓存仍按每次引用计入512MiB限额，凭据不绕过安全端口', async () => {
+test('重复媒体引用按唯一分片计入1GiB限额并复用同一个Blob', async () => {
   const f = fixture(), blob = new Blob([new Uint8Array(1024 * 1024)]);
   await f.codec.encode(blob);
-  await assert.rejects(f.codec.encode(Array(MAX_VALUE_MEDIA_BYTES / blob.size + 1).fill(blob)), error => error.code === 'invalid_media');
-  assert.equal(f.calls.writes, 1);
+  const repeated = Array(Math.floor(MAX_VALUE_MEDIA_BYTES / blob.size) + 1).fill(blob);
+  const encoded = await f.codec.encode(repeated);
+  assert.equal(encoded.mediaIds.length, 1);
+  const decoded = await f.codec.decode(encoded.tree);
+  assert.equal(decoded.length, repeated.length);
+  assert.ok(decoded.every(item => item === decoded[0]));
+  assert.equal(f.calls.writes, 1); assert.equal(f.calls.reads, 1);
+  const tooLarge = ['blob', { mime: 'image/png', size: MAX_VALUE_MEDIA_BYTES + 1,
+    parts: Array.from({ length: Math.ceil((MAX_VALUE_MEDIA_BYTES + 1) / (16 * 1024 * 1024)) }, (_, index) => String(index).padStart(64, '0')) }];
+  await assert.rejects(f.codec.decode(tooLarge), error => error.code === 'invalid_media');
   await assert.rejects(f.codec.encode({ token: 'blob:原图' }), error => error.code === 'secret_port_required');
+  f.codec.close();
+});
+
+test('一键批量生成540MiB仍逐片取得媒体ACK并提交画布根记录', async () => {
+  const chunkIds = new WeakMap(); let mediaWrites = 0, documentWrites = 0;
+  const imageCount = 18, imageBytes = 30 * 1024 * 1024;
+  const images = Array.from({ length: imageCount }, (_, imageIndex) => {
+    const image = { size: imageBytes, type: 'image/png', slice(start, end) {
+      const chunk = { size: Math.max(0, Math.min(end, imageBytes) - start), type: 'application/octet-stream' };
+      chunk.arrayBuffer = async () => {
+        const bytes = new ArrayBuffer(chunk.size), view = new Uint8Array(bytes);
+        view[0] = imageIndex + 1; view[1] = Math.floor(start / (16 * 1024 * 1024));
+        chunkIds.set(chunk, createHash('sha256').update(Buffer.from(bytes)).digest('hex'));
+        return bytes;
+      };
+      return chunk;
+    } };
+    Object.setPrototypeOf(image, Blob.prototype);
+    return image;
+  });
+  const client = {
+    async readDocument() { return null; },
+    async readForWrite() { return null; },
+    async writeMedia(chunk) { mediaWrites++; return { id: chunkIds.get(chunk) }; },
+    async writeDocument(write) {
+      documentWrites++;
+      return { persisted: true, collection: write.collection, id: write.id, operationId: write.operationId,
+        revision: write.expectedRevision + 1, hash: createHash('sha256').update(JSON.stringify(write.value)).digest('hex') };
+    },
+  };
+  const storage = createShardedApplicationStorage({ client, readBlobUrl: async url => images[Number(url.slice('blob:batch-'.length))] });
+  const instance = storage.createInstance();
+  const urls = Array.from({ length: imageCount }, (_, index) => `blob:batch-${index}`);
+  await instance.setItem('infinite-canvas:canvas_store', JSON.stringify({ generatedBatch: urls }));
+  assert.equal(imageCount * imageBytes, 540 * 1024 * 1024);
+  assert.ok(imageCount * imageBytes > 512 * 1024 * 1024);
+  assert.equal(MAX_VALUE_MEDIA_BYTES, 1024 * 1024 * 1024);
+  assert.equal(mediaWrites, imageCount * 2);
+  assert.ok(documentWrites > 1);
+  assert.deepEqual(storage.getStatus(), { state: 'saved', pending: 0, reads: 0, errors: [], failures: [] });
+  storage.close();
 });
 
 test('分片大小精确覆盖中文、代理项、转义、空容器及原内联深度边界', async () => {

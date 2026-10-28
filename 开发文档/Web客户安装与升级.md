@@ -1,6 +1,6 @@
 # Web客户安装与升级
 
-仓库固定为`Champion-Guan/infinite-canvas`。当前公开预览版为[Web 2.0.0-beta.10](https://github.com/Champion-Guan/infinite-canvas/releases/tag/web-v2.0.0-beta.10)，包含保存与工作簿切换优化、共享主干连线、图片详情下载、密钥脱敏、更新进度及配置补齐状态修复。沿用原可信签名，仅支持Apple Silicon macOS；默认从3000端口启动，占用时顺延。公开资产下载、签名、576项库存与现有工作台更新检查已通过；本轮未做跨Mac或beta.9到beta.10真实安装切换，详见[第十预览版发布验收](第十预览版发布验收20261027.md)。下文的早期记录保留供追溯。
+仓库固定为`Champion-Guan/infinite-canvas`。当前公开预览版为[Web 2.0.0-beta.16](https://github.com/Champion-Guan/infinite-canvas/releases/tag/web-v2.0.0-beta.16)，修复一键批量生成后超过旧媒体累计门槛导致保存失败的问题：按唯一内容分片累计，普通画布容量上限提高到1 GiB，540 MiB端到端保存回归通过。沿用原可信签名，仅支持Apple Silicon macOS；默认从3000端口启动，占用时顺延。下文历史记录供追溯。
 
 ## 客户使用
 
