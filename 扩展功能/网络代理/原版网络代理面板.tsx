@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./原版网络代理.css";
-import { 内置网络代理订阅 } from "./内置订阅设置.mjs";
 import { useProductActive } from "../产品/产品界面边界";
 import { useProxyStatusRefresh } from "./代理状态刷新";
 
@@ -15,7 +14,7 @@ export function OriginalNetworkProxyPanel({ active = true }: { active?: boolean 
     const productActive = useProductActive();
     const observing = active && productActive;
     const [status, setStatus] = useState<Status | null>(null);
-    const [input, setInput] = useState(内置网络代理订阅);
+    const [input, setInput] = useState("");
     const [fileText, setFileText] = useState("");
     const [fileName, setFileName] = useState("");
     const [busy, setBusy] = useState(false);
@@ -46,7 +45,7 @@ export function OriginalNetworkProxyPanel({ active = true }: { active?: boolean 
         flight.current = true; revision.current++; fileRevision.current++; setBusy(true); setError(""); setNotice("切换中…");
         try {
             const next = await operation(port);
-            if (mounted.current) { setStatus(next); unlocked.current = !next.running; setFrozen(next.running); setNotice(success); if (clearInput) { setFileText(""); setFileName(""); setInput(next.configInput === 内置网络代理订阅 ? next.configInput : 内置网络代理订阅); } }
+            if (mounted.current) { setStatus(next); unlocked.current = !next.running; setFrozen(next.running); setNotice(success); if (clearInput) { setFileText(""); setFileName(""); setInput(""); } }
         } catch { if (mounted.current) { setNotice(""); setError("代理操作未完成，配置保留。请检查状态、代理核心及端口。"); } }
         finally { flight.current = false; if (mounted.current) { setBusy(false); void refresh(); } }
     };
@@ -75,7 +74,7 @@ export function OriginalNetworkProxyPanel({ active = true }: { active?: boolean 
                 <div className="local-canvas-settings-actions"><button type="button" disabled={busy} onClick={() => void act(port => port.checkResources(), "资源检查完成")}>检查核心与模型更新</button><span role="status">{status.resourceUpdate.error === "proxy_resource_state_invalid" ? "更新状态异常，已暂停资源更新；当前代理仍可使用" : status.resourceUpdate.state === "pending" ? status.resourceUpdate.autoUpdate ? "已下载，等待代理空闲后应用" : "已下载，开启自动更新后应用" : status.resourceUpdate.state === "checking" || status.resourceUpdate.state === "downloading" ? "正在检查或下载…" : status.resourceUpdate.error ? "资源更新未完成，当前代理保留，将自动重试" : status.resourceUpdate.checkedAt ? `上次检查：${new Date(status.resourceUpdate.checkedAt).toLocaleString()}` : "每天自动检查，首次启动无需下载"}</span></div>
             </div>}
             <div className="local-canvas-settings-field"><label htmlFor="guan-network-proxy-input">代理配置文件或远端订阅地址</label>
-                <div className="local-canvas-settings-input-row"><input id="guan-network-proxy-input" className="local-canvas-settings-input" data-canvas-proxy-input type="text" placeholder={内置网络代理订阅} autoComplete="off" spellCheck={false} disabled={busy || frozen || unavailable} value={displayedInput} onChange={event => { setInput(event.currentTarget.value); setFileText(""); setFileName(""); fileRevision.current++; }} />
+                <div className="local-canvas-settings-input-row"><input id="guan-network-proxy-input" className="local-canvas-settings-input" data-canvas-proxy-input type="text" placeholder="https://example.com/your-subscription" autoComplete="off" spellCheck={false} disabled={busy || frozen || unavailable} value={displayedInput} onChange={event => { setInput(event.currentTarget.value); setFileText(""); setFileName(""); fileRevision.current++; }} />
                     <button type="button" className="local-canvas-settings-file" data-canvas-proxy-file disabled={busy || frozen || unavailable} onClick={() => fileRef.current?.click()}>选择文件</button>
                     <input ref={fileRef} data-canvas-proxy-file-input type="file" accept=".yaml,.yml,.txt,text/plain,application/yaml" hidden onChange={async event => {
                         const file = event.currentTarget.files?.[0]; event.currentTarget.value = ""; const snapshot = ++fileRevision.current;

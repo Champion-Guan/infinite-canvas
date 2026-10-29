@@ -1,0 +1,20 @@
+diff --git a/web/src/layouts/user-layout.tsx b/web/src/layouts/user-layout.tsx
+--- a/web/src/layouts/user-layout.tsx
++++ b/web/src/layouts/user-layout.tsx
+@@ -1,6 +1,8 @@
+ import type { ReactNode } from "react";
++import { useLocation } from "react-router-dom";
+ import { SettingsViewport } from "@/扩展功能/存储界面/设置视区";
+ import { AppConfigModal } from "@/components/layout/app-config-modal";
+ import { LegacyHomeChrome } from "@/扩展功能/首页/旧版首页顶栏";
++import { FirstRunProxySetup } from "@/扩展功能/网络代理/首次代理设置";
+ 
+ import { productFeatures } from "@/扩展功能/产品配置/功能开关";
+@@ -9,2 +11,3 @@
+ export default function UserLayout({ children }: { children: ReactNode }) {
++    const { pathname } = useLocation();
+     return (
+@@ -13,2 +16,3 @@
+                 <LegacyHomeChrome />
++                <FirstRunProxySetup active={pathname === "/"} />
+                 <SettingsViewport>{children}<AppConfigModal /></SettingsViewport>

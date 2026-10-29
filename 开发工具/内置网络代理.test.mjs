@@ -15,8 +15,6 @@ import { createMihomoRuntime, assertProxyPortsAvailable } from '../扩展功能/
 import { openNetworkProxyService } from '../扩展功能/网络代理/代理服务.mjs';
 import { createNetworkProxyHTTPHandler } from '../扩展功能/网络代理/代理HTTP入口.mjs';
 import { createNetworkProxyClient } from '../扩展功能/网络代理/代理客户端.mjs';
-import { 读取默认代理配置 } from '../扩展功能/网络代理/默认代理配置.mjs';
-import { 内置网络代理订阅 } from '../扩展功能/网络代理/内置订阅设置.mjs';
 import { openWorkspace } from '../扩展功能/本机存储/SQLite工作区.mjs';
 import { openSQLiteCredentialVault } from '../扩展功能/本机凭据/SQLite凭据保管.mjs';
 import { createWriteCoordinator } from '../扩展功能/本机服务/写入协调.mjs';
@@ -142,14 +140,22 @@ test('只有旧开关没有代理配置时也接续开关，不写入伪造密�
     assert.equal(f.service.status().configured, false); assert.equal(f.service.status().running, false);
   } finally { await f.close(); }
 });
-test('无原配置时接续内置订阅；状态显示公开地址，冷重开沿用加密配置', async () => {
+test('新安装不拉取默认订阅；用户配置只读取一次并在冷启动后沿用SQLite加密记录', async () => {
+  const url = 'https://sub.example.com/config?token=synthetic-first-run';
   let reads = 0;
-  const f = await fixture({ initialConfiguration: () => 读取默认代理配置({ readSubscription: async url => { assert.equal(url, 内置网络代理订阅); reads++; return source; } }) });
+  const f = await fixture({ subscription: async requested => { assert.equal(requested, url); reads++; return source; } });
   try {
-    assert.equal(f.service.status().running, true); assert.equal(f.service.status().configInput, 内置网络代理订阅);
-    await f.coldReopen(); assert.equal(reads, 1); assert.equal(f.service.status().configInput, 内置网络代理订阅);
-    await f.service.configure({ configText: source, subscriptionUrl: '', fileName: '自定义配置.yaml' });
-    assert.equal(f.service.status().configInput, '自定义配置.yaml');
+    assert.equal(f.service.status().configured, false);
+    assert.equal(f.service.status().running, false);
+    assert.equal(reads, 0);
+    await f.service.configure({ configText: '', subscriptionUrl: url, fileName: '' });
+    assert.equal(f.service.status().running, true);
+    assert.equal(f.service.status().configInput, '已保存的远端订阅');
+    assert.equal(contains(join(f.parent, 'data'), 'synthetic-first-run'), false);
+    await f.coldReopen();
+    assert.equal(reads, 1);
+    assert.equal(f.service.status().running, true);
+    assert.equal(f.service.status().configInput, '已保存的远端订阅');
   } finally { await f.close(); }
 });
 test('配置启动、节点、诊断、停止、重开和租约保护', async () => {

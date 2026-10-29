@@ -12,7 +12,7 @@ function makeBeta17Uncertain(workspace) {
     expectedRevision: document.revision, operationId: randomUUID(), mediaIds: document.mediaIds });
 }
 
-test('13条无结果图片任务按beta.17可读的兼容终态落盘，beta.18冷启动后显示失败且不重发', async () => {
+test('13条无结果图片任务按beta.17可读的兼容终态落盘，beta.19冷启动后显示失败且不重发', async () => {
   const f = await generationFixture();
   let reopened;
   try {

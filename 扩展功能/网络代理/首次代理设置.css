@@ -1,0 +1,121 @@
+.guan-proxy-first-run {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(15 17 22 / 34%);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.guan-proxy-first-run__panel {
+  width: min(480px, 100%);
+  padding: 24px;
+  border: 1px solid rgb(0 0 0 / 9%);
+  border-radius: 12px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  box-shadow: 0 24px 72px rgb(0 0 0 / 22%);
+  animation: guan-proxy-first-run-enter 220ms cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.guan-proxy-first-run__description,
+.guan-proxy-first-run__hint {
+  margin: 8px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.guan-proxy-first-run__field {
+  display: grid;
+  gap: 8px;
+  margin-top: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.guan-proxy-first-run__input-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px 5px 11px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+}
+
+.guan-proxy-first-run__input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+}
+
+.guan-proxy-first-run__file,
+.guan-proxy-first-run__actions button {
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.guan-proxy-first-run__file:hover,
+.guan-proxy-first-run__actions button:hover:not(:disabled) {
+  background: hsl(var(--muted));
+}
+
+.guan-proxy-first-run__actions button:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
+.guan-proxy-first-run__actions button.guan-proxy-first-run__save {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.guan-proxy-first-run__actions button.guan-proxy-first-run__save:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.guan-proxy-first-run__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.guan-proxy-first-run__error {
+  min-height: 18px;
+  margin: 12px 0 0;
+  color: hsl(var(--destructive));
+  font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guan-proxy-first-run__panel {
+    animation: none;
+  }
+}
+
+@keyframes guan-proxy-first-run-enter {
+  from { opacity: 0; transform: translateY(8px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+html.dark .guan-proxy-first-run__panel,
+html[data-theme="dark"] .guan-proxy-first-run__panel {
+  border-color: rgb(255 255 255 / 12%);
+}

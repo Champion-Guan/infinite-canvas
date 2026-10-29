@@ -2,7 +2,7 @@ import { StorageError, requireValue } from '../本机存储/协议.mjs';
 import { createProxyConfigurationStore } from './代理配置存储.mjs';
 import { buildIsolatedProxyConfig, subscriptionURL, validateSourceText } from './配置边界.mjs';
 import { readProxySubscription } from './订阅读取.mjs';
-import { 代理配置来源显示 } from './内置订阅设置.mjs';
+import { 代理配置来源显示 } from './代理配置来源显示.mjs';
 import { createSmartResourceUpdater } from './Smart资源自动更新.mjs';
 
 // 只管理自己的实例。状态查询不发起网络探测；配置/启停串行，路由租约阻止中途换代理。

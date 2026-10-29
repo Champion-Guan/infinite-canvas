@@ -16,7 +16,7 @@ import { startCommittedManager, waitManagerRelease } from './管理器版本接�
 const LEDGER_ID = 'guan-generation-ledger-v1';
 const LEDGER_FORMAT = 'guan-generation-ledger.v1';
 const OLD_VERSION = '2.0.0-beta.17';
-const RELEASE_VERSION = '2.0.0-beta.18';
+const RELEASE_VERSION = '2.0.0-beta.19';
 const hash = value => createHash('sha256').update(value).digest('hex');
 
 export async function prepareLegacyCompatibleTaskLedger({ workspace, coordinator, now = Date.now } = {}) {
@@ -32,7 +32,7 @@ export async function prepareLegacyCompatibleTaskLedger({ workspace, coordinator
     const failure = noResultTaskFailure(job);
     if (!failure || !['accepted', 'running', 'uncertain', 'cancelled'].includes(job.state)) continue;
     if (job.state === 'cancelled' && job.reason === failure.reason) continue;
-    // beta.17 accepts a cancelled no-result row; beta.18 converts this marker to failed on cold start.
+    // beta.17 accepts a cancelled no-result row; beta.19 converts this marker to failed on cold start.
     job.state = 'cancelled';
     job.reason = failure.reason;
     job.updatedAt = Math.max(now(), job.updatedAt);

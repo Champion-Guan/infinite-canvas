@@ -41,7 +41,7 @@ export async function customerCommand(operation) {
     return result.identity;
   }
   if (operation === 'prepare-beta17-upgrade') {
-    console.log('正在从固定 GitHub 仓库核对 beta.18 签名和包库存。');
+    console.log('正在从固定 GitHub 仓库核对 beta.19 签名和包库存。');
     await bootstrapProof();
     console.log('签名材料已核对。');
     const { runBeta17UpgradePreparation } = await import('./旧版升级任务兼容.mjs');
