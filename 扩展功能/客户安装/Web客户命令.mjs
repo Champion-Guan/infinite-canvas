@@ -40,6 +40,13 @@ export async function customerCommand(operation) {
     console.log('安装完成。个人数据与旧工作台均已保留。请双击桌面“生图工作台.app”或“启动工作台.command”。');
     return result.identity;
   }
+  if (operation === 'prepare-beta17-upgrade') {
+    console.log('正在从固定 GitHub 仓库核对 beta.18 签名和包库存。');
+    await bootstrapProof();
+    console.log('签名材料已核对。');
+    const { runBeta17UpgradePreparation } = await import('./旧版升级任务兼容.mjs');
+    return runBeta17UpgradePreparation({ packageRoot: root, paths });
+  }
   if (operation === 'supervisor') return runWebSupervisor();
   const state = await readState(paths.state), running = await readState(paths.lock);
   if (operation === 'status') return { installed: Boolean(state), running: Boolean(ownedProcess(running)), version: state?.current?.version, phase: state?.phase,
@@ -71,5 +78,11 @@ export async function customerCommand(operation) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (process.argv.length !== 3) fail('invalid_request');
   try { const result = await customerCommand(process.argv[2]); if (result?.address) console.log('工作台已就绪，请打开：' + result.address); if (result) console.log(JSON.stringify(result)); }
-  catch (e) { console.error('操作未完成：' + (e.code || 'web_operation_failed') + '。现有版本与个人数据保留。'); process.exitCode = 1; }
+  catch (e) {
+    const operation = process.argv[2];
+    console.error(operation === 'prepare-beta17-upgrade'
+      ? '准备未完成：' + (e.code || 'web_operation_failed') + '。版本指针没有切换；任务状态可能已兼容标记，请勿重新提交这些任务。若工作台未自动恢复，请点击桌面入口。'
+      : '操作未完成：' + (e.code || 'web_operation_failed') + '。现有版本与个人数据保留。');
+    process.exitCode = 1;
+  }
 }

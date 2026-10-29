@@ -4,11 +4,32 @@ import { GENERATION_PROTOCOL, TASK_STATES, terminalState, validateSubmission, jo
 import { recordNoResultResolution } from './未决任务核实.mjs';
 import { createTransientTextProgress } from './文本临时进度.mjs';
 import { createPreparedTaskRetirement } from './未提交任务重试收口.mjs';
+import { failNoResultTasks, noResultTaskFailure } from './无结果任务收口.mjs';
 
 const ledgerId = 'guan-generation-ledger-v1', format = 'guan-generation-ledger.v1';
 const hash = value => createHash('sha256').update(value).digest('hex');
 const publicJob = job => ({ id: job.id, productId: job.productId, nodeId: job.nodeId, state: job.state, applied: job.applied, createdAt: job.createdAt, updatedAt: job.updatedAt,
   result: job.result && { ...job.result }, reason: job.reason });
+
+export function validateGenerationLedgerDocument(doc, { workspaceId, maxTasks = 256 } = {}) {
+  if (!doc) return { revision: 0, jobs: [], mediaIds: [] };
+  requireValue(doc.workspaceId === workspaceId && exactKeys(doc.value, ['format', 'workspaceId', 'jobs']) && doc.value.format === format && doc.value.workspaceId === workspaceId && Array.isArray(doc.value.jobs) && doc.value.jobs.length <= maxTasks,
+    'generation_ledger_invalid', '任务账本不完整，未当作空账本。', 409);
+  const ids = new Set(), refs = new Set();
+  for (const job of doc.value.jobs) {
+    requireValue(exactKeys(job, ['id', 'productId', 'nodeId', 'binding', 'requestHash', 'state', 'applied', 'createdAt', 'updatedAt', 'result', 'reason']) &&
+      jobLike(job.id) && !ids.has(job.id) && validId(job.productId) && validId(job.nodeId) && bindingLike(job.binding) && validHash(job.requestHash) && TASK_STATES.includes(job.state) && typeof job.applied === 'boolean' &&
+      Number.isSafeInteger(job.createdAt) && job.createdAt >= 0 && Number.isSafeInteger(job.updatedAt) && job.updatedAt >= job.createdAt && typeof job.reason === 'string' && /^[a-z_]{0,64}$/.test(job.reason) &&
+      (!job.applied || job.state === 'succeeded') && (job.result === null || exactKeys(job.result, ['id', 'status', 'contentType', 'size']) && validHash(job.result.id) &&
+        Number.isInteger(job.result.status) && job.result.status >= 200 && job.result.status <= 599 && typeof job.result.contentType === 'string' && job.result.contentType.length <= 256 && !/[\r\n\0]/.test(job.result.contentType) &&
+        Number.isSafeInteger(job.result.size) && job.result.size > 0 && job.result.size <= 32 * 1024 * 1024) &&
+      (!['succeeded', 'failed'].includes(job.state) || job.result && (job.state === 'succeeded' ? job.result.status < 300 : job.result.status >= 400) ||
+        job.state === 'failed' && job.result === null && ['upstream_result_missing', 'interrupted_before_dispatch'].includes(job.reason)), 'generation_ledger_invalid', '任务记录不完整或状态冲突。', 409);
+    ids.add(job.id); if (job.result) refs.add(job.result.id);
+  }
+  requireValue([...refs].sort().join(',') === [...doc.mediaIds].sort().join(','), 'generation_ledger_invalid', '任务结果媒体引用不完整。', 409);
+  return { revision: doc.revision, jobs: doc.value.jobs, mediaIds: doc.mediaIds };
+}
 
 // 请求正文只在进程内使用；账本只存摘要、归属、状态和已消毒响应的媒体引用。
 // running提交后才允许发出请求。重启不重发，succeeded不等于画布已保存。
@@ -22,23 +43,7 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
   const textProgress = createTransientTextProgress();
   function clock() { const value = now(); requireValue(Number.isSafeInteger(value) && value >= 0, 'invalid_generation_clock', '任务时钟无效。'); return value; }
   function ledger() {
-    const doc = workspace.readDocument('extension', ledgerId);
-    if (!doc) return { revision: 0, jobs: [] };
-    requireValue(doc.workspaceId === workspace.workspaceId && exactKeys(doc.value, ['format', 'workspaceId', 'jobs']) && doc.value.format === format && doc.value.workspaceId === workspace.workspaceId && Array.isArray(doc.value.jobs) && doc.value.jobs.length <= maxTasks,
-      'generation_ledger_invalid', '任务账本不完整，未当作空账本。', 409);
-    const ids = new Set(), refs = new Set();
-    for (const job of doc.value.jobs) {
-      requireValue(exactKeys(job, ['id', 'productId', 'nodeId', 'binding', 'requestHash', 'state', 'applied', 'createdAt', 'updatedAt', 'result', 'reason']) &&
-        jobLike(job.id) && !ids.has(job.id) && validId(job.productId) && validId(job.nodeId) && bindingLike(job.binding) && validHash(job.requestHash) && TASK_STATES.includes(job.state) && typeof job.applied === 'boolean' &&
-        Number.isSafeInteger(job.createdAt) && job.createdAt >= 0 && Number.isSafeInteger(job.updatedAt) && job.updatedAt >= job.createdAt && typeof job.reason === 'string' && /^[a-z_]{0,64}$/.test(job.reason) &&
-        (!job.applied || job.state === 'succeeded') && (job.result === null || exactKeys(job.result, ['id', 'status', 'contentType', 'size']) && validHash(job.result.id) &&
-          Number.isInteger(job.result.status) && job.result.status >= 200 && job.result.status <= 599 && typeof job.result.contentType === 'string' && job.result.contentType.length <= 256 && !/[\r\n\0]/.test(job.result.contentType) &&
-          Number.isSafeInteger(job.result.size) && job.result.size > 0 && job.result.size <= 32 * 1024 * 1024) &&
-        (!['succeeded', 'failed'].includes(job.state) || job.result && (job.state === 'succeeded' ? job.result.status < 300 : job.result.status >= 400)), 'generation_ledger_invalid', '任务记录不完整或状态冲突。', 409);
-      ids.add(job.id); if (job.result) refs.add(job.result.id);
-    }
-    requireValue([...refs].sort().join(',') === [...doc.mediaIds].sort().join(','), 'generation_ledger_invalid', '任务结果媒体引用不完整。', 409);
-    return { revision: doc.revision, jobs: doc.value.jobs };
+    return validateGenerationLedgerDocument(workspace.readDocument('extension', ledgerId), { workspaceId: workspace.workspaceId, maxTasks });
   }
   async function mutate(operation) {
     const task = tail.then(() => coordinator.runWrite(() => {
@@ -59,11 +64,9 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
   }
   const find = (jobs, id) => { const job = jobs.find(item => item.id === id); requireValue(job, 'generation_not_found', '生成任务不存在。', 404); return job; };
   function read(id) { requireValue(jobLike(id), 'invalid_generation', '任务ID无效。'); return find(ledger().jobs, id); }
-  // 冷启动仅收口上次进程的未决状态。没有上游支持幂等时，不可能承诺exactly-once远端执行。
+  // 没有收到结果的图片任务直接失败，绝不重发；保存回执未确认仍保持独立保护状态。
   const previous = ledger();
-  if (previous.jobs.some(job => !terminalState(job.state))) await mutate(jobs => {
-    for (const job of jobs) if (!terminalState(job.state)) { job.reason = job.state === 'accepted' ? 'interrupted_before_dispatch' : 'upstream_result_unknown'; job.state = job.state === 'accepted' ? 'cancelled' : 'uncertain'; job.updatedAt = Math.max(clock(), job.updatedAt); }
-  });
+  if (previous.jobs.some(job => noResultTaskFailure(job))) await mutate(jobs => failNoResultTasks(jobs, clock()));
   async function persistResult(id) {
     const result = pendingResults.get(id);
     requireValue(result, 'generation_result_unavailable', '本进程没有可重试保存的结果；不会重新请求上游。', 409);
@@ -78,9 +81,11 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
     pendingResults.delete(id); return publicJob(read(id));
   }
   async function run(input, controller) {
+    let dispatched = false;
     try {
       await mutate(jobs => { const job = find(jobs, input.id); requireValue(job.state === 'accepted', 'generation_state_conflict', '任务不能重复执行。', 409); job.state = 'running'; job.updatedAt = Math.max(clock(), job.updatedAt); });
       requireValue(!controller.signal.aborted, 'generation_not_dispatched', '任务在发出前已取消。', 409);
+      dispatched = true;
       const result = await gateway.execute(input.binding, input.request, { signal: controller.signal, taskId: input.id,
         onText: text => textProgress.update(input.id, text),
       });
@@ -88,7 +93,11 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
       requireValue(Buffer.isBuffer(result.bytes) && result.bytes.length > 0, 'generation_empty_response', '上游没有可保存的结果。', 502);
       pendingResults.set(input.id, result); await persistResult(input.id);
     } catch {
-      try { await mutate(jobs => { const job = find(jobs, input.id); if (!terminalState(job.state)) { job.state = 'uncertain'; job.reason = pendingResults.has(input.id) ? 'result_save_unconfirmed' : 'upstream_result_unknown'; job.updatedAt = Math.max(clock(), job.updatedAt); } }); }
+      try { await mutate(jobs => { const job = find(jobs, input.id); if (!terminalState(job.state)) {
+        job.state = pendingResults.has(input.id) ? 'uncertain' : 'failed';
+        job.reason = pendingResults.has(input.id) ? 'result_save_unconfirmed' : dispatched ? 'upstream_result_missing' : 'interrupted_before_dispatch';
+        job.updatedAt = Math.max(clock(), job.updatedAt);
+      } }); }
       catch { /* 保留旧running记录；冷重开必须待核实，不能伪造失败或重发。 */ }
     } finally { active.delete(input.id); textProgress.clear(input.id); }
   }

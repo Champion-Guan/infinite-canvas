@@ -102,16 +102,16 @@ export async function buildWebPackage({ root = sourceRoot, runtimeDirectory, ups
   await 执行有界构建命令('/usr/bin/swiftc', ['-warnings-as-errors', '-O', '-module-cache-path', join(output, 'Swift缓存'), '-o', helper, swift], { budgetDirectory: outputParent, timeout: 300000 });
   chmodSync(helper, 0o700);
   // 链接自检只加载服务模块，不打开端口、数据库或Keychain。
-  execFileSync(join(stage, 'runtime/node'), ['--input-type=module', '-e', "await Promise.all([import('./扩展功能/本机服务/日常工作台.mjs'), import('./扩展功能/客户安装/Web安装管理器.mjs')]); try { await import('./扩展功能/客户安装/Web客户服务.mjs'); throw Error('服务绕过管理器运行'); } catch(e) { if(e.message !== 'Web客户服务必须由独立管理器启动。') throw e; }"], { cwd: stage, stdio: 'pipe', timeout: 30000 });
+  execFileSync(join(stage, 'runtime/node'), ['--input-type=module', '-e', "await Promise.all([import('./扩展功能/本机服务/日常工作台.mjs'), import('./扩展功能/客户安装/Web安装管理器.mjs'), import('./扩展功能/客户安装/旧版升级任务兼容.mjs')]); try { await import('./扩展功能/客户安装/Web客户服务.mjs'); throw Error('服务绕过管理器运行'); } catch(e) { if(e.message !== 'Web客户服务必须由独立管理器启动。') throw e; }"], { cwd: stage, stdio: 'pipe', timeout: 30000 });
   try { execFileSync(helper, [], { input: '{}', stdio: ['pipe', 'pipe', 'pipe'], timeout: 10000 }); assert.fail('助手未拒绝非法输入'); }
   catch (error) { assert.equal(error.status, 1, '助手必须在访问Keychain前拒绝非法输入'); }
 
-  for (const [file, mode] of [['安装工作台.command', 'install'], ['启动工作台.command', 'start']]) {
+  for (const [file, mode] of [['安装工作台.command', 'install'], ['启动工作台.command', 'start'], ['修复升级入口.command', 'prepare-beta17-upgrade']]) {
     writeFileSync(join(stage, file), '#!/bin/sh\nset -eu\n工作台目录=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nexec "$工作台目录/runtime/node" "$工作台目录/扩展功能/客户安装/Web客户命令.mjs" ' + mode + '\n', { mode: 0o700 });
     // shell标识符需ASCII；面向客户的文件名称仍为中文。
     writeFileSync(join(stage, file), readFileSync(join(stage, file), 'utf8').replaceAll('工作台目录', 'GUAN_WEB_ROOT'), { mode: 0o700 });
   }
-  writeFileSync(join(stage, '安装使用说明.txt'), 'Apple Silicon Web预览版。\n先双击“安装工作台.command”，联网验证固定仓库签名后安装；安装完成会检查并创建桌面“生图工作台.app”。也可以双击“启动工作台.command”，按启动器显示的实际地址打开。默认 http://localhost:3000，被占用时自动顺延空闲端口。\n点击桌面入口时，服务未运行会先启动当前安装版本，确认本机工作台健康后再打开实际地址；版本更新后入口继续指向当前版本。\n个人SQLite数据位于AI-Workbench-重建版/工作区，安装版本单独保存，更新不清空或替换私人数据。\n更新在设置的软件更新页操作；确认保存且任务结束后关闭工作台页面，其余网站可继续使用。\n', { mode: 0o600 });
+  writeFileSync(join(stage, '安装使用说明.txt'), 'Apple Silicon Web预览版。\n先双击“安装工作台.command”，联网验证固定仓库签名后安装；安装完成会检查并创建桌面“生图工作台.app”。也可以双击“启动工作台.command”，按启动器显示的实际地址打开。默认 http://localhost:3000，被占用时自动顺延空闲端口。\n点击桌面入口时，服务未运行会先启动当前安装版本，确认本机工作台健康后再打开实际地址；版本更新后入口继续指向当前版本。\nbeta.17升级受无结果图片任务阻止时，先在软件更新页下载beta.18并点击一次“安装更新”完成暂存；确认“确认并安装”按钮出现后先不要点击。保存并关闭全部工作台页面，再进入本版本目录双击“修复升级入口.command”，按提示确认。等待beta.17恢复后回到软件更新页点击“确认并安装”。\n个人SQLite数据位于AI-Workbench-重建版/工作区，安装版本单独保存，更新不清空或替换私人数据。\n更新在设置的软件更新页操作；确认保存且任务结束后关闭工作台页面，其余网站可继续使用。\n', { mode: 0o600 });
   // 统一包权限，包含npm依赖；不带链接或构建机身份信息。
   execFileSync('/bin/chmod', ['-R', 'go-w', stage]);
   const inventory = { format: 1, app: WEB_APP, repository: WEB_REPOSITORY, version: release.版本, commit,

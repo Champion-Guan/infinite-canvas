@@ -38,7 +38,7 @@ export async function verifyWebDirectory(root, { manifest, selected }) {
     !m.files || typeof m.files !== 'object' || Array.isArray(m.files)) fail('web_package_invalid');
   const actual = await inventoryWebFiles(root), expected = Object.entries(m.files);
   if (!expected.length || expected.length !== Object.keys(actual).length || expected.some(([name, hash]) => safeMember(name) && actual[name] !== hash)) fail('web_package_invalid');
-  for (const file of ['web/index.html', '扩展功能/客户安装/Web客户命令.mjs', '扩展功能/客户安装/Web客户服务.mjs', '扩展功能/客户安装/客户桌面入口.mjs', '启动工作台.command', '安装工作台.command', 'runtime/node', '系统助手/系统钥匙串']) {
+  for (const file of ['web/index.html', '扩展功能/客户安装/Web客户命令.mjs', '扩展功能/客户安装/Web客户服务.mjs', '扩展功能/客户安装/客户桌面入口.mjs', '启动工作台.command', '安装工作台.command', '修复升级入口.command', 'runtime/node', '系统助手/系统钥匙串']) {
     if (!Object.hasOwn(actual, file)) fail('web_package_invalid');
   }
   if (actual['runtime/node'] !== selected.runtimeSha256 || actual['系统助手/系统钥匙串'] !== m.helper.sha256 ||

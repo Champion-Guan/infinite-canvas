@@ -26,9 +26,15 @@ test('同ID连续/并发重复提交仅发出一次，相同ID不同正文拒绝
     await assert.rejects(f.tasks.submit({ ...input, request: { ...input.request, body: 'e30=' } }), code('generation_id_conflict'));
   } finally { await f.close(); }
 });
-test('网络断线保留待核实记录，同ID查询或重提不重复收费请求', async () => {
+test('网络断线且没有结果时记为失败，同ID查询或重提不重复收费请求', async () => {
   const f = await generationFixture();
-  try { const b = await f.bind(), input = f.submit(b.binding); f.reply.disconnect = true; await f.tasks.submit(input); await f.tasks.drain(); assert.equal(f.tasks.get(input.id).state, 'uncertain'); await f.tasks.submit(input); assert.equal(f.requests.length, 1); }
+  try {
+    const b = await f.bind(), input = f.submit(b.binding); f.reply.disconnect = true;
+    await f.tasks.submit(input); await f.tasks.drain();
+    assert.equal(f.tasks.get(input.id).state, 'failed');
+    assert.equal(f.tasks.get(input.id).reason, 'upstream_result_missing');
+    await f.tasks.submit(input); assert.equal(f.requests.length, 1); f.tasks.assertCanUpdate();
+  }
   finally { await f.close(); }
 });
 test('上游HTTP失败保留消毒后的错误响应，不冒充画布保存成功', async () => {
@@ -67,15 +73,25 @@ test('冷重开保留成功结果及画布ACK，不依赖页内状态', async ()
     assert.equal(reopened.get(input.id).applied, true); assert.deepEqual(reopened.result(input.id).bytes, saved.bytes); await reopened.submit(input); assert.equal(f.requests.length, 1); await reopened.close();
   } finally { await f.close(); }
 });
-test('冷启动running转待核实、accepted转未发送中断，绝不自动重发', async () => {
+test('冷启动收口旧版accepted、running和uncertain无结果记录，不自动重发', async () => {
   const f = await generationFixture();
   try {
     const b = await f.bind(), input = f.submit(b.binding); await f.tasks.submit(input); await f.tasks.drain(); await f.tasks.close();
-    const doc = f.workspace.readDocument('extension', 'guan-generation-ledger-v1'), jobs = [doc.value.jobs[0], { ...doc.value.jobs[0], id: randomUUID() }];
-    jobs[0] = { ...jobs[0], state: 'running', result: null, applied: false }; jobs[1] = { ...jobs[1], state: 'accepted', result: null, applied: false };
+    const doc = f.workspace.readDocument('extension', 'guan-generation-ledger-v1');
+    const jobs = [
+      { ...doc.value.jobs[0], state: 'running', result: null, applied: false, reason: 'upstream_result_unknown' },
+      { ...doc.value.jobs[0], id: randomUUID(), state: 'accepted', result: null, applied: false, reason: '' },
+      { ...doc.value.jobs[0], id: randomUUID(), state: 'uncertain', result: null, applied: false, reason: 'upstream_result_unknown' },
+    ];
     f.workspace.writeDocument({ collection: 'extension', id: doc.id, value: { ...doc.value, jobs }, expectedRevision: doc.revision, operationId: randomUUID() });
     const reopened = await openGenerationTasks({ workspace: f.workspace, gateway: f.gateway, coordinator: f.coordinator, verifyApplied: f.verifyApplied });
-    assert.equal(reopened.get(jobs[0].id).state, 'uncertain'); assert.equal(reopened.get(jobs[1].id).state, 'cancelled'); assert.equal(f.requests.length, 1); await reopened.close();
+    assert.equal(reopened.get(jobs[0].id).state, 'failed');
+    assert.equal(reopened.get(jobs[0].id).reason, 'upstream_result_missing');
+    assert.equal(reopened.get(jobs[1].id).state, 'failed');
+    assert.equal(reopened.get(jobs[1].id).reason, 'interrupted_before_dispatch');
+    assert.equal(reopened.get(jobs[2].id).state, 'failed');
+    assert.deepEqual(reopened.updateBlockers(), []);
+    assert.equal(f.requests.length, 1); reopened.assertCanUpdate(); await reopened.close();
   } finally { await f.close(); }
 });
 test('账本容量满和正常关闭均安全拒绝新任务', async () => {
@@ -83,7 +99,7 @@ test('账本容量满和正常关闭均安全拒绝新任务', async () => {
   try { const b = await f.bind(), input = f.submit(b.binding); await f.tasks.submit(input); await f.tasks.drain(); await assert.rejects(f.tasks.submit(f.submit(b.binding)), code('generation_capacity')); assert.equal(f.requests.length, 1); await f.tasks.close(); await assert.rejects(f.tasks.submit(input), code('generation_closed')); }
   finally { await f.close(); }
 });
-test('并发容量独立限制，取消已发出请求只能标待核实，不能证明远端停止', async () => {
+test('并发容量独立限制，取消无结果请求记为失败且不重发', async () => {
   let release, seen;
   const blocked = new Promise(resolve => { release = resolve; }), started = new Promise(resolve => { seen = resolve; });
   const f = await generationFixture({ maxConcurrent: 1, beforeReply: async () => { seen(); await blocked; } });
@@ -91,49 +107,79 @@ test('并发容量独立限制，取消已发出请求只能标待核实，不�
     const b = await f.bind(), input = f.submit(b.binding); await f.tasks.submit(input); await started;
     await assert.rejects(f.tasks.submit(f.submit(b.binding)), code('generation_busy'));
     await assert.rejects(f.tasks.close(), code('generation_busy'));
-    assert.equal((await f.tasks.cancel(input.id)).state, 'uncertain'); assert.equal(f.requests.length, 1);
+    assert.equal((await f.tasks.cancel(input.id)).state, 'failed');
+    assert.equal(f.tasks.get(input.id).reason, 'upstream_result_missing');
+    assert.equal(f.requests.length, 1);
   } finally { release(); await f.close(); }
 });
 
 const noResultAck = 'upstream-ended-without-result';
-test('人工核实无结果保留原任务和凭据，冷重开不重新请求且允许升级', async () => {
+test('13条beta.17待核实图片任务冷启动后批量失败、解除升级门禁且不重发', async () => {
   const f = await generationFixture();
   try {
-    const b = await f.bind(), input = f.submit(b.binding); f.reply.disconnect = true;
-    await f.tasks.submit(input); await f.tasks.drain();
-    assert.throws(() => f.tasks.assertCanUpdate(), code('install_tasks_pending'));
-    assert.equal(f.tasks.updateBlockers()[0].canConfirmNoResult, true);
-    await assert.rejects(f.tasks.confirmNoResult(input.id, 'saved'), code('generation_confirmation_required'));
-    const result = await f.tasks.confirmNoResult(input.id, noResultAck);
-    assert.equal(result.state, 'cancelled'); assert.equal(result.reason, 'operator_confirmed_no_result');
-    const receipt = f.workspace.readDocument('extension', 'guan-generation-resolution:' + input.id);
-    assert.equal(receipt.value.original.state, 'uncertain'); assert.equal(receipt.value.original.result, null);
-    assert.equal(receipt.value.basis, noResultAck);
-    assert.deepEqual(await f.tasks.confirmNoResult(input.id, noResultAck), result);
-    assert.equal(f.workspace.readDocument('extension', receipt.id).revision, 1);
-    f.tasks.assertCanUpdate(); await f.tasks.close();
+    const b = await f.bind(), first = f.submit(b.binding);
+    f.reply.disconnect = true; await f.tasks.submit(first); await f.tasks.drain();
+    const doc = f.workspace.readDocument('extension', 'guan-generation-ledger-v1');
+    const legacy = Array.from({ length: 13 }, (_, index) => ({
+      ...doc.value.jobs[0], id: index === 0 ? first.id : randomUUID(), state: 'uncertain',
+      result: null, applied: false, reason: 'upstream_result_unknown',
+    }));
+    f.workspace.writeDocument({ collection: 'extension', id: doc.id, value: { ...doc.value, jobs: legacy }, expectedRevision: doc.revision, operationId: randomUUID() });
+    await f.tasks.close();
+    const requestsBeforeRestart = f.requests.length;
     const reopened = await openGenerationTasks({ workspace: f.workspace, gateway: f.gateway, coordinator: f.coordinator, verifyApplied: f.verifyApplied });
-    assert.deepEqual(await reopened.submit(input), result); reopened.assertCanUpdate();
-    assert.equal(f.requests.length, 1); await reopened.close();
+    for (const job of legacy) {
+      assert.equal(reopened.get(job.id).state, 'failed');
+      assert.equal(reopened.get(job.id).reason, 'upstream_result_missing');
+    }
+    assert.deepEqual(reopened.updateBlockers(), []);
+    reopened.assertCanUpdate();
+    assert.equal(f.requests.length, requestsBeforeRestart);
+    await reopened.close();
   } finally { await f.close(); }
 });
-test('核实凭据或账本保存失败时不放行；保存重试不重发', async () => {
-  let failing = '';
+test('自动失败只在账本确认持久化后放行升级', async () => {
+  let failLedger = false;
   const f = await generationFixture({ wrapWorkspace: workspace => ({ ...workspace, writeDocument(value) {
-    if (failing && value.id.startsWith(failing)) throw Error('synthetic full disk');
+    if (failLedger && value.id === 'guan-generation-ledger-v1') throw Error('synthetic full disk');
     return workspace.writeDocument(value);
   } }) });
   try {
     const b = await f.bind(), input = f.submit(b.binding); f.reply.disconnect = true;
     await f.tasks.submit(input); await f.tasks.drain();
-    for (const target of ['guan-generation-resolution:', 'guan-generation-ledger-v1']) {
-      failing = target; await assert.rejects(f.tasks.confirmNoResult(input.id, noResultAck));
-      assert.equal(f.tasks.get(input.id).state, 'uncertain');
-      assert.throws(() => f.tasks.assertCanUpdate(), code('install_tasks_pending'));
-    }
-    failing = ''; await f.tasks.confirmNoResult(input.id, noResultAck); f.tasks.assertCanUpdate();
-    assert.equal(f.requests.length, 1);
-  } finally { failing = ''; await f.close(); }
+    const doc = f.workspace.readDocument('extension', 'guan-generation-ledger-v1');
+    const unknown = structuredClone(doc.value);
+    Object.assign(unknown.jobs[0], { state: 'uncertain', reason: 'upstream_result_unknown' });
+    f.workspace.writeDocument({ collection: 'extension', id: doc.id, value: unknown, expectedRevision: doc.revision, operationId: randomUUID() });
+    failLedger = true; await f.tasks.close();
+    const failingWorkspace = { ...f.workspace, writeDocument(value) {
+      if (failLedger && value.id === 'guan-generation-ledger-v1') throw Error('synthetic full disk');
+      return f.workspace.writeDocument(value);
+    } };
+    await assert.rejects(openGenerationTasks({ workspace: failingWorkspace, gateway: f.gateway, coordinator: f.coordinator, verifyApplied: f.verifyApplied }));
+    failLedger = false;
+    const reopened = await openGenerationTasks({ workspace: f.workspace, gateway: f.gateway, coordinator: f.coordinator, verifyApplied: f.verifyApplied });
+    assert.equal(reopened.get(input.id).state, 'failed'); reopened.assertCanUpdate();
+    assert.equal(f.requests.length, 1); await reopened.close();
+  } finally { failLedger = false; await f.close(); }
+});
+test('保存未确认与未知图片任务状态继续阻止升级，不被自动标记失败', async () => {
+  const f = await generationFixture();
+  try {
+    const b = await f.bind(), input = f.submit(b.binding); await f.tasks.submit(input); await f.tasks.drain(); await f.tasks.close();
+    const doc = f.workspace.readDocument('extension', 'guan-generation-ledger-v1');
+    const jobs = [
+      { ...doc.value.jobs[0], state: 'uncertain', result: null, applied: false, reason: 'result_save_unconfirmed' },
+      { ...doc.value.jobs[0], id: randomUUID(), state: 'uncertain', result: null, applied: false, reason: 'future_unknown_reason' },
+    ];
+    f.workspace.writeDocument({ collection: 'extension', id: doc.id, value: { ...doc.value, jobs }, expectedRevision: doc.revision, operationId: randomUUID() });
+    const reopened = await openGenerationTasks({ workspace: f.workspace, gateway: f.gateway, coordinator: f.coordinator, verifyApplied: f.verifyApplied });
+    assert.equal(reopened.get(jobs[0].id).state, 'uncertain');
+    assert.equal(reopened.get(jobs[1].id).state, 'uncertain');
+    assert.equal(reopened.updateBlockers().length, 2);
+    assert.throws(() => reopened.assertCanUpdate(), code('install_tasks_pending'));
+    await reopened.close();
+  } finally { await f.close(); }
 });
 test('已有结果和待保存结果不能人工标无结果', async () => {
   let failMedia = false;
