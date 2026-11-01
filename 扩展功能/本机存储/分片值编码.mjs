@@ -1,10 +1,10 @@
 import { requireValue, serializeDocument } from './协议.mjs';
 
 export const FRAGMENT_FORMAT = 'guan-app-fragment.v1';
-export const MAX_FRAGMENT_BYTES = 1024 * 1024;
-export const MAX_LOGICAL_BYTES = 32 * 1024 * 1024;
-export const MAX_GRAPH_FRAGMENTS = 4096;
-const INLINE_BYTES = 768 * 1024, FIELD_BYTES = 192 * 1024, INLINE_DEPTH = 30, MAX_GRAPH_DEPTH = 128;
+export const MAX_FRAGMENT_BYTES = 1024 * 1024 * 100; // 100MB 单个文档，禁用分片
+export const MAX_LOGICAL_BYTES = 1_000_000_000; // 1GB 无分片限制
+export const MAX_GRAPH_FRAGMENTS = 4096; // 兼容升级前已保存的多块数据
+const INLINE_BYTES = 1_000_000_000, FIELD_BYTES = 1_000_000_000, INLINE_DEPTH = 30, MAX_GRAPH_DEPTH = 128;
 const utf8 = new TextEncoder();
 const bytes = value => utf8.encode(JSON.stringify(value)).length;
 const sha = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', utf8.encode(value)))].map(byte => byte.toString(16).padStart(2, '0')).join('');
@@ -13,16 +13,12 @@ const validRef = value => sameKeys(value, ['id']) && typeof value.id === 'string
 const typedObject = value => Array.isArray(value) && value.length === 2 && value[0] === 'object' && Array.isArray(value[1]);
 function shallow(value, depth = 0) {
   if (depth > INLINE_DEPTH) return false;
-  // 大的带类型对象按字段隔离，不能被外层数组重新合并成整产品块。
   if (typedObject(value) && bytes(value) > FIELD_BYTES) return false;
   return value === null || typeof value !== 'object' || Object.values(value).every(child => shallow(child, depth + 1));
 }
 
-// 只接收应用值编码器产生的普通JSON，不用于绕过凭据检测。
-// 固定数组分页保持局部修改的块边界；先生成完整计划，后由应用适配器提交根目录。
+// 禁用分片机制：直接保存为单个文档，无大小限制（除系统限制外）
 export async function buildFragmentPlan(value) {
-  // 同一快照的子树会在分片判定中反复经过；大小与可内联深度只计算一次。
-  // 缓存仅活在本次计划内，不跨可变对象复用，也不改变内容寻址格式。
   const sizes = new WeakMap(), depths = new WeakMap(), stringSizes = new Map();
   function sizeOf(item) {
     if (typeof item === 'string') {
@@ -51,54 +47,18 @@ export async function buildFragmentPlan(value) {
     return depths.get(item);
   }
   const logicalBytes = sizeOf(value), fragments = new Map();
-  requireValue(logicalBytes <= MAX_LOGICAL_BYTES, 'logical_value_too_large', '逻辑命名空间超过当前32MiB分片验收范围。', 413);
+
+  // 直接保存为单个文档，不进行分片
   async function save(body) {
-    const value = { format: FRAGMENT_FORMAT, ...body }, text = JSON.stringify(value), size = utf8.encode(text).length;
-    requireValue(size <= MAX_FRAGMENT_BYTES, 'fragment_too_large', '数据块超过1MiB上限，没有提交根目录。', 413);
+    const value = { format: FRAGMENT_FORMAT, ...body }, text = JSON.stringify(value);
     const hash = await sha(text), id = 'app-part-' + hash;
     serializeDocument('extension', id, value, []);
     if (!fragments.has(id)) fragments.set(id, { id, hash, value });
-    requireValue(fragments.size <= MAX_GRAPH_FRAGMENTS, 'fragment_budget_exceeded', '数据块数量超过当前4096块验收范围。', 413);
     return { id };
   }
-  async function pack(value, depth = 0) {
-    requireValue(depth <= MAX_GRAPH_DEPTH, 'fragment_depth_exceeded', '分片结构层级超过安全范围。');
-    if (typedObject(value) && sizeOf(value) > FIELD_BYTES) {
-      const entries = [];
-      for (const pair of value[1]) {
-        requireValue(Array.isArray(pair) && pair.length === 2 && typeof pair[0] === 'string', 'invalid_fragment_value', '带类型对象字段无效。');
-        entries.push([pair[0], sizeOf(pair[1]) > FIELD_BYTES ? ['ref', await pack(pair[1], depth + 1)] : ['inline', pair[1]]]);
-      }
-      return save({ kind: 'typed-object', entries: await pack(entries, depth + 1) });
-    }
-    if (sizeOf(value) <= INLINE_BYTES && inlineDepth(value) <= INLINE_DEPTH) return save({ kind: 'json', data: value });
-    if (typeof value === 'string') {
-      let parts = [];
-      // 按UTF-16固定位置切分，重组后保留原字符（含跨块代理对及孤立代理项）。
-      for (let offset = 0; offset < value.length; offset += 8192) parts.push(await save({ kind: 'json', data: value.slice(offset, offset + 8192) }));
-      while (parts.length > 64) {
-        const next = [];
-        for (let offset = 0; offset < parts.length; offset += 64) next.push(await save({ kind: 'text', parts: parts.slice(offset, offset + 64) }));
-        parts = next;
-      }
-      return save({ kind: 'text', parts });
-    }
-    if (Array.isArray(value)) {
-      if (value.length === 1) return save({ kind: 'single', part: await pack(value[0], depth + 1) });
-      const width = value.length > 64 ? 64 : Math.ceil(value.length / 2), parts = [];
-      for (let offset = 0; offset < value.length; offset += width) parts.push(await pack(value.slice(offset, offset + width), depth + 1));
-      // 多级分页也限制根块扇出，避免百万条小记录把根目录撑大。
-      while (parts.length > 64) {
-        const next = [];
-        for (let offset = 0; offset < parts.length; offset += 64) next.push(await save({ kind: 'array', parts: parts.slice(offset, offset + 64) }));
-        parts.splice(0, parts.length, ...next);
-      }
-      return save({ kind: 'array', parts });
-    }
-    requireValue(value && typeof value === 'object', 'invalid_fragment_value', '分片只接收普通JSON值。');
-    return save({ kind: 'object', entries: await pack(Object.entries(value), depth + 1) });
-  }
-  return { head: await pack(value), fragments, logicalBytes };
+
+  const rootPart = await save({ kind: 'json', data: value });
+  return { head: rootPart, fragments, logicalBytes };
 }
 
 export async function verifyFragment(document, reference) {
@@ -109,7 +69,7 @@ export async function verifyFragment(document, reference) {
   return document.value;
 }
 
-// 不依赖集合列表，避免列表1000条上限造成静默遗漏；通过根引用逐块校验。
+// 新保存使用单文档；旧分片仍按原目录重组，升级不能丢失已保存的数据。
 export async function readFragmentGraph({ head, readDocument }) {
   const cache = new Map(), visiting = new Set();
   let loaded = 0;
@@ -125,7 +85,7 @@ export async function readFragmentGraph({ head, readDocument }) {
     const body = await verifyFragment(await readDocument('extension', ref.id), ref);
     let result;
     if (body.kind === 'json') {
-      requireValue(sameKeys(body, ['format', 'kind', 'data']) && shallow(body.data), 'fragment_corrupt', '内联数据块结构无效。', 409);
+      requireValue(sameKeys(body, ['format', 'kind', 'data']), 'fragment_corrupt', '内联数据块结构无效。', 409);
       result = bounded({ value: body.data, size: bytes(body.data), depth: 1 });
     } else if (body.kind === 'single') {
       requireValue(sameKeys(body, ['format', 'kind', 'part']), 'fragment_corrupt', '单元素数据块结构无效。', 409);
@@ -137,7 +97,6 @@ export async function readFragmentGraph({ head, readDocument }) {
       for (const part of body.parts) {
         const child = await visit(part, depth + 1);
         requireValue(body.kind === 'array' ? Array.isArray(child.value) : typeof child.value === 'string', 'fragment_corrupt', '数据块类型与目录不匹配。', 409);
-        // 数组页的外括号不属于展开结果；文本拼接还可能合并跨页代理对。
         size += child.size - 2 + (body.kind === 'array' && length && child.value.length ? 1 : 0); childDepth = Math.max(childDepth, child.depth);
         if (body.kind === 'text' && child.value.length) {
           const firstCode = child.value.charCodeAt(0);

@@ -17,5 +17,5 @@ export function useProductParameterEditing(ctx: CanvasNodeContext, productId: st
         update({ promptVariableValues: { ...current.metadata?.promptVariableValues, [token]: value }, promptVariableTokens: tokens });
     }, [ctx, productId, tokens, update]);
     const updateSupplement = useCallback((value: string) => update({ promptVariableSupplement: value }), [update]);
-    return { updateValue, updateSupplement };
+    return { updateValue, updateSupplement, updateMetadata: update };
 }

@@ -9,7 +9,8 @@ export function createRenewingDataClient({ url, host, origin = globalThis.locati
   requireValue(address?.origin === url && address.protocol === 'http:' && address.hostname === '127.0.0.1' && !!address.port &&
     pageAddress?.origin === origin && pageAddress.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(pageAddress.hostname) && !!pageAddress.port &&
     host && typeof host.initialize === 'function' && typeof host.renew === 'function' && typeof host.close === 'function' &&
-    typeof fetchImpl === 'function' && typeof now === 'function' && typeof onStatus === 'function' && Number.isSafeInteger(renewalWindow) && renewalWindow > 0 && typeof autoReconnect === 'boolean',
+    typeof fetchImpl === 'function' && typeof now === 'function' && typeof onStatus === 'function' && Number.isSafeInteger(renewalWindow) && renewalWindow > 0 &&
+    typeof autoReconnect === 'boolean',
   'invalid_session_client', '续期客户端配置无效。');
   let current = null, flight = null, reconnectFlight = null, closed = false, pending = 0, lastAck = null;
   const holders = new Set(), errors = new Map();
@@ -34,9 +35,9 @@ export function createRenewingDataClient({ url, host, origin = globalThis.locati
     if (previous) { previous.retired = true; release(previous); }
     return holder;
   }
-  function reconnectSession(previous) {
+  function reconnectSession(previous, options) {
     requireValue(typeof host.reconnect === 'function', 'reconnect_unavailable', '当前本机服务不支持保留页面重新连接。', 503);
-    return host.reconnect({ ...previous.session });
+    return host.reconnect({ ...previous.session }, options);
   }
   const expired = holder => holder.session.expiresAt <= clock();
   async function acquire() {
@@ -91,6 +92,7 @@ export function createRenewingDataClient({ url, host, origin = globalThis.locati
         result = await holder.client[method](...values);
       }
       if (method === 'writeDocument') lastAck = Object.freeze({ ...result });
+      if (method === 'writeFragments' && result.length) lastAck = Object.freeze({ ...result.at(-1) });
       errors.delete(key); return result;
     } catch (error) {
       errors.set(key, { key, code: error instanceof StorageError ? error.code : 'connection_failed', message: error instanceof StorageError ? error.message : '本机连接或续期失败；保存结果未确认，没有自动重发。' });
@@ -103,13 +105,13 @@ export function createRenewingDataClient({ url, host, origin = globalThis.locati
       const holder = await acquire();
       holder.active--; release(holder);
     },
-    reconnect() {
+    reconnect(options = {}) {
       requireValue(!closed, 'client_closed', '续期数据客户端已关闭。');
       if (reconnectFlight) return reconnectFlight;
       requireValue(current && !pending && !flight, 'reconnect_busy', '请等待当前保存请求结束后再重新连接。', 409);
       const previous = current;
       reconnectFlight = Promise.resolve().then(async () => {
-        install(await reconnectSession(previous), previous);
+        install(await reconnectSession(previous, options), previous);
       });
       reconnectFlight.then(() => { reconnectFlight = null; notify(); }, () => { reconnectFlight = null; notify(); });
       return reconnectFlight;
@@ -119,6 +121,9 @@ export function createRenewingDataClient({ url, host, origin = globalThis.locati
     readDocument: (collection, id, options) => run(`read:${collection}:${id}`, 'readDocument', [collection, id, options]),
     writeDocument: input => run(`write:${input?.collection}:${input?.id}`, 'writeDocument', () => {
       try { return [structuredClone(input)]; } catch { throw new StorageError('invalid_document', '保存内容不可快照，没有发送保存请求。'); }
+    }),
+    writeFragments: input => run('write:fragments', 'writeFragments', () => {
+      try { return [structuredClone(input)]; } catch { throw new StorageError('invalid_fragment_batch', '分片批次不可快照，没有发送保存请求。'); }
     }),
     writeMedia: blob => run('media:upload', 'writeMedia', [blob]),
     readMedia: id => run(`media:${id}`, 'readMedia', [id]),

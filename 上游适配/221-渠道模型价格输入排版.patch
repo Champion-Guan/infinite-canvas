@@ -1,0 +1,29 @@
+diff --git a/web/src/components/layout/channel-editor-drawer.tsx b/web/src/components/layout/channel-editor-drawer.tsx
+index e2b5f95..25483ab 100644
+--- a/web/src/components/layout/channel-editor-drawer.tsx
++++ b/web/src/components/layout/channel-editor-drawer.tsx
+@@ -104,7 +104,23 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open:
+                                 {model.name}
+                             </span>
+                             <div className="flex shrink-0 items-center gap-2">
+-                                <InputNumber size="small" min={0} precision={6} value={model.price} placeholder="价格（可选）" onChange={(value) => setModels(draft.models.map((item) => (item.name === model.name ? { ...item, price: typeof value === "number" ? value : undefined } : item)))} />
++                                <InputNumber
++                                    size="small"
++                                    min={0}
++                                    precision={6}
++                                    controls={false}
++                                    style={{ width: 144 }}
++                                    prefix={<span className="text-xs text-stone-500">价格</span>}
++                                    value={model.price}
++                                    placeholder="可选"
++                                    formatter={(value, info) => {
++                                        if (info.userTyping) return info.input;
++                                        if (value === undefined || value === null) return "";
++                                        const normalized = Number(value);
++                                        return Number.isFinite(normalized) ? String(Number(normalized.toFixed(6))) : String(value);
++                                    }}
++                                    onChange={(value) => setModels(draft.models.map((item) => (item.name === model.name ? { ...item, price: typeof value === "number" ? value : undefined } : item)))}
++                                />
+                                 <Segmented size="small" value={model.capability} options={capabilityOptions} onChange={(value) => setCapability(model.name, value as ModelCapability)} />
+                                 {businessFeatures.modelScripts ? <Button size="small" type={model.script ? "primary" : "default"} ghost={Boolean(model.script)} onClick={() => setScriptTarget({ name: model.name, capability: model.capability, value: model.script || "" })}>
+                                     {t(model.script ? "config.channelEditor.scriptReady" : "config.channelEditor.script")}

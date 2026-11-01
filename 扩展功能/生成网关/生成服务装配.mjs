@@ -34,12 +34,33 @@ export async function assembleGenerationService({ workspace, vault, runTrustedWr
   const legacyVideos = createLegacyVideoInventory({ workspace, isTracked: videos.isTracked });
   const models = createProviderModelReader({ gateway });
   const handle = createGenerationHTTPHandler({ origin, gateway, tasks, videos, models, authorize, readCanvasCheckpoint: createCanvasCheckpointReader({ workspace, tasks }) });
+  const assertGenerationIdle = () => {
+    videos.assertCanClose();
+    const state = tasks.getStatus();
+    requireValue(state.running === 0 && state.unpersistedResults === 0, 'generation_busy', '仍有生成或未确认结果，不能关闭。', 409);
+  };
+  const runSaveRetryBatch = async targets => {
+    const results = [];
+    for (const target of targets) {
+      try { await tasks.retryResultSave(target.id); results.push({ id: target.id, ok: true }); }
+      catch (error) {
+        results.push({ id: target.id, ok: false, code: /^[a-z][a-z0-9_]{0,63}$/.test(error?.code || '') ? error.code : 'task_action_failed' });
+      }
+    }
+    return { total: results.length, completed: results.filter(result => result.ok).length, failures: results.filter(result => !result.ok) };
+  };
   return Object.freeze({ handle, getStatus: tasks.getStatus,
     // stop前先检查；业务未决时不得先拆其他服务/密钥再把close失败吞掉。
-    assertCanClose() { videos.assertCanClose(); const state = tasks.getStatus(); requireValue(state.running === 0 && state.unpersistedResults === 0, 'generation_busy', '仍有生成或未确认结果，不能关闭。', 409); },
-    async assertCanUpdate() { tasks.assertCanUpdate(); videos.assertCanUpdate(); requireValue((await legacyVideos()).length === 0, 'install_tasks_pending', '旧画布仍有未核实的视频，请返回原画布查询。', 409); tasks.assertCanUpdate(); videos.assertCanUpdate(); },
+    assertCanClose: assertGenerationIdle,
+    // 升级停机阶段会继续由 close() 检查正在发送的请求和进程内未落盘结果。
+    // 已落盘但尚未回写画布、或等待视频核实时，只保留账本与恢复能力，不阻塞版本切换。
+    async assertCanUpdate() { assertGenerationIdle(); },
     updateBlockers: async () => [...tasks.updateBlockers(), ...videos.updateBlockers(), ...await legacyVideos()],
-    confirmNoResult: (id, acknowledgement) => videos.has(id) ? videos.confirmNoResult(id, acknowledgement) : tasks.confirmNoResult(id, acknowledgement),
+    taskSummary: () => tasks.taskSummary(),
+    retryResultSaveBatch() {
+      const targets = tasks.updateBlockers().filter(item => item.canRetryResultSave);
+      return runSaveRetryBatch(targets);
+    },
     async close() { videos.assertCanClose(); await tasks.close(); await videos.close(); },
   });
 }

@@ -1,0 +1,26 @@
+diff --git a/web/src/pages/image/index.tsx b/web/src/pages/image/index.tsx
+index 7740452..ee53bba 100644
+--- a/web/src/pages/image/index.tsx
++++ b/web/src/pages/image/index.tsx
+@@ -135,6 +135,8 @@ export default function ImagePage() {
+     };
+ 
+     const addReferencesFromClipboard = async () => {
++        if (referencesUploading) return;
++        setReferencesUploading(true);
+         try {
+             const items = await navigator.clipboard.read();
+             const blobs = await Promise.all(items.flatMap((item) => item.types.filter((type) => type.startsWith("image/")).map((type) => item.getType(type))));
+@@ -150,8 +152,10 @@ export default function ImagePage() {
+             );
+             setReferences((value) => [...value, ...nextReferences]);
+             message.success(t("imageWorkbench.clipboardAdded", { count: nextReferences.length }));
+-        } catch {
+-            message.error(t("imageWorkbench.clipboardEmpty"));
++        } catch (error) {
++            message.error(error instanceof Error ? error.message : t("imageWorkbench.clipboardEmpty"));
++        } finally {
++            setReferencesUploading(false);
+         }
+     };
+ 

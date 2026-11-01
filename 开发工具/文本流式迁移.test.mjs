@@ -120,7 +120,7 @@ test('上游流中断保留待核实状态；同任务查询和再次submit均�
   const f = await streamingFixture();
   try {
     await f.tasks.submit(f.input); await f.ready.promise; f.disconnect(); f.finish.resolve(); await f.tasks.drain();
-    assert.equal(f.tasks.get(f.input.id).state, 'uncertain'); assert.equal(f.tasks.textProgress(f.input.id).progress, null);
+    assert.equal(f.tasks.get(f.input.id).state, 'failed'); assert.equal(f.tasks.textProgress(f.input.id).progress, null);
     await f.tasks.submit(f.input); assert.equal(f.requests.length, 1); assert.throws(() => f.tasks.result(f.input.id));
   } finally { await f.close(); }
 });

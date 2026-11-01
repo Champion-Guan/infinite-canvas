@@ -28,6 +28,39 @@ export type ExcelPromptContext = {
     templates: ExcelPromptTemplate[];
 };
 
+export const WILDBERRIES_PLATFORM = "Wildberries";
+export const WILDBERRIES_LANGUAGE = "俄文";
+export const WILDBERRIES_RULES_TEXT = [
+    "主图/轮播图：1800×2400，3:4，JPG/PNG/WEBP，单张小于10MB，最多30张，最低700×933。",
+    "商品卡视频：3:4，MOV/MP4，单个小于50MB。",
+    "富内容：仅图片，800×500，JPG/PNG，单张最大5MB。",
+].join("\n");
+
+type ProductParameterMetadata = CanvasNodeMetadata & {
+    productPlatform?: string;
+    productLanguage?: string;
+    productPlatformRules?: string;
+    productMainImageStorageKey?: string;
+    productMainImageUrl?: string;
+    productMainImageWidth?: number;
+    productMainImageHeight?: number;
+    productMainImageBytes?: number;
+    productMainImageMimeType?: string;
+};
+
+export function productPlatformRules(metadata?: CanvasNodeMetadata) {
+    const value = metadata as ProductParameterMetadata | undefined;
+    return value?.productPlatform === WILDBERRIES_PLATFORM
+        ? String(value.productPlatformRules || WILDBERRIES_RULES_TEXT).trim()
+        : "";
+}
+
+export function productParameterSupplement(metadata?: CanvasNodeMetadata) {
+    const user = String(metadata?.promptVariableSupplement || "").trim();
+    const rules = productPlatformRules(metadata);
+    return [user, rules].filter(Boolean).join("\n\n");
+}
+
 
 
 function productName(route: string) {
@@ -299,11 +332,14 @@ export function buildPromptVariablesMetadata(context: ExcelPromptContext = { fil
         promptVariableTokens: tokens,
         promptVariableValues: values,
         promptVariableResolvedPrompt: resolvePromptVariables(prompt, values),
-    };
+        productPlatform: WILDBERRIES_PLATFORM,
+        productLanguage: WILDBERRIES_LANGUAGE,
+        productPlatformRules: WILDBERRIES_RULES_TEXT,
+    } as ProductParameterMetadata;
 }
 
 export function promptVariablesResource(node: CanvasNodeData): CanvasNodeResource | null {
-    const text = resolvePromptVariables(node.metadata?.promptVariableRawPrompt || "", node.metadata?.promptVariableValues, node.metadata?.promptVariableSupplement || "");
+    const text = resolvePromptVariables(node.metadata?.promptVariableRawPrompt || "", node.metadata?.promptVariableValues, productParameterSupplement(node.metadata));
     return text.trim() ? { kind: "text", text } : null;
 }
 

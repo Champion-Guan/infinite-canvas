@@ -1,0 +1,26 @@
+diff --git a/web/src/pages/assets/index.tsx b/web/src/pages/assets/index.tsx
+index ad5e35d..537806c 100644
+--- a/web/src/pages/assets/index.tsx
++++ b/web/src/pages/assets/index.tsx
+@@ -385,7 +385,9 @@ export default function AssetsPage() {
+                     accept="image/*"
+                     className="hidden"
+                     onChange={(event) => {
+-                        void readCoverFile(event.target.files?.[0]);
++                        void readCoverFile(event.target.files?.[0]).catch((error) => {
++                            message.error(error instanceof Error ? error.message : "封面上传失败，请重试。");
++                        });
+                         event.target.value = "";
+                     }}
+                 />
+@@ -395,7 +397,9 @@ export default function AssetsPage() {
+                     accept="image/*"
+                     className="hidden"
+                     onChange={(event) => {
+-                        void readImageFile(event.target.files?.[0]);
++                        void readImageFile(event.target.files?.[0]).catch((error) => {
++                            message.error(error instanceof Error ? error.message : "图片上传失败，请重试。");
++                        });
+                         event.target.value = "";
+                     }}
+                 />

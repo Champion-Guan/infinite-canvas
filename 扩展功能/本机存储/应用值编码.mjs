@@ -1,15 +1,15 @@
-import { MEDIA_TYPES, StorageError, requireValue, validHash } from './协议.mjs';
+import { MAX_MEDIA_BATCH_BYTES, MAX_MEDIA_BATCH_COUNT, MEDIA_TYPES, StorageError, requireValue, validHash } from './协议.mjs';
 import { isChannelBinding, sealedCredentialRef } from '../本机凭据/页面凭据引用.mjs';
 import { validCredentialRef } from '../本机凭据/凭据协议.mjs';
 
-const CHUNK_BYTES = 16 * 1024 * 1024;
+const LEGACY_CHUNK_BYTES = 16 * 1024 * 1024;
 const credentialKey = /^(api[_-]?key|authorization|password|token|access[_-]?token|refresh[_-]?token|private[_-]?key|secret)$/i;
 
 // 值使用带类型的树，保留逻辑storageKey，不把临时网址或Blob对象写进JSON。
 // 凭据只能交给显式注入的安全端口；没有端口时拒绝，不删字段、不明文降级。
 export function createValueCodec({ client, secretPort, readBlobUrl, createObjectURL = blob => URL.createObjectURL(blob), revokeObjectURL = url => URL.revokeObjectURL(url) }) {
-  const urls = new Set(), savedUrls = new Map(), savedMediaKeys = new Map();
-  const loadedMedia = new Map(), decodedUrls = new Map(), confirmedMedia = new Map(), mediaWrites = new Map();
+  const urls = new Set(), savedUrls = new Map(), savedMediaKeys = new Map(), legacyUrlBlobs = new Map();
+  const loadedMedia = new Map(), decodedUrls = new Map(), mediaWrites = new WeakMap();
   let savedBlobs = new WeakMap();
   const credentialChecks = new Map();
   function credentialCheck(key, operation) {
@@ -23,34 +23,69 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
   }
   async function readMedia(id) {
     if (!loadedMedia.has(id)) {
-      // readMedia端口已校验内容哈希；只保留已确认内容的长度，供新临时地址复用。
+      // 只合并同时发生的读取；不把所有已读媒体永久留在内存中。
       const pending = Promise.resolve().then(() => client.readMedia(id)).then(blob => {
-        if (blob instanceof Blob) confirmedMedia.set(id, blob.size);
+        requireValue(blob instanceof Blob, 'invalid_response', '本机媒体响应不是文件。');
         return blob;
       });
       loadedMedia.set(id, pending);
-      pending.catch(() => { if (loadedMedia.get(id) === pending) loadedMedia.delete(id); });
+      void pending.then(
+        () => { if (loadedMedia.get(id) === pending) loadedMedia.delete(id); },
+        () => { if (loadedMedia.get(id) === pending) loadedMedia.delete(id); },
+      );
     }
     return loadedMedia.get(id);
-  }
-  async function persistMedia(chunk, stats, id) {
-    if (confirmedMedia.get(id) === chunk.size) { stats.reused++; return id; }
-    if (!mediaWrites.has(id)) {
-      stats.uploaded++;
-      const pending = Promise.resolve().then(() => client.writeMedia(chunk)).then(saved => {
-        requireValue(saved?.id === id, 'invalid_ack', '媒体分片落盘确认与内容不符。');
-        confirmedMedia.set(id, chunk.size);
-        return id;
-      });
-      mediaWrites.set(id, pending);
-      const clear = () => { if (mediaWrites.get(id) === pending) mediaWrites.delete(id); };
-      pending.then(clear, clear);
-    }
-    return mediaWrites.get(id);
   }
   async function encode(value, { credential = false } = {}) {
     const started = performance.now(), stats = { uploaded: 0, reused: 0, blobReads: 0, secrets: 0 };
     const visiting = new Set(), mediaIds = new Set(), mediaPartSizes = new Map();
+    const pendingMedia = [], pendingDescriptors = [], descriptorsByBlob = new Map(), pendingStableMediaKeys = [], pendingBlobUrls = [];
+    function queueMedia(blob) {
+      if (mediaWrites.has(blob)) { stats.reused++; return mediaWrites.get(blob); }
+      stats.uploaded++;
+      let resolve, reject;
+      const pending = new Promise((yes, no) => { resolve = yes; reject = no; });
+      mediaWrites.set(blob, pending);
+      void pending.catch(() => { if (mediaWrites.get(blob) === pending) mediaWrites.delete(blob); });
+      pendingMedia.push({ blob, pending, resolve, reject });
+      return pending;
+    }
+    function mediaGroups() {
+      const groups = [];
+      let group = [], bytes = 0;
+      for (const entry of pendingMedia) {
+        if (group.length && (group.length >= MAX_MEDIA_BATCH_COUNT || bytes + entry.blob.size > MAX_MEDIA_BATCH_BYTES)) {
+          groups.push(group); group = []; bytes = 0;
+        }
+        group.push(entry); bytes += entry.blob.size;
+      }
+      if (group.length) groups.push(group);
+      return groups;
+    }
+    async function uploadPendingMedia() {
+      let offset = 0;
+      for (const group of mediaGroups()) {
+        try {
+          let records;
+          if (group.length > 1 && typeof client.writeMediaBatch === 'function') {
+            records = await client.writeMediaBatch(group.map(({ blob }) => ({ blob, mime: blob.type || 'application/octet-stream' })));
+          } else {
+            records = [];
+            for (const { blob } of group) records.push(await client.writeMedia(blob.type ? blob : new Blob([blob], { type: 'application/octet-stream' })));
+          }
+          requireValue(Array.isArray(records) && records.length === group.length, 'invalid_ack', '媒体批次落盘确认不完整。');
+          records.forEach((saved, index) => {
+            const entry = group[index];
+            requireValue(validHash(saved?.id) && saved.size === entry.blob.size, 'invalid_ack', '媒体落盘确认与内容不符。');
+            entry.resolve({ id: saved.id, size: saved.size });
+          });
+          offset += group.length;
+        } catch (error) {
+          for (const entry of pendingMedia.slice(offset)) entry.reject(error);
+          throw error;
+        }
+      }
+    }
     async function visit(item, depth = 0, key = '', parent) {
       requireValue(depth <= 32, 'value_too_deep', '应用数据层级超过当前安全限制。');
       if (credentialKey.test(key) && item !== null && item !== undefined && item !== '') {
@@ -83,11 +118,14 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
       if (typeof item === 'string') {
         if (!item.startsWith('blob:')) return ['string', item];
         if (savedUrls.has(item)) return ['blob-url', reuse(savedUrls.get(item))];
-        requireValue(typeof readBlobUrl === 'function', 'transient_url_unresolved', '临时媒体尚未转为本机文件；未保存失效网址。');
-        stats.blobReads++; const blob = await readBlobUrl(item);
+        requireValue(legacyUrlBlobs.has(item) || typeof readBlobUrl === 'function', 'transient_url_unresolved', '临时媒体尚未转为本机文件；未保存失效网址。');
+        const existing = legacyUrlBlobs.get(item);
+        if (!existing) stats.blobReads++;
+        const blob = existing || await readBlobUrl(item);
         requireValue(blob instanceof Blob, 'transient_url_unresolved', '无法读取临时媒体。');
         const descriptor = await binary(blob);
-        savedUrls.set(item, structuredClone(descriptor));
+        if (descriptor.size > 0 && descriptor.id === null) pendingBlobUrls.push({ url: item, descriptor });
+        else savedUrls.set(item, structuredClone(descriptor));
         return ['blob-url', descriptor];
       }
       if (item instanceof Blob) return ['blob', await binary(item)];
@@ -110,23 +148,39 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
           const encoded = reused || await visit(entry, depth + 1, name, item);
           tree[1].push([name, encoded]);
           const descriptor = mediaDescriptor(encoded);
-          if (descriptor) for (const key of mediaKeysForField(item, name, stableKeys)) if (stableMediaMatches(item, key, descriptor)) savedMediaKeys.set(key, structuredClone(descriptor));
+          if (descriptor) for (const key of mediaKeysForField(item, name, stableKeys)) if (stableMediaMatches(item, key, descriptor)) {
+            if (descriptor.size > 0 && descriptor.id === null) pendingStableMediaKeys.push({ item, key, descriptor });
+            else savedMediaKeys.set(key, structuredClone(descriptor));
+          }
         }
       }
       visiting.delete(item);
       return tree;
     }
+    function reuse(descriptor) {
+      includeMedia(descriptor);
+      return structuredClone(descriptor);
+    }
     function includeMedia(descriptor) {
+      if (Object.hasOwn(descriptor, 'id')) {
+        requireValue(Object.keys(descriptor).length === 3 && Number.isSafeInteger(descriptor.size) && descriptor.size >= 0 &&
+          (descriptor.size === 0 ? descriptor.id === null : validHash(descriptor.id)),
+        'invalid_media', '本机单体媒体描述无效。');
+        if (descriptor.size > 0) {
+          const known = mediaPartSizes.get(descriptor.id);
+          requireValue(known === undefined || known === descriptor.size, 'invalid_media', '同一媒体标识的大小不一致。');
+          if (known === undefined) mediaPartSizes.set(descriptor.id, descriptor.size);
+          mediaIds.add(descriptor.id);
+        }
+        return;
+      }
       for (let index = 0; index < descriptor.parts.length; index++) {
-        const id = descriptor.parts[index], size = Math.min(CHUNK_BYTES, descriptor.size - index * CHUNK_BYTES), known = mediaPartSizes.get(id);
+        const id = descriptor.parts[index], size = Math.min(LEGACY_CHUNK_BYTES, descriptor.size - index * LEGACY_CHUNK_BYTES);
+        const known = mediaPartSizes.get(id);
         requireValue(size > 0 && (known === undefined || known === size), 'invalid_media', '同一媒体分片的大小不一致。');
         if (known === undefined) mediaPartSizes.set(id, size);
         mediaIds.add(id);
       }
-    }
-    function reuse(descriptor) {
-      includeMedia(descriptor);
-      return structuredClone(descriptor);
     }
     function stableMediaKeys(item) {
       return Object.entries(item).filter(([name, value]) => /(?:^|)storageKey$/i.test(name) && typeof value === 'string' && value.length > 0)
@@ -150,7 +204,7 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
       if (!stableKeys.length || (!((typeof entry === 'string' && entry.startsWith('blob:')) || entry instanceof Blob || entry instanceof ArrayBuffer))) return null;
       const key = stableKeys.find(candidate => stableMediaMatches(item, candidate, savedMediaKeys.get(candidate)));
       const descriptor = key ? savedMediaKeys.get(key) : undefined;
-      if (!descriptor) return null;
+      if (!descriptor || !Object.hasOwn(descriptor, 'id')) return null;
       includeMedia(descriptor);
       stats.reused++;
       return [typeof entry === 'string' ? 'blob-url' : entry instanceof ArrayBuffer ? 'array-buffer' : 'blob', structuredClone(descriptor)];
@@ -161,49 +215,68 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
     async function binary(blob) {
       if (savedBlobs.has(blob)) return reuse(savedBlobs.get(blob));
       requireValue(!blob.type || MEDIA_TYPES.includes(blob.type), 'invalid_media', '媒体类型不受支持。');
-      const chunks = [], pendingSizes = new Map();
-      for (let offset = 0; offset < blob.size; offset += CHUNK_BYTES) {
-        // structuredClone、原图/交付图双主键和恢复URL会创建新Blob身份；按已确认内容去重。
-        const chunk = blob.slice(offset, offset + CHUNK_BYTES, 'application/octet-stream');
-        const id = [...new Uint8Array(await crypto.subtle.digest('SHA-256', await chunk.arrayBuffer()))].map(byte => byte.toString(16).padStart(2, '0')).join('');
-        const known = mediaPartSizes.get(id) ?? pendingSizes.get(id);
-        requireValue(known === undefined || known === chunk.size, 'invalid_media', '同一媒体分片的大小不一致。');
-        if (known === undefined) pendingSizes.set(id, chunk.size);
-        chunks.push({ chunk, id });
+      if (descriptorsByBlob.has(blob)) { stats.reused++; return descriptorsByBlob.get(blob); }
+      const descriptor = { mime: blob.type, size: blob.size, id: null };
+      descriptorsByBlob.set(blob, descriptor);
+      if (blob.size) {
+        pendingDescriptors.push({ blob, descriptor, pending: queueMedia(blob) });
+        return descriptor;
       }
-      const parts = [];
-      for (const { chunk, id } of chunks) parts.push(await persistMedia(chunk, stats, id));
-      for (const [id, size] of pendingSizes) mediaPartSizes.set(id, size);
-      // 只缓存全部媒体分片均已ACK的不可变Blob；失败或可变ArrayBuffer不复用。
-      const descriptor = { mime: blob.type, size: blob.size, parts };
       savedBlobs.set(blob, structuredClone(descriptor));
       return reuse(descriptor);
     }
-    const tree = await visit(value, 0, credential ? 'token' : '');
+    let tree;
+    try { tree = await visit(value, 0, credential ? 'token' : ''); }
+    catch (error) {
+      for (const item of pendingMedia) item.reject(error);
+      throw error;
+    }
+    await uploadPendingMedia();
+    for (const item of pendingDescriptors) {
+      const saved = await item.pending;
+      item.descriptor.id = saved.id;
+      item.descriptor.size = saved.size;
+      savedBlobs.set(item.blob, structuredClone(item.descriptor));
+      includeMedia(item.descriptor);
+    }
+    for (const { url, descriptor } of pendingBlobUrls) { savedUrls.set(url, structuredClone(descriptor)); legacyUrlBlobs.delete(url); }
+    for (const { item, key, descriptor } of pendingStableMediaKeys) {
+      if (stableMediaMatches(item, key, descriptor)) savedMediaKeys.set(key, structuredClone(descriptor));
+    }
     if (performance.now() - started > 500) console.debug('[存储性能] 值编码 ' + JSON.stringify({ elapsedMs: Math.round(performance.now() - started), ...stats }));
     return { tree, mediaIds: [...mediaIds].sort() };
   }
   async function decode(tree) {
     const decodedMedia = new Map(), mediaPartSizes = new Map();
     async function binary(value) {
-      requireValue(value && typeof value.mime === 'string' && (!value.mime || MEDIA_TYPES.includes(value.mime)) && Number.isSafeInteger(value.size) && value.size >= 0 && Array.isArray(value.parts) && value.parts.every(validHash) && value.parts.length === Math.ceil(value.size / CHUNK_BYTES), 'invalid_value', '本机媒体描述不完整。');
-      const identity = JSON.stringify([value.mime, value.size, value.parts]);
+      requireValue(value && typeof value.mime === 'string' && (!value.mime || MEDIA_TYPES.includes(value.mime)) && Number.isSafeInteger(value.size) && value.size >= 0, 'invalid_value', '本机媒体描述不完整。');
+      const direct = Object.hasOwn(value, 'id');
+      if (direct) requireValue(Object.keys(value).length === 3 && (value.size === 0 ? value.id === null : validHash(value.id)), 'invalid_value', '本机单体媒体描述无效。');
+      else requireValue(Array.isArray(value.parts) && value.parts.every(validHash) && value.parts.length === Math.ceil(value.size / LEGACY_CHUNK_BYTES), 'invalid_value', '本机旧分片媒体描述不完整。');
+      const identity = direct ? JSON.stringify([value.mime, value.size, value.id]) : JSON.stringify([value.mime, value.size, value.parts]);
       if (decodedMedia.has(identity)) return decodedMedia.get(identity);
       const pending = (async () => {
+        if (direct) {
+          const saved = value.size ? await readMedia(value.id) : new Blob([]);
+          requireValue(saved.size === value.size, 'media_corrupt', '媒体大小不匹配。');
+          const blob = saved.type === value.mime ? saved : new Blob([saved], { type: value.mime });
+          decodedMedia.set(identity, blob);
+          if (direct) savedBlobs.set(blob, structuredClone(value));
+          return blob;
+        }
         for (let index = 0; index < value.parts.length; index++) {
-          const id = value.parts[index], size = Math.min(CHUNK_BYTES, value.size - index * CHUNK_BYTES), known = mediaPartSizes.get(id);
+          const id = value.parts[index], size = Math.min(LEGACY_CHUNK_BYTES, value.size - index * LEGACY_CHUNK_BYTES), known = mediaPartSizes.get(id);
           requireValue(size > 0 && (known === undefined || known === size), 'invalid_value', '同一媒体分片的大小不一致。');
           if (known === undefined) mediaPartSizes.set(id, size);
         }
         const chunks = [];
         for (let index = 0; index < value.parts.length; index++) {
           const chunk = await readMedia(value.parts[index]);
-          requireValue(chunk.size === Math.min(CHUNK_BYTES, value.size - index * CHUNK_BYTES), 'media_corrupt', '媒体分片大小不匹配。');
+          requireValue(chunk.size === Math.min(LEGACY_CHUNK_BYTES, value.size - index * LEGACY_CHUNK_BYTES), 'media_corrupt', '媒体分片大小不匹配。');
           chunks.push(chunk);
         }
         const blob = new Blob(chunks, { type: value.mime });
         decodedMedia.set(identity, blob);
-        savedBlobs.set(blob, structuredClone(value));
         return blob;
       })();
       decodedMedia.set(identity, pending);
@@ -236,13 +309,16 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
         return value;
       }
       if (tag === 'blob' || tag === 'blob-url' || tag === 'array-buffer') {
+        const identity = tag === 'blob-url' ? JSON.stringify(value) : null;
+        if (identity && decodedUrls.has(identity)) return decodedUrls.get(identity);
         const blob = await binary(value);
-        savedBlobs.set(blob, structuredClone(value));
+        if (Object.hasOwn(value, 'id')) savedBlobs.set(blob, structuredClone(value));
         if (tag === 'blob') return blob;
         if (tag === 'array-buffer') return blob.arrayBuffer();
-        const identity = JSON.stringify(value);
-        if (decodedUrls.has(identity)) return decodedUrls.get(identity);
-        const url = createObjectURL(blob); urls.add(url); savedUrls.set(url, structuredClone(value)); decodedUrls.set(identity, url); return url;
+        const url = createObjectURL(blob); urls.add(url);
+        if (Object.hasOwn(value, 'id')) savedUrls.set(url, structuredClone(value));
+        else legacyUrlBlobs.set(url, blob);
+        decodedUrls.set(identity, url); return url;
       }
       if (tag === 'array' && Array.isArray(value)) {
         const result = [];
@@ -281,7 +357,7 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
   }
   function invalidateMedia() {
     // 保留正在显示的对象URL；只撤销已落盘缓存，重新导入相同字节必须重新确认上传。
-    savedBlobs = new WeakMap(); savedUrls.clear(); savedMediaKeys.clear(); loadedMedia.clear(); decodedUrls.clear(); confirmedMedia.clear();
+    savedBlobs = new WeakMap(); savedUrls.clear(); savedMediaKeys.clear(); loadedMedia.clear(); decodedUrls.clear();
   }
-  return { encode, decode, invalidateMedia, close() { for (const url of urls) revokeObjectURL(url); urls.clear(); savedUrls.clear(); savedBlobs.clear?.(); savedMediaKeys.clear(); loadedMedia.clear(); decodedUrls.clear(); confirmedMedia.clear(); mediaWrites.clear(); credentialChecks.clear(); } };
+  return { encode, decode, invalidateMedia, close() { for (const url of urls) revokeObjectURL(url); urls.clear(); savedUrls.clear(); legacyUrlBlobs.clear(); savedBlobs = new WeakMap(); savedMediaKeys.clear(); loadedMedia.clear(); decodedUrls.clear(); credentialChecks.clear(); } };
 }

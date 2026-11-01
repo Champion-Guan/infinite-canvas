@@ -104,12 +104,15 @@ function connectionPorts(nodes: CanvasNodeData[], connections: CanvasConnection[
     }
     // 只锁定实际分支/汇入的端口及其直接关系；配置左侧汇入不影响右侧单线结果。
     const fixed = new Set<string>();
+    const junctions = new Set<string>();
     for (const [id, edges] of incoming) if (edges.length > 1) {
         fixed.add(id);
+        junctions.add(id);
         for (const edge of edges) fixed.add(edge.fromNodeId);
     }
     for (const [id, edges] of outgoing) if (edges.length > 1) {
         fixed.add(id);
+        junctions.add(id);
         for (const edge of edges) fixed.add(edge.toNodeId);
     }
     // 上游卡片先整理，避免依赖 connections 数组顺序；闭环不参与自动排布。
@@ -121,18 +124,27 @@ function connectionPorts(nodes: CanvasNodeData[], connections: CanvasConnection[
         pending.set(edge.toNodeId, pending.get(edge.toNodeId)! - 1);
         if (!pending.get(edge.toNodeId)) queue.push(edge.toNodeId);
     }
-    for (const [id, count] of pending) if (count) fixed.add(id);
-    return { incoming, outgoing, fixed, ordered };
+    for (const [id, count] of pending) if (count) { fixed.add(id); junctions.add(id); }
+    return { incoming, outgoing, fixed, junctions, ordered };
 }
 
 function alignSingleConnectionCards(nodes: CanvasNodeData[], ports: ReturnType<typeof connectionPorts>) {
     const result = [...nodes];
-    for (const connection of ports.ordered) {
+    const indices = new Map(nodes.map((node, index) => [node.id, index]));
+    const ordered = [...ports.ordered].sort((a, b) => {
+        const aSource = nodes[indices.get(a.fromNodeId)!], bSource = nodes[indices.get(b.fromNodeId)!];
+        const aTarget = nodes[indices.get(a.toNodeId)!], bTarget = nodes[indices.get(b.toNodeId)!];
+        return Math.min(aSource.position.x, aTarget.position.x) - Math.min(bSource.position.x, bTarget.position.x)
+            || aSource.position.y - bSource.position.y || aSource.id.localeCompare(bSource.id) || aTarget.id.localeCompare(bTarget.id);
+    });
+    const aligned = new Set<string>();
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const connection of ordered) {
         if (ports.outgoing.get(connection.fromNodeId)?.length !== 1 || ports.incoming.get(connection.toNodeId)?.length !== 1) continue;
-        if (ports.fixed.has(connection.toNodeId)) continue;
-        const sourceIndex = result.findIndex((node) => node.id === connection.fromNodeId);
-        const targetIndex = result.findIndex((node) => node.id === connection.toNodeId);
-        if (sourceIndex < 0 || targetIndex < 0) continue;
+        const sourceIndex = indices.get(connection.fromNodeId)!;
+        const targetIndex = indices.get(connection.toNodeId)!;
         const source = result[sourceIndex];
         const target = result[targetIndex];
         if (source.type === "group" || target.type === "group" || !valid(source) || !valid(target)) continue;
@@ -140,17 +152,27 @@ function alignSingleConnectionCards(nodes: CanvasNodeData[], ports: ReturnType<t
         const routeIsClear = (from: CanvasNodeData, to: CanvasNodeData) => {
             const centerY = from.position.y + from.height / 2;
             return to.position.x > from.position.x + from.width
-                && Math.abs(centerY - (to.position.y + to.height / 2)) <= 1e-7
+                && centerY === to.position.y + to.height / 2
                 && !routeBlockers.some((node) => node.position.x < to.position.x && node.position.x + node.width > from.position.x + from.width
                     && centerY > node.position.y && centerY < node.position.y + node.height);
         };
         // 已经通畅直连的不收紧距离，也不移动来源卡影响它的其他输入关系。
-        if (routeIsClear(source, target)) continue;
-        const position = { x: source.position.x + source.width + NODE_PLACEMENT_GAP,
-            y: source.position.y + (source.height - target.height) / 2 };
-        const candidate = { ...target, position };
-        if (routeBlockers.some((node) => nodesOverlap(candidate, node, NODE_PLACEMENT_GAP)) || !routeIsClear(source, candidate)) continue;
-        result[targetIndex] = candidate;
+        if (routeIsClear(source, target)) { aligned.add(source.id); aligned.add(target.id); continue; }
+        if (!ports.junctions.has(target.id) && !aligned.has(target.id)) {
+            const y = source.position.y + source.height / 2 - target.height / 2;
+            const positions = [{ x: source.position.x + source.width + NODE_PLACEMENT_GAP, y }, { x: target.position.x, y }];
+            const candidate = positions.map((position) => ({ ...target, position })).find((item) =>
+                !routeBlockers.some((node) => nodesOverlap(item, node, NODE_PLACEMENT_GAP)) && routeIsClear(source, item));
+            if (candidate) { result[targetIndex] = candidate; aligned.add(source.id); aligned.add(target.id); changed = true; continue; }
+        }
+        // 目标受障碍或分支约束时，尝试只移动没有分支且未参与已对齐关系的来源。
+        if (ports.junctions.has(source.id) || aligned.has(source.id)) continue;
+        const position = { x: source.position.x, y: target.position.y + target.height / 2 - source.height / 2 };
+        const candidate = { ...source, position };
+        if (!routeBlockers.some((node) => nodesOverlap(candidate, node, NODE_PLACEMENT_GAP)) && routeIsClear(candidate, target)) {
+            result[sourceIndex] = candidate; aligned.add(source.id); aligned.add(target.id); changed = true;
+        }
+      }
     }
     if (!result.some((node, index) => node !== nodes[index])) return nodes;
     const moved = new Set(result.filter((node, index) => node.position !== nodes[index].position).map((node) => node.id));

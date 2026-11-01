@@ -10,7 +10,8 @@ export async function requestCanvasText(options: {
     scope: { productId: string; nodeId: string; slotId: string };
     previous?: CanvasImageTask; signal?: AbortSignal; retry?: boolean;
     recordTask(task: CanvasImageTask): Promise<void>;
-    applyAndSave(text: string, receipt: CanvasImageReceipt): Promise<void>;
+    applyAndSave(text: string, receipt: CanvasImageReceipt): Promise<unknown>;
+    deferConfirm?: () => boolean;
 }) {
     const host = (window as unknown as { __guanGenerationHost?: Parameters<typeof bindGenerationChannel>[0] }).__guanGenerationHost;
     if (!host) throw Error("本机生成端口尚未接入，请重新打开工作台；未改用浏览器直连。");
@@ -19,7 +20,7 @@ export async function requestCanvasText(options: {
     const request = prepareTextRequest(channel, structuredClone(options.messages));
     let result = "", observedTaskId = "";
     try { await runCanvasImageTask({
-        host, scope: options.scope, previous: options.previous, signal: options.signal, retry: options.retry,
+        host, scope: options.scope, previous: options.previous, signal: options.signal, retry: options.retry, deferConfirm: options.deferConfirm,
         prepare: async () => request,
         bind: () => bindGenerationChannel(host, config),
         recordTask: options.recordTask,
@@ -30,7 +31,7 @@ export async function requestCanvasText(options: {
         },
         applyAndSave: async (job: { bytes: string }, receipt: CanvasImageReceipt) => {
             result = parseTextResponse(job.bytes);
-            await options.applyAndSave(result, receipt);
+            return await options.applyAndSave(result, receipt);
         },
     }); } finally { if (observedTaskId) clearTextPreview(options.scope.nodeId, observedTaskId); }
     return result;

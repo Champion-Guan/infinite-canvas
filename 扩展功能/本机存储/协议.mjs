@@ -1,9 +1,20 @@
 export const PROTOCOL = 'guan-local-data.v1';
 export const APPLICATION_STORAGE_FORMAT = 'guan-app-storage.v1';
 export const APP_NAMESPACES = Object.freeze(['app_state', 'image_files', 'image_previews', 'image_generation_logs', 'video_generation_logs', 'media_files', 'prompt_cache', 'preferences']);
-export const SCHEMA_VERSION = 1;
-export const MAX_DOCUMENT_BYTES = 2 * 1024 * 1024;
-export const MAX_MEDIA_BYTES = 32 * 1024 * 1024;
+export const SCHEMA_VERSION = 2;
+export const LEGACY_SCHEMA_VERSION = 1;
+// SQLite's compiled SQLITE_MAX_LENGTH. Avoid adding a smaller application-only
+// document cap that rejects otherwise valid single-row writes.
+export const MAX_DOCUMENT_BYTES = 1_000_000_000;
+// Media is stored as one SQLite BLOB, limited only by the same native row-value
+// boundary as documents rather than by a separate application quota.
+export const MAX_MEDIA_BYTES = MAX_DOCUMENT_BYTES;
+// Group several complete small media files into one request and SQLite commit.
+// This bounds transient request memory without splitting or limiting a file.
+export const MAX_MEDIA_BATCH_BYTES = 16 * 1024 * 1024;
+export const MAX_MEDIA_BATCH_COUNT = 8;
+export const MAX_FRAGMENT_BATCH_COUNT = 8;
+export const MAX_FRAGMENT_BATCH_BYTES = 9 * 1024 * 1024;
 export const COLLECTIONS = Object.freeze(['canvas', 'extension']);
 export const MEDIA_TYPES = Object.freeze(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'video/mp4', 'video/webm', 'audio/mpeg', 'audio/wav', 'audio/ogg', 'application/octet-stream']);
 
@@ -55,6 +66,6 @@ export function serializeDocument(collection, id, value, mediaIds = []) {
     if (value.viewport) requireValue(Number.isFinite(value.viewport.x) && Number.isFinite(value.viewport.y) && Number.isFinite(value.viewport.k) && value.viewport.k > 0, 'invalid_canvas', '画布视口无效。');
   }
   const text = JSON.stringify(value);
-  requireValue(new TextEncoder().encode(text).length <= MAX_DOCUMENT_BYTES, 'document_too_large', '文档超过本阶段2MiB限制。', 413);
+  requireValue(new TextEncoder().encode(text).length <= MAX_DOCUMENT_BYTES, 'document_too_large', '文档超过SQLite单值长度限制。', 413);
   return text;
 }

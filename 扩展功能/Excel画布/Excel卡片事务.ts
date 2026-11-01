@@ -1,5 +1,5 @@
 import type { CanvasConnection, CanvasNodeData, CanvasNodeMetadata, CanvasNodeTypeId, Position } from "@/types/canvas";
-import { buildPromptVariablesMetadata, PROMPT_VARIABLES_NODE_TYPE, promptVariableTokens, resolvePromptVariables, completePromptVariableValues } from "./旧版参数规则";
+import { buildPromptVariablesMetadata, PROMPT_VARIABLES_NODE_TYPE, promptVariableTokens, resolvePromptVariables, completePromptVariableValues, productParameterSupplement } from "./旧版参数规则";
 import { finalPromptPreviewTitle } from "./旧版最终提示词标题";
 import { excelPromptItems, type ProductExcelContext } from "./Excel卡片上下文";
 
@@ -25,7 +25,7 @@ export function bindExcelParameters(nodes: CanvasNodeData[], connections: Canvas
   const raw = (source.metadata?.content || source.metadata?.prompt || "").trim();
   const tokens = promptVariableTokens(raw);
   const values = completePromptVariableValues(tokens, parameter.metadata?.promptVariableValues);
-  const text = resolvePromptVariables(raw, values, parameter.metadata?.promptVariableSupplement || "");
+  const text = resolvePromptVariables(raw, values, productParameterSupplement(parameter.metadata));
   const existing = nodes.find(node => node.metadata?.promptVariablePreviewOf === parameter.id && node.metadata?.promptVariableSourceNodeId === source.id);
   let preview = existing;
   if (!preview) {

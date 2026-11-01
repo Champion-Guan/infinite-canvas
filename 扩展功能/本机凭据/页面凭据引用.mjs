@@ -15,8 +15,9 @@ export async function bindChannelConfiguration(host, channel) {
   requireValue(host?.bind && host?.describe && typeof channel?.apiKey === 'string' && channel.apiKey.trim(), 'channel_credential_required', '请填写渠道密钥。');
   if (isChannelBinding(channel.apiKey)) {
     const saved = await host.describe(channel.apiKey);
-    requireValue(saved.binding === channel.apiKey && saved.kind === channel.apiFormat && comparableEndpoint(saved.endpoint) === comparableEndpoint(channel.baseUrl),
-      'channel_credential_scope_changed', '渠道地址或协议已改变，请重新输入密钥；原凭据仍保留。', 409);
+    requireValue(saved.binding === channel.apiKey && saved.kind === channel.apiFormat &&
+      comparableEndpoint(saved.endpoint) === comparableEndpoint(channel.baseUrl),
+    'channel_credential_scope_changed', '渠道地址或协议已改变，请重新输入密钥；原凭据仍保留。', 409);
     return channel.apiKey;
   }
   requireValue(!/^(?:provider:|secret:|guan-vault:)/i.test(channel.apiKey), 'channel_credential_unbound', '旧凭据已保留，请为当前渠道重新输入有效密钥。', 409);

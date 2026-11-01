@@ -1,14 +1,15 @@
-import { requireValue } from './协议.mjs';
+import { StorageError, requireValue } from './协议.mjs';
 
 const windows = new WeakMap();
 const WINDOW_MS = 10_050, TOTAL_LIMIT = 96, READ_LIMIT = 64;
 
 // 旧接入使用96次/10秒的固定窗口。生产授权入口传requestLimit=0，取消会让
 // 正常刷新等待10秒的频率阈值；仍用并发整形保护本机服务和SQLite写入。
-export function createPacedDataClient(client, { reserveWrites = false, requestLimit = TOTAL_LIMIT, maxConcurrent = 6, now = () => performance.now(), wait = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
+export function createPacedDataClient(client, { reserveWrites = false, requestLimit = TOTAL_LIMIT, maxConcurrent = 6, queueTimeoutMs = 15_000, now = () => performance.now(), wait = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
   requireValue(client && typeof client.readDocument === 'function', 'invalid_client', '分片客户端缺少读取端口。');
   requireValue(Number.isInteger(requestLimit) && requestLimit >= 0 && requestLimit <= TOTAL_LIMIT, 'invalid_client', '存储请求窗口配置无效。');
   requireValue(Number.isInteger(maxConcurrent) && maxConcurrent > 0 && maxConcurrent <= 32, 'invalid_client', '存储并发配置无效。');
+  requireValue(Number.isSafeInteger(queueTimeoutMs) && queueTimeoutMs >= 1 && queueTimeoutMs <= 10 * 60_000, 'invalid_client', '存储队列等待时间无效。');
   if (windows.has(client)) {
     const shared = windows.get(client);
     if (reserveWrites) shared.readLimit = READ_LIMIT;
@@ -17,15 +18,26 @@ export function createPacedDataClient(client, { reserveWrites = false, requestLi
   const starts = [], reads = [], waiters = [], shared = { requestLimit, readLimit: reserveWrites ? READ_LIMIT : TOTAL_LIMIT, maxConcurrent, active: 0, port: null };
   async function acquire() {
     if (shared.active < shared.maxConcurrent) { shared.active++; return; }
-    await new Promise(resolve => waiters.push(resolve));
+    await new Promise((resolve, reject) => {
+      const waiter = {
+        timer: setTimeout(() => {
+          const index = waiters.indexOf(waiter);
+          if (index < 0) return;
+          waiters.splice(index, 1);
+          reject(new StorageError('storage_queue_timeout', '本机存储繁忙，上传尚未开始；请稍后重试。', 503));
+        }, queueTimeoutMs),
+        resolve: () => { clearTimeout(waiter.timer); resolve(); },
+      };
+      waiters.push(waiter);
+    });
   }
   function release() {
     // 直接移交已占用的名额，避免新请求在旧等待者醒来前抢占同一个名额。
     const next = waiters.shift();
-    if (next) next();
+    if (next) next.resolve();
     else shared.active--;
   }
-  async function request(method, args, foreground = method === 'writeDocument' || method === 'writeMedia') {
+  async function request(method, args, foreground = method === 'writeDocument' || method === 'writeFragments' || method === 'writeMedia' || method === 'writeMediaBatch') {
     requireValue(typeof client[method] === 'function', 'storage_port_denied', '当前存储端口未开放此操作。');
     let acquired = false;
     try {
@@ -51,7 +63,8 @@ export function createPacedDataClient(client, { reserveWrites = false, requestLi
       if (acquired) release();
     }
   }
-  const port = Object.fromEntries(['readDocument', 'writeDocument', 'readMedia', 'writeMedia', 'readUsage'].map(method => [method, (...args) => request(method, args)]));
+  const port = Object.fromEntries(['readDocument', 'writeDocument', 'readMedia', 'writeMedia', 'writeMediaBatch', 'readUsage'].map(method => [method, (...args) => request(method, args)]));
+  if (typeof client.writeFragments === 'function') port.writeFragments = (...args) => request('writeFragments', args);
   // 仅存储内部使用；请求仍经过原客户端鉴权、完整校验及同一总窗口。
   port.readForWrite = (...args) => request('readDocument', args, true);
   if (typeof client.readNamespace === 'function') port.readNamespace = namespace => request('readNamespace', [namespace]);

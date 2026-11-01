@@ -1,0 +1,44 @@
+diff --git a/web/src/components/canvas/canvas-selection-toolbar.tsx b/web/src/components/canvas/canvas-selection-toolbar.tsx
+index ba801b7..80117c2 100644
+--- a/web/src/components/canvas/canvas-selection-toolbar.tsx
++++ b/web/src/components/canvas/canvas-selection-toolbar.tsx
+@@ -1,5 +1,5 @@
+ import type { ReactNode } from "react";
+-import { Group, Ungroup } from "lucide-react";
++import { Grid2x2, Group, Ungroup } from "lucide-react";
+ import { Tooltip } from "antd";
+ import { useTranslation } from "react-i18next";
+ 
+@@ -18,6 +18,7 @@ export function CanvasSelectionToolbar({
+     canUngroup,
+     onGroup,
+     onUngroup,
++    onOrganize,
+ }: {
+     nodes: CanvasNodeData[];
+     viewport: ViewportTransform;
+@@ -26,6 +27,7 @@ export function CanvasSelectionToolbar({
+     canUngroup: boolean;
+     onGroup: () => void;
+     onUngroup: () => void;
++    onOrganize: () => void;
+ }) {
+     const { t } = useTranslation();
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+@@ -36,7 +38,7 @@ export function CanvasSelectionToolbar({
+     const top = viewport.y + bounds.top * viewport.k - SELECTION_PAD;
+     const width = (bounds.right - bounds.left) * viewport.k + SELECTION_PAD * 2;
+     const height = (bounds.bottom - bounds.top) * viewport.k + SELECTION_PAD * 2;
+-    const showActions = showToolbar && (canGroup || canUngroup);
++    const showActions = showToolbar;
+ 
+     return (
+         <>
+@@ -65,6 +67,7 @@ export function CanvasSelectionToolbar({
+                 >
+                     {canGroup ? <SelectionAction title={t("canvas.nodeToolbar.groupTitle")} label={t("canvas.nodeToolbar.group")} icon={<Group className="size-4" />} onClick={onGroup} /> : null}
+                     {canUngroup ? <SelectionAction title={t("canvas.nodeToolbar.ungroupTitle")} label={t("canvas.nodeToolbar.ungroup")} icon={<Ungroup className="size-4" />} onClick={onUngroup} /> : null}
++                    <SelectionAction title="整理选中卡片（可撤销）" label="整理卡片" icon={<Grid2x2 className="size-4" />} onClick={onOrganize} />
+                 </div>
+             ) : null}
+         </>

@@ -25,6 +25,8 @@
 .guan-network-proxy .local-canvas-settings-toggle input:disabled{cursor:not-allowed;opacity:.55}
 .guan-network-proxy .local-canvas-proxy-state{margin-top:8px;font-size:12px;color:#22925a}.guan-network-proxy .local-canvas-proxy-state[data-status='pending']{color:#b7791f}.guan-network-proxy .local-canvas-proxy-state[data-status='inactive'],.guan-network-proxy .local-canvas-proxy-state[data-status='error'],.guan-network-proxy .local-canvas-proxy-state.error{color:#d92d20}
 .guan-network-proxy .local-canvas-settings-note{margin-top:12px;font-size:12px;line-height:1rem;color:#78716c}
+.guan-network-proxy .local-canvas-settings-checkbox{display:inline-flex;align-items:center;gap:6px;max-width:100%;vertical-align:middle;cursor:pointer}
+.guan-network-proxy .local-canvas-settings-checkbox input{width:14px;height:14px;flex-shrink:0;margin:0}
 html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-card,html.dark .guan-network-proxy .local-canvas-settings-card{border-color:#292524;background:transparent;color:#f4f4f5}
 html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-card h4,html.dark .guan-network-proxy .local-canvas-settings-card h4{color:#f4f4f5}
 html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-card p,html.dark .guan-network-proxy .local-canvas-settings-card p,html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-note,html.dark .guan-network-proxy .local-canvas-settings-note{color:#78716c}

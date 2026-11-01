@@ -16,7 +16,7 @@ after(() => { for (const root of roots) rmSync(root, { recursive: true, force: t
 const listen = server => new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', () => resolve('http://127.0.0.1:' + server.address().port)); });
 export const closeServer = server => new Promise((resolve, reject) => { server.closeAllConnections(); server.close(error => error ? reject(error) : resolve()); });
 export { listen };
-export async function generationFixture({ maxTasks = 256, maxConcurrent = 4, wrapWorkspace = value => value, beforeReply, respond } = {}) {
+export async function generationFixture({ maxTasks, maxConcurrent, wrapWorkspace = value => value, beforeReply, respond } = {}) {
   const parent = mkdtempSync(join(tmpdir(), 'guan-generation-test-')), dataRoot = join(parent, '工作区'); roots.push(parent);
   const workspace = openWorkspace({ dataRoot, initialize: true }), key = randomBytes(32);
   const keyProvider = { create: async () => Buffer.from(key), read: async () => Buffer.from(key) };

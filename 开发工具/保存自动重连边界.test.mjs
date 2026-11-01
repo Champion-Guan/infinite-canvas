@@ -32,7 +32,43 @@ function fixture(t, { autoReconnect = true, lifetime = 180_000 } = {}) {
         const session = sessions.get(request.headers.Authorization.slice(7));
         if (!session || session.expiresAt <= time) return failure('session_denied');
         if (new URL(url).pathname === '/usage') return Response.json({ protocol: PROTOCOL, workspaceId, usage: 0, quota: null, contentBytes: 0, databases: [] });
-        const [, collection, id] = new URL(url).pathname.match(/documents\/(canvas|extension)\/([^/]+)$/) ?? [];
+        const pathname = new URL(url).pathname;
+        if (request.method === 'POST' && pathname === '/v1/workspaces/' + workspaceId + '/fragments') {
+            const body = JSON.parse(request.body);
+            const fragments = Array.isArray(body.fragments) ? body.fragments : [];
+            const acks = [];
+            for (const fragment of fragments) {
+                const existingOperation = operations.get(fragment.operationId);
+                if (existingOperation) {
+                    acks.push(existingOperation);
+                    continue;
+                }
+                const id = fragment.id;
+                const hash = id.slice('app-part-'.length);
+                const existing = documents.get(id);
+                if (existing) {
+                    if (existing.hash !== hash || JSON.stringify(existing.value) !== JSON.stringify(fragment.value)) {
+                        return failure('fragment_corrupt', 409);
+                    }
+                } else {
+                    documents.set(id, { collection: 'extension', id, value: structuredClone(fragment.value), mediaIds: [], hash, revision: 1 });
+                }
+                const ack = {
+                    protocol: PROTOCOL,
+                    workspaceId,
+                    persisted: true,
+                    collection: 'extension',
+                    id,
+                    operationId: fragment.operationId,
+                    revision: 1,
+                    hash,
+                };
+                operations.set(fragment.operationId, ack);
+                acks.push(ack);
+            }
+            return Response.json(acks);
+        }
+        const [, collection, id] = pathname.match(/documents\/(canvas|extension)\/([^/]+)$/) ?? [];
         if (request.method === 'GET') {
             const saved = documents.get(id);
             return saved ? Response.json({ ...saved, collection, id, workspaceId }) : failure('document_not_found', 404);
@@ -125,9 +161,23 @@ test('未过期令牌被拒绝或回执校验失败时不自动恢复或重放',
     f.setTransport(async () => f.failure('session_denied'));
     await assert.rejects(f.client.writeDocument(input()), code('session_denied'));
     assert.equal(f.calls.reconnect, 0); assert.equal(f.requests.filter(item => item.method === 'PUT').length, 1);
+    await assert.rejects(f.client.reconnect(), code('reconnect_not_due'));
     f.setTransport(async (url, request, next) => { const response = await next(); const ack = await response.json(); return Response.json({ ...ack, operationId: randomUUID() }); });
     await assert.rejects(f.client.writeDocument(input()), code('invalid_ack'));
-    assert.equal(f.calls.reconnect, 0); assert.equal(f.client.getStatus().state, 'error');
+    assert.equal(f.calls.reconnect, 1); assert.equal(f.client.getStatus().state, 'error');
+});
+
+test('明确 session_denied 后允许在页面租约内恢复，且不重新兑换授权码', async t => {
+    const f = fixture(t); await f.client.readUsage();
+    f.setTransport(async () => f.failure('session_denied'));
+    const original = input('session-denied-recovery');
+    await assert.rejects(f.client.writeDocument(original), code('session_denied'));
+    await f.client.reconnect({ reason: 'session_denied' });
+    assert.equal(f.calls.reconnect, 1); assert.equal(f.calls.issued, 2);
+    f.setTransport(async (url, request, next) => next());
+    const ack = await f.client.writeDocument(original);
+    assert.equal(ack.operationId, original.operationId);
+    assert.equal(f.documents.get(original.id).revision, 1);
 });
 
 test('恢复返回其他工作区时不替换连接、不发送保存', async t => {

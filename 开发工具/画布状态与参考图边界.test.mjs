@@ -27,7 +27,7 @@ const variables = await load('提示词/变量使用规则.ts');
 const rules = await load('Excel画布/旧版参数规则.ts', { './旧版主题翻译.js': themes, '../提示词/变量使用规则': variables });
 const contexts = await load('Excel画布/Excel卡片上下文.ts', { './旧版参数规则': rules });
 const titles = await load('Excel画布/旧版最终提示词标题.ts');
-const parameterLinks = await load('Excel画布/产品参数联动.ts', { '../提示词/变量使用规则': variables, './旧版最终提示词标题': titles });
+const parameterLinks = await load('Excel画布/产品参数联动.ts', { '../提示词/变量使用规则': variables, './旧版最终提示词标题': titles, './旧版参数规则': rules });
 const domain = await load('Excel画布/Excel卡片事务.ts', {
     './旧版参数规则': rules, './产品参数联动': parameterLinks, './旧版最终提示词标题': titles, './Excel卡片上下文': contexts,
 });
@@ -95,21 +95,32 @@ async function persistence(options = {}) {
     const port = { projectId: 'original-product', nodes, connections: [], chatSessions: [], activeChatId: null,
         backgroundMode: 'lines', showImageInfo: false, viewport, projectLoaded: true,
         restoredProjectIdRef: { current: 'original-product' }, nodeTransactionRef: { current: nodes }, historyPausedRef: { current: false },
-        dragRef: { current: { isDraggingNode: false } }, isNodeDragging: false, isNodeResizing: false, focusAnimRef: { current: null },
+        dragRef: { current: { isDraggingNode: false } }, isNodeDragging: false, isNodeResizing: false,
+        isCanvasPanning: false, canvasPanningRef: { current: false }, nodeResizingRef: { current: false }, focusAnimRef: { current: null },
         viewportRef: { current: viewport }, viewportSaveTimerRef: { current: null }, generationRequestsRef: { current: new Map() }, runningNodeId: null,
-        updateProject: (id, patch) => updates.push({ id, patch }), ...options.port };
-    const store = { projects: [{ id: 'original-product' }] };
+        updateProject: (id, patch) => {
+            updates.push({ id, patch });
+            if (options.applyUpdates) store.projects = store.projects.map(project => project.id === id ? { ...project, ...patch } : project);
+        }, ...options.port };
+    const store = { projects: [{ id: 'original-product', ...options.project }] };
     const { useCanvasPersistence } = await load(names[1], {
         react: { useEffect: effect => effects.push(effect), useMemo: callback => callback() },
         '@/stores/canvas/use-canvas-store': { useCanvasStore: { getState: () => store } },
         './产品操作': { useProductCanvasSave: (...args) => { registration = args; } },
         './画布保存判定': save判定,
+        '../画布生成/批量保存协调': { isBatchCanvasSaveActive: () => false, markBatchCanvasDirty: () => {} },
         '../本机存储/上游浏览器存储桥': { flushSQLiteStorage: async () => { flushed++; await options.flush?.(); } },
     }, { setTimeout: (callback, delay) => { const id = ++timerId; pendingTimers.set(id, { callback, delay }); return id; },
         clearTimeout: id => { cleared.push(id); pendingTimers.delete(id); } });
-    useCanvasPersistence(port);
-    const [id, snapshot, ready, persist, canDelete] = registration;
-    return { port, store, id, snapshot, ready, persist: () => persist(snapshot), canDelete, effects, updates, pendingTimers, cleared, flushed: () => flushed };
+    const render = (changes = {}) => {
+        Object.assign(port, changes);
+        effects.length = 0;
+        useCanvasPersistence(port);
+    };
+    render();
+    return { port, store, get id() { return registration[0]; }, get snapshot() { return registration[1]; },
+        ready: () => registration[2](), persist: () => registration[3](registration[1]), canDelete: () => registration[4](),
+        render, effects, updates, pendingTimers, cleared, flushed: () => flushed };
 }
 test('保存票据只在节点、产品身份和交互稳定时就绪，未决生成阻止删除', async () => {
     const api = await persistence();
@@ -118,9 +129,10 @@ test('保存票据只在节点、产品身份和交互稳定时就绪，未决�
     for (const change of [
         api => { api.port.restoredProjectIdRef.current = 'other'; }, api => { api.port.nodeTransactionRef.current = []; },
         api => { api.port.historyPausedRef.current = true; }, api => { api.port.dragRef.current.isDraggingNode = true; },
-        api => { api.port.focusAnimRef.current = 1; },
+        api => { api.port.focusAnimRef.current = 1; }, api => { api.port.canvasPanningRef.current = true; },
+        api => { api.port.nodeResizingRef.current = true; },
     ]) { const changed = await persistence(); change(changed); assert.equal(changed.ready(), false); }
-    for (const port of [{ projectLoaded: false }, { isNodeDragging: true }, { isNodeResizing: true }]) {
+    for (const port of [{ projectLoaded: false }, { isNodeDragging: true }, { isNodeResizing: true }, { isCanvasPanning: true }]) {
         const blocked = await persistence({ port }); assert.equal(blocked.ready(), false);
         blocked.effects[0](); assert.equal(blocked.updates.length, 0);
     }
@@ -162,14 +174,112 @@ test('保存失败保留延迟写入；保存期间产生新视区时保留其�
 test('视区延迟写入读取最新引用并在卸载时取消，未加载不调度', async () => {
     const api = await persistence(), cleanup = api.effects[1]();
     const timer = api.port.viewportSaveTimerRef.current;
-    assert.equal(api.pendingTimers.get(timer).delay, 500);
+    assert.equal(api.pendingTimers.get(timer).delay, 2000);
     const newest = { x: 40, y: 50, k: 2 }; api.port.viewportRef.current = newest;
     api.pendingTimers.get(timer).callback();
     assert.deepEqual(api.updates, [{ id: 'original-product', patch: { viewport: newest } }]);
-    api.effects[1](); const second = api.port.viewportSaveTimerRef.current; cleanup();
+    const secondCleanup = api.effects[1](), second = api.port.viewportSaveTimerRef.current; cleanup();
+    assert.equal(api.port.viewportSaveTimerRef.current, second, '旧effect清理不能覆盖新计时器引用');
+    secondCleanup();
     assert.equal(api.pendingTimers.has(second), false);
     const unloaded = await persistence({ port: { projectLoaded: false } }); unloaded.effects[1]();
     assert.equal(unloaded.pendingTimers.size, 0);
+});
+test('画布手势预览期间顶部状态不显示保存中，松手后才显示最终快照待保存', () => {
+    const current = { nodes: [], connections: [], chatSessions: [], activeChatId: null, backgroundMode: 'lines', showImageInfo: false, viewport: { x: 0, y: 0, k: 1 } };
+    const next = { ...current, viewport: { x: 40, y: 20, k: 1.2 } };
+    assert.equal(save判定.canvasSavePending(current, next, true), false, '平移/缩放预览期间不显示保存中');
+    assert.equal(save判定.canvasSavePending(current, next, false), true, '手势结束后显示待保存');
+    assert.equal(save判定.canvasSavePending(current, current, true), false, '无变化的手势不显示保存中');
+});
+test('拖动、平移、尺寸调整与聚焦动画期间不提交快照，也不创建视区保存计时器', async () => {
+    for (const port of [
+        { isNodeDragging: true }, { isNodeResizing: true }, { isCanvasPanning: true },
+        { dragRef: { current: { isDraggingNode: true } } }, { nodeResizingRef: { current: true } },
+        { canvasPanningRef: { current: true } }, { focusAnimRef: { current: 7 } },
+        { historyPausedRef: { current: true } },
+    ]) {
+        const api = await persistence({ port });
+        api.effects.forEach(effect => effect());
+        assert.equal(api.ready(), false);
+        assert.deepEqual(api.updates, [], JSON.stringify(port));
+        assert.equal(api.pendingTimers.size, 0);
+    }
+});
+test('按住不动超过保存延迟，新手势的同步ref仍阻止旧视区计时器保存', async () => {
+    for (const begin of [
+        api => { api.port.dragRef.current.isDraggingNode = true; },
+        api => { api.port.nodeResizingRef.current = true; },
+        api => { api.port.canvasPanningRef.current = true; },
+        api => { api.port.focusAnimRef.current = 7; },
+    ]) {
+        const api = await persistence();
+        api.effects[1]();
+        const timer = api.port.viewportSaveTimerRef.current;
+        begin(api);
+        api.pendingTimers.get(timer).callback();
+        assert.deepEqual(api.updates, []);
+        assert.equal(api.port.viewportSaveTimerRef.current, null);
+    }
+});
+test('连续拖动或尺寸调整结束后只提交最终节点和视区，等值重放不重复保存', async () => {
+    for (const flag of ['isNodeDragging', 'isNodeResizing']) {
+        const api = await persistence({ applyUpdates: true });
+        api.store.projects[0] = { id: api.id, ...api.snapshot };
+        api.render({ [flag]: true });
+        for (let step = 1; step <= 20; step++) {
+            const nodes = [{ ...api.port.nodes[0], position: { x: step * 10, y: step * 20 }, width: 340 + step }];
+            const viewport = { x: step, y: step * 2, k: 1.2 };
+            api.port.nodeTransactionRef.current = nodes;
+            api.port.viewportRef.current = viewport;
+            api.render({ nodes, viewport });
+            api.effects.forEach(effect => effect());
+        }
+        assert.deepEqual(api.updates, [], '中间帧不进入存储');
+        api.render({ [flag]: false });
+        api.effects.forEach(effect => effect());
+        assert.equal(api.updates.length, 1);
+        assert.equal(api.updates[0].patch.nodes, api.port.nodes);
+        assert.equal(api.updates[0].patch.viewport, api.port.viewport);
+        assert.equal(api.pendingTimers.size, 0, '最终节点与视区不拆成两次保存');
+        assert.equal(api.snapshot.viewport, api.port.viewport, '切换产品时使用最新视区');
+        api.render({ nodes: structuredClone(api.port.nodes), viewport: { ...api.port.viewport } });
+        api.effects.forEach(effect => effect());
+        assert.equal(api.updates.length, 1, '等值节点及空手势不再次提交');
+    }
+});
+test('平移与滚轮缩放中不保存，结束后合并为一个最终视区写入', async () => {
+    const api = await persistence({ applyUpdates: true });
+    api.store.projects[0] = { id: api.id, ...api.snapshot };
+    for (let step = 1; step <= 20; step++) {
+        const viewport = { x: step * 10, y: step * 20, k: 1 + step / 20 };
+        api.port.viewportRef.current = viewport;
+        api.render({ isCanvasPanning: true, viewport });
+        api.effects.forEach(effect => effect());
+    }
+    assert.deepEqual(api.updates, []);
+    assert.equal(api.pendingTimers.size, 0);
+    api.render({ isCanvasPanning: false });
+    api.effects.forEach(effect => effect());
+    assert.equal(api.pendingTimers.size, 1);
+    const timer = api.port.viewportSaveTimerRef.current;
+    api.pendingTimers.get(timer).callback();
+    assert.deepEqual(api.updates, [{ id: api.id, patch: { viewport: api.port.viewport } }]);
+    api.effects.forEach(effect => effect());
+    assert.equal(api.updates.length, 1);
+});
+test('完整快照已覆盖最新视区时，原计时器不重复提交；旧画布计时器不能写新画布', async () => {
+    for (const change of [
+        api => { api.store.projects[0].viewport = api.port.viewport; },
+        api => { api.port.restoredProjectIdRef.current = 'other'; },
+    ]) {
+        const api = await persistence();
+        api.effects[1]();
+        const timer = api.port.viewportSaveTimerRef.current;
+        change(api);
+        api.pendingTimers.get(timer).callback();
+        assert.deepEqual(api.updates, []);
+    }
 });
 
 async function references(nodes, connections = []) {

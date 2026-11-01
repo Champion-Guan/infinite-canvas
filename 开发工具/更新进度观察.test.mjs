@@ -150,3 +150,33 @@ test('面板显示真实下载百分比；安装不编造百分比，最新版�
   assert.equal(idle.some(item => item.type === 'progress'), false);
   assert.equal(idle.some(item => item.props?.['aria-current'] === 'step'), false);
 });
+
+test('版本弹窗复用统一更新面板，不再另画重复下载进度和状态行', () => {
+  const source = readFileSync(new URL('../.运行/3100源/画布副本/web/src/components/layout/version-release-modal.tsx', import.meta.url), 'utf8');
+  const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
+  const module = { exports: {} }, Fragment = Symbol('fragment');
+  const jsx = (type, props) => ({ type, props }), jsxs = jsx;
+  const mocks = {
+    react: {}, 'react/jsx-runtime': { Fragment, jsx, jsxs },
+    antd: { App: { useApp: () => ({ message: { error() {} } }) }, Button: 'button', Modal: 'modal', Tag: 'tag', Timeline: 'timeline' },
+    i18next: {}, 'react-i18next': { useTranslation: () => ({ t: value => value }) },
+    '@/hooks/use-version-check': { useVersionCheck: () => ({ open: true, setOpen() {}, openReleaseModal() {}, currentVersion: '2.0.0-beta.14', latestVersion: '2.0.0-beta.15', releases: [], checking: false, hasNewVersion: true, checkLatestRelease() {}, refresh: async () => {}, unavailable: false,
+      status: { hasNewVersion: true, latest: { version: '2.0.0-beta.15' }, download: { state: 'downloading', progress: 78 }, install: { allowed: false, state: 'idle' } } }) },
+    '@/constant/env': { formatDisplayVersion: value => value },
+    '@/扩展功能/软件更新/软件更新客户端': { updateMessages: {}, updateRequest: async () => {} },
+    '@/扩展功能/存储界面/设置视区': { useSettingsViewport: () => null },
+    '@/扩展功能/软件更新/在线安装操作': { OnlineInstallActions: 'online-install-actions' },
+    '@/扩展功能/产品/产品界面边界': { useProductActive: () => true },
+  };
+  new Function('module', 'exports', 'require', code)(module, module.exports, name => {
+    assert.ok(name in mocks, `未声明依赖：${name}`); return mocks[name];
+  });
+  function flatten(value) {
+    if (!value || typeof value !== 'object') return [];
+    if (Array.isArray(value)) return value.flatMap(flatten);
+    return [value, ...flatten(value.props?.children)];
+  }
+  const tree = flatten(module.exports.VersionReleaseModal({}));
+  assert.equal(tree.filter(item => item.type === 'progress').length, 0);
+  assert.equal(tree.filter(item => item.type === 'online-install-actions').length, 1);
+});

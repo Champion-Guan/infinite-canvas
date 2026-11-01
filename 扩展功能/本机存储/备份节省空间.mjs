@@ -1,6 +1,18 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { chmodSync, closeSync, constants, copyFileSync, fsyncSync, lstatSync, openSync, readFileSync, renameSync, unlinkSync } from 'node:fs';
+import { chmodSync, closeSync, constants, copyFileSync, fsyncSync, lstatSync, openSync, readSync, renameSync, unlinkSync } from 'node:fs';
 import { StorageError, requireValue } from './协议.mjs';
+
+export function 计算文件哈希(path) {
+  const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW), hash = createHash('sha256'), chunk = Buffer.allocUnsafe(1024 * 1024);
+  try {
+    while (true) {
+      const bytes = readSync(fd, chunk, 0, chunk.length, null);
+      if (!bytes) break;
+      hash.update(chunk.subarray(0, bytes));
+    }
+    return hash.digest('hex');
+  } finally { closeSync(fd); }
+}
 
 // APFS 使用写入时复制；其他文件系统由 Node 回退普通复制。文件独立，绝不使用硬链接。
 export function 复制独立备份文件(source, target, expectedHash, expectedSize) {
@@ -12,7 +24,7 @@ export function 复制独立备份文件(source, target, expectedHash, expectedS
   try {
     chmodSync(target, 0o600);
     requireValue((copied.dev !== original.dev || copied.ino !== original.ino) && copied.nlink === 1 && copied.size === expectedSize &&
-      createHash('sha256').update(readFileSync(target)).digest('hex') === expectedHash,
+      计算文件哈希(target) === expectedHash,
     'backup_corrupt', '备份副本校验失败，原始数据未修改。');
     const fd = openSync(target, constants.O_RDONLY | constants.O_NOFOLLOW);
     try { fsyncSync(fd); } finally { closeSync(fd); }

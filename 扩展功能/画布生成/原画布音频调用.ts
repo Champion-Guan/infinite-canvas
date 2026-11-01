@@ -26,17 +26,18 @@ export async function requestCanvasAudio(options: {
     config: AiConfig; prompt: string; scope: { productId: string; nodeId: string; slotId: string };
     previous?: CanvasImageTask; signal?: AbortSignal; retry?: boolean;
     recordTask(task: CanvasImageTask): Promise<void>;
-    applyAndSave(audio: Blob, receipt: CanvasImageReceipt): Promise<void>;
+    applyAndSave(audio: Blob, receipt: CanvasImageReceipt): Promise<unknown>;
+    deferConfirm?: () => boolean;
 }) {
     requireGenerationMode("audio");
     const host = (window as unknown as { __guanGenerationHost?: Parameters<typeof bindGenerationChannel>[0] }).__guanGenerationHost;
     if (!host) throw Error("本机生成端口尚未就绪，未发送音频请求。");
     const config = structuredClone(options.config), channel = resolveModelRequestConfig(config, config.model || config.audioModel);
-    await runCanvasImageTask({ host, scope: options.scope, previous: options.previous, signal: options.signal, retry: options.retry,
+    await runCanvasImageTask({ host, scope: options.scope, previous: options.previous, signal: options.signal, retry: options.retry, deferConfirm: options.deferConfirm,
         prepare: async () => prepareAudioRequest(channel, options.prompt), bind: () => bindGenerationChannel(host, { ...config, model: config.model || config.audioModel }),
         recordTask: options.recordTask,
         applyAndSave: async (job: { bytes: string; result: { contentType: string } }, receipt: CanvasImageReceipt) => {
-            await options.applyAndSave(parseAudioResponse(job.bytes, job.result.contentType, config.audioFormat), receipt);
+            return await options.applyAndSave(parseAudioResponse(job.bytes, job.result.contentType, config.audioFormat), receipt);
         },
     });
 }

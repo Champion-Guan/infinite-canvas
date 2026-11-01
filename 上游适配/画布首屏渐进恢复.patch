@@ -1,0 +1,55 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 2d495fd..6fa0941 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -108,7 +108,6 @@ import {
+     getInputSummary,
+     hasResumableVideoTask,
+     hydrateAssistantImages,
+-    hydrateCanvasImages,
+     imageExtension,
+     isAudioFile,
+     isGenerationCanceled,
+@@ -505,10 +504,8 @@ function InfiniteCanvasPage() {
+             return;
+         }
+ 
+-        const restore = async () => {
+-            const restoredNodes = await hydrateCanvasImages(resetInterruptedGeneration(project.nodes));
+-            const restoredSessions = await hydrateAssistantImages(project.chatSessions || []);
+-            if (cancelled) return;
++        const restoredNodes = resetInterruptedGeneration(project.nodes);
++        const restoredSessions = project.chatSessions || [];
+             setRawNodes(restoredNodes);
+             setConnections(project.connections);
+             setChatSessions(restoredSessions);
+@@ -532,8 +529,27 @@ function InfiniteCanvasPage() {
+             setHistoryState({ canUndo: false, canRedo: false });
+             restoredProjectIdRef.current = projectId;
+             setProjectLoaded(true);
+-        };
+-        void restore();
++
++        const firstCanvasPaint = new Promise<void>((resolve) => {
++            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
++        });
++        void firstCanvasPaint.then(async () => {
++            const hydratedSessions = await hydrateAssistantImages(restoredSessions);
++            if (cancelled || restoredProjectIdRef.current !== projectId) return;
++            const hydratedById = new Map(hydratedSessions.map((session) => [session.id, session]));
++            setChatSessions((current) => {
++                let changed = false;
++                const next = current.map((session) => {
++                    const original = restoredSessions.find((item) => item.id === session.id);
++                    const hydrated = hydratedById.get(session.id);
++                    if (!original || session !== original || !hydrated || hydrated === session) return session;
++                    changed = true;
++                    return hydrated;
++                });
++                if (changed && lastHistoryRef.current) lastHistoryRef.current = { ...lastHistoryRef.current, chatSessions: next };
++                return changed ? next : current;
++            });
++        }).catch(() => undefined);
+         return () => { cancelled = true; };
+     }, [hydrated, navigate, openProject, projectId, setRawNodes]);
+ 

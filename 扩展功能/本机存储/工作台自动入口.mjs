@@ -2,7 +2,7 @@ import { createFallbackClient } from '../故障切换/切换客户端.mjs';
 import { authorizeLocalStorage } from './本机授权客户端.mjs';
 import { bindPageAuthorization } from './页面授权生命周期.mjs';
 import { createRenewingDataClient } from './续期数据客户端.mjs';
-import { createRecoverableShardedApplicationStorage as createApplicationStorage } from './可恢复分片应用存储.mjs';
+import { createRecoverableApplicationStorage as createApplicationStorage } from './可恢复应用存储.mjs';
 import { bindAutomaticUpdateRestart } from '../软件更新/自动更新重启.mjs';
 
 // 用户不再填码。只消费当前本机启动器交付的一次性握手材料，立即从DOM移除。
@@ -59,7 +59,7 @@ export function mountAutomaticWorkbench({ root, origin = location.origin, loadAp
       await fallback.read();
       Object.defineProperty(view, '__guanFallbackHost', { value: fallback, configurable: false, writable: false });
       Object.defineProperty(view, '__guanGenerationHost', { value: authorization.generationPort, configurable: false, writable: false });
-      Object.defineProperty(view, '__guanSQLiteHost', { value: Object.freeze({ initialize: async () => app, reconnect: () => client.reconnect() }), configurable: false, writable: false });
+      Object.defineProperty(view, '__guanSQLiteHost', { value: Object.freeze({ initialize: async () => app, reconnect: options => client.reconnect(options) }), configurable: false, writable: false });
       started = true;
       status.textContent = '正在加载工作台界面…';
       // 保留启动面板到React真正提交首屏，避免动态模块加载期间出现空白页。

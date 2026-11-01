@@ -1,0 +1,21 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 173779e..f0c57b7 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1182,7 +1182,7 @@ function InfiniteCanvasPage() {
+         applyHistory(next);
+     }, [applyHistory]);
+ 
+-    const organizeOverlappingNodes = useCanvasNodeArrangement({ historyRef, createHistoryEntry, applyHistory, message, size, setViewport });
++    const organizeOverlappingNodes = useCanvasNodeArrangement({ historyRef, createHistoryEntry, applyHistory, message, size, setViewport, setSelectedNodeIds });
+ 
+     const exportCurrentProject = useCallback(async () => {
+         const project = useCanvasStore.getState().projects.find((item) => item.id === projectId);
+@@ -3254,6 +3254,7 @@ function InfiniteCanvasPage() {
+                         canUngroup={canUngroupSelection}
+                         onGroup={groupSelection}
+                         onUngroup={ungroupSelection}
++                        onOrganize={() => organizeOverlappingNodes(new Set(selectedNodeIdsRef.current))}
+                     />
+                 ) : null}
+ 

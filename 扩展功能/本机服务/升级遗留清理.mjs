@@ -1,6 +1,6 @@
 import { lstat, readdir, readFile, rename, rm, open, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
-import { PROTOCOL, SCHEMA_VERSION, validUUID, validHash } from '../本机存储/协议.mjs';
+import { PROTOCOL, SCHEMA_VERSION, LEGACY_SCHEMA_VERSION, validUUID, validHash } from '../本机存储/协议.mjs';
 
 const receiptName = '.历史备份清理-v1.json';
 const pendingPrefix = '.清理中-';
@@ -27,7 +27,7 @@ async function safeTree(folder, { interrupted = false, workspaceId } = {}) {
   const info = await present(join(folder, '清单.json'));
   if (!info || info.size > 4 * 1024 ** 2) return false;
   const manifest = JSON.parse(await readFile(join(folder, '清单.json'), 'utf8'));
-  if (manifest.protocol !== PROTOCOL || manifest.schemaVersion !== SCHEMA_VERSION || manifest.workspaceId !== workspaceId || !Array.isArray(manifest.files)) return false;
+  if (manifest.protocol !== PROTOCOL || ![LEGACY_SCHEMA_VERSION, SCHEMA_VERSION].includes(manifest.schemaVersion) || manifest.workspaceId !== workspaceId || !Array.isArray(manifest.files)) return false;
   const expected = new Set(['工作台.sqlite', '清单.json', '媒体']);
   const media = new Set();
   let database = false;
@@ -40,7 +40,7 @@ async function safeTree(folder, { interrupted = false, workspaceId } = {}) {
     if (!owned(file, false) || file.size !== item.size) return false;
   }
   return database && names.length === expected.size && names.every(name => expected.has(name)) &&
-    manifest.mediaCount === media.size && (await readdir(join(folder, '媒体'))).every(name => media.has(name));
+    Number.isSafeInteger(manifest.mediaCount) && manifest.mediaCount >= media.size && (await readdir(join(folder, '媒体'))).every(name => media.has(name));
 }
 
 // 只在已独占打开原工作区、且页面尚未接入时运行一次。后续用户手动备份保留。

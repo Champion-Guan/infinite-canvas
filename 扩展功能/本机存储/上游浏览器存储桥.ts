@@ -28,7 +28,7 @@ export interface SQLiteRuntime {
     purgeMedia(ids: string[]): Promise<{ deleted: string[]; retained: string[]; deferred: string[] }>;
     subscribe(callback: () => void): () => void;
 }
-declare global { interface Window { __guanSQLiteHost?: { initialize(): Promise<SQLiteRuntime>; reconnect?(): Promise<void> }; } }
+declare global { interface Window { __guanSQLiteHost?: { initialize(): Promise<SQLiteRuntime>; reconnect?(options?: { reason?: string }): Promise<void> }; } }
 let runtime: SQLiteRuntime | null = null;
 let appState: SQLiteInstance, preferencesStore: SQLiteInstance;
 const stateCache = new Map<string, string>(), preferencesCache = new Map<string, string>(), sessionCache = new Map<string, string>();
@@ -37,17 +37,38 @@ const scheduled = new Map<string, { value: string; queuedAt: number; timer: Retu
 const activeSaves = new Set<string>();
 let retryFlight: Promise<void> | null = null;
 let reconnecting = false, reconnectError: string | null = null;
+// 会话过期、拒绝或连接中断都保留页面内的原操作，点击重试时先恢复同一会话。
+// 重试只复用原队列和 operationId，不重新创建任务或兑换授权码。
+// 普通网络错误不代表页面授权已经失效。先用原 operationId 重试，
+// 只有服务明确报告会话失效或授权响应丢失时才恢复当前会话。
+const SESSION_RECOVERY_ERRORS = new Set(["session_expired", "session_denied", "authorization_connection_failed"]);
+const AUTHORIZATION_END_ERRORS = new Set(["authorization_expired", "authorization_denied", "lease_expired", "session_host_closed"]);
 function ready() { if (!runtime) throw new Error("本机存储尚未初始化，不允许退回浏览器数据库。"); return runtime; }
 export function storageStatus() {
     const current = runtime?.getStatus();
     const codes = [...(current?.failures?.map(item => item.code) ?? []), ...[...failed.values()].map(error => (error as { code?: string } | null)?.code)];
     return { state: failed.size || current?.state === "error" ? "error" : writes.size || scheduled.size || current?.pending ? "saving" : current?.state === "idle" && stateCache.size > 0 ? "saved" : current?.state ?? "idle",
         pending: Math.max(writes.size, current?.pending ?? 0) + scheduled.size, retrying: !!retryFlight || !!current?.retrying,
-        conflict: codes.includes("revision_conflict"), reconnectRequired: codes.includes("session_expired"), reconnecting,
+        conflict: codes.includes("revision_conflict"), reconnectRequired: codes.some(code => SESSION_RECOVERY_ERRORS.has(code ?? "")), reconnecting,
         failure: current?.failures?.[0] ?? null,
-        reconnectError: reconnectError ?? codes.find(code => ["authorization_expired", "authorization_denied", "lease_expired", "session_host_closed"].includes(code ?? "")) ?? null };
+        reconnectError: reconnectError ?? codes.find(code => AUTHORIZATION_END_ERRORS.has(code ?? "")) ?? null };
 }
 function statusChanged() { if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("guan:storage-status", { detail: storageStatus() })); }
+function failureCodes(app: SQLiteRuntime) {
+    return new Set([
+        ...[...failed.values()].map(error => (error as { code?: unknown } | null)?.code),
+        ...(app.getStatus().failures ?? []).map(item => item.code),
+    ]);
+}
+function needsSessionRecovery(app: SQLiteRuntime, error?: unknown) {
+    const code = (error as { code?: unknown } | null)?.code;
+    const codes = failureCodes(app);
+    return SESSION_RECOVERY_ERRORS.has(typeof code === "string" ? code : "") ||
+        [...codes].some(value => typeof value === "string" && SESSION_RECOVERY_ERRORS.has(value));
+}
+function isConflict(app: SQLiteRuntime) {
+    return failureCodes(app).has("revision_conflict");
+}
 function track<T>(key: string, promise: Promise<T>) {
     writes.add(promise); statusChanged();
     promise.then(() => failed.delete(key), error => failed.set(key, error)).finally(() => { writes.delete(promise); statusChanged(); });
@@ -144,18 +165,47 @@ function retryStorage(reconnect: boolean): Promise<void> {
         retryFlight = (async () => {
             for (const key of [...scheduled.keys()]) startScheduled(key);
             await Promise.allSettled([...writes]);
-            if (reconnect) {
-                if (storageStatus().conflict) throw new Error("存在版本冲突，不能通过重新连接覆盖。");
+            const reconnectOnce = async () => {
+                if (isConflict(app)) throw new Error("存在版本冲突，不能通过重新连接覆盖。");
                 if (typeof window.__guanSQLiteHost?.reconnect !== "function") throw new Error("保留页面重新连接协议不可用。");
-                try { await window.__guanSQLiteHost.reconnect(); }
-                catch (error) { reconnectError = typeof (error as { code?: unknown } | null)?.code === "string" ? (error as { code: string }).code : "connection_failed"; throw error; }
+                const codes = failureCodes(app);
+                const denied = codes.has("session_denied");
+                const authorizationResponseLost = codes.has("authorization_connection_failed");
+                reconnecting = true; statusChanged();
+                try {
+                    await window.__guanSQLiteHost.reconnect(
+                        denied
+                            ? { reason: "session_denied" }
+                            : authorizationResponseLost
+                                ? { reason: "authorization_connection_failed" }
+                                : undefined,
+                    );
+                }
+                catch (error) {
+                    // 服务端已完成恢复但响应在传输途中丢失时，下一次相同 reconnect
+                    // 会返回原会话；reconnect_not_due 也只表示当前会话仍有效。
+                    // 两者都不应阻止随后用原 operationId 重试保存。
+                    const code = (error as { code?: unknown } | null)?.code;
+                    if (code === "reconnect_not_due") return;
+                    reconnectError = typeof (error as { code?: unknown } | null)?.code === "string" ? (error as { code: string }).code : "connection_failed";
+                    throw error;
+                }
+            };
+            if (reconnect) await reconnectOnce();
+            try { await app.retryPending(); }
+            catch (error) {
+                // 一次点击内完成“先重试原操作、再恢复会话、再重试原操作”；
+                // 只对服务明确报告会话失效的结果恢复，不把普通网络丢包当成可重连授权。
+                if (!reconnect && needsSessionRecovery(app, error) && !AUTHORIZATION_END_ERRORS.has((error as { code?: string } | null)?.code ?? "")) {
+                    await reconnectOnce();
+                    await app.retryPending();
+                } else throw error;
             }
-            await app.retryPending();
             // 重试期间用户仍可能编辑；这些新操作也必须收到ACK，不能只清掉旧错误。
             for (const key of [...scheduled.keys()]) startScheduled(key);
             await Promise.allSettled([...writes]); await app.flush();
             if (writes.size || scheduled.size || app.getStatus().state === "error" || app.getStatus().pending) throw new Error("仍有未确认编辑，请勿关闭或刷新。");
-            failed.clear();
+            failed.clear(); reconnectError = null;
         })();
         retryFlight.then(() => { retryFlight = null; reconnecting = false; statusChanged(); }, () => { retryFlight = null; reconnecting = false; statusChanged(); });
         statusChanged();

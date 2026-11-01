@@ -13,8 +13,10 @@ import { promptGenerationMode } from "../安全与批量/prompt-generation-mode"
 import { settleActivityGroup } from "../安全与批量/settle-activity-group";
 import { placeCanvasNode } from "../画布布局/卡片自动避让";
 import { planBatchResultColumn, type BatchResultPlacement } from "../画布布局/批量结果排布";
+import { beginBatchCanvasSave, completeBatchCanvasSave, finishBatchCanvasSave } from "./批量保存协调";
 
 type BatchGenerationPort = {
+    projectId: string;
     nodesRef: RefObject<CanvasNodeData[]>;
     connectionsRef: RefObject<CanvasConnection[]>;
     effectiveConfig: ReturnType<typeof useEffectiveConfig>;
@@ -23,9 +25,10 @@ type BatchGenerationPort = {
     setSelectedNodeIds: Dispatch<SetStateAction<Set<string>>>;
     setSelectedConnectionId: Dispatch<SetStateAction<string | null>>;
     handleGenerateNode: (id: string, mode: CanvasNodeGenerationMode, prompt: string, placement?: BatchResultPlacement) => Promise<unknown>;
+    saveCanvas?: (id: string, options?: { force?: boolean }) => Promise<unknown>;
     message: MessageInstance;
 };
-export function useCanvasBatchGeneration({ nodesRef, connectionsRef, effectiveConfig, setNodes, setConnections, setSelectedNodeIds, setSelectedConnectionId, handleGenerateNode, message }: BatchGenerationPort) {
+export function useCanvasBatchGeneration({ projectId, nodesRef, connectionsRef, effectiveConfig, setNodes, setConnections, setSelectedNodeIds, setSelectedConnectionId, handleGenerateNode, saveCanvas = async () => {}, message }: BatchGenerationPort) {
     const NODE_STATUS_LOADING = "loading";
     const addGenerationConfigsForPromptNodes = useCallback(() => {
         const promptNodes = nodesRef.current.filter((node) => node.type === CanvasNodeType.Text && Boolean((node.metadata?.content || node.metadata?.prompt || "").trim()));
@@ -92,33 +95,58 @@ export function useCanvasBatchGeneration({ nodesRef, connectionsRef, effectiveCo
             return;
         }
         batchGenerationRunning.current = true;
-        message.info(`已加入 ${configNodes.length} 个生成任务，最多同时执行 3 个`);
-        let cursor = 0;
+        beginBatchCanvasSave(projectId);
+        const imageNodes = configNodes.filter(node => (node.metadata?.generationMode || "image") === "image");
+        const boundedNodes = configNodes.filter(node => (node.metadata?.generationMode || "image") !== "image");
+        message.info(`已加入 ${configNodes.length} 个生成任务；生图任务立即并行执行，视频、音频和文本最多同时执行 3 个`);
         let failed = 0;
-        const worker = async () => {
-            while (cursor < configNodes.length) {
-                const queued = configNodes[cursor++];
-                const node = nodesRef.current.find((item) => item.id === queued.id);
-                if (!node || node.metadata?.status === NODE_STATUS_LOADING) continue;
-                try {
-                    await handleGenerateNode(node.id, node.metadata?.generationMode || "image", node.metadata?.composerContent || node.metadata?.prompt || "", placements.get(node.id));
-                } catch {
-                    failed++;
-                }
+        const runOne = async (queued: CanvasNodeData) => {
+            const node = nodesRef.current.find((item) => item.id === queued.id);
+            if (!node || node.metadata?.status === NODE_STATUS_LOADING) return;
+            try {
+                await handleGenerateNode(node.id, node.metadata?.generationMode || "image", node.metadata?.composerContent || node.metadata?.prompt || "", placements.get(node.id));
+            } catch {
+                failed++;
             }
         };
+        const runImages = settleActivityGroup(imageNodes.map(runOne));
+        let cursor = 0;
+        const worker = async () => {
+            while (cursor < boundedNodes.length) await runOne(boundedNodes[cursor++]);
+        };
         try {
-            await settleActivityGroup(Array.from({ length: Math.min(3, configNodes.length) }, worker));
+            // 生图不再经过数量 worker；其余模式继续保留原有 3 路限制。
+            await settleActivityGroup([
+                runImages,
+                settleActivityGroup(Array.from({ length: Math.min(3, boundedNodes.length) }, worker)),
+            ]);
             if (failed) message.warning(`${failed} 个任务提交失败，其余任务已继续执行`);
         } finally {
+            const needsSave = finishBatchCanvasSave(projectId);
+            if (needsSave !== null) {
+                let saveOutcome: "saved" | "not-saved" | "failed" = needsSave ? "failed" : "not-saved";
+                try {
+                    if (needsSave) {
+                        // 最终快照保存期间继续保持批量门控；force 只放行这一笔
+                        // 收尾保存，避免 React 订阅在其前后插入普通整画布写入。
+                        await saveCanvas(projectId, { force: true });
+                        saveOutcome = "saved";
+                    }
+                } catch (error) {
+                    message.error(error instanceof Error ? `批量任务已结束，但最终画布保存未确认：${error.message}` : "批量任务已结束，但最终画布保存未确认。请检查保存状态后重试。");
+                } finally {
+                    completeBatchCanvasSave(projectId, saveOutcome);
+                }
+            }
             batchGenerationRunning.current = false;
         }
-    }, [handleGenerateNode, message, nodesRef]);
+    }, [handleGenerateNode, message, nodesRef, projectId, saveCanvas]);
 
     const completeAndGenerateRunning = useRef(false);
     const completeAndGenerateAll = useCallback(async () => {
         if (completeAndGenerateRunning.current) return;
         completeAndGenerateRunning.current = true;
+        beginBatchCanvasSave(projectId);
         try {
             // Completion updates nodesRef/connectionsRef synchronously, so
             // generation includes the new cards without waiting on a render.
@@ -127,9 +155,23 @@ export function useCanvasBatchGeneration({ nodesRef, connectionsRef, effectiveCo
         } catch {
             message.error("批量生成未完成，请检查生成任务的错误信息后重试");
         } finally {
+            const needsSave = finishBatchCanvasSave(projectId);
+            if (needsSave !== null) {
+                let saveOutcome: "saved" | "not-saved" | "failed" = needsSave ? "failed" : "not-saved";
+                try {
+                    if (needsSave) {
+                        await saveCanvas(projectId, { force: true });
+                        saveOutcome = "saved";
+                    }
+                } catch (error) {
+                    message.error(error instanceof Error ? `批量任务已结束，但最终画布保存未确认：${error.message}` : "批量任务已结束，但最终画布保存未确认。请检查保存状态后重试。");
+                } finally {
+                    completeBatchCanvasSave(projectId, saveOutcome);
+                }
+            }
             completeAndGenerateRunning.current = false;
         }
-    }, [addGenerationConfigsForPromptNodes, generateAllConfigNodes, message]);
+    }, [addGenerationConfigsForPromptNodes, generateAllConfigNodes, message, projectId, saveCanvas]);
 
     return { addGenerationConfigsForPromptNodes, generateAllConfigNodes, completeAndGenerateAll };
 }

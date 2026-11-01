@@ -8,7 +8,7 @@ import {
 import { useMatch, useNavigate } from "react-router-dom";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { readCanvasExport } from "../画布导入/画布导入";
-import { flushSQLiteStorage, sqlitePreferences, retrySQLiteStorage } from "../本机存储/上游浏览器存储桥";
+import { flushSQLiteStorage, sqlitePreferences, retrySQLiteStorage, storageStatus } from "../本机存储/上游浏览器存储桥";
 import { ProductOperationGate, ProductSaveRegistry } from "./产品规则";
 import { ProductCommitCheckpoint } from "./产品保存检查点";
 import { planProductRecycle, planProductRestore, recycledProducts } from "./产品回收规则";
@@ -18,16 +18,55 @@ import { workbookDeletionGate } from "../Excel删除/工作簿删除门禁";
 import { planWorkbookPermanentDelete, planWorkbookRestore, recycledWorkbookEntries } from "../Excel删除/Excel回收站规则";
 import { commitWorkbookChange } from "../Excel/Excel保存导航";
 import { visibleWorkbookId, withVisibleSelection, planExcelImport, prepareWorkbookEntry, rememberWorkbookProduct, selectWorkbook as planWorkbookSelection, workbookEntry, workbookProjects, type ExcelImportInput, type WorkbookSnapshot } from "../Excel/Excel产品归属";
+import { ensureProductParameterNode } from "../Excel画布/产品参数卡片默认";
 import { productRestoreMountGate } from "./产品恢复挂载门禁";
+import { isBatchCanvasSaveActive, markBatchCanvasDirty, withBatchCanvasCheckpoint } from "../画布生成/批量保存协调";
 
 export const ACTIVE_PRODUCT_KEY = "guan-products:active:v1";
 const operations = new ProductOperationGate();
 const saves = new ProductSaveRegistry();
+export type ProductCanvasSaveResult = { persisted: boolean; deferred: boolean };
 // 结果保存复用原产品真实layout-effect提交票据，不根据当前激活路由选择画布。
-export async function saveProductCanvas(id: string) {
-  if (!useCanvasStore.getState().openProject(id)) throw new Error("原产品不存在，结果仍保留在任务账本。");
-  await saves.flush(id);
-  await flushSQLiteStorage();
+export async function saveProductCanvas(id: string, options: { force?: boolean; checkpoint?: boolean } = {}): Promise<ProductCanvasSaveResult> {
+  // force 只由批量收尾保存使用：门控仍保持开启，避免 React 订阅在最终
+  // 快照落盘前插入第二笔保存；真正的检查点回调也会收到 forceBatch。
+  // 这里记录“调用开始时是否确实处于批量收尾门控”。如果普通保存已经
+  // 在批量开始前进入保存队列，即使调用者误传 force，也不能让它在批量
+  // 中途完成后继续写 SQLite。
+  const forceBatch = options.force === true && isBatchCanvasSaveActive(id);
+  if (isBatchCanvasSaveActive(id) && !options.force) {
+    markBatchCanvasDirty(id);
+    // 一键执行期间只保留内存中的最新画布。视频身份和生成结果都由批量结束
+    // 时的最终快照一次性提交，避免 checkpoint 绕过批量门控触发 SQLite 写入。
+    return { persisted: false, deferred: true };
+  }
+  const commit = async (): Promise<ProductCanvasSaveResult> => {
+    if (!useCanvasStore.getState().openProject(id)) throw new Error("原产品不存在，结果仍保留在任务账本。");
+    // 最终检查点的持久化放行在 useProductCanvasSave 的真实 persist 边界发放。
+    // 这里不能包住整个 saves.flush，否则等待 React 提交票据期间，其他
+    // Zustand 更新可能抢先消费一次性放行票据。
+    await saves.flush(id, { forceBatch });
+    // 保存请求可能在批量开始前已经进入队列；真正准备写入 SQLite
+    // 时再次检查，避免批量执行期间仍提交一次整画布。
+    if (isBatchCanvasSaveActive(id) && !forceBatch) {
+      markBatchCanvasDirty(id);
+      return { persisted: false, deferred: true };
+    }
+    try {
+      await flushSQLiteStorage();
+    } catch (error) {
+      // 批量最终快照只允许对已经进入SQLite恢复队列的保存做一次
+      // 有界重试。这样瞬时连接/会话错误不会把用户留在失败状态，
+      // 但也不会重新生成、重新创建任务，或掩盖React检查点错误。
+      if (!options.force) throw error;
+      const status = storageStatus();
+      if (status.state !== "error" && !status.reconnectRequired && !status.pending)
+        throw error;
+      await retrySQLiteStorage();
+    }
+    return { persisted: true, deferred: false };
+  };
+  return commit();
 }
 const deletionGuards = new Map<string, () => boolean>();
 
@@ -49,7 +88,17 @@ export function useProductCanvasSave<T>(
     checkpoint.mount();
     deletionGuards.set(projectId, () => canDeleteRef.current());
     const unregister = saves.register(projectId, (options) =>
-      checkpoint.flush((value) => persistRef.current(value, options), options),
+      checkpoint.flush((value) => {
+        // 批量生成期间，检查点可能在批量开始前已经排队。
+        // 到达真正持久化边界时再次检查门控，避免这类在途检查点绕过批量保存策略。
+        if (isBatchCanvasSaveActive(projectId) && !options?.forceBatch) {
+          markBatchCanvasDirty(projectId);
+          return Promise.resolve({ deferred: true });
+        }
+        if (options?.forceBatch)
+          return withBatchCanvasCheckpoint(projectId, () => persistRef.current(value, options));
+        return persistRef.current(value, options);
+      }, options),
       () => checkpoint.acknowledgeDeferredSave(),
     );
     return () => {
@@ -132,6 +181,10 @@ export function useProductNavigation() {
         const current = withVisibleSelection(useCanvasStore.getState(), activeId);
         useCanvasStore.setState({ guanWorkbooks: current.guanWorkbooks });
         const id = useCanvasStore.getState().createProject();
+        const created = useCanvasStore.getState().openProject(id);
+        if (!created) throw new Error("新建产品不存在，未切换画布。");
+        const nodes = ensureProductParameterNode(created.nodes);
+        if (nodes !== created.nodes) useCanvasStore.getState().updateProject(id, { nodes });
         // 保存失败不删除新产品，不清空旧画布，也不绕过错误切换。
         await flushSQLiteStorage();
         await enter(id);

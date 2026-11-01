@@ -22,7 +22,7 @@ export function createPreparedTaskRetirement({ mutate, active, pendingResults, w
       requireValue(!active.has(target.id) && !pendingResults.has(target.id) &&
         !workspace.readDocument('extension', 'guan-fallback-attempt:' + target.id),
       'generation_admission_pending', '原任务仍在提交或存在执行记录，请稍后恢复原任务。', 409);
-      // 留出下一次显式提交的位置，沿用原有有界账本，不增加无限日志。
+      // 显式配置容量时留出下一次提交位置；默认保留全部任务身份，受SQLite空间保护。
       requireValue(jobs.length + 1 < maxTasks, 'generation_capacity', '任务记录空间已满，未发送新的生成请求。', 409);
       const time = clock();
       const job = { id: target.id, productId: target.productId, nodeId: target.nodeId, binding: target.binding,

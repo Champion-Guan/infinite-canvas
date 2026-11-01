@@ -1,10 +1,11 @@
 import { createServer } from 'node:http';
 import { createWriteCoordinator } from './写入协调.mjs';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { COLLECTIONS, MAX_DOCUMENT_BYTES, MAX_MEDIA_BYTES, PROTOCOL, StorageError, requireValue, validHash, validId, validUUID } from '../本机存储/协议.mjs';
+import { COLLECTIONS, MAX_DOCUMENT_BYTES, MAX_FRAGMENT_BATCH_BYTES, MAX_MEDIA_BYTES, MEDIA_TYPES, PROTOCOL, StorageError, requireValue, validHash, validId, validUUID } from '../本机存储/协议.mjs';
+import { MEDIA_BATCH_BODY_BYTES, MEDIA_BATCH_CONTENT_TYPE, parseMediaBatchBody } from '../本机存储/媒体批次协议.mjs';
 import { readNamespaceSnapshot } from '../本机存储/命名空间快照.mjs';
 
-const MAX_JSON_BODY = MAX_DOCUMENT_BYTES + 64 * 1024;
+const MAX_JSON_BODY = MAX_DOCUMENT_BYTES + 1024 * 1024;
 const ALLOWED_HEADERS = ['authorization', 'content-type', 'x-guan-csrf'];
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 function validOrigin(origin) {
@@ -14,13 +15,27 @@ function readBody(request, limit) {
   const length = request.headers['content-length'];
   requireValue(!length || /^\d+$/.test(length) && Number(length) <= limit, 'body_too_large', '请求体超过限制。', 413);
   return new Promise((resolve, reject) => {
-    let bytes = 0, rejected = false; const chunks = [];
+    const expected = length === undefined ? null : Number(length);
+    let bytes = 0, rejected = false;
+    let buffer = expected === null ? null : Buffer.allocUnsafe(expected);
+    const chunks = expected === null ? [] : null;
     request.on('data', chunk => {
+      if (rejected) return;
       bytes += chunk.length;
-      if (bytes > limit) { if (!rejected) reject(new StorageError('body_too_large', '请求体超过限制。', 413)); rejected = true; chunks.length = 0; }
-      else if (!rejected) chunks.push(chunk);
+      if (bytes > limit || expected !== null && bytes > expected) {
+        rejected = true; buffer = null; chunks?.splice(0);
+        reject(new StorageError('body_too_large', '请求体超过限制。', 413));
+      } else if (buffer) chunk.copy(buffer, bytes - chunk.length);
+      else chunks.push(chunk);
     });
-    request.on('end', () => { if (!rejected) resolve(Buffer.concat(chunks)); });
+    request.on('end', () => {
+      if (rejected) return;
+      if (expected !== null && bytes !== expected) {
+        reject(new StorageError('invalid_body_length', '请求体长度不完整。', 400));
+        return;
+      }
+      resolve(buffer ?? Buffer.concat(chunks, bytes));
+    });
     request.on('error', reject);
     request.on('aborted', () => reject(new StorageError('request_aborted', '请求中断。')));
   });
@@ -60,7 +75,7 @@ export async function startDataService({ workspace, allowedOrigins, port = 0, se
         if (now() - session.windowStart >= 10_000) { session.windowStart = now(); session.count = 0; }
         requireValue(++session.count <= rateLimit, 'rate_limited', '请求过于频繁，请稍后重试。', 429);
       }
-      requireValue(activeRequests < 8, 'service_busy', '本机数据服务繁忙。', 503); activeRequests++; counted = true;
+      activeRequests++; counted = true;
       if (request.method !== 'GET') requireValue(equal(request.headers['x-guan-csrf'], session.csrf), 'csrf_denied', '写入校验失败。', 403);
       // 先鉴权并读完整请求体，再排队；执行前复核撤销/过期及连接关闭。
       async function commitWrite(operation) {
@@ -78,10 +93,27 @@ export async function startDataService({ workspace, allowedOrigins, port = 0, se
       }
       if (rawPath === '/health' && request.method === 'GET') { json(200, { protocol: PROTOCOL, workspaceId: workspace.workspaceId }); return; }
       if (rawPath === '/usage' && request.method === 'GET') { const usage = await workspace.readDetailedUsage(); requireValue(sessions.get(token) === session && session.expiresAt > now(), 'session_denied', '统计期间会话已失效，请重新授权。', 401); json(200, usage); return; }
-      const match = rawPath.match(/^\/v1\/workspaces\/([^/]+)\/(documents|media|namespace-snapshots|media-cleanup)(?:\/([^/]+))?(?:\/([^/]+))?$/);
+      const match = rawPath.match(/^\/v1\/workspaces\/([^/]+)\/(documents|media|namespace-snapshots|media-cleanup|fragments)(?:\/([^/]+))?(?:\/([^/]+))?$/);
       requireValue(match, 'route_not_found', '接口不存在。', 404);
       const [, workspaceId, resource, first, second] = match;
       requireValue(validUUID(workspaceId) && workspaceId === workspace.workspaceId, 'workspace_denied', '工作区未授权。', 403);
+      if (resource === 'fragments') {
+        requireValue(request.method === 'POST' && !first && !second && request.headers['content-type'] === 'application/json',
+          'method_denied', '分片批次只支持授权的JSON提交。', 405);
+        let body;
+        try { body = JSON.parse((await readBody(request, MAX_FRAGMENT_BATCH_BYTES)).toString('utf8')); }
+        catch (error) { if (error.code === 'body_too_large') throw error; throw new StorageError('invalid_json', '分片批次JSON格式无效。'); }
+        requireValue(body && !Array.isArray(body) && Object.keys(body).length === 1 && Array.isArray(body.fragments),
+          'invalid_fragment_batch', '分片批次格式无效。');
+        json(200, await commitWrite(() => workspace.writeFragments(body.fragments))); return;
+      }
+      if (resource === 'media' && first === 'batch') {
+        requireValue(request.method === 'POST' && !second && request.headers['content-type'] === MEDIA_BATCH_CONTENT_TYPE,
+          'method_denied', '媒体批次只支持授权的二进制提交。', 405);
+        const body = await readBody(request, MEDIA_BATCH_BODY_BYTES);
+        const items = parseMediaBatchBody(body);
+        json(201, await commitWrite(() => workspace.writeMediaBatch(items))); return;
+      }
       if (resource === 'media-cleanup') {
         requireValue(request.method === 'POST' && !first && !second && request.headers['content-type'] === 'application/json', 'method_denied', '媒体清理需要授权的 JSON 提交。', 405);
         let body;
@@ -112,7 +144,11 @@ export async function startDataService({ workspace, allowedOrigins, port = 0, se
       }
       requireValue(!second, 'invalid_media', '媒体路径无效。');
       if (request.method === 'POST' && !first) {
-        const bytes = await readBody(request, MAX_MEDIA_BYTES); json(201, await commitWrite(() => workspace.writeMedia(bytes, request.headers['content-type']))); return;
+        const mime = request.headers['content-type'];
+        requireValue(MEDIA_TYPES.includes(mime), 'invalid_media', '媒体类型不支持。');
+        const bytes = await readBody(request, MAX_MEDIA_BYTES);
+        const media = await commitWrite(() => workspace.writeMedia(bytes, mime));
+        json(201, media); return;
       }
       requireValue(request.method === 'GET' && validHash(first), 'invalid_media', '媒体路径或方法无效。');
       const media = workspace.readMedia(first);
@@ -125,7 +161,7 @@ export async function startDataService({ workspace, allowedOrigins, port = 0, se
       request.resume();
     } finally { if (counted) activeRequests--; }
   });
-  server.requestTimeout = 15_000; server.headersTimeout = 10_000; server.keepAliveTimeout = 2_000; server.maxHeadersCount = 32; server.maxConnections = 32;
+  server.requestTimeout = 10 * 60_000; server.headersTimeout = 10_000; server.keepAliveTimeout = 2_000; server.maxHeadersCount = 32; server.maxConnections = 32;
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', resolve); });
   server.on('error', () => {}); // 启动失败由上面返回；运行时连接错误不打印原始请求。
   return {

@@ -1,0 +1,13 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index f0c57b7..2d495fd 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -3075,7 +3075,7 @@ function InfiniteCanvasPage() {
+                     canUndo={historyState.canUndo}
+                     canRedo={historyState.canRedo}
+                     onExportProject={exportCurrentProject}
+-                    onOrganizeOverlaps={organizeOverlappingNodes}
++                    onOrganizeOverlaps={() => organizeOverlappingNodes()}
+                     onImportContents={() => contentInputRef.current?.click()}
+                     onOpenPlugins={() => setPluginManagerOpen(true)}
+                     onUndo={undoCanvas}

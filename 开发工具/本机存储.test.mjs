@@ -35,16 +35,50 @@ test('乐观锁拒绝覆盖，重试幂等，改内容复用操作ID拒绝', () 
   } finally { store.close(); }
 });
 
-test('媒体文件与索引、内容去重、引用检查和哈希校验', () => {
-  const root = temp(), store = openWorkspace({ dataRoot: root, initialize: true });
+test('媒体以单个SQLite BLOB保存、内容去重、引用检查和冷读哈希校验', () => {
+  const root = temp(); let store = openWorkspace({ dataRoot: root, initialize: true });
   try {
-    const media = store.writeMedia(Buffer.from('synthetic-media'), 'application/octet-stream');
+    const content = Buffer.from('synthetic-media'), media = store.writeMedia(content, 'application/octet-stream');
     assert.equal(store.writeMedia(Buffer.from('synthetic-media'), 'application/octet-stream').id, media.id);
-    assert.deepEqual(store.readMedia(media.id).bytes, Buffer.from('synthetic-media'));
+    assert.deepEqual(Buffer.from(store.readMedia(media.id).bytes), Buffer.from('synthetic-media'));
+    assert.equal(readdirSync(join(root, '媒体')).includes(media.id), false, '媒体字节只在SQLite中保存一次');
     assert.throws(() => put(store, canvas(), 0, { mediaIds: ['a'.repeat(64)] }), code('media_not_found'));
     assert.equal(put(store, canvas(), 0, { mediaIds: [media.id] }).revision, 1);
-    writeFileSync(join(root, '媒体', media.id), 'corrupt');
+    store.close();
+    const legacy = new DatabaseSync(join(root, '工作台.sqlite'));
+    legacy.prepare('UPDATE media SET content=NULL WHERE id=?').run(media.id); legacy.close();
+    writeFileSync(join(root, '媒体', media.id), content);
+    store = openWorkspace({ dataRoot: root });
+    assert.equal(store.writeMedia(content, 'application/octet-stream').id, media.id, '旧外置媒体再次保存时迁入SQLite');
+    assert.equal(readdirSync(join(root, '媒体')).includes(media.id), false, 'BLOB事务提交后移除旧副本');
+    store.close();
+    const corrupt = new DatabaseSync(join(root, '工作台.sqlite'));
+    corrupt.prepare('UPDATE media SET content=? WHERE id=?').run(Buffer.from('corrupt'), media.id); corrupt.close();
+    store = openWorkspace({ dataRoot: root });
     assert.throws(() => store.readMedia(media.id), code('media_corrupt'));
+  } finally { try { store.close(); } catch (error) { if (error.code !== 'workspace_closed') throw error; } }
+});
+
+test('多张完整媒体在单个SQLite事务中原子保存并按内容去重', () => {
+  let commits = 0, failCommit = false;
+  const root = temp(), store = openWorkspace({ dataRoot: root, initialize: true, beforeCommit: () => {
+    commits++;
+    if (failCommit) throw new Error('synthetic batch interruption');
+  } });
+  try {
+    const first = Buffer.from('batch-image-a'), second = Buffer.from('batch-image-b');
+    const ack = store.writeMediaBatch([
+      { bytes: first, mime: 'image/png' },
+      { bytes: second, mime: 'image/jpeg' },
+      { bytes: Buffer.from(first), mime: 'image/png' },
+    ]);
+    assert.equal(commits, 1);
+    assert.equal(new Set(ack.map(item => item.id)).size, 2);
+    assert.equal(ack[0].id, ack[2].id);
+    assert.deepEqual(Buffer.from(store.readMedia(ack[1].id).bytes), second);
+    failCommit = true;
+    assert.throws(() => store.writeMediaBatch([{ bytes: Buffer.from('batch-image-c'), mime: 'image/png' }]), /synthetic batch interruption/);
+    assert.equal(store.readUsage().databases[0].stores.find(item => item.name === 'media_blobs').records, 2);
   } finally { store.close(); }
 });
 
@@ -86,26 +120,31 @@ test('未知schema安全停止，主数据库不被自动降级或重建', () =>
   assert.deepEqual(readFileSync(join(root, '工作台.sqlite')), before);
 });
 
-test('完整备份恢复到新目录，坏备份与已有目标均不覆盖', async () => {
+test('完整备份直接包含SQLite媒体BLOB；损坏备份与已有目标均不覆盖', async () => {
   const root = temp(), store = openWorkspace({ dataRoot: root, initialize: true });
   const media = store.writeMedia(Buffer.from('backup-media'), 'application/octet-stream');
   put(store, canvas(), 0, { mediaIds: [media.id] });
   const backup = await store.createBackup();
+  const manifest = JSON.parse(readFileSync(join(backup.path, '清单.json'), 'utf8'));
+  assert.equal(manifest.mediaCount, 1);
+  assert.equal(manifest.files.some(file => file.path === `媒体/${media.id}`), false, 'BLOB媒体不再另存外置媒体副本');
+  assert.equal(readdirSync(join(backup.path, '媒体')).length, 0);
   const target = join(temp(), '恢复工作区');
   const result = restoreBackup({ backupRoot: backup.path, targetRoot: target });
   assert.equal(result.workspaceId, store.workspaceId);
   const restored = openWorkspace({ dataRoot: target });
   assert.equal(restored.readDocument('canvas', 'canvas-a').value.title, '合成画布');
-  assert.deepEqual(restored.readMedia(media.id).bytes, Buffer.from('backup-media')); restored.close();
+  assert.deepEqual(Buffer.from(restored.readMedia(media.id).bytes), Buffer.from('backup-media')); restored.close();
   assert.throws(() => restoreBackup({ backupRoot: backup.path, targetRoot: target }), code('restore_target_exists'));
-  writeFileSync(join(backup.path, '媒体', media.id), 'bad');
+  const damaged = new DatabaseSync(join(backup.path, '工作台.sqlite'));
+  damaged.prepare('UPDATE media SET content=? WHERE id=?').run(Buffer.from('bad'), media.id); damaged.close();
   const rejected = join(temp(), '不应创建');
   assert.throws(() => restoreBackup({ backupRoot: backup.path, targetRoot: rejected }), code('backup_corrupt'));
   assert.equal(readdirSync(join(rejected, '..')).includes('不应创建'), false);
   assert.equal(store.readDocument('canvas', 'canvas-a').revision, 1); store.close();
 });
 
-test('数据根、数据库、媒体、备份权限；备份期间拒绝写入或关闭', async () => {
+test('数据根、数据库和备份权限；备份期间拒绝写入或关闭', async () => {
   const root = temp(), store = openWorkspace({ dataRoot: root, initialize: true });
   try {
     const media = store.writeMedia(Buffer.from('private-synthetic'), 'application/octet-stream');
@@ -115,7 +154,9 @@ test('数据根、数据库、媒体、备份权限；备份期间拒绝写入�
     assert.throws(() => store.close(), code('workspace_busy'));
     const backup = await pending;
     for (const folder of [root, join(root, '媒体'), backup.path, join(backup.path, '媒体')]) assert.equal(statSync(folder).mode & 0o777, 0o700);
-    for (const file of [join(root, '工作台.sqlite'), join(root, '.工作区.json'), join(root, '媒体', media.id), join(backup.path, '工作台.sqlite'), join(backup.path, '清单.json')]) assert.equal(statSync(file).mode & 0o777, 0o600);
+    assert.equal(readdirSync(join(root, '媒体')).includes(media.id), false);
+    assert.equal(readdirSync(join(backup.path, '媒体')).includes(media.id), false);
+    for (const file of [join(root, '工作台.sqlite'), join(root, '.工作区.json'), join(backup.path, '工作台.sqlite'), join(backup.path, '清单.json')]) assert.equal(statSync(file).mode & 0o777, 0o600);
     assert.equal(put(store, canvas('canvas-a', '备份后继续'), 1).revision, 2);
   } finally { store.close(); }
 });

@@ -16,6 +16,7 @@ const roots = [];
 test.after(() => { for (const root of roots) rmSync(root, { recursive: true, force: true }); });
 const errorCode = value => error => error.code === value;
 async function fixture(options = {}) {
+  const { persistent = false, ...gatewayOptions } = options;
   let time = Date.now(), gateway, controller, service, workspace;
   const now = () => time, root = mkdtempSync(join(tmpdir(), 'guan-stage6-auth-')); roots.push(root);
   const server = createServer(async (req, res) => { if (gateway && await gateway.handle(req, res)) return; res.writeHead(404); res.end(); });
@@ -25,8 +26,8 @@ async function fixture(options = {}) {
   try {
     workspace = openWorkspace({ dataRoot: join(root, '数据'), initialize: true });
     service = await startDataService({ workspace, allowedOrigins: [origin], now, sessionTTL: 60_000 });
-    controller = createSessionController({ service, origin, now, lifetime: 180_000, renewalWindow: 10_000 });
-    gateway = createLocalAuthorizationGateway({ controller, origin, dataURL: service.url, now, pageLifetime: 180_000, ...options });
+    controller = createSessionController({ service, origin, now, ...(!persistent ? { lifetime: 180_000 } : {}), renewalWindow: 10_000 });
+    gateway = createLocalAuthorizationGateway({ controller, origin, dataURL: service.url, now, ...(!persistent ? { pageLifetime: 180_000 } : {}), ...gatewayOptions });
   } catch (error) { await new Promise(done => server.close(done)); controller?.close(); await service?.close(); workspace?.close(); throw error; }
   const headers = { Origin: origin, 'Sec-Fetch-Site': 'same-origin', 'Content-Type': 'application/json', 'X-Guan-Local-Protocol': AUTHORIZATION_PROTOCOL };
   const request = (path, body, overrides = {}) => {
@@ -112,6 +113,26 @@ test('授权码与能力绑定实例：不能在另一个服务端口兑换或�
   } finally { await a.close(); await b.close(); }
 });
 
+test('默认页面授权跨越多天仍可恢复SQLite读写，关闭立即撤销且不兑换新码', async () => {
+  const f = await fixture({ persistent: true });
+  try {
+    const auth = await f.authorize();
+    const client = createRenewingDataClient({ ...auth, origin: f.origin, now: f.now, fetchImpl: f.transport, autoReconnect: true });
+    await client.ensureSession();
+    f.tick(3 * 24 * 60 * 60_000);
+    const ack = await client.writeDocument({ collection: 'canvas', id: 'long-lived-page', value: { id: 'long-lived-page', title: '长期页面', nodes: [], connections: [] }, expectedRevision: 0, operationId: randomUUID() });
+    assert.equal(ack.persisted, true);
+    assert.equal((await client.readDocument('canvas', 'long-lived-page')).revision, 1);
+    assert.equal(f.gateway.getStatus().authorizedPages, 1);
+    assert.equal(f.gateway.getStatus().pendingTickets, 0);
+    const last = await auth.host.initialize();
+    await client.close();
+    assert.equal(f.gateway.getStatus().authorizedPages, 0);
+    assert.equal((await f.transport(f.service.url + '/health', { headers: { Authorization: 'Bearer ' + last.token } })).status, 401);
+    await assert.rejects(auth.host.initialize(), errorCode('authorization_expired'));
+  } finally { await f.close(); }
+});
+
 test('码与页面数量受限；关闭页面撤销数据令牌并释放名额', async () => {
   const f = await fixture({ maxTickets: 1, maxPages: 1 });
   try {
@@ -162,6 +183,35 @@ test('真实授权→续期客户端→SQLite ACK，续期不另取授权码', a
     assert.equal(f.gateway.getStatus().authorizedPages, 1); assert.equal(f.gateway.getStatus().pendingTickets, 0);
     await client.close(); assert.equal(f.gateway.getStatus().authorizedPages, 0);
     assert.equal(f.workspace.readDocument('canvas', 'auth-demo').value.title, '真实授权测试');
+  } finally { await f.close(); }
+});
+
+test('授权响应丢失后，保留页面可带原会话恢复并继续保存，不误报拒绝授权', async () => {
+  const f = await fixture();
+  try {
+    const auth = await f.authorize();
+    const client = createRenewingDataClient({
+      url: auth.url,
+      host: auth.host,
+      origin: f.origin,
+      now: f.now,
+      renewalWindow: 10_000,
+      fetchImpl: f.transport,
+    });
+    await client.ensureSession();
+    const previous = await auth.host.initialize();
+    f.service.revokeSession(previous.token);
+    await client.reconnect({ reason: 'authorization_connection_failed' });
+    const write = {
+      collection: 'canvas',
+      id: 'reconnect-after-ack-loss',
+      value: { id: 'reconnect-after-ack-loss', title: '恢复后保存', nodes: [], connections: [] },
+      expectedRevision: 0,
+      operationId: randomUUID(),
+    };
+    const ack = await client.writeDocument(write);
+    assert.equal(ack.persisted, true);
+    await client.close();
   } finally { await f.close(); }
 });
 

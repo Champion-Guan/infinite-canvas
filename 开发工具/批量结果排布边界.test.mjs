@@ -104,6 +104,7 @@ function generatorFixture() {
         hydrateNodeGenerationContext: async context => context, buildNodeGenerationContext: (_id, _nodes, _edges, prompt) => ({ prompt, referenceImages: [], referenceVideos: [], referenceAudios: [] }),
         generationRequestsRef: { current: registry.requests },
         startGenerationRequest: registry.startGenerationRequest, finishGenerationRequest: registry.finishGenerationRequest,
+        resolveGenerationChannelMetadata: () => ({ channel: '测试渠道', channelId: 'test-channel' }),
         setNodes: update => { nodesRef.current = layout.placeNewCanvasNodes(nodesRef.current, update(nodesRef.current)); },
         setConnections: update => { connectionsRef.current = update(connectionsRef.current); },
         setExpandedBatchNodeIds: () => {}, setSelectedNodeIds: () => {}, setSelectedConnectionId: () => {}, setDialogNodeId: () => {},

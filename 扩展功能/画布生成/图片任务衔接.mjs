@@ -20,11 +20,11 @@ function scoped(job, scope, id) {
     'generation_scope_mismatch', '任务不属于原产品或卡片，没有写入当前产品。', 409);
   return job;
 }
-// 四个并行任务最多约80次查询/分钟，给既有120次入口限流留出保存和控制余量。
+// 控制单个任务的查询频率；批量任务不再共用固定的每分钟查询额度。
 const delay = () => new Promise(resolve => setTimeout(resolve, 3000));
 
 const slots = new Set();
-/** @param {{host: any, scope: {productId: string, nodeId: string, slotId: string}, prepare: Function, bind: Function, previous?: any, recordTask: Function, applyAndSave: Function, onProgress?: Function, signal?: AbortSignal, retry?: boolean, wait?: Function, makeId?: Function}} options */
+/** @param {{host: any, scope: {productId: string, nodeId: string, slotId: string}, prepare: Function, bind: Function, previous?: any, recordTask: Function, applyAndSave: Function, onProgress?: Function, signal?: AbortSignal, retry?: boolean, wait?: Function, makeId?: Function, deferConfirm?: () => boolean}} options */
 export async function runCanvasImageTask(options) {
   const key = JSON.stringify([options.scope?.productId, options.scope?.nodeId, options.scope?.slotId]);
   requireValue(!slots.has(key), 'generation_slot_busy', '该生成任务正在处理，请勿重复点击。', 409);
@@ -32,7 +32,7 @@ export async function runCanvasImageTask(options) {
   try { return await run(options); } finally { slots.delete(key); }
 }
 async function run({ host, scope, prepare, bind, previous, recordTask, applyAndSave,
-  signal, onProgress, retry = false, wait = delay, makeId = () => crypto.randomUUID() } = {}) {
+  signal, onProgress, retry = false, wait = delay, makeId = () => crypto.randomUUID(), deferConfirm } = {}) {
   requireValue(host?.submit && host?.get && host?.deliver && host?.checkpoint && typeof prepare === 'function' &&
     typeof bind === 'function' && typeof recordTask === 'function' && typeof applyAndSave === 'function' &&
     typeof scope?.productId === 'string' && typeof scope.nodeId === 'string' && typeof scope.slotId === 'string',
@@ -109,9 +109,10 @@ async function run({ host, scope, prepare, bind, previous, recordTask, applyAndS
     if (signal?.aborted) throw new DOMException('已取消', 'AbortError');
     return await serializeProductResult(target.productId, () => host.deliver(task, { applyAndSave: async saved => {
       scoped(saved, target, task.id);
-      await applyAndSave(saved, Object.freeze({ taskId: task.id, responseHash: saved.result.id }));
+      const persistence = await applyAndSave(saved, Object.freeze({ taskId: task.id, responseHash: saved.result.id }));
+      if (persistence?.deferred || deferConfirm?.()) return { deferred: true };
       // 后端再次核对已落盘的原产品、节点和收据；不能以setNodes或saved:true代替。
       return host.checkpoint(task.id);
-    } }));
+    }, deferConfirm: () => Boolean(deferConfirm?.()) }));
   } finally { signal?.removeEventListener('abort', cancel); }
 }

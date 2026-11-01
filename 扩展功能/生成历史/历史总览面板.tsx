@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { useInView } from "motion/react";
 import { Checkbox, Empty, Modal, Spin } from "antd";
-import { Download, Image as ImageIcon, Video } from "lucide-react";
+import { ArrowDownWideNarrow, Download, Image as ImageIcon, Video } from "lucide-react";
 import type { CanvasTheme } from "@/lib/canvas-theme";
 import { formatBytes } from "@/lib/image-utils";
 import { decodeChannelModel } from "@/stores/use-config-store";
@@ -27,10 +27,10 @@ function MediaPreview({ file, deferred = false }: { file: HistoryDownloadFile; d
     </div>;
 }
 
-function FileDetails({ file, busy, onDownload }: { file: HistoryDownloadFile; busy: boolean; onDownload: (file: HistoryDownloadFile) => void }) {
+function FileDetails({ file, channels, busy, onDownload }: { file: HistoryDownloadFile; channels: Array<{ id: string; name: string }>; busy: boolean; onDownload: (file: HistoryDownloadFile) => void }) {
     const slot = file.node.metadata?.images?.find(image => image.id === file.imageId);
     const node = slot ? { ...file.node, metadata: { ...file.node.metadata, images: [slot], primaryImageId: slot.id } } : file.node;
-    const info = historyMediaInfo(node);
+    const info = historyMediaInfo(node, channels);
     return <article className={styles.detail} aria-label={`图片详情 ${file.name}`}>
         <div className={styles.detailHeading}><h3>{file.name}</h3><button type="button" disabled={busy} onClick={() => onDownload(file)} title={`下载 ${file.name}`} aria-label={`下载 ${file.name}`}><Download size={16} /></button></div>
         <MediaPreview file={file} deferred />
@@ -47,15 +47,18 @@ type Props = {
     files: HistoryDownloadFile[];
     selectedFiles: HistoryDownloadFile[];
     selectedIds: Set<string>;
+    channels: Array<{ id: string; name: string }>;
+    sorted: boolean;
     downloading: boolean;
     theme: CanvasTheme;
     onSelect: (ids: string[], checked?: boolean) => void;
     onDownload: (file: HistoryDownloadFile) => void;
     onDownloadSelected: () => void;
+    onToggleSort: () => void;
     onClose: () => void;
 };
 
-export function HistoryOverviewPanel({ history, files, selectedFiles, selectedIds, downloading, theme, onSelect, onDownload, onDownloadSelected, onClose }: Props) {
+export function HistoryOverviewPanel({ history, files, selectedFiles, selectedIds, channels, sorted, downloading, theme, onSelect, onDownload, onDownloadSelected, onToggleSort, onClose }: Props) {
     const [previewFile, setPreviewFile] = useState<HistoryDownloadFile | null>(null);
     const filesByNode = useMemo(() => {
         const groups = new Map<string, HistoryDownloadFile[]>();
@@ -69,14 +72,17 @@ export function HistoryOverviewPanel({ history, files, selectedFiles, selectedId
     return <Modal open title="生成历史总览" footer={null} onCancel={onClose} width="min(1440px, 94vw)" centered styles={{ body: { padding: 0 }, container: { background: theme.node.panel, color: theme.node.text } }}>
         <div className={styles.root} style={variables}>
             <section className={styles.details} aria-label="已选图片详情">
-                {selectedFiles.length ? selectedFiles.map(file => <FileDetails key={file.id} file={file} busy={downloading} onDownload={onDownload} />)
+                {selectedFiles.length ? selectedFiles.map(file => <FileDetails key={file.id} file={file} channels={channels} busy={downloading} onDownload={onDownload} />)
                     : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚未选择图片" />}
             </section>
             <aside className={styles.sidebar} aria-label="选择生成历史与任务">
                 <div className={styles.actions}>
                     <Checkbox disabled={downloading || !files.length} checked={files.length > 0 && selectedFiles.length === files.length} indeterminate={selectedFiles.length > 0 && selectedFiles.length < files.length} onChange={event => onSelect(files.map(file => file.id), event.target.checked)}>全选</Checkbox>
                     <span>已选 {selectedFiles.length}</span>
-                    <button type="button" disabled={downloading || !selectedFiles.length} onClick={onDownloadSelected}><Download size={14} />下载选中</button>
+                    <div className={styles.actionButtons}>
+                        <button type="button" disabled={!history.length} aria-pressed={sorted} title={sorted ? "排序：当前为分类顺序；点击恢复生成任务请求顺序" : "排序：按主图、详情页编号、富内容编号、其他排序，同类按图片序号排列"} onClick={onToggleSort}><ArrowDownWideNarrow size={14} />排序</button>
+                        <button type="button" disabled={downloading || !selectedFiles.length} onClick={onDownloadSelected}><Download size={14} />下载选中</button>
+                    </div>
                 </div>
                 <div className={styles.tasks}>
                     {history.length ? history.map(node => {

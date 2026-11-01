@@ -1,0 +1,37 @@
+diff --git a/web/src/pages/video/index.tsx b/web/src/pages/video/index.tsx
+index 3b7b9bb..73bb477 100644
+--- a/web/src/pages/video/index.tsx
++++ b/web/src/pages/video/index.tsx
+@@ -145,7 +145,9 @@ export default function VideoPage() {
+         event.preventDefault();
+         dragDepthRef.current = 0;
+         setReferenceDragTarget(false);
+-        void addReferences(event.dataTransfer.files);
++        void addReferences(event.dataTransfer.files).catch((error) => {
++            message.error(error instanceof Error ? error.message : "参考图片上传失败，请重试。");
++        });
+     };
+ 
+     const addReferencesFromClipboard = async () => {
+@@ -488,7 +490,9 @@ export default function VideoPage() {
+                 multiple
+                 className="hidden"
+                 onChange={(event) => {
+-                    void addReferences(event.target.files);
++                    void addReferences(event.target.files).catch((error) => {
++                        message.error(error instanceof Error ? error.message : "参考图片上传失败，请重试。");
++                    });
+                     event.target.value = "";
+                 }}
+             />
+@@ -501,7 +505,9 @@ export default function VideoPage() {
+                 </div>
+             </Drawer>
+             <PromptSelectDialog open={promptDialogOpen} onOpenChange={setPromptDialogOpen} onSelect={setPrompt} />
+-            <AssetPickerModal open={assetPickerOpen} defaultTab="my-assets" onInsert={(payload) => void insertPickedAsset(payload)} onClose={() => setAssetPickerOpen(false)} />
++            <AssetPickerModal open={assetPickerOpen} defaultTab="my-assets" onInsert={(payload) => void insertPickedAsset(payload).catch((error) => {
++                message.error(error instanceof Error ? error.message : "素材添加失败，请重试。");
++            })} onClose={() => setAssetPickerOpen(false)} />
+             <Modal title={t("workbench.deleteLogs")} open={deleteConfirmOpen} onCancel={() => setDeleteConfirmOpen(false)} onOk={deleteSelectedLogs} okText={t("common.delete")} okButtonProps={{ danger: true }} cancelText={t("common.cancel")}>
+                 {t("workbench.deleteLogsConfirm", { count: selectedLogIds.length })}
+             </Modal>

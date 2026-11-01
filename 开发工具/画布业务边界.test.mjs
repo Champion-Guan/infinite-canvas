@@ -134,7 +134,8 @@ test('回收恢复缺少素材时保留原批次，不改节点、撤销记录�
 async function batchModule(generationParameters = { promptGenerationPatch: () => ({}), generationSettingsFromNode: () => ({ quality: 'high' }) }) {
   const layout = await load('画布布局/卡片自动避让.ts', {});
   const columns = await load('画布布局/批量结果排布.ts', { './卡片自动避让': layout });
-  return load('画布生成/批量生成操作.ts', {
+  const batchSave = await load('画布生成/批量保存协调.ts', {});
+  const module = await load('画布生成/批量生成操作.ts', {
     react: hooks, '@/types/canvas': { CanvasNodeType: { Config: 'config', Text: 'text', Image: 'image', Video: 'video', Audio: 'audio' } },
     '@/constant/canvas': { getNodeSpec: () => ({ width: 100, height: 80 }) },
     '@/lib/canvas/canvas-node-factory': { createCanvasNode: (type, position, metadata) => ({ id: 'new-config', type, position, width: 100, height: 80, metadata: { status: 'idle', ...metadata } }) },
@@ -145,7 +146,9 @@ async function batchModule(generationParameters = { promptGenerationPatch: () =>
     '../安全与批量/settle-activity-group': { settleActivityGroup: values => Promise.all(values) },
     '../画布布局/卡片自动避让': { placeCanvasNode: node => node },
     '../画布布局/批量结果排布': columns,
+    './批量保存协调': batchSave,
   });
+  return { ...module, batchSave };
 }
 test('只补齐Excel提示词配置与连线不执行生成，也不把产品胶囊变绿', async () => {
   const parameters = await load('画布生成/生成参数继承.ts', {
@@ -158,7 +161,7 @@ test('只补齐Excel提示词配置与连线不执行生成，也不把产品胶
     metadata: { status: 'success', content: '900x1200 px, 3:4 MAIN IMAGE', generationImageType: 'main image' } }] };
   const connectionsRef = { current: [] };
   let submissions = 0;
-  const api = useCanvasBatchGeneration({ nodesRef, connectionsRef, effectiveConfig: { imageModel: '模型', size: '1152x1536' },
+  const api = useCanvasBatchGeneration({ projectId: 'product', nodesRef, connectionsRef, effectiveConfig: { imageModel: '模型', size: '1152x1536' },
     setNodes: () => {}, setConnections: () => {}, setSelectedNodeIds: () => {}, setSelectedConnectionId: () => {},
     handleGenerateNode: async () => { submissions++; },
     message: { info: () => {}, success: () => {}, error: text => assert.fail(text) },
@@ -171,23 +174,23 @@ test('只补齐Excel提示词配置与连线不执行生成，也不把产品胶
   assert.equal(nodesRef.current[1].metadata.size, '900x1200');
   assert.deepEqual(canvasTaskSummary(nodesRef.current, connectionsRef.current), { status: 'idle', taskId: '', startedAt: 0 });
 });
-test('批量执行最多三个并发，失败继续，运行中卡片跳过且重复点击不重复排队', async () => {
+test('批量生图全部并行，失败继续，运行中卡片跳过且重复点击不重复排队', async () => {
   const { useCanvasBatchGeneration } = await batchModule();
   const gates = [], calls = [], warnings = [], placements = [];
   let active = 0, peak = 0;
   const nodesRef = { current: Array.from({ length: 6 }, (_, index) => ({ id: String(index), type: 'config', position: { x: 0, y: index * 400 }, width: 340, height: 240, metadata: { generationMode: 'image' } })) };
   nodesRef.current.push({ id: 'busy', type: 'config', metadata: { status: 'loading' } });
-  const api = useCanvasBatchGeneration({ nodesRef, connectionsRef: { current: [] }, effectiveConfig: {},
+  const api = useCanvasBatchGeneration({ projectId: 'product', nodesRef, connectionsRef: { current: [] }, effectiveConfig: {},
     handleGenerateNode: async (id, _mode, _prompt, placement) => { placements.push(placement); calls.push(id); peak = Math.max(peak, ++active); await new Promise(done => gates.push(done)); active--; if (id === '1') throw Error('单项失败'); },
     message: { info: () => {}, warning: text => warnings.push(text) },
   });
   const first = api.generateAllConfigNodes();
   await api.generateAllConfigNodes();
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 6);
   while (calls.length < 6) { gates.shift()(); await new Promise(done => setImmediate(done)); }
   while (gates.length) gates.shift()();
   await first;
-  assert.equal(peak, 3); assert.equal(new Set(calls).size, 6); assert.ok(!calls.includes('busy'));
+  assert.equal(peak, 6); assert.equal(new Set(calls).size, 6); assert.ok(!calls.includes('busy'));
   assert.match(warnings[0], /1 个任务提交失败/);
   assert.equal(new Set(placements.map(item => item.columnX)).size, 1);
   assert.equal(new Set(placements.map(item => item.batchId)).size, 1);
@@ -197,7 +200,7 @@ test('补齐并生成同步读取新配置，不依赖下一次React渲染', asy
   const { useCanvasBatchGeneration } = await batchModule();
   const nodesRef = { current: [{ id: 'prompt', type: 'text', position: { x: 0, y: 0 }, width: 100, height: 80, metadata: { content: '提示词' } }] };
   const connectionsRef = { current: [] }, generated = [];
-  const api = useCanvasBatchGeneration({ nodesRef, connectionsRef, effectiveConfig: { imageModel: '模型', size: '900x1200' },
+  const api = useCanvasBatchGeneration({ projectId: 'product', nodesRef, connectionsRef, effectiveConfig: { imageModel: '模型', size: '900x1200' },
     setNodes: () => {}, setConnections: () => {}, setSelectedNodeIds: () => {}, setSelectedConnectionId: () => {},
     handleGenerateNode: async id => { assert.ok(connectionsRef.current.some(edge => edge.toNodeId === id)); generated.push(id); },
     message: { info: () => {}, success: () => {}, warning: () => {}, error: text => assert.fail(text) },
@@ -205,4 +208,77 @@ test('补齐并生成同步读取新配置，不依赖下一次React渲染', asy
   await api.completeAndGenerateAll();
   assert.deepEqual(generated, ['new-config']); assert.equal(nodesRef.current.length, 2);
   assert.equal(nodesRef.current[1].metadata.quality, 'high');
+});
+
+test('批量执行期间暂停自动整画布写入，结束后只提交一次最终快照', async () => {
+  const { useCanvasBatchGeneration, batchSave } = await batchModule();
+  const nodesRef = { current: [
+    { id: 'a', type: 'config', position: { x: 0, y: 0 }, width: 340, height: 240, metadata: { generationMode: 'image' } },
+    { id: 'b', type: 'config', position: { x: 0, y: 400 }, width: 340, height: 240, metadata: { generationMode: 'image' } },
+  ] };
+  let finalSaves = 0;
+  const api = useCanvasBatchGeneration({ projectId: 'product', nodesRef, connectionsRef: { current: [] }, effectiveConfig: {},
+    setNodes: update => {
+      nodesRef.current = typeof update === 'function' ? update(nodesRef.current) : update;
+      if (batchSave.isBatchCanvasSaveActive('product')) batchSave.markBatchCanvasDirty('product');
+    },
+    setConnections: () => {}, setSelectedNodeIds: () => {}, setSelectedConnectionId: () => {},
+    handleGenerateNode: async () => {
+      assert.equal(batchSave.isBatchCanvasSaveActive('product'), true);
+      batchSave.markBatchCanvasDirty('product');
+    },
+    saveCanvas: async id => {
+      assert.equal(id, 'product');
+      // 最终快照写入期间仍保持门控，防止 React 订阅在这笔保存前后
+      // 插入第二次普通 SQLite 写入；写入完成后才释放。
+      assert.equal(batchSave.isBatchCanvasSaveActive(id), true);
+      finalSaves++;
+    },
+    message: { info: () => {}, warning: () => {}, error: text => assert.fail(text) },
+  });
+  await api.generateAllConfigNodes();
+  assert.equal(finalSaves, 1);
+  assert.equal(batchSave.isBatchCanvasSaveActive('product'), false);
+});
+
+test('批量执行期间视频身份保存只标记脏状态，批量结束后才允许一次最终提交', async () => {
+  const batchSave = await load('画布生成/批量保存协调.ts', {});
+  let flushes = 0, sqliteFlushes = 0, openChecks = 0;
+  const product = await load('产品/产品操作.ts', {
+    react: { useCallback: fn => fn, useLayoutEffect() {}, useRef: value => ({ current: value }), useState: value => [value, () => {}], useSyncExternalStore: (_subscribe, get) => get() },
+    'react-router-dom': { useMatch: () => null, useNavigate: () => () => {} },
+    '@/stores/canvas/use-canvas-store': { useCanvasStore: { getState: () => ({ openProject: () => { openChecks++; return true; } }) } },
+    '../画布导入/画布导入': { readCanvasExport: async () => ({}) },
+    '../本机存储/上游浏览器存储桥': { flushSQLiteStorage: async () => { sqliteFlushes++; }, sqlitePreferences: {}, retrySQLiteStorage() {} },
+    './产品规则': {
+      ProductOperationGate: class {},
+      ProductSaveRegistry: class { async flush() { flushes++; } },
+      orderedProducts: () => [],
+    },
+    './产品保存检查点': { ProductCommitCheckpoint: class {} },
+    './产品回收规则': { planProductRecycle: () => ({}), planProductRestore: () => ({}), recycledProducts: () => [] },
+    '../Excel删除/工作簿删除规则': { planWorkbookDeletion: () => ({}), workbookDeletionIds: () => [] },
+    '../Excel删除/工作簿删除门禁': { workbookDeletionGate: { getSnapshot: () => false, subscribe: () => () => {} } },
+    '../Excel删除/Excel回收站规则': { planWorkbookPermanentDelete: () => ({}), planWorkbookRestore: () => ({}), recycledWorkbookEntries: () => [] },
+    '../Excel/Excel保存导航': { commitWorkbookChange: async () => {} },
+    '../Excel/Excel产品归属': {
+      visibleWorkbookId: () => '', withVisibleSelection: value => value, planExcelImport: () => ({}),
+      prepareWorkbookEntry: () => ({}), rememberWorkbookProduct: () => null,
+      selectWorkbook: () => ({}), workbookEntry: () => null, workbookProjects: () => [],
+    },
+    '../Excel画布/产品参数卡片默认': { ensureProductParameterNode: nodes => nodes },
+    './产品恢复挂载门禁': { productRestoreMountGate: { getSnapshot: () => [], release() {}, block() {} } },
+    '../画布生成/批量保存协调': batchSave,
+  });
+  batchSave.beginBatchCanvasSave('product');
+  await product.saveProductCanvas('product', { checkpoint: true });
+  assert.equal(flushes, 0);
+  assert.equal(sqliteFlushes, 0);
+  assert.equal(openChecks, 0);
+  assert.equal(batchSave.finishBatchCanvasSave('product'), true);
+  batchSave.completeBatchCanvasSave('product');
+  await product.saveProductCanvas('product', { force: true });
+  assert.equal(flushes, 1);
+  assert.equal(sqliteFlushes, 1);
+  assert.equal(openChecks, 1);
 });

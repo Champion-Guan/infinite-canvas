@@ -1,6 +1,6 @@
 import { createValueCodec } from './应用值编码.mjs';
 import { APP_NAMESPACES, APPLICATION_STORAGE_FORMAT } from './应用存储适配.mjs';
-import { StorageError, requireValue, serializeDocument, validHash } from './协议.mjs';
+import { MAX_FRAGMENT_BATCH_COUNT, StorageError, requireValue, serializeDocument, validHash } from './协议.mjs';
 import { buildFragmentPlan, readFragmentGraph, verifyFragment } from './分片值编码.mjs';
 import { createPacedDataClient } from './请求调度.mjs';
 import { retainUnchangedCanvasTimestamps } from './画布时间去重.mjs';
@@ -89,12 +89,12 @@ export function createShardedApplicationStorage({ client, secretPort, readBlobUr
   }
   async function savePart(step) {
     if (known.has(step.id)) return;
-    if (!step.write) {
+    if (!step.legacyWrite) {
       const existing = await client.readForWrite('extension', step.id, { allowMissing: true });
       if (existing) { await verifyFragment(existing, { id: step.id }); known.add(step.id); return; }
-      step.write = { collection: 'extension', id: step.id, value: step.value, expectedRevision: 0, operationId: crypto.randomUUID(), mediaIds: [] };
+      step.legacyWrite = { collection: 'extension', id: step.id, value: step.value, expectedRevision: 0, operationId: crypto.randomUUID(), mediaIds: [] };
     }
-    try { await confirmed(step.write); }
+    try { await confirmed(step.legacyWrite); }
     catch (error) {
       if (error.code !== 'revision_conflict') throw error;
       // 仅内容寻址块可接受另一会话写入的相同内容；根目录冲突绝不覆盖。
@@ -106,12 +106,26 @@ export function createShardedApplicationStorage({ client, secretPort, readBlobUr
     requireValue(space.blocked, 'nothing_to_retry', '没有待确认的分片保存。');
     const plan = space.blocked;
     while (plan.index < plan.parts.length) {
-      // 不可变内容块可限量并发，根目录仍等待全部ACK后才CAS发布。
-      // 一批全部收口再报告失败；重试复用已确认块及未确认块原operationId。
-      const batch = plan.parts.slice(plan.index, plan.index + 4);
-      const results = await Promise.allSettled(batch.map(savePart));
-      const failure = results.find(result => result.status === 'rejected');
-      if (failure) throw saveFailure(failure.reason, 'fragment');
+      const batch = plan.parts.slice(plan.index, plan.index + MAX_FRAGMENT_BATCH_COUNT);
+      const fresh = batch.filter(step => !known.has(step.id));
+      if (fresh.length && typeof client.writeFragments === 'function') {
+          for (const step of fresh) step.write ??= { id: step.id, value: step.value, operationId: crypto.randomUUID() };
+          try {
+            const acks = await client.writeFragments(fresh.map(step => step.write));
+            requireValue(Array.isArray(acks) && acks.length === fresh.length, 'invalid_ack', '分片批次没有返回完整回执。');
+            for (let index = 0; index < fresh.length; index++) {
+              const ack = acks[index], step = fresh[index];
+              requireValue(ack?.persisted === true && ack.collection === 'extension' && ack.id === step.id &&
+                ack.operationId === step.write.operationId && ack.revision === 1 &&
+                ack.hash === step.id.slice('app-part-'.length), 'invalid_ack', '分片批次回执与原操作不匹配。');
+            }
+            for (const step of fresh) known.add(step.id);
+          } catch (error) { throw saveFailure(error, 'fragment'); }
+      } else if (fresh.length) {
+        const results = await Promise.allSettled(fresh.map(savePart));
+        const failure = results.find(result => result.status === 'rejected');
+        if (failure) throw saveFailure(failure.reason, 'fragment');
+      }
       plan.index += batch.length;
     }
     let ack;
@@ -124,7 +138,8 @@ export function createShardedApplicationStorage({ client, secretPort, readBlobUr
     const plan = await buildFragmentPlan([...entries]), value = { format: SHARDED_APPLICATION_FORMAT, namespace: space.name, head: plan.head, entryCount: entries.size }, mediaIds = mediaRefs(entries);
     if (space.committedHead === plan.head.id) { space.entries = entries; hasSaved = true; return; }
     serializeDocument('extension', space.id, value, mediaIds);
-    space.blocked = { entries, index: 0, parts: [...plan.fragments.values()], root: { collection: 'extension', id: space.id, value, mediaIds, expectedRevision: space.revision, operationId: crypto.randomUUID() } };
+    space.blocked = { entries, index: 0, parts: [...plan.fragments.values()].map(part => ({ ...part,
+      write: { id: part.id, value: part.value, operationId: crypto.randomUUID() } })), root: { collection: 'extension', id: space.id, value, mediaIds, expectedRevision: space.revision, operationId: crypto.randomUUID() } };
     const newParts = [...plan.fragments.keys()].filter(id => !known.has(id)).length;
     const result = await retryWrite(space);
     if (performance.now() - started > 500) console.debug('[存储性能] 提交 ' + JSON.stringify({ namespace: space.name, elapsedMs: Math.round(performance.now() - started), parts: plan.fragments.size, newParts }));

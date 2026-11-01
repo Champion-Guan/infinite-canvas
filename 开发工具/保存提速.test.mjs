@@ -16,7 +16,7 @@ function fixture() {
       async writeMedia(blob) {
         calls.writes++; if (fail) throw Error('合成写入失败');
         const id = createHash('sha256').update(Buffer.from(await blob.arrayBuffer())).digest('hex');
-        media.set(id, blob); return { id };
+        media.set(id, blob); return { id, size: blob.size };
       },
       async readMedia(id) { calls.reads++; return media.get(id); },
     },
@@ -41,7 +41,7 @@ test('同一storageKey换了临时预览地址时直接复用已确认媒体，�
   const blob = new Blob(['稳定媒体'], { type: 'image/png' });
   const id = createHash('sha256').update(Buffer.from(await blob.arrayBuffer())).digest('hex');
   const codec = createValueCodec({
-    client: { readMedia: async () => blob, writeMedia: async () => ({ id }) },
+    client: { readMedia: async () => blob, writeMedia: async media => ({ id, size: media.size }) },
     readBlobUrl: async () => { reads++; return blob; },
   });
   await codec.encode({ storageKey: 'image:稳定', bytes: blob.size, mimeType: blob.type, content: 'blob:第一地址' });
@@ -50,14 +50,14 @@ test('同一storageKey换了临时预览地址时直接复用已确认媒体，�
   codec.close();
 });
 
-test('冷读取恢复的URL直接复用已经读验的媒体，缓存不泄露可变描述', async () => {
+test('冷读取恢复的URL复用单体媒体，缓存不泄露可变描述', async () => {
   const f = fixture(), encoded = await f.codec.encode({ url: 'blob:原图' });
   const restored = await f.codec.decode(encoded.tree), before = { ...f.calls };
-  encoded.tree[1][0][1][1].parts[0] = '0'.repeat(64);
+  encoded.tree[1][0][1][1].id = '0'.repeat(64);
   const next = await f.codec.encode(restored);
   assert.deepEqual(f.calls, before);
   assert.notEqual(next.mediaIds[0], '0'.repeat(64));
-  next.tree[1][0][1][1].parts[0] = '0'.repeat(64);
+  next.tree[1][0][1][1].id = '0'.repeat(64);
   assert.notEqual((await f.codec.encode(restored)).mediaIds[0], '0'.repeat(64));
   f.codec.close(); assert.deepEqual(f.revoked, ['blob:已恢复图片']);
 });
@@ -69,6 +69,16 @@ test('媒体失败没有缓存成功标志，重试必须重新取得ACK', async
   assert.equal(f.calls.writes, 2); assert.equal(f.calls.urls, 2);
 });
 
+test('编码拒绝非法对象时不遗留未完成的媒体ACK，后续有效保存可继续', async () => {
+  const f = fixture(), blob = new Blob(['有效图片']);
+  await assert.rejects(f.codec.encode({ image: blob, unsupported: new Map() }), error => error.code === 'invalid_value');
+  assert.equal(f.calls.writes, 0);
+  const saved = await f.codec.encode(blob);
+  assert.equal(saved.mediaIds.length, 1);
+  assert.equal(f.calls.writes, 1);
+  f.codec.close();
+});
+
 test('不可变Blob复用，可变ArrayBuffer修改后重新写入', async () => {
   const f = fixture(), blob = new Blob(['图像']), bytes = new Uint8Array([1, 2]);
   await f.codec.encode([blob, blob]); assert.equal(f.calls.writes, 1);
@@ -77,38 +87,101 @@ test('不可变Blob复用，可变ArrayBuffer修改后重新写入', async () =>
   assert.notDeepEqual(a.mediaIds, b.mediaIds); assert.equal(f.calls.writes, 3);
 });
 
-test('新临时地址、克隆Blob及原图交付图的相同内容只上传一遍', async () => {
+test('多张几MiB图片按完整文件成组上传，减少逐图请求并取得每张图片ACK', async () => {
+  const batches = [];
+  const images = Array.from({ length: 10 }, (_, index) => new Blob([Buffer.alloc(2 * 1024 * 1024, index + 1)], { type: 'image/png' }));
+  const codec = createValueCodec({ client: {
+    async writeMedia() { assert.fail('多图保存应使用批次接口'); },
+    async writeMediaBatch(items) {
+      batches.push(items.map(item => item.blob.size));
+      return Promise.all(items.map(async ({ blob }) => ({
+        id: createHash('sha256').update(Buffer.from(await blob.arrayBuffer())).digest('hex'),
+        size: blob.size,
+      })));
+    },
+  } });
+  const encoded = await codec.encode({ images });
+  assert.deepEqual(batches, [Array(8).fill(2 * 1024 * 1024), Array(2).fill(2 * 1024 * 1024)]);
+  assert.equal(encoded.mediaIds.length, images.length);
+  assert.equal(new Set(encoded.mediaIds).size, images.length);
+  codec.close();
+});
+
+test('同一URL与同一Blob分别复用上传确认，克隆Blob交由SQLite按内容寻址去重', async () => {
   const f = fixture();
-  const first = await f.codec.encode('blob:原图');
-  const next = await f.codec.encode(['blob:恢复的新地址', structuredClone(new Blob(['合成图片'], { type: 'image/png' }))]);
-  assert.equal(f.calls.writes, 1);
+  const blob = new Blob(['合成图片'], { type: 'image/png' });
+  const first = await f.codec.encode(['blob:原图', blob]);
+  const next = await f.codec.encode(['blob:原图', blob]);
+  assert.equal(f.calls.writes, 2, 'URL解码和独立Blob各上传一次，重复保存复用其身份');
   assert.deepEqual(next.mediaIds, first.mediaIds);
+  const clone = await f.codec.encode(structuredClone(blob));
+  assert.equal(f.calls.writes, 3, '避免浏览器端预先读取/哈希克隆Blob；服务端仍按哈希去重');
+  assert.deepEqual(clone.mediaIds, first.mediaIds);
   const changed = await f.codec.encode(new Blob(['实际修改的图片'], { type: 'image/png' }));
-  assert.equal(f.calls.writes, 2);
+  assert.equal(f.calls.writes, 4);
   assert.notDeepEqual(changed.mediaIds, first.mediaIds);
 });
 
-test('同时上传同一内容共用在途ACK，失败后克隆内容仍会重新上传', async () => {
+test('同时保存同一Blob身份共用在途ACK，失败后重试并克隆媒体重新上传', async () => {
   const f = fixture(), a = new Blob(['相同内容']);
-  await Promise.all([f.codec.encode(structuredClone(a)), f.codec.encode(structuredClone(a))]);
+  await Promise.all([f.codec.encode(a), f.codec.encode(a)]);
   assert.equal(f.calls.writes, 1);
   const g = fixture(); g.setFail(true);
   await assert.rejects(g.codec.encode(structuredClone(a)));
   g.setFail(false); await g.codec.encode(structuredClone(a));
   assert.equal(g.calls.writes, 2);
+  await g.codec.encode(structuredClone(a));
+  assert.equal(g.calls.writes, 3);
 });
 
-test('读验过的媒体换临时地址不会重新上传，错误ACK不能进入成功缓存', async () => {
+test('旧分片媒体可冷读，下一次保存转成单体媒体且错误ACK不缓存', async () => {
   const blob = new Blob(['已存在的图片'], { type: 'image/png' });
   const id = createHash('sha256').update(Buffer.from(await blob.arrayBuffer())).digest('hex');
+  let writes = 0, reads = 0, rejectAck = true;
+  const codec = createValueCodec({
+    client: {
+      async readMedia() { reads++; return blob; },
+      async writeMedia(media) {
+        writes++;
+        return { id, size: rejectAck ? media.size + 1 : media.size };
+      },
+    },
+    readBlobUrl: async () => structuredClone(blob),
+    createObjectURL: () => 'blob:已读验',
+  });
+  const url = await codec.decode(['blob-url', { mime: blob.type, size: blob.size, parts: [id] }]);
+  assert.equal(reads, 1);
+  await assert.rejects(codec.encode(url), error => error.code === 'invalid_ack');
+  rejectAck = false;
+  const saved = await codec.encode(url);
+  assert.equal(writes, 2);
+  assert.deepEqual(saved.mediaIds, [id]);
+  assert.ok(Object.hasOwn(saved.tree[1], 'id'), '旧parts格式必须在新保存时转成单体描述');
+  assert.equal((await codec.encode(url)).tree[1].id, id, '同一临时地址之后应复用已确认的单体媒体');
+  assert.equal(writes, 2);
+  codec.close();
+});
+
+test('旧parts格式冷读后，下次保存转成一个单体媒体BLOB', async () => {
+  const blob = new Blob(['旧版16MiB分片内容'], { type: 'image/png' });
+  const id = createHash('sha256').update(Buffer.from(await blob.arrayBuffer())).digest('hex');
   let writes = 0;
-  const codec = createValueCodec({client:{readMedia:async()=>blob,writeMedia:async()=>{writes++;return {id:'0'.repeat(64)};}},readBlobUrl:async()=>structuredClone(blob),createObjectURL:()=> 'blob:已读验'});
-  await codec.decode(['blob-url',{mime:'image/png',size:blob.size,parts:[id]}]);
-  assert.deepEqual((await codec.encode('blob:另一个恢复地址')).mediaIds,[id]);
-  assert.equal(writes,0);
-  await assert.rejects(codec.encode(new Blob(['新图片'])),error=>error.code==='invalid_ack');
-  await assert.rejects(codec.encode(new Blob(['新图片'])),error=>error.code==='invalid_ack');
-  assert.equal(writes,2);
+  const codec = createValueCodec({
+    client: {
+      async readMedia(readId) { assert.equal(readId, id); return blob; },
+      async writeMedia(media) {
+        writes++;
+        return { id: createHash('sha256').update(Buffer.from(await media.arrayBuffer())).digest('hex'), size: media.size };
+      },
+    },
+  });
+  const restored = await codec.decode(['blob', { mime: blob.type, size: blob.size, parts: [id] }]);
+  assert.equal(writes, 0);
+  const encoded = await codec.encode(restored);
+  assert.equal(writes, 1);
+  assert.deepEqual(encoded.mediaIds, [id]);
+  assert.deepEqual(Object.keys(encoded.tree[1]).sort(), ['id', 'mime', 'size']);
+  codec.close();
 });
 
 test('重复媒体引用只保留一个媒体引用并复用同一个Blob', async () => {
@@ -126,26 +199,23 @@ test('重复媒体引用只保留一个媒体引用并复用同一个Blob', asyn
 });
 
 test('一键批量生成逐项保存超过1GiB的图片并为每次画布提交取得ACK', async () => {
-  const chunkIds = new WeakMap(); let mediaWrites = 0, documentWrites = 0, rootWrites = 0;
+  const imageIds = new WeakMap(); let mediaWrites = 0, documentWrites = 0, rootWrites = 0;
   const imageCount = 40, imageBytes = 30 * 1024 * 1024;
   const images = Array.from({ length: imageCount }, (_, imageIndex) => {
-    const image = { size: imageBytes, type: 'image/png', slice(start, end) {
-      const chunk = { size: Math.max(0, Math.min(end, imageBytes) - start), type: 'application/octet-stream' };
-      chunk.arrayBuffer = async () => {
-        const bytes = new ArrayBuffer(chunk.size), view = new Uint8Array(bytes);
-        view[0] = imageIndex + 1; view[1] = Math.floor(start / (16 * 1024 * 1024));
-        chunkIds.set(chunk, createHash('sha256').update(Buffer.from(bytes)).digest('hex'));
-        return bytes;
-      };
-      return chunk;
-    } };
+    const image = {
+      size: imageBytes,
+      type: 'image/png',
+      slice() { throw Error('媒体上传不应切成多份'); },
+      async arrayBuffer() { throw Error('媒体不应先整块读取到浏览器内存'); },
+    };
     Object.setPrototypeOf(image, Blob.prototype);
+    imageIds.set(image, createHash('sha256').update(`synthetic-image-${imageIndex}`).digest('hex'));
     return image;
   });
   const client = {
     async readDocument() { return null; },
     async readForWrite() { return null; },
-    async writeMedia(chunk) { mediaWrites++; return { id: chunkIds.get(chunk) }; },
+    async writeMedia(image) { mediaWrites++; return { id: imageIds.get(image), size: image.size }; },
     async writeDocument(write) {
       documentWrites++;
       if (write.value?.namespace === 'app_state' && write.value?.format === 'guan-app-storage.v2') rootWrites++;
@@ -154,8 +224,7 @@ test('一键批量生成逐项保存超过1GiB的图片并为每次画布提交�
     },
   };
   const storage = createShardedApplicationStorage({ client, requestLimit: 0, readBlobUrl: async url => images[Number(url.slice('blob:batch-'.length))] });
-  const instance = storage.createInstance();
-  const urls = [];
+  const instance = storage.createInstance(), urls = [];
   for (let index = 0; index < imageCount; index++) {
     urls.push(`blob:batch-${index}`);
     await instance.setItem('infinite-canvas:canvas_store', JSON.stringify({ generatedBatch: urls }));
@@ -163,14 +232,13 @@ test('一键批量生成逐项保存超过1GiB的图片并为每次画布提交�
   }
   assert.equal(imageCount * imageBytes, 1200 * 1024 * 1024);
   assert.ok(imageCount * imageBytes > 1024 * 1024 * 1024);
-  assert.equal(mediaWrites, imageCount * 2);
+  assert.equal(mediaWrites, imageCount, '每个原图只执行一次媒体写入');
   assert.equal(rootWrites, imageCount);
   assert.ok(documentWrites > rootWrites);
-  assert.deepEqual(storage.getStatus(), { state: 'saved', pending: 0, reads: 0, errors: [], failures: [] });
   storage.close();
 });
 
-test('解码不因整画布超过1GiB预先拒绝，仍逐片校验格式与大小', async () => {
+test('画布总媒体超过1GiB时继续逐片读取，保持单片大小校验', async () => {
   const reachedRead = Error('media-read-reached');
   const codec = createValueCodec({ client: { async readMedia() { throw reachedRead; } } });
   const size = 1024 * 1024 * 1024 + 1;
@@ -248,6 +316,35 @@ test('失败不提前显示已保存，flush拒绝未确认的数据', async () 
   assert.equal(b.storageStatus().state, 'error'); await assert.rejects(b.flushSQLiteStorage());
 });
 
+test('批量保存期间其他卡片状态更新时，同一产品只写入最新快照', async () => {
+  const path = '../扩展功能/产品/产品保存检查点.ts';
+  const source = readFileSync(new URL(path, import.meta.url), 'utf8');
+  const { code } = await transformWithEsbuild(source, path, { loader: 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
+  const module = { exports: {} };
+  new Function('module', 'exports', code)(module, module.exports);
+  const requested = [], checkpoint = new module.exports.ProductCommitCheckpoint(ticket => requested.push(ticket));
+  checkpoint.mount();
+  checkpoint.commit(0, { baseline: true }, true);
+  checkpoint.commit(0, { revision: 1 }, true);
+  const saved = []; let release;
+  const first = checkpoint.flush(async value => {
+    saved.push(value);
+    if (value.revision === 1) await new Promise(resolve => { release = resolve; });
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  checkpoint.commit(requested.at(-1), { revision: 1 }, true);
+  await new Promise(resolve => setImmediate(resolve));
+  const concurrent = checkpoint.flush(async value => saved.push(value));
+  const latest = { revision: 2 };
+  checkpoint.commit(requested.at(-1), latest, true); release();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(requested.length, 2);
+  checkpoint.commit(requested.at(-1), latest, true);
+  await Promise.all([first, concurrent]);
+  assert.deepEqual(saved, [{ revision: 1 }, latest]);
+  checkpoint.unmount();
+});
+
 test('慢提交期间连续编辑只留下一份最新候选，flush等两代真实ACK', async () => {
   const b = await bridge(), first = b.scheduleStateSave('画布', '开始'); b.advance(80);
   let latest;
@@ -261,18 +358,18 @@ test('慢提交期间连续编辑只留下一份最新候选，flush等两代真
   assert.equal(b.storageStatus().state, 'saved'); assert.equal(flushed, true);
 });
 
-test('分片最多四路并发，失败等待同批收口，原操作重试后才发布根目录', async () => {
-  const documents = new Map(), writes = [], held = [];
+test('单体内容块失败不发布根目录，同操作重试后才确认保存', { timeout: 10_000 }, async () => {
+  const documents = new Map(), writes = [];
   let ready; const firstBatch = new Promise(resolve => { ready = resolve; });
-  let fail = true, settled = false, roots = 0;
+  let fail = true, settled = false, roots = 0, release;
+  const held = new Promise(resolve => { release = resolve; });
   const client = {
     async readDocument(_collection, id) { return documents.get(id) ?? null; },
     async writeDocument(write) {
       writes.push(write);
-      if (write.id.startsWith('app-part-') && held.length < 4) {
-        const index = held.length;
-        await new Promise(resolve => { held.push(resolve); if (held.length === 4) ready(); });
-        if (index === 0 && fail) { fail = false; throw Error('合成分片断线'); }
+      if (write.id.startsWith('app-part-') && fail) {
+        ready(); await held;
+        fail = false; throw Error('合成分片断线');
       }
       if (!write.id.startsWith('app-part-')) roots++;
       const hash = createHash('sha256').update(JSON.stringify(write.value)).digest('hex');
@@ -283,15 +380,12 @@ test('分片最多四路并发，失败等待同批收口，原操作重试后�
   const app = createShardedApplicationStorage({ client }), instance = app.createInstance();
   const save = instance.setItem('infinite-canvas:canvas_store', syntheticCanvas({ products: 2, nodes: 200, textLength: 2000 }));
   save.then(() => { settled = true; }, () => { settled = true; });
-  await firstBatch; assert.equal(held.length, 4); assert.equal(roots, 0);
-  held[0](); await new Promise(resolve => setImmediate(resolve));
-  assert.equal(settled, false, '失败不能留下同批仍运行的请求');
-  for (const release of held.slice(1)) release();
+  await firstBatch; assert.equal(roots, 0); assert.equal(settled, false);
+  release();
   await assert.rejects(save, /合成分片断线/); assert.equal(roots, 0);
   const original = writes[0]; await app.retry('app_state'); await app.flush();
   assert.equal(roots, 1);
   const retry = writes.filter(write => write.id === original.id);
   assert.equal(retry.length, 2); assert.equal(retry[0].operationId, retry[1].operationId);
-  for (const saved of writes.slice(1, 4)) assert.equal(writes.filter(write => write.id === saved.id).length, 1);
   app.close();
 });

@@ -1,0 +1,36 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 2b1a534..fe6d660 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -322,6 +322,7 @@ function InfiniteCanvasPage() {
+     const [expandedBatchNodeIds, setExpandedBatchNodeIds] = useState<Set<string>>(new Set());
+     const [isNodeDragging, setIsNodeDragging] = useState(false);
+     const [isNodeResizing, setIsNodeResizing] = useState(false);
++    const nodeResizingRef = useRef(false);
+     const [dropTargetGroupId, setDropTargetGroupId] = useState<string | null>(null);
+     const [referencePickerNodeId, setReferencePickerNodeId] = useState<string | null>(null);
+ 
+@@ -605,7 +606,7 @@ function InfiniteCanvasPage() {
+     useCanvasPersistence({
+         projectId, nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport,
+         projectLoaded, restoredProjectIdRef, nodeTransactionRef, historyPausedRef, dragRef, isNodeDragging,
+-        isNodeResizing, focusAnimRef, viewportRef, viewportSaveTimerRef, generationRequestsRef, runningNodeId: runningNodeIds.values().next().value ?? null, updateProject,
++        isNodeResizing, nodeResizingRef, isCanvasPanning, canvasPanningRef, focusAnimRef, viewportRef, viewportSaveTimerRef, generationRequestsRef, runningNodeId: runningNodeIds.values().next().value ?? null, updateProject,
+     });
+ 
+     const { clearConfirmedImageError, recordImageGatewayTask, requestNodeText, requestNodeAudio } = useCanvasTaskReceipts({ projectId, nodesRef, restoredProjectIdRef, setNodes });
+@@ -1702,9 +1703,13 @@ function InfiniteCanvasPage() {
+     }, []);
+ 
+     const handleNodeResizeStart = useCallback(() => {
++        nodeResizingRef.current = true;
+         setIsNodeResizing(true);
+     }, []);
+-    const handleNodeResizeEnd = useCallback(() => setIsNodeResizing(false), []);
++    const handleNodeResizeEnd = useCallback(() => {
++        nodeResizingRef.current = false;
++        setIsNodeResizing(false);
++    }, []);
+ 
+     const toggleNodeFreeResize = useCallback((nodeId: string) => {
+         setNodes((prev) =>

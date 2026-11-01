@@ -1,0 +1,69 @@
+diff --git a/web/src/components/canvas/canvas-node-generation.ts b/web/src/components/canvas/canvas-node-generation.ts
+index fcc8c8b..34bbdc0 100644
+--- a/web/src/components/canvas/canvas-node-generation.ts
++++ b/web/src/components/canvas/canvas-node-generation.ts
+@@ -6,6 +6,7 @@ import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
+ import { CanvasNodeType, type CanvasConnection, type CanvasNodeData } from "@/types/canvas";
+ import { getGenerationResourceNodes, getGroupResourceNodes } from "@/lib/canvas/canvas-resource-references";
+ import { getNodeDefinition } from "@/lib/canvas/node-registry";
++import { resolveMediaUrl } from "@/services/file-storage";
+ import { readProtectedGenerationText } from "@/扩展功能/提示词/生成文本读取";
+ import { resolvePromptVariables } from "@/扩展功能/提示词/变量使用规则";
+ 
+@@ -176,7 +177,12 @@ export function buildNodeResponseMessages(context: NodeGenerationContext): AiTex
+ 
+ export async function hydrateNodeGenerationContext(context: NodeGenerationContext) {
+     const { imageToDataUrl } = await import("@/services/image-storage");
+-    return { ...context, referenceImages: await Promise.all(context.referenceImages.map(async (image) => ({ ...image, dataUrl: await imageToDataUrl(image) }))) };
++    const [referenceImages, referenceVideos, referenceAudios] = await Promise.all([
++        Promise.all(context.referenceImages.map(async (image) => ({ ...image, dataUrl: await imageToDataUrl(image) }))),
++        Promise.all(context.referenceVideos.map(async (video) => ({ ...video, url: video.storageKey ? await resolveMediaUrl(video.storageKey, video.url) : video.url }))),
++        Promise.all(context.referenceAudios.map(async (audio) => ({ ...audio, url: audio.storageKey ? await resolveMediaUrl(audio.storageKey, audio.url) : audio.url }))),
++    ]);
++    return { ...context, referenceImages, referenceVideos, referenceAudios };
+ }
+ 
+ function readNodeTextInput(node: CanvasNodeData) {
+@@ -196,23 +202,23 @@ function generationLabel(type: NodeGenerationResourceInput["type"], index: numbe
+ }
+ 
+ function readReferenceImage(node: CanvasNodeData): ReferenceImage | null {
+-    if (node.type !== CanvasNodeType.Image || !node.metadata?.content) return null;
++    if (node.type !== CanvasNodeType.Image || (!node.metadata?.content && !node.metadata?.storageKey)) return null;
+     return {
+         id: node.id,
+         name: `${node.title || node.id}.png`,
+         type: node.metadata.mimeType || "image/png",
+-        dataUrl: node.metadata.content,
++        dataUrl: node.metadata.content || "",
+         storageKey: node.metadata.storageKey,
+     };
+ }
+ 
+ function readReferenceVideo(node: CanvasNodeData): ReferenceVideo | null {
+-    if (node.type !== CanvasNodeType.Video || !node.metadata?.content) return null;
++    if (node.type !== CanvasNodeType.Video || (!node.metadata?.content && !node.metadata?.storageKey)) return null;
+     return {
+         id: node.id,
+         name: `${node.title || node.id}.mp4`,
+         type: node.metadata.mimeType || "video/mp4",
+-        url: node.metadata.content,
++        url: node.metadata.content || "",
+         storageKey: node.metadata.storageKey,
+         bytes: node.metadata.bytes,
+         width: node.metadata.naturalWidth,
+@@ -222,12 +228,12 @@ function readReferenceVideo(node: CanvasNodeData): ReferenceVideo | null {
+ }
+ 
+ function readReferenceAudio(node: CanvasNodeData): ReferenceAudio | null {
+-    if (node.type !== CanvasNodeType.Audio || !node.metadata?.content) return null;
++    if (node.type !== CanvasNodeType.Audio || (!node.metadata?.content && !node.metadata?.storageKey)) return null;
+     return {
+         id: node.id,
+         name: `${node.title || node.id}.mp3`,
+         type: node.metadata.mimeType || "audio/mpeg",
+-        url: node.metadata.content,
++        url: node.metadata.content || "",
+         storageKey: node.metadata.storageKey,
+         durationMs: node.metadata.durationMs,
+     };

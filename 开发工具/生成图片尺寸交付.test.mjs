@@ -28,6 +28,7 @@ async function fixture({ width = 1086, height = 1448, failAt, failFetch = false,
   let id = 0;
   const dependencies = {
     '@/扩展功能/素材/上传资产规则': rules.exports,
+    '@/扩展功能/媒体交付/上传前存储检查.mjs': { assertUploadStorageReady() {} },
     '@/扩展功能/媒体交付/媒体地址缓存': { createMediaUrlCache: () => ({ set() {}, get() {}, delete() {} }) },
     '@/扩展功能/网络代理/本地转发请求': { 本地转发请求: async () => { if (failFetch) throw Error('network'); return new Response(original); } },
     '@/扩展功能/本机存储/上游浏览器存储桥': { sqliteForage: { createInstance: ({ storeName }) => ({

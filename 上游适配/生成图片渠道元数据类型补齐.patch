@@ -1,0 +1,15 @@
+diff --git a/web/src/types/canvas.ts b/web/src/types/canvas.ts
+index a9bcd52..0dc0f82 100644
+--- a/web/src/types/canvas.ts
++++ b/web/src/types/canvas.ts
+@@ -82,6 +82,10 @@ export type CanvasNodeMetadata = {
+     generationImageType?: string;
+     channel?: string;
+     originalImage?: { width: number; height: number };
++    channelId?: string;
++    channelName?: string;
++    provider?: string;
++    transport?: "direct" | "proxy";
+     deliveryNote?: string;
+     generationAttempts?: Array<{ channel: string; model: string; error?: string }>;
+     generationParamsDetected?: boolean;

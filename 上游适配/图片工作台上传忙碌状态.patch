@@ -1,0 +1,52 @@
+diff --git a/web/src/pages/image/index.tsx b/web/src/pages/image/index.tsx
+index b25897a..7740452 100644
+--- a/web/src/pages/image/index.tsx
++++ b/web/src/pages/image/index.tsx
+@@ -82,6 +82,7 @@ export default function ImagePage() {
+     const addAsset = useAssetStore((state) => state.addAsset);
+     const [prompt, setPrompt] = useState("");
+     const [references, setReferences] = useState<ReferenceImage[]>([]);
++    const [referencesUploading, setReferencesUploading] = useState(false);
+     const [results, setResults] = useState<GenerationResult[]>([]);
+     const [logs, setLogs] = useState<GenerationLog[]>([]);
+     const [running, setRunning] = useState(false);
+@@ -118,13 +119,19 @@ export default function ImagePage() {
+ 
+     const addReferences = async (files?: FileList | null) => {
+         const imageFiles = Array.from(files || []).filter((file) => file.type.startsWith("image/"));
+-        const nextReferences = await Promise.all(
+-            imageFiles.map(async (file) => {
+-                const image = await uploadImage(file);
+-                return { id: nanoid(), name: file.name, type: image.mimeType, dataUrl: image.url, storageKey: image.storageKey };
+-            }),
+-        );
+-        setReferences((value) => [...value, ...nextReferences]);
++        if (!imageFiles.length) return;
++        setReferencesUploading(true);
++        try {
++            const nextReferences = await Promise.all(
++                imageFiles.map(async (file) => {
++                    const image = await uploadImage(file);
++                    return { id: nanoid(), name: file.name, type: image.mimeType, dataUrl: image.url, storageKey: image.storageKey };
++                }),
++            );
++            setReferences((value) => [...value, ...nextReferences]);
++        } finally {
++            setReferencesUploading(false);
++        }
+     };
+ 
+     const addReferencesFromClipboard = async () => {
+@@ -415,10 +422,10 @@ export default function ImagePage() {
+                                 <div className="mb-2 flex items-center justify-between gap-3">
+                                     <span className="text-base font-semibold">{t("imageWorkbench.references")}</span>
+                                     <div className="flex gap-2">
+-                                        <Button size="small" icon={<ClipboardPaste className="size-3.5" />} onClick={() => void addReferencesFromClipboard()}>
++                                        <Button size="small" loading={referencesUploading} disabled={referencesUploading} icon={<ClipboardPaste className="size-3.5" />} onClick={() => void addReferencesFromClipboard()}>
+                                             {t("workbench.clipboard")}
+                                         </Button>
+-                                        <Button size="small" icon={<Upload className="size-3.5" />} onClick={() => fileInputRef.current?.click()}>
++                                        <Button size="small" loading={referencesUploading} disabled={referencesUploading} icon={<Upload className="size-3.5" />} onClick={() => fileInputRef.current?.click()}>
+                                             {t("workbench.upload")}
+                                         </Button>
+                                     </div>

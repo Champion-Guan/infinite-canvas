@@ -1,0 +1,20 @@
+diff --git a/web/src/stores/canvas/use-canvas-store.ts b/web/src/stores/canvas/use-canvas-store.ts
+index 62c6c95..4d7abe5 100644
+--- a/web/src/stores/canvas/use-canvas-store.ts
++++ b/web/src/stores/canvas/use-canvas-store.ts
+@@ -1,5 +1,6 @@
+ import { imageInfoDefaults, withCanvasAppearanceDefaults } from "@/扩展功能/图片设置/图片信息偏好";
+ import { scheduleStateSave } from "@/扩展功能/本机存储/上游浏览器存储桥";
++import { shouldDeferCanvasPersist } from "@/扩展功能/画布生成/批量保存协调";
+ import { create } from "zustand";
+ import { persist, type PersistStorage, type StorageValue } from "zustand/middleware";
+ 
+@@ -73,6 +74,8 @@ const canvasStorage: PersistStorage<CanvasStore> = {
+     },
+     setItem: (name, value) => {
+         const nextState = value.state as PersistedCanvasState;
++        // 批量生成期间只保留内存快照；视频任务检查点通过受保护通道显式放行。
++        if (shouldDeferCanvasPersist(nextState.projects)) return Promise.resolve();
+         if (queuedPersistState && queuedPersistState.projects === nextState.projects && queuedPersistState.deletedProjects === nextState.deletedProjects && queuedPersistState.guanWorkbooks === nextState.guanWorkbooks) return;
+         queuedPersistState = nextState;
+         return scheduleStateSave(name, JSON.stringify(value));

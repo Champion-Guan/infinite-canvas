@@ -1,15 +1,15 @@
 import { DatabaseSync, backup } from 'node:sqlite';
-import { constants, chmodSync, closeSync, existsSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, statfsSync, unlinkSync, writeFileSync } from 'node:fs';
+import { constants, chmodSync, closeSync, existsSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statfsSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
-import { COLLECTIONS, MAX_MEDIA_BYTES, MEDIA_TYPES, PROTOCOL, SCHEMA_VERSION, StorageError, requireValue, serializeDocument, validHash, validId, validUUID } from './协议.mjs';
+import { COLLECTIONS, LEGACY_SCHEMA_VERSION, MAX_FRAGMENT_BATCH_BYTES, MAX_FRAGMENT_BATCH_COUNT, MAX_MEDIA_BATCH_BYTES, MAX_MEDIA_BATCH_COUNT, MAX_MEDIA_BYTES, MEDIA_TYPES, PROTOCOL, SCHEMA_VERSION, StorageError, requireValue, serializeDocument, validHash, validId, validUUID } from './协议.mjs';
 
 import { 清理独占暂存文件 } from '../本机服务/中断文件清理.mjs';
 import { 数据磁盘保留字节, 配置SQLite日志, 检查SQLite写入空间 } from './写入空间保护.mjs';
 import { readCategorizedUsage } from './分类容量统计.mjs';
-import { 复制独立备份文件, 复用相同数据库快照 } from './备份节省空间.mjs';
+import { 复制独立备份文件, 复用相同数据库快照, 计算文件哈希 } from './备份节省空间.mjs';
 
 const DB_NAME = '工作台.sqlite';
 const MARKER = '.工作区.json';
@@ -18,6 +18,7 @@ const APPLICATION_ID = 0x47574149;
 const RESERVE = 数据磁盘保留字节;
 const sourceRoot = fileURLToPath(new URL('../../', import.meta.url));
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+const isSQLiteBlob = value => value instanceof Uint8Array;
 const within = (child, parent) => child === parent || (!relative(parent, child).startsWith('..') && !isAbsolute(relative(parent, child)));
 
 // 系统 /var -> /private/var 可以规范化；托管根、文件和子目录本身不能是链接。
@@ -52,28 +53,79 @@ function durableWrite(path, bytes) {
 }
 function syncDirectory(path) { const fd = openSync(path, constants.O_RDONLY); try { fsyncSync(fd); } finally { closeSync(fd); } }
 function readJSON(path) { safePath(path, false); return JSON.parse(readFileSync(path, 'utf8')); }
+function publishMarker(path, marker) {
+  const temporary = `${path}.migrate-${randomUUID()}`;
+  durableWrite(temporary, JSON.stringify(marker, null, 2));
+  renameSync(temporary, path);
+  syncDirectory(dirname(path));
+}
+function schemaVersion(db) { return db.prepare('PRAGMA user_version').get().user_version; }
+function hasMediaBlobColumn(db) {
+  return db.prepare('PRAGMA table_info(media)').all().some(column => column.name === 'content');
+}
 function inspectDatabase(path, workspaceId) {
   safePath(path, false);
   for (const suffix of ['-wal', '-shm']) safePath(path + suffix, false, false);
   const db = new DatabaseSync(path, { readOnly: true });
   try {
-    requireValue(db.prepare('PRAGMA user_version').get().user_version === SCHEMA_VERSION, 'schema_unsupported', '数据库版本未知，停止而不修改。', 409);
+    const version = schemaVersion(db);
+    requireValue([LEGACY_SCHEMA_VERSION, SCHEMA_VERSION].includes(version) &&
+      (version !== SCHEMA_VERSION || hasMediaBlobColumn(db)), 'schema_unsupported', '数据库版本未知，停止而不修改。', 409);
     requireValue(db.prepare('PRAGMA application_id').get().application_id === APPLICATION_ID, 'database_corrupt', '数据库身份不匹配。', 409);
     requireValue(db.prepare('PRAGMA integrity_check').get().integrity_check === 'ok' && db.prepare('PRAGMA foreign_key_check').all().length === 0, 'database_corrupt', '数据库完整性检查失败。', 409);
     requireValue(db.prepare("SELECT value FROM workspace WHERE key='id'").get()?.value === workspaceId, 'database_corrupt', '工作区身份不匹配。', 409);
     return db;
   } catch (error) { db.close(); throw error; }
 }
-function checkMedia(root, row) {
+function migrateWorkspaceSchema(db, markerPath, marker) {
+  let version = schemaVersion(db);
+  if (version === LEGACY_SCHEMA_VERSION) {
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      if (!hasMediaBlobColumn(db)) db.exec('ALTER TABLE media ADD COLUMN content BLOB');
+      db.exec(`PRAGMA user_version=${SCHEMA_VERSION}; COMMIT`);
+      version = SCHEMA_VERSION;
+    } catch (error) {
+      if (db.isTransaction) db.exec('ROLLBACK');
+      throw error;
+    }
+  }
+  requireValue(version === SCHEMA_VERSION && hasMediaBlobColumn(db), 'schema_unsupported', 'SQLite媒体结构升级未完成。', 409);
+  if (marker.schemaVersion !== version) publishMarker(markerPath, { ...marker, schemaVersion: version });
+}
+function checkMedia(root, row, verified = new Set()) {
   requireValue(row && validHash(row.id), 'media_not_found', '媒体不存在。', 404);
+  if (isSQLiteBlob(row.content)) {
+    requireValue(row.content.length === row.size && row.size <= MAX_MEDIA_BYTES, 'media_corrupt', 'SQLite媒体BLOB大小校验失败。', 409);
+    if (!verified.has(row.id)) {
+      requireValue(sha(row.content) === row.id, 'media_corrupt', 'SQLite媒体BLOB校验失败。', 409);
+      verified.add(row.id);
+    }
+    return { ...row, bytes: Buffer.from(row.content) };
+  }
   safePath(join(root, '媒体'), true);
   const path = join(root, '媒体', row.id);
   requireValue(existsSync(path), 'media_not_found', '媒体文件缺失。', 404);
   safePath(path, false);
   requireValue(lstatSync(path).size === row.size && row.size <= MAX_MEDIA_BYTES, 'media_corrupt', '媒体大小校验失败。', 409);
   const bytes = readFileSync(path);
-  requireValue(sha(bytes) === row.id, 'media_corrupt', '媒体哈希校验失败。', 409);
+  if (!verified.has(row.id)) {
+    requireValue(sha(bytes) === row.id, 'media_corrupt', '媒体哈希校验失败。', 409);
+    verified.add(row.id);
+  }
   return { ...row, bytes };
+}
+function checkMediaReference(root, row) {
+  requireValue(row && validHash(row.id), 'media_not_found', '媒体不存在。', 404);
+  if (isSQLiteBlob(row.content)) {
+    requireValue(row.content.length === row.size && row.size <= MAX_MEDIA_BYTES, 'media_corrupt', 'SQLite媒体BLOB大小校验失败。', 409);
+    return;
+  }
+  safePath(join(root, '媒体'), true);
+  const path = join(root, '媒体', row.id);
+  requireValue(existsSync(path), 'media_not_found', '媒体文件缺失。', 404);
+  safePath(path, false);
+  requireValue(lstatSync(path).size === row.size && row.size <= MAX_MEDIA_BYTES, 'media_corrupt', '媒体大小校验失败。', 409);
 }
 
 export function openWorkspace({ dataRoot, initialize = false, availableBytes, beforeCommit } = {}) {
@@ -91,7 +143,7 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
     chmodSync(root, 0o700);
   } else {
     const marker = readJSON(markerPath);
-    requireValue(marker.protocol === PROTOCOL && marker.schemaVersion === SCHEMA_VERSION && validUUID(marker.workspaceId), 'schema_unsupported', '工作区格式未知。', 409);
+    requireValue(marker.protocol === PROTOCOL && [LEGACY_SCHEMA_VERSION, SCHEMA_VERSION].includes(marker.schemaVersion) && validUUID(marker.workspaceId), 'schema_unsupported', '工作区格式未知。', 409);
     workspaceId = marker.workspaceId;
     inspectDatabase(dbPath, workspaceId).close(); // 必须在任何可写连接之前检查版本。
     safePath(join(root, '媒体'), true);
@@ -108,13 +160,16 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
       db.exec(`PRAGMA application_id=${APPLICATION_ID}; PRAGMA user_version=${SCHEMA_VERSION}; PRAGMA foreign_keys=ON;
         CREATE TABLE workspace (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
         CREATE TABLE documents (collection TEXT NOT NULL, id TEXT NOT NULL, body TEXT NOT NULL, revision INTEGER NOT NULL, hash TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(collection,id)) STRICT;
-        CREATE TABLE media (id TEXT PRIMARY KEY, mime TEXT NOT NULL, size INTEGER NOT NULL) STRICT;
+        CREATE TABLE media (id TEXT PRIMARY KEY, mime TEXT NOT NULL, size INTEGER NOT NULL, content BLOB) STRICT;
         CREATE TABLE document_media (collection TEXT NOT NULL, document_id TEXT NOT NULL, media_id TEXT NOT NULL REFERENCES media(id), PRIMARY KEY(collection,document_id,media_id), FOREIGN KEY(collection,document_id) REFERENCES documents(collection,id)) STRICT;
         CREATE TABLE operations (id TEXT PRIMARY KEY, request_hash TEXT NOT NULL, ack TEXT NOT NULL) STRICT;`);
       db.prepare('INSERT INTO workspace VALUES (?,?)').run('id', workspaceId);
       durableWrite(markerPath, JSON.stringify({ protocol: PROTOCOL, schemaVersion: SCHEMA_VERSION, workspaceId }, null, 2));
       syncDirectory(root);
-    } else { db = new DatabaseSync(dbPath); }
+    } else {
+      db = new DatabaseSync(dbPath);
+      migrateWorkspaceSchema(db, markerPath, readJSON(markerPath));
+    }
     db.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=3000;');
     配置SQLite日志(db);
     // 数据库锁已经取得，旧进程不可能仍写本目录；只清理未发布的媒体暂存名。
@@ -123,6 +178,7 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
 
   let usagePending;
   const recentUploads = new Map();
+  const verifiedMedia = new Set();
   function active(write = false) {
     requireValue(!closed, 'workspace_closed', '工作区已关闭。', 503);
     requireValue(!write || !maintenance, 'workspace_busy', '工作区正在备份，请稍后重试。', 503);
@@ -136,6 +192,61 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
     db.exec('BEGIN IMMEDIATE');
     try { const result = fn(); beforeCommit?.(); db.exec('COMMIT'); return result; }
     catch (error) { if (db.isTransaction) db.exec('ROLLBACK'); throw error; }
+  }
+  function writeMediaEntries(items) {
+    active(true);
+    const entries = new Map();
+    const prepared = items.map(({ bytes, mime }) => {
+      requireValue(Buffer.isBuffer(bytes) && bytes.length > 0 && bytes.length <= MAX_MEDIA_BYTES && MEDIA_TYPES.includes(mime), 'invalid_media', '媒体类型或大小不支持。');
+      const id = sha(bytes);
+      return { id, bytes, mime };
+    });
+    for (const entry of prepared) if (!entries.has(entry.id)) {
+      entries.set(entry.id, { ...entry, existing: db.prepare('SELECT * FROM media WHERE id=?').get(entry.id) });
+    }
+    const pendingBytes = [...entries.values()].reduce((total, entry) => total + (!entry.existing || !isSQLiteBlob(entry.existing.content) ? entry.bytes.length : 0), 0);
+    if (pendingBytes) space(pendingBytes);
+    const legacy = [];
+    const saved = transaction(() => {
+      const result = new Map();
+      for (const entry of entries.values()) {
+        const row = entry.existing;
+        if (row && isSQLiteBlob(row.content)) {
+          checkMedia(root, row, verifiedMedia);
+          result.set(entry.id, { id: entry.id, mime: row.mime, size: row.size });
+          continue;
+        }
+        if (row) {
+          // 旧schema媒体先校验并在本事务中迁入BLOB，事务提交后再删旧文件。
+          const verified = checkMedia(root, row, verifiedMedia);
+          db.prepare('UPDATE media SET content=? WHERE id=? AND content IS NULL').run(verified.bytes, entry.id);
+          legacy.push(entry.id);
+          result.set(entry.id, { id: entry.id, mime: row.mime, size: row.size });
+        } else {
+          db.prepare('INSERT INTO media(id,mime,size,content) VALUES (?,?,?,?)').run(entry.id, entry.mime, entry.bytes.length, entry.bytes);
+          result.set(entry.id, { id: entry.id, mime: entry.mime, size: entry.bytes.length });
+        }
+      }
+      return result;
+    });
+    const now = Date.now();
+    for (const entry of entries.values()) {
+      verifiedMedia.add(entry.id);
+      if (!entry.existing) recentUploads.set(entry.id, now);
+    }
+    for (const [id, time] of recentUploads) if (now - time > 15_000) recentUploads.delete(id);
+    for (const id of legacy) {
+      const legacyPath = join(root, '媒体', id);
+      try {
+        safePath(legacyPath, false);
+        unlinkSync(legacyPath);
+        syncDirectory(join(root, '媒体'));
+      } catch (error) {
+        // BLOB事务已提交，旧副本清理失败不能把成功写入伪报为失败。
+        if (error.code !== 'ENOENT') { /* 留待后续空间清理，不影响已提交内容。 */ }
+      }
+    }
+    return prepared.map(entry => saved.get(entry.id));
   }
   function validDocumentKey(collection, id) { requireValue(COLLECTIONS.includes(collection) && validId(id), 'invalid_document', '集合或文档标识无效。'); }
   const store = {
@@ -157,11 +268,12 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
         group.records += app ? value.entries.length : 1; group.bytes += row.bytes; groups.set(name, group);
       }
       const media = db.prepare('SELECT COUNT(*) AS records,coalesce(sum(size),0) AS bytes FROM media').get();
+      const externalMediaBytes = db.prepare('SELECT coalesce(sum(size),0) AS bytes FROM media WHERE content IS NULL').get().bytes;
       const contentBytes = [...groups.values()].reduce((sum, row) => sum + row.bytes, media.bytes);
       const databaseBytes = ['', '-wal', '-shm'].reduce((sum, suffix) => sum + (existsSync(dbPath + suffix) ? lstatSync(dbPath + suffix).size : 0), 0);
       const stores = [...groups.values(), { name: 'media_blobs', ...media }];
-      // usage是当前数据库/WAL/SHM及已索引媒体，不含备份/孤儿文件；不是浏览器配额。
-      return { protocol: PROTOCOL, workspaceId, usage: databaseBytes + media.bytes, quota: null, contentBytes, databases: [{ name: '工作台.sqlite + 媒体', version: SCHEMA_VERSION, bytes: contentBytes, stores }] };
+      // BLOB已经计入SQLite/WAL；只把兼容读取的旧版媒体文件另计一次。
+      return { protocol: PROTOCOL, workspaceId, usage: databaseBytes + externalMediaBytes, quota: null, contentBytes, databases: [{ name: '工作台.sqlite', version: SCHEMA_VERSION, bytes: contentBytes, stores }] };
     },
     readDocument(collection, id) {
       active(); validDocumentKey(collection, id);
@@ -191,7 +303,9 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
         }
         const revision = db.prepare('SELECT revision FROM documents WHERE collection=? AND id=?').get(collection, id)?.revision ?? 0;
         requireValue(revision === expectedRevision, 'revision_conflict', '内容已被其他会话修改，请重新读取；没有覆盖。', 409);
-        for (const mediaId of mediaIds) checkMedia(root, db.prepare('SELECT * FROM media WHERE id=?').get(mediaId));
+        // Media is immutable and content-addressed at upload time. A document save
+        // only checks the index and file metadata; full hashing belongs to reads.
+        for (const mediaId of mediaIds) checkMediaReference(root, db.prepare('SELECT * FROM media WHERE id=?').get(mediaId));
         const updatedAt = new Date().toISOString();
         db.prepare('INSERT INTO documents VALUES (?,?,?,?,?,?) ON CONFLICT(collection,id) DO UPDATE SET body=excluded.body,revision=excluded.revision,hash=excluded.hash,updated_at=excluded.updated_at').run(collection, id, body, revision + 1, hash, updatedAt);
         db.prepare('DELETE FROM document_media WHERE collection=? AND document_id=?').run(collection, id);
@@ -202,36 +316,61 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
         return ack;
       });
     },
-    writeMedia(bytes, mime) {
+    writeFragments(fragments) {
       active(true);
-      requireValue(Buffer.isBuffer(bytes) && bytes.length > 0 && bytes.length <= MAX_MEDIA_BYTES && MEDIA_TYPES.includes(mime), 'invalid_media', '媒体类型或大小不支持。');
-      space(bytes.length);
-      const id = sha(bytes), row = db.prepare('SELECT * FROM media WHERE id=?').get(id);
-      recentUploads.set(id, Date.now());
-      for (const [key, time] of recentUploads) if (Date.now() - time > 15_000) recentUploads.delete(key);
-      if (row) { checkMedia(root, row); return row; }
-      const folder = join(root, '媒体'); safePath(folder, true);
-      const target = join(folder, id), staging = join(folder, `.暂存-${randomUUID()}`);
-      let created = false;
-      try {
-        // 已有相同字节时直接验证并建索引，避免重复写出一整份媒体。
-        if (!existsSync(target)) {
-          try {
-            durableWrite(staging, bytes);
-            try { linkSync(staging, target); created = true; } catch (error) { if (error.code !== 'EEXIST') throw error; }
-          } finally { if (lstatIfPresent(staging)) unlinkSync(staging); }
-          syncDirectory(folder);
+      requireValue(Array.isArray(fragments) && fragments.length > 0 && fragments.length <= MAX_FRAGMENT_BATCH_COUNT,
+        'invalid_fragment_batch', '分片批次数量无效。');
+      const ids = new Set(), operationsInBatch = new Set();
+      const prepared = fragments.map(fragment => {
+        requireValue(fragment && Object.keys(fragment).length === 3 && typeof fragment.id === 'string' &&
+          Object.hasOwn(fragment, 'value') && validUUID(fragment.operationId) && !operationsInBatch.has(fragment.operationId),
+        'invalid_fragment_batch', '分片批次字段或操作标识无效。');
+        requireValue(/^app-part-[a-f0-9]{64}$/.test(fragment.id) && !ids.has(fragment.id) &&
+          fragment.value?.format === 'guan-app-fragment.v1' &&
+          sha(JSON.stringify(fragment.value)) === fragment.id.slice('app-part-'.length),
+        'invalid_fragment_batch', '分片身份或内容寻址校验失败。', 409);
+        ids.add(fragment.id); operationsInBatch.add(fragment.operationId);
+        const body = serializeDocument('extension', fragment.id, fragment.value, []);
+        return { id: fragment.id, value: fragment.value, operationId: fragment.operationId, body, hash: sha(body),
+          requestHash: sha(JSON.stringify({ collection: 'extension', id: fragment.id, body, expectedRevision: 0, mediaIds: [] })) };
+      });
+      const requestBytes = Buffer.byteLength(JSON.stringify({ fragments: prepared.map(({ id, value, operationId }) => ({ id, value, operationId })) }));
+      requireValue(requestBytes <= MAX_FRAGMENT_BATCH_BYTES, 'fragment_batch_too_large', '分片批次超过5MiB上限。', 413);
+      space(requestBytes);
+      return transaction(() => prepared.map(fragment => {
+        const previous = db.prepare('SELECT * FROM operations WHERE id=?').get(fragment.operationId);
+        if (previous) {
+          requireValue(previous.request_hash === fragment.requestHash, 'idempotency_conflict', '分片操作ID已用于其他内容。', 409);
+          return JSON.parse(previous.ack);
         }
-        checkMedia(root, { id, mime, size: bytes.length });
-        transaction(() => db.prepare('INSERT INTO media VALUES (?,?,?)').run(id, mime, bytes.length));
-      } catch (error) {
-        // 仅回收本次创建且索引未提交的文件；不触碰之前已有的媒体。
-        if (created && !db.prepare('SELECT 1 FROM media WHERE id=?').get(id)) { unlinkSync(target); syncDirectory(folder); }
-        throw error;
-      }
-      return { id, mime, size: bytes.length };
+        const existing = db.prepare('SELECT revision,body,hash,updated_at FROM documents WHERE collection=? AND id=?').get('extension', fragment.id);
+        let revision, updatedAt;
+        if (existing) {
+          requireValue(existing.revision === 1 && existing.body === fragment.body && existing.hash === fragment.hash,
+            'fragment_corrupt', '同一内容寻址分片存在不同内容，没有覆盖。', 409);
+          revision = existing.revision; updatedAt = existing.updated_at;
+        } else {
+          updatedAt = new Date().toISOString(); revision = 1;
+          db.prepare('INSERT INTO documents VALUES (?,?,?,?,?,?)').run('extension', fragment.id, fragment.body, revision, fragment.hash, updatedAt);
+        }
+        const ack = { protocol: PROTOCOL, workspaceId, collection: 'extension', id: fragment.id, operationId: fragment.operationId,
+          revision, hash: fragment.hash, updatedAt, persisted: true };
+        db.prepare('INSERT INTO operations VALUES (?,?,?)').run(fragment.operationId, fragment.requestHash, JSON.stringify(ack));
+        return ack;
+      }));
     },
-    readMedia(id) { active(); requireValue(validHash(id), 'invalid_media', '媒体标识无效。'); return checkMedia(root, db.prepare('SELECT * FROM media WHERE id=?').get(id)); },
+    writeMedia(bytes, mime) {
+      return writeMediaEntries([{ bytes, mime }])[0];
+    },
+    writeMediaBatch(items) {
+      requireValue(Array.isArray(items) && items.length > 0 && items.length <= MAX_MEDIA_BATCH_COUNT &&
+        items.every(item => item && Object.keys(item).length === 2 && Object.hasOwn(item, 'bytes') && Object.hasOwn(item, 'mime')),
+      'invalid_media_batch', '媒体批次格式无效。');
+      const total = items.reduce((sum, item) => sum + (Buffer.isBuffer(item.bytes) ? item.bytes.length : 0), 0);
+      requireValue(total <= MAX_MEDIA_BATCH_BYTES, 'media_batch_too_large', '媒体批次超过临时内存范围。', 413);
+      return writeMediaEntries(items);
+    },
+    readMedia(id) { active(); requireValue(validHash(id), 'invalid_media', '媒体标识无效。'); return checkMedia(root, db.prepare('SELECT * FROM media WHERE id=?').get(id), verifiedMedia); },
     // 仅接收用户明确清理产生的候选；当前文档引用和刚上传尚未发布的内容始终受保护。
     purgeMedia(ids) {
       active(true);
@@ -242,21 +381,23 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
         for (const id of new Set(ids)) {
           if (db.prepare('SELECT 1 FROM document_media WHERE media_id=? LIMIT 1').get(id)) { retained.push(id); continue; }
           if (Date.now() - (recentUploads.get(id) ?? 0) < 15_000) { deferred.push(id); continue; }
-          const path = join(root, '媒体', id);
-          safePath(path, false, false);
+          const row = db.prepare('SELECT content FROM media WHERE id=?').get(id);
+          if (!row) continue;
+          if (!isSQLiteBlob(row.content)) safePath(join(root, '媒体', id), false, false);
           db.prepare('DELETE FROM media WHERE id=?').run(id);
-          result.push(id);
+          result.push({ id, external: !isSQLiteBlob(row.content) });
         }
         return result;
       });
-      // 先提交索引，再删文件。中断最多留下无索引文件；持久清理清单可以幂等重试，绝不先删后回滚。
-      for (const id of unreferenced) {
-        const path = join(root, '媒体', id);
+      // 先提交索引，再清理旧文件。SQLite BLOB随事务一并删除。
+      for (const item of unreferenced) {
+        if (!item.external) { deleted.push(item.id); continue; }
+        const path = join(root, '媒体', item.id);
         safePath(path, false, false);
         if (existsSync(path)) unlinkSync(path);
-        deleted.push(id);
+        deleted.push(item.id);
       }
-      syncDirectory(join(root, '媒体'));
+      if (unreferenced.some(item => item.external)) syncDirectory(join(root, '媒体'));
       return { deleted, retained, deferred };
     },
     async createBackup() {
@@ -268,23 +409,25 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
         safePath(parent, true);
         const target = join(parent, randomUUID()); mkdirSync(target, { mode: 0o700 }); backupTarget = target; mkdirSync(join(target, '媒体'), { mode: 0o700 });
         const media = db.prepare('SELECT * FROM media ORDER BY id').all();
-        space(media.reduce((sum, row) => sum + row.size, lstatSync(dbPath).size));
+        for (const row of media) checkMedia(root, row);
+        const externalMedia = media.filter(row => !isSQLiteBlob(row.content));
+        space(externalMedia.reduce((sum, row) => sum + row.size, lstatSync(dbPath).size));
         await backup(db, join(target, DB_NAME));
         // SQLite备份创建权限跟随umask，收紧为0600再发布备份清单。
         chmodSync(join(target, DB_NAME), 0o600);
-        const snapshot = readFileSync(join(target, DB_NAME));
-        const snapshotHash = sha(snapshot);
-        复用相同数据库快照(previousBackupDatabase, join(target, DB_NAME), snapshotHash, snapshot.length);
+        const snapshotPath = join(target, DB_NAME), snapshotSize = lstatSync(snapshotPath).size;
+        const snapshotHash = 计算文件哈希(snapshotPath);
+        复用相同数据库快照(previousBackupDatabase, snapshotPath, snapshotHash, snapshotSize);
         const dbFd = openSync(join(target, DB_NAME), constants.O_RDONLY); try { fsyncSync(dbFd); } finally { closeSync(dbFd); }
-        const files = [{ path: DB_NAME, hash: snapshotHash, size: snapshot.length }];
-        for (const row of media) {
+        const files = [{ path: DB_NAME, hash: snapshotHash, size: snapshotSize }];
+        for (const row of externalMedia) {
           checkMedia(root, row);
           复制独立备份文件(join(root, '媒体', row.id), join(target, '媒体', row.id), row.id, row.size);
           files.push({ path: `媒体/${row.id}`, hash: row.id, size: row.size });
         }
         const manifest = { protocol: PROTOCOL, schemaVersion: SCHEMA_VERSION, workspaceId, createdAt: new Date().toISOString(), documentCount: db.prepare('SELECT COUNT(*) AS count FROM documents').get().count, mediaCount: media.length, files };
         durableWrite(join(target, '清单.json'), JSON.stringify(manifest, null, 2)); syncDirectory(join(target, '媒体')); syncDirectory(target); syncDirectory(parent);
-        previousBackupDatabase = { path: join(target, DB_NAME), hash: snapshotHash, size: snapshot.length };
+        previousBackupDatabase = { path: snapshotPath, hash: snapshotHash, size: snapshotSize };
         backupComplete = true;
         return { path: target, workspaceId, documentCount: manifest.documentCount, mediaCount: media.length };
       } finally {
@@ -309,20 +452,24 @@ export function restoreBackup({ backupRoot, targetRoot }) {
   try {
     safePath(backupRoot, true); safePath(join(backupRoot, '媒体'), true);
     manifest = readJSON(join(backupRoot, '清单.json'));
-    requireValue(manifest.protocol === PROTOCOL && manifest.schemaVersion === SCHEMA_VERSION && validUUID(manifest.workspaceId) && Array.isArray(manifest.files), 'backup_corrupt', '备份清单无效。');
+    requireValue(manifest.protocol === PROTOCOL && [LEGACY_SCHEMA_VERSION, SCHEMA_VERSION].includes(manifest.schemaVersion) && validUUID(manifest.workspaceId) && Array.isArray(manifest.files), 'backup_corrupt', '备份清单无效。');
     const paths = new Set();
     for (const file of manifest.files) {
       requireValue(file.path === DB_NAME || /^媒体\/[0-9a-f]{64}$/.test(file.path), 'backup_corrupt', '备份路径无效。');
       requireValue(!paths.has(file.path) && validHash(file.hash) && Number.isSafeInteger(file.size) && file.size >= 0, 'backup_corrupt', '重复或无效备份条目。'); paths.add(file.path);
       const path = join(backupRoot, file.path); safePath(path, false);
-      requireValue(lstatSync(path).size === file.size && sha(readFileSync(path)) === file.hash, 'backup_corrupt', '备份文件校验失败。');
+      requireValue(lstatSync(path).size === file.size && 计算文件哈希(path) === file.hash, 'backup_corrupt', '备份文件校验失败。');
     }
     requireValue(paths.has(DB_NAME), 'backup_corrupt', '备份缺数据库。');
     const db = inspectDatabase(join(backupRoot, DB_NAME), manifest.workspaceId);
     try {
       const media = db.prepare('SELECT * FROM media').all();
-      requireValue(media.length === manifest.mediaCount && paths.size === media.length + 1 && db.prepare('SELECT COUNT(*) AS count FROM documents').get().count === manifest.documentCount, 'backup_corrupt', '备份条数不一致。');
-      for (const row of media) { requireValue(paths.has(`媒体/${row.id}`), 'backup_corrupt', '备份缺媒体索引。'); checkMedia(backupRoot, row); }
+      const externalMedia = media.filter(row => !isSQLiteBlob(row.content));
+      requireValue(media.length === manifest.mediaCount && paths.size === externalMedia.length + 1 && db.prepare('SELECT COUNT(*) AS count FROM documents').get().count === manifest.documentCount, 'backup_corrupt', '备份条数不一致。');
+      for (const row of media) {
+        requireValue(paths.has(`媒体/${row.id}`) === !isSQLiteBlob(row.content), 'backup_corrupt', '备份媒体索引与存储类型不一致。');
+        checkMedia(backupRoot, row);
+      }
       for (const row of db.prepare('SELECT * FROM documents').all()) {
         requireValue(sha(row.body) === row.hash, 'backup_corrupt', '文档损坏。');
         serializeDocument(row.collection, row.id, JSON.parse(row.body), db.prepare('SELECT media_id FROM document_media WHERE collection=? AND document_id=?').all(row.collection, row.id).map(ref => ref.media_id));
@@ -333,7 +480,7 @@ export function restoreBackup({ backupRoot, targetRoot }) {
   requireValue(fs.bavail * fs.bsize >= RESERVE + manifest.files.reduce((sum, file) => sum + file.size * 2, 0), 'insufficient_space', '恢复空间不足。', 507);
   // 验证全部成功才创建；中途I/O失败也保留目标，不删除任何数据。
   mkdirSync(target, { mode: 0o700 }); mkdirSync(join(target, '媒体'), { mode: 0o700 });
-  for (const file of manifest.files) durableWrite(join(target, file.path), readFileSync(join(backupRoot, file.path)));
+  for (const file of manifest.files) 复制独立备份文件(join(backupRoot, file.path), join(target, file.path), file.hash, file.size);
   durableWrite(join(target, MARKER), JSON.stringify({ protocol: PROTOCOL, schemaVersion: SCHEMA_VERSION, workspaceId: manifest.workspaceId }, null, 2));
   syncDirectory(join(target, '媒体')); syncDirectory(target); syncDirectory(dirname(target));
   return { workspaceId: manifest.workspaceId, dataRoot: target };

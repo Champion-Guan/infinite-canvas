@@ -21,10 +21,10 @@ async function body(request, limit = 4096) {
 
 // 自有HTTP服务器的受限处理器，不监听端口、不启动工作区、不改上游入口。
 // 可信本机启动器仅在进程内签发一次性码；不得把码放在URL、日志或Cookie中。
-export function createLocalAuthorizationGateway({ origin, dataURL, controller, credentialPort, now = Date.now, ticketTTL = 120_000, pageLifetime = 8 * 60 * 60_000, maxTickets = 4, maxPages = 16, rateLimit = 0 } = {}) {
+export function createLocalAuthorizationGateway({ origin, dataURL, controller, credentialPort, now = Date.now, ticketTTL = 120_000, pageLifetime = Infinity, maxTickets = 4, maxPages = Infinity, rateLimit = 0 } = {}) {
   requireValue(localOrigin(origin) && localOrigin(dataURL, true) && controller && typeof controller.open === 'function' && (!credentialPort || typeof credentialPort.store === 'function' && typeof credentialPort.read === 'function') && typeof now === 'function' &&
-    Number.isSafeInteger(ticketTTL) && ticketTTL > 0 && ticketTTL <= 120_000 && Number.isSafeInteger(pageLifetime) && pageLifetime > 0 && pageLifetime <= 8 * 60 * 60_000 &&
-    Number.isSafeInteger(maxTickets) && maxTickets > 0 && maxTickets <= 16 && Number.isSafeInteger(maxPages) && maxPages > 0 && maxPages <= 16 &&
+    Number.isSafeInteger(ticketTTL) && ticketTTL > 0 && ticketTTL <= 120_000 && (pageLifetime === Infinity || Number.isSafeInteger(pageLifetime) && pageLifetime > 0 && pageLifetime <= 8 * 60 * 60_000) &&
+    Number.isSafeInteger(maxTickets) && maxTickets > 0 && maxTickets <= 16 && (maxPages === Infinity || Number.isSafeInteger(maxPages) && maxPages > 0 && maxPages <= 16) &&
     Number.isSafeInteger(rateLimit) && rateLimit >= 0 && rateLimit <= 120, 'invalid_authorization_config', '本机授权配置无效。');
   const host = new URL(origin).host, tickets = new Map(), pages = new Map();
   let closed = false, active = 0, windowStart = null, count = 0;
@@ -63,7 +63,7 @@ export function createLocalAuthorizationGateway({ origin, dataURL, controller, c
           if (windowStart === null || time - windowStart >= 60_000) { windowStart = time; count = 0; }
           requireValue(++count <= rateLimit, 'authorization_rate_limited', '授权请求过于频繁，请稍后从本机入口重试。', 429);
         }
-        requireValue(active < 4, 'authorization_busy', '授权入口繁忙。', 503); active++; counted = true;
+        active++; counted = true;
         const value = await body(request, request.url === prefix + 'credentials' ? 16_384 : 4096);
         const currentTime = live(); // 读取慢请求后重新核验期限，不能用请求开始时间兑换过期码。
         if (request.url === prefix + 'authorize') {
@@ -75,7 +75,7 @@ export function createLocalAuthorizationGateway({ origin, dataURL, controller, c
           tickets.delete(key);
           const port = controller.open(), capability = randomBytes(32).toString('hex'), expiresAt = currentTime + pageLifetime;
           pages.set(digest(capability), { port, expiresAt });
-          json(200, { protocol: AUTHORIZATION_PROTOCOL, origin, dataURL, capability, expiresAt });
+          json(200, { protocol: AUTHORIZATION_PROTOCOL, origin, dataURL, capability, expiresAt: expiresAt === Infinity ? null : expiresAt });
         } else {
           const capability = request.headers.authorization?.match(/^Bearer ([0-9a-f]{64})$/)?.[1];
           const page = capability && pages.get(digest(capability));
@@ -103,13 +103,19 @@ export function createLocalAuthorizationGateway({ origin, dataURL, controller, c
             page.port.initialize();
             json(200, result); return true;
           }
-          requireValue(['initialize', 'renew', 'reconnect', 'close'].includes(value?.operation) && exactKeys(value, ['renew', 'reconnect'].includes(value.operation) ? ['operation', 'session'] : ['operation']), 'invalid_authorization_command', '会话操作格式无效。');
+          const sessionOperation = ['renew', 'reconnect'].includes(value?.operation);
+          const reconnectShape = value?.operation === 'reconnect' &&
+            (exactKeys(value, ['operation', 'session']) || exactKeys(value, ['operation', 'session', 'reason'])) &&
+            (value.reason === undefined || ['session_denied', 'authorization_connection_failed'].includes(value.reason));
+          requireValue(['initialize', 'renew', 'reconnect', 'close'].includes(value?.operation) &&
+            (value.operation === 'reconnect' ? reconnectShape : exactKeys(value, sessionOperation ? ['operation', 'session'] : ['operation'])),
+            'invalid_authorization_command', '会话操作格式无效。');
           let session = null;
           if (value.operation === 'initialize') session = page.port.initialize();
           if (value.operation === 'renew') session = page.port.renew(value.session);
           if (value.operation === 'reconnect') {
             requireValue(typeof page.port.reconnect === 'function', 'reconnect_unavailable', '当前本机服务不支持保留页面重新连接。', 503);
-            session = page.port.reconnect(value.session);
+            session = page.port.reconnect(value.session, { reason: value.reason });
           }
           if (value.operation === 'close') { page.port.close(); pages.delete(digest(capability)); }
           json(200, { protocol: AUTHORIZATION_PROTOCOL, session });

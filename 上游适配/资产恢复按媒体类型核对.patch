@@ -1,0 +1,23 @@
+diff --git a/web/src/stores/use-asset-store.ts b/web/src/stores/use-asset-store.ts
+index 35a2517..97bda2f 100644
+--- a/web/src/stores/use-asset-store.ts
++++ b/web/src/stores/use-asset-store.ts
+@@ -92,11 +92,13 @@ async function refreshAssetMedia(assets: Asset[]) {
+     useAssetStore.getState().replaceAssets(latest.map((asset) => {
+         const update = updates.get(asset.id);
+         if (!update || asset.kind === "text" || !asset.data.storageKey) return asset;
+-        if ((update.expectedUrl !== undefined && asset.data.url !== update.expectedUrl) ||
+-            (update.expectedDataUrl !== undefined && asset.data.dataUrl !== update.expectedDataUrl) ||
+-            (update.expectedCoverUrl !== undefined && asset.coverUrl !== update.expectedCoverUrl)) return asset;
+-        if (update.url !== undefined) return { ...asset, data: { ...asset.data, url: update.url } } as Asset;
+-        return { ...asset, coverUrl: update.coverUrl ?? asset.coverUrl, data: { ...asset.data, dataUrl: update.dataUrl ?? asset.data.dataUrl } } as Asset;
++        if (asset.kind === "video" || asset.kind === "audio") {
++            if (update.expectedUrl === undefined || asset.data.url !== update.expectedUrl || update.url === undefined) return asset;
++            return { ...asset, data: { ...asset.data, url: update.url } };
++        }
++        if (update.expectedDataUrl === undefined || asset.data.dataUrl !== update.expectedDataUrl ||
++            update.expectedCoverUrl !== asset.coverUrl) return asset;
++        return { ...asset, coverUrl: update.coverUrl ?? asset.coverUrl, data: { ...asset.data, dataUrl: update.dataUrl ?? asset.data.dataUrl } };
+     }));
+ }
+ 

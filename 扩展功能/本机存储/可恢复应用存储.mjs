@@ -54,7 +54,10 @@ export function createRecoverableApplicationStorage(options) {
       }
     })();
     space.running = run;
-    run.finally(() => { space.running = null; notify(); });
+    run.finally(() => {
+      space.running = null; notify();
+      if (space.queue.length && !space.error) void pump(space);
+    });
     return run;
   }
   function enqueue(space, prepare, result) {
@@ -65,7 +68,7 @@ export function createRecoverableApplicationStorage(options) {
     // 持久化调用方可能不await，但失败仍保留在队列及可见状态中。
     promise.catch(() => {});
     space.queue.push({ invoke, resolve, reject, result, settled: false });
-    if (space.error) rejectPending(space, new StorageError('pending_write_unresolved', '编辑已保留在本页内存；请先重试未确认保存，不要刷新或关闭。', 409));
+    if (space.error && !flight) rejectPending(space, new StorageError('pending_write_unresolved', '编辑已保留在本页内存；请先重试未确认保存，不要刷新或关闭。', 409));
     else void pump(space);
     notify(); return promise;
   }
@@ -82,10 +85,13 @@ export function createRecoverableApplicationStorage(options) {
         return enqueue(space, () => { const snapshot = structuredClone(value); return () => instance.setItem(key, snapshot); }, value);
       },
       removeItem: key => enqueue(space, () => () => instance.removeItem(key)),
+      removeItems: keys => enqueue(space, () => { const snapshot = [...keys]; return () => instance.removeItems(snapshot); }),
       clear: () => enqueue(space, () => () => instance.clear()),
     };
   }
-  async function settle() { await Promise.all([...spaces.values()].map(space => space.running)); }
+  async function settle() {
+    while ([...spaces.values()].some(space => space.running)) await Promise.all([...spaces.values()].map(space => space.running));
+  }
   return Object.freeze({
     createInstance, getStatus: status, readUsage: () => base.readUsage(),
     subscribe(callback) {

@@ -25,7 +25,8 @@ export async function requestCanvasImage(options: {
   config: AiConfig; prompt: string; references?: ReferenceImage[]; scope: Scope;
   previous?: CanvasImageTask; signal?: AbortSignal; retry?: boolean;
   recordTask(task: CanvasImageTask): Promise<void>;
-  applyAndSave(image: GeneratedImage, receipt: CanvasImageReceipt): Promise<void>;
+  applyAndSave(image: GeneratedImage, receipt: CanvasImageReceipt): Promise<unknown>;
+  deferConfirm?: () => boolean;
 }) {
   const host = (window as unknown as { __guanGenerationHost?: GenerationHost }).__guanGenerationHost;
   if (!host) throw new Error("本机生成端口尚未接入，请重新打开工作台；未改用浏览器直连。");
@@ -34,6 +35,7 @@ export async function requestCanvasImage(options: {
   let prepared: PreparedImageRoute;
   await runCanvasImageTask({
     host, scope: options.scope, previous: options.previous, signal: options.signal, retry: options.retry,
+    deferConfirm: options.deferConfirm,
     prepare: async () => { prepared = await prepareRoutedImageRequest(config, prompt, references, candidate => bindImageChannel(host, candidate)); return prepared.request; },
     bind: async () => (await host.createPlan(prepared.plan)).binding, recordTask: options.recordTask,
     applyAndSave: async (job: { bytes: string; routing?: ImageRoute }, receipt: CanvasImageReceipt) => {
@@ -41,7 +43,7 @@ export async function requestCanvasImage(options: {
       // 远程URL需要另批受限媒体下载接入；不能绕过CSP保存未落盘的外网网址。
       if (!/^data:image\/(?:png|jpe?g|webp);base64,/i.test(image.dataUrl))
         throw new Error("上游返回远程图片地址，本批尚未接入受限图片下载；响应已保留，请勿重复生成。");
-      await options.applyAndSave(image, receipt);
+      return await options.applyAndSave(image, receipt);
     },
   });
 }

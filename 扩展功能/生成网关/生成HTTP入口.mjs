@@ -5,9 +5,10 @@ import { observeTextProgress } from './文本进度观察.mjs';
 const path = '/__guan-local/generation';
 // 不签发新权限。authorize必须复用当前工作台页面能力、数据租约、撤销和期限检查。
 // 回调需要每次重新核验，尤其是慢请求和执行后；不能传入永久true的生产装配。
-export function createGenerationHTTPHandler({ origin, authorize, gateway, tasks, videos, models, readCanvasCheckpoint, maxRequests = 4, rateLimit = 120, now = Date.now } = {}) {
+export function createGenerationHTTPHandler({ origin, authorize, gateway, tasks, videos, models, readCanvasCheckpoint, maxRequests = Infinity, maxObservers = 4, rateLimit = 0, now = Date.now } = {}) {
   requireValue(/^http:\/\/(?:localhost|127\.0\.0\.1):\d+$/.test(origin) && typeof authorize === 'function' && gateway?.bind && tasks?.submit &&
-    Number.isInteger(maxRequests) && maxRequests > 0 && maxRequests <= 8 && Number.isInteger(rateLimit) && rateLimit > 0 && rateLimit <= 240 && typeof now === 'function', 'invalid_generation_http', '必须复用可信工作台授权入口。');
+    (maxRequests === Infinity || Number.isInteger(maxRequests) && maxRequests > 0) && Number.isInteger(maxObservers) && maxObservers > 0 &&
+    Number.isInteger(rateLimit) && rateLimit >= 0 && typeof now === 'function', 'invalid_generation_http', '必须复用可信工作台授权入口。');
   let active = 0, observers = 0, count = 0, windowStart = null;
   return async function handle(request, response) {
     if (request.url !== path) return false;
@@ -21,8 +22,12 @@ export function createGenerationHTTPHandler({ origin, authorize, gateway, tasks,
       requireValue(request.method === 'POST' && request.headers['content-type'] === 'application/json' && request.headers['x-guan-generation-protocol'] === GENERATION_PROTOCOL, 'generation_headers_denied', '生成请求协议不匹配。', 403);
       await authorize(request);
       const time = now(); requireValue(Number.isSafeInteger(time) && time >= 0, 'invalid_generation_clock', '任务时钟无效。');
-      if (windowStart === null || time - windowStart >= 60_000) { windowStart = time; count = 0; }
-      requireValue(++count <= rateLimit && active < maxRequests, 'generation_http_busy', '生成入口繁忙，请稍后查询原任务。', 429);
+      // 页面能力已经核验；批量提交和只读轮询不再共用每分钟120次、4个请求的额度。
+      if (rateLimit > 0) {
+        if (windowStart === null || time - windowStart >= 60_000) { windowStart = time; count = 0; }
+        requireValue(++count <= rateLimit, 'generation_http_busy', '生成入口繁忙，请稍后查询原任务。', 429);
+      }
+      requireValue(active < maxRequests, 'generation_http_busy', '生成入口繁忙，请稍后查询原任务。', 429);
       active++; counted = true;
       const limit = Math.ceil(MAX_REQUEST_BYTES / 3) * 4 + 16384, length = request.headers['content-length'];
       requireValue(!length || /^\d+$/.test(length) && Number(length) <= limit, 'generation_body_too_large', '生成请求超过限制。', 413);
@@ -32,7 +37,7 @@ export function createGenerationHTTPHandler({ origin, authorize, gateway, tasks,
       try { value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))); } catch { throw new StorageError('generation_json_invalid', '生成请求格式无效。'); }
       await authorize(request);
       if (exactKeys(value, ['operation', 'id']) && value.operation === 'text-observe' && jobLike(value.id) && tasks.textProgress && tasks.waitTextProgress) {
-        requireValue(observers < maxRequests, 'generation_observation_busy', '文本观察已满，请查询原任务。', 429);
+        requireValue(observers < maxObservers, 'generation_observation_busy', '文本观察已满，请查询原任务。', 429);
         tasks.get(value.id);
         active--; counted = false; observers++;
         try { await observeTextProgress({ request, response, authorize, tasks, id: value.id }); } finally { observers--; }

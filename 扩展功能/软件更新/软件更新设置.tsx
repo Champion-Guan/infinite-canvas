@@ -3,7 +3,6 @@ import { App, Button, Select, Switch } from "antd";
 import { useVersionCheck } from "@/hooks/use-version-check";
 import { formatDisplayVersion } from "@/constant/env";
 import { updateMessages, updateRequest, type UpdatePreferences } from "./软件更新客户端";
-import { UpgradeTaskReview } from "./升级任务核实";
 import { OnlineInstallActions } from "./在线安装操作";
 
 export function ConfigSoftwareUpdates() {
@@ -46,7 +45,6 @@ export function ConfigSoftwareUpdates() {
                 <Button loading={checking} onClick={() => void checkLatestRelease(true)}>检查更新</Button>
                 <Button disabled={!status?.hasNewVersion || status?.download.state === "trust-not-configured" || status?.download.state === "verified" || downloading} onClick={() => void download()}>{status?.download.state === "verified" ? "已下载并验证" : "下载更新"}</Button>
             </>} />
-            <UpgradeTaskReview blockers={status?.install.blockers || []} refresh={refresh} />
             <div role="status">{status ? updateMessages[status.state] || status.state : unavailable ? "本机更新服务不可用，请刷新页面后重试" : "本机更新服务读取中"}{status?.error ? `：${updateMessages[status.error] || "检查未完成，原版本保留"}` : ""}</div>
 
             {status?.latest ? <div className="whitespace-pre-wrap break-words"><div>发布时间：{new Date(status.latest.publishedAt).toLocaleString()}</div>{status.latest.notes || "暂无更新说明"}</div> : null}

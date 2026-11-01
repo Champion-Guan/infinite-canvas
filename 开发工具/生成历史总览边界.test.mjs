@@ -22,6 +22,11 @@ const fixtureNodes = [{ id: 'batch', title: '主图', type: 'image', metadata: {
         { id: 'failed', status: 'error', content: 'data:failed' }] } },
 { id: 'single', title: '详情页', type: 'image', metadata: { status: 'success', generationType: 'image', content: 'data:single' } }];
 const files = historyDownloadFiles(fixtureNodes);
+test('旧历史记录通过渠道ID显示当前保存的渠道名称', () => {
+    const info = historyMediaInfo({ id: 'legacy', type: 'image', metadata: { channelId: 'saved-id', model: 'saved-id::model', images: [{ id: 'image', content: 'data:image', naturalWidth: 100, naturalHeight: 100 }] } }, [{ id: 'saved-id', name: '已保存渠道' }]);
+    assert.equal(info.channel, '已保存渠道');
+    assert.equal(info.channelId, 'saved-id');
+});
 
 async function load(name, dependencies) {
     const file = resolve(root, '扩展功能/生成历史', name);
@@ -148,18 +153,18 @@ function jsx(type, props, key) { return { type, props: props || {}, key }; }
 function elements(value) { if (Array.isArray(value)) return value.flatMap(elements); if (!value || typeof value !== 'object') return []; return [value, ...elements(value.props?.children)]; }
 const theme = { node: { text: '#111', panel: '#fff', fill: '#eee', stroke: '#ccc' } };
 
-test('总览详情只含已选文件；未勾选缩略图仅打开预览，不自动进入详情', async () => {
-    const runtime = hookFixture(), selections = [];
+test('总览详情只含已选文件；排序只切换顺序，不改变图片勾选', async () => {
+    const runtime = hookFixture(), selections = [], sorts = [];
     const { HistoryOverviewPanel } = await load('历史总览面板.tsx', {
         react: runtime.hooks, 'react/jsx-runtime': { jsx, jsxs: jsx }, antd: { Checkbox: 'Checkbox', Empty: 'Empty', Modal: 'Modal', Spin: 'Spin' },
-        'lucide-react': { Download: 'Download', Image: 'Image', Video: 'Video' }, '@/lib/image-utils': { formatBytes: size => size + ' B' },
+        'lucide-react': { ArrowDownWideNarrow: 'Sort', Download: 'Download', Image: 'Image', Video: 'Video' }, '@/lib/image-utils': { formatBytes: size => size + ' B' },
         'motion/react': { useInView: () => true },
         '@/stores/use-config-store': { decodeChannelModel: () => null }, '@/services/image-storage': { previewUrlFor: () => undefined }, '@/types/canvas': types,
         './历史媒体详情': { historyMediaInfo }, './历史媒体预览': { useHistoryMediaPreview: file => ({ url: file.content }) },
         './历史总览面板.module.css': { __esModule: true, default: new Proxy({}, { get: (_object, key) => key }) },
     });
-    const props = { history: fixtureNodes, files, selectedFiles: [files[1]], selectedIds: new Set([files[1].id]), downloading: false, theme,
-        onSelect: (...args) => selections.push(args), onDownload: () => {}, onDownloadSelected: () => {}, onClose: () => {} };
+    const props = { history: fixtureNodes, files, selectedFiles: [files[1]], selectedIds: new Set([files[1].id]), sorted: false, downloading: false, theme,
+        onSelect: (...args) => selections.push(args), onDownload: () => {}, onDownloadSelected: () => {}, onToggleSort: () => sorts.push('toggle'), onClose: () => {} };
     const render = () => runtime.render(() => HistoryOverviewPanel(props));
     let tree = render();
     const detailFiles = elements(tree).filter(item => typeof item.type === 'function' && item.props.file).map(item => item.props.file.id);
@@ -167,6 +172,12 @@ test('总览详情只含已选文件；未勾选缩略图仅打开预览，不�
     const detail = elements(tree).find(item => typeof item.type === 'function' && item.props.file);
     const detailTree = detail.type(detail.props);
     assert.ok(JSON.stringify(detailTree).includes('1584x992')); assert.ok(!JSON.stringify(detailTree).includes('900x1200'));
+    const sortButton = () => elements(tree).find(item => item.props.title?.startsWith('排序：'));
+    assert.equal(sortButton().props['aria-pressed'], false);
+    sortButton().props.onClick();
+    props.sorted = true; tree = render();
+    assert.deepEqual(sorts, ['toggle']); assert.equal(sortButton().props['aria-pressed'], true);
+    assert.deepEqual(props.selectedFiles.map(file => file.id), [files[1].id]); assert.deepEqual(selections, []);
     elements(tree).find(item => item.props['aria-label'] === '预览 ' + files[0].name).props.onClick();
     tree = render(); assert.deepEqual(selections, []);
     assert.equal(elements(tree).filter(item => item.type === 'Modal').length, 2);
@@ -193,7 +204,7 @@ test('选择模式缩略图仅预览、文字才勾选；排序立即切换，�
         './历史操作按钮': { HistoryActionButton }, './历史操作栏.module.css': actionStyles,
         '@/services/file-storage': { getMediaBlob: async () => new Blob(['media']) },
         '@/services/image-storage': { getImageBlob: async () => new Blob(['image']), previewUrlFor: () => undefined, subscribeImagePreviews: () => () => {}, getImagePreviewRevision: () => 0 },
-        '@/stores/use-config-store': { decodeChannelModel: () => null }, '@/stores/use-canvas-side-panel-store': { useCanvasSidePanelStore: callback => callback({ historySorted: false, toggleHistorySorted: () => sorts.push('sorted') }) }, '@/types/canvas': types,
+        '@/stores/use-config-store': { decodeChannelModel: () => null, useEffectiveConfig: () => ({ channels: [] }) }, '@/stores/use-canvas-side-panel-store': { useCanvasSidePanelStore: callback => callback({ historySorted: false, toggleHistorySorted: () => sorts.push('sorted') }) }, '@/types/canvas': types,
     });
     const render = () => runtime.render(() => CanvasGenerationHistoryTab({ nodes: fixtureNodes, connections: [], getCurrentNode: () => undefined, onPreviewNode: id => previews.push(id), onRetryNode: () => {}, theme }));
     let tree = render();
@@ -210,6 +221,15 @@ test('选择模式缩略图仅预览、文字才勾选；排序立即切换，�
     tree = render(); assert.deepEqual(previews, ['batch']); assert.deepEqual(selected(), [true, true]);
     elements(tree).find(item => item.props['aria-label'] === '选择主图').props.onClick();
     tree = render(); assert.deepEqual(selected(), [false, true]);
+
+    const failedOnly = { id: 'failed-only', title: '失败的图片', type: 'image', metadata: {
+        status: 'error', images: [{ id: 'failed-slot', status: 'error', content: '', errorDetails: '上游失败' }],
+    } };
+    tree = runtime.render(() => CanvasGenerationHistoryTab({ nodes: [failedOnly], connections: [], getCurrentNode: () => undefined, onPreviewNode: () => {}, onRetryNode: () => {}, theme }));
+    const failedRow = elements(tree).filter(item => item.type === 'button');
+    assert.ok(failedRow.some(item => item.props['aria-label'] === '失败的图片暂无成功图片'));
+    assert.ok(!failedRow.some(item => item.props['aria-label'] === '查看失败的图片'));
+    assert.ok(!elements(tree).some(item => item.type === 'span' && item.props.children === '查看'));
 });
 
 test('新历史模块Hook调用顺序及依赖检查通过', () => {

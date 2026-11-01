@@ -93,7 +93,7 @@ test('生成提交回执未知不自动重发，原任务ID和请求保留', asy
   const f = await fixture(t); await f.client.readUsage(); f.tick(60_000);
   f.setTransport((next, path) => { if (path === 'generation') { next(); throw Error('合成回执丢失'); } return next(); });
   const task = { id: randomUUID(), productId: 'product', nodeId: 'node', binding: 'provider:' + 'd'.repeat(64), request: { method: 'POST', path: '/images', contentType: 'application/json', body: btoa('{}') } };
-  await assert.rejects(f.auth.generationPort.submit(task), code('authorization_connection_failed'));
+  await assert.rejects(f.auth.generationPort.submit(task), code('generation_connection_unknown'));
   const sent = f.requests.filter(item => item.path === 'generation');
   assert.equal(sent.length, 1); assert.deepEqual(sent[0].body.task, task); assert.equal(f.calls.reconnect, 1);
 });

@@ -1,5 +1,5 @@
 import type { CanvasNodeData } from "@/types/canvas";
-import { parseExcelPromptSpec, resolvePromptVariables, type ExcelPromptContext } from "./旧版参数规则";
+import { parseExcelPromptSpec, resolvePromptVariables, productParameterSupplement, type ExcelPromptContext } from "./旧版参数规则";
 
 // Update existing cards in place. No nodes, edges or generated assets are removed.
 // undefined means a hidden canvas should defer asking until it becomes active.
@@ -27,7 +27,7 @@ export function syncExcelPromptNodes(nodes: CanvasNodeData[], context: ExcelProm
         changed = true;
         return { ...node, metadata: { ...metadata,
             content: raw, prompt: raw, excelPromptRaw: raw, excelPromptSkippedValue: undefined,
-            excelPromptResolved: resolvePromptVariables(raw, parameters?.metadata?.promptVariableValues, parameters?.metadata?.promptVariableSupplement || ""),
+            excelPromptResolved: resolvePromptVariables(raw, parameters?.metadata?.promptVariableValues, productParameterSupplement(parameters?.metadata)),
             excelPromptTemplateId: template!.id, excelPromptTokens: spec.tokens,
             excelPromptTheme: spec.theme, excelPromptCompositionLock: spec.compositionLock, excelPromptPurpose: spec.purpose,
         } };
@@ -39,7 +39,7 @@ export function syncExcelPromptNodes(nodes: CanvasNodeData[], context: ExcelProm
         const oldSource = nodes.find((node) => node.id === metadata.promptVariableSourceNodeId);
         const parameters = sources.find((node) => node.id === metadata.promptVariablePreviewOf);
         if (!source || source === oldSource || !parameters || source.metadata?.excelPromptRaw === oldSource?.metadata?.excelPromptRaw) return preview;
-        const text = resolvePromptVariables(source.metadata?.excelPromptRaw || "", parameters.metadata?.promptVariableValues, parameters.metadata?.promptVariableSupplement || "");
+        const text = resolvePromptVariables(source.metadata?.excelPromptRaw || "", parameters.metadata?.promptVariableValues, productParameterSupplement(parameters.metadata));
         changed = true;
         return { ...preview, metadata: { ...metadata, content: text, prompt: text } };
     });

@@ -88,6 +88,7 @@ async function executionFixture({ failPreparation = false, blank = false } = {})
   const connectionsRef = { current: [] }; let sequence = 0, generated = 0;
   const scope = {
     ...registry, generationRequestsRef: { current: registry.requests }, nodesRef, connectionsRef,
+    resolveGenerationChannelMetadata: () => ({ channel: '测试渠道', channelId: 'test-channel' }),
     isGenerationModeEnabled: () => true, generationNodeForExecution: node => node,
     effectiveConfig: {}, buildGenerationConfig: () => ({ count: '1' }), isAiConfigReady: () => true, getNodeDefinition: () => undefined,
     openConfigDialog: () => assert.fail('不应打开配置'),
@@ -132,6 +133,7 @@ test('真实回调准备失败或空文本提前退出释放运行状态；同�
 const jsx = (type, props) => ({ type, props });
 const { CanvasConfigNodePanel } = await load('.运行/3100源/画布副本/web/src/components/canvas/canvas-config-node-panel.tsx', {
   'react/jsx-runtime': { jsx, jsxs: jsx }, '@/扩展功能/产品配置/精简与离线策略': { isGenerationModeEnabled: () => true },
+  '@/扩展功能/画布生成/配置节点状态显示': { configNodeGenerationStatus: () => '渠道 · 生成中' },
   'lucide-react': Object.fromEntries(['Image','LoaderCircle','MessageSquare','Music2','Play','Settings2','Square','Video'].map(name => [name,name])),
   antd: { Button: 'Button', Segmented: 'Segmented' }, 'react-i18next': { useTranslation: () => ({ t: key => key }) },
   '@/components/model-picker': { ModelPicker: 'ModelPicker' },

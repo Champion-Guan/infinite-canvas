@@ -1,0 +1,46 @@
+--- a/web/src/pages/prompts/components/prompt-detail-dialog.tsx
++++ b/web/src/pages/prompts/components/prompt-detail-dialog.tsx
+@@ -3,9 +3,21 @@
+ import { useTranslation } from "react-i18next";
+ 
+ import { formatPromptDate, type Prompt } from "@/services/api/prompts";
++import { promptHighlightSegments } from "@/扩展功能/画布迁移扩展/prompt-variable-highlight.js";
++import { promptDisplaySegments, promptDisplaySummary } from "@/扩展功能/提示词/提示词展示摘要.js";
++import { localizePromptTheme } from "@/扩展功能/画布迁移扩展/prompt-theme-labels.js";
+ 
+ export function PromptDetailDialog({ prompt, onClose, onCopy, onSaveAsset }: { prompt: Prompt | null; onClose: () => void; onCopy: (prompt: string) => void; onSaveAsset?: (prompt: Prompt) => void }) {
+     const { i18n, t } = useTranslation();
++    const excelPrompt = (prompt as (Prompt & { excelPrompt?: { theme?: string; compositionLock?: string; purpose?: string; tokens?: string[] } }) | null)?.excelPrompt;
++    const summary = prompt ? promptDisplaySummary(prompt.prompt, {
++        excelPromptTheme: excelPrompt?.theme,
++        excelPromptCompositionLock: excelPrompt?.compositionLock,
++        excelPromptPurpose: excelPrompt?.purpose,
++        excelPromptTokens: excelPrompt?.tokens,
++    }) : undefined;
++    const hasSummary = Boolean(summary && (summary.theme || summary.pixels || summary.ratio));
++    const highlighted = prompt && summary ? promptDisplaySegments(promptHighlightSegments(prompt.prompt), summary) : [];
+ 
+     return (
+         <Modal title={prompt?.title} open={Boolean(prompt)} onCancel={onClose} footer={null} width={720} centered styles={{ body: { height: "calc(85vh - 55px)", overflow: "hidden" } }}>
+@@ -24,8 +36,19 @@
+                             ))}
+                         </div>
+                         {prompt.description ? <p className="mt-4 text-sm leading-6 text-stone-500 dark:text-stone-400">{prompt.description}</p> : null}
+-                        {prompt.preview ? <pre className="mt-4 whitespace-pre-wrap rounded-lg bg-stone-100 p-3 text-xs leading-5 text-stone-600 dark:bg-stone-900 dark:text-stone-300">{prompt.preview}</pre> : null}
+-                        <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-stone-800 dark:text-stone-300">{prompt.prompt}</p>
++                        {hasSummary && summary ? (
++                            <div className="mt-4 space-y-1.5 rounded-lg border border-stone-200 bg-stone-100 px-3 py-2 text-xs leading-5 text-stone-600 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300">
++                                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
++                                    {summary.theme ? <span className="break-words"><span className="font-medium text-stone-800 dark:text-stone-100">主题/角度：</span>{localizePromptTheme(summary.theme)}</span> : null}
++                                    {summary.pixels ? <span><span className="font-medium text-stone-800 dark:text-stone-100">生成像素：</span>{summary.pixels}</span> : null}
++                                    {summary.ratio ? <span><span className="font-medium text-stone-800 dark:text-stone-100">比例：</span>{summary.ratio}</span> : null}
++                                </div>
++                            </div>
++                        ) : null}
++                        {prompt.preview && !hasSummary ? <pre className="mt-4 whitespace-pre-wrap rounded-lg bg-stone-100 p-3 text-xs leading-5 text-stone-600 dark:bg-stone-900 dark:text-stone-300">{prompt.preview}</pre> : null}
++                        <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-stone-800 dark:text-stone-300">{highlighted.length ? highlighted.map((part: { text: string; token?: string; kind?: string }, index: number) => part.kind ? (
++                            <mark key={index} title={part.kind === "variable" ? `变量 ${part.token}` : part.kind === "theme" ? "主题/角度" : part.kind === "pixels" ? "生成像素" : "图片比例"} className="rounded-sm" style={{ color: "inherit", background: part.kind === "variable" ? "rgba(47,128,255,.18)" : part.kind === "theme" ? "rgba(245,158,11,.18)" : part.kind === "pixels" ? "rgba(16,185,129,.17)" : "rgba(20,184,166,.17)", boxShadow: part.kind === "variable" ? "inset 0 -1px rgba(47,128,255,.5)" : part.kind === "theme" ? "inset 0 -1px rgba(245,158,11,.55)" : part.kind === "pixels" ? "inset 0 -1px rgba(16,185,129,.55)" : "inset 0 -1px rgba(20,184,166,.55)", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>{part.text}</mark>
++                        ) : <span key={index}>{part.text}</span>) : prompt.prompt}</p>
+                         {prompt.createdAt || prompt.updatedAt ? <div className="mt-4 text-xs text-stone-500 dark:text-stone-400">{prompt.createdAt ? t("common.created", { date: formatPromptDate(prompt.createdAt, i18n.resolvedLanguage) }) : null}{prompt.createdAt && prompt.updatedAt ? " · " : null}{prompt.updatedAt ? t("common.updated", { date: formatPromptDate(prompt.updatedAt, i18n.resolvedLanguage) }) : null}</div> : null}
+                     </div>
+                     <div className="shrink-0 pt-4">

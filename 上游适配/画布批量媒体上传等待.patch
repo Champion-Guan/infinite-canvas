@@ -1,0 +1,111 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 75c27aa..68faf33 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1493,7 +1493,7 @@ function InfiniteCanvasPage() {
+         };
+     }, [productActive, finishNodeDrag, handleGlobalMouseMove, handleGlobalMouseUp, handleGlobalPointerMove]);
+ 
+-    const createImageFileNode = useCallback(async (file: File, position: Position, placement: CanvasNodePlacement = "auto") => attemptImageUpload(async () => {
++    const createImageFileNode = useCallback(async (file: File, position: Position, placement: CanvasNodePlacement = "auto", reportError = true) => attemptImageUpload(async () => {
+         const image = await uploadImage(file, { assetProjectId: projectId });
+         const size = fitNodeSize(image.width, image.height);
+         const id = `image-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+@@ -1511,7 +1511,8 @@ function InfiniteCanvasPage() {
+         setSelectedNodeIds(new Set([id]));
+         setSelectedConnectionId(null);
+         setDialogNodeId(id);
+-    }, text => message.error(text)), [message, projectId, setNodes]);
++        return true;
++    }, text => { if (reportError) message.error(text); }), [message, projectId, setNodes]);
+ 
+     const createVideoFileNode = useCallback(async (file: File, position: Position, placement: CanvasNodePlacement = "auto") => {
+         const video = await uploadMediaFile(file, "video", { assetProjectId: projectId });
+@@ -2102,6 +2103,16 @@ function InfiniteCanvasPage() {
+                     (containerRef.current?.getBoundingClientRect().top || 0) + size.height / 2,
+                 );
+             const STAGGER = 40; // Offset between multiple imported files.
++            const failures: string[] = [];
++            const addFileNode = async (file: File, position: Position, placement: CanvasNodePlacement = "auto") => {
++                try {
++                    if (isAudioFile(file)) await createAudioFileNode(file, position, placement);
++                    else if (file.type.startsWith("video/")) await createVideoFileNode(file, position, placement);
++                    else if (await createImageFileNode(file, position, placement, false) !== true) throw new Error("image_upload_failed");
++                } catch {
++                    failures.push(file.name || "未命名文件");
++                }
++            };
+ 
+             // When replacing a target node, use the first file as the replacement and create the rest nearby.
+             if (target?.nodeId) {
+@@ -2186,28 +2197,17 @@ function InfiniteCanvasPage() {
+                 for (let i = 0; i < rest.length; i++) {
+                     const offsetPos = { x: basePosition.x + (i + 1) * STAGGER, y: basePosition.y + (i + 1) * STAGGER };
+                     const f = rest[i];
+-                    if (isAudioFile(f)) {
+-                        void createAudioFileNode(f, offsetPos);
+-                    } else if (f.type.startsWith("video/")) {
+-                        void createVideoFileNode(f, offsetPos);
+-                    } else {
+-                        void createImageFileNode(f, offsetPos);
+-                    }
++                    await addFileNode(f, offsetPos);
+                 }
+             } else {
+                 // Without a replacement target, create all files near the canvas center.
+                 for (let i = 0; i < files.length; i++) {
+                     const offsetPos = { x: basePosition.x + i * STAGGER, y: basePosition.y + i * STAGGER };
+                     const f = files[i];
+-                    if (isAudioFile(f)) {
+-                        void createAudioFileNode(f, offsetPos);
+-                    } else if (f.type.startsWith("video/")) {
+-                        void createVideoFileNode(f, offsetPos);
+-                    } else {
+-                        void createImageFileNode(f, offsetPos);
+-                    }
++                    await addFileNode(f, offsetPos);
+                 }
+             }
++            if (failures.length) message.error(`有 ${failures.length} 个文件上传失败，请重试。`);
+ 
+             }, text => message.error(text));
+             } finally {
+@@ -2229,7 +2229,7 @@ function InfiniteCanvasPage() {
+     const insertStoredAsset = useCanvasAssetInsertion({ projectId, setNodes, setSelectedNodeIds, setSelectedConnectionId, getVisibleBounds: assetVisibleBounds, onError: assetInsertError });
+ 
+     const handleDrop = useCallback(
+-        (event: ReactDragEvent<HTMLDivElement>) => {
++        async (event: ReactDragEvent<HTMLDivElement>) => {
+             event.preventDefault();
+             if (event.dataTransfer.types.includes(ASSET_DRAG_TYPE)) {
+                 event.stopPropagation();
+@@ -2262,17 +2262,21 @@ function InfiniteCanvasPage() {
+ 
+             const basePos = screenToCanvas(event.clientX, event.clientY);
+             const STAGGER = 40;
++            const failures: string[] = [];
++            const addFileNode = async (file: File, position: Position) => {
++                try {
++                    if (isAudioFile(file)) await createAudioFileNode(file, position, "exact");
++                    else if (file.type.startsWith("video/")) await createVideoFileNode(file, position, "exact");
++                    else if (await createImageFileNode(file, position, "exact", false) !== true) throw new Error("image_upload_failed");
++                } catch {
++                    failures.push(file.name || "未命名文件");
++                }
++            };
+             for (let i = 0; i < files.length; i++) {
+                 const pos = { x: basePos.x + i * STAGGER, y: basePos.y + i * STAGGER };
+-                const f = files[i];
+-                if (isAudioFile(f)) {
+-                    void createAudioFileNode(f, pos, "exact");
+-                } else if (f.type.startsWith("video/")) {
+-                    void createVideoFileNode(f, pos, "exact");
+-                } else {
+-                    void createImageFileNode(f, pos, "exact");
+-                }
++                await addFileNode(files[i], pos);
+             }
++            if (failures.length) message.error(`有 ${failures.length} 个文件上传失败，请重试。`);
+         },
+         [createAudioFileNode, createImageFileNode, createVideoFileNode, screenToCanvas, dropExcelCards, message, setNodes, projectId, insertStoredAsset],
+     );

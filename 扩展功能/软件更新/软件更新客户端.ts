@@ -1,5 +1,6 @@
 export type UpdatePreferences = { version: 1; repository: string; autoCheck: boolean; autoDownload: boolean; autoInstall: boolean; developerMode: boolean; network: "auto" | "direct" | "proxy" };
-export type UpdateBlocker = { id: string; state: string; reason: string; createdAt: number; canConfirmNoResult: boolean; productId?: string; nodeId?: string };
+export type UpdateBlocker = { id: string; state: string; reason: string; createdAt: number; canRecoverCanvas?: boolean; canRetryResultSave?: boolean; productId?: string; nodeId?: string };
+export type UpdateTaskAction = { total: number; completed: number; failures: { id: string; code: string }[] };
 export type StartupDiagnostic = { code: string; stage: string; field?: string };
 export type SoftwareUpdateStatus = {
     currentVersion: string; channel: string; preferences: UpdatePreferences; state: string; checking: boolean;
@@ -10,6 +11,8 @@ export type SoftwareUpdateStatus = {
     install: { allowed: boolean; state: string; currentVersion?: string | null; targetVersion?: string | null;
         reason?: string | null; staging?: boolean; stageError?: string | null; canApprove?: boolean; progressAvailable?: boolean; blockers?: UpdateBlocker[];
         diagnostic?: StartupDiagnostic | null; waiting?: { pages: number | null; tickets: number | null; requests: number | null } };
+    taskSummary?: { failedWithoutResult: number };
+    taskAction?: UpdateTaskAction;
 };
 export const updateMessages: Record<string, string> = {
     web_manifest_invalid: "Web版签名清单无效，更新已停止",
@@ -79,8 +82,8 @@ export const installationMessages: Record<string, string> = {
 type UpdateHost = { request(operation: string, input?: unknown): Promise<unknown> };
 const pendingStatuses = new WeakMap<UpdateHost, Promise<SoftwareUpdateStatus>>();
 
-type UpdateOperation = "status" | "check" | "download" | "preferences" | "stage" | "approve" | "approve-manual" | "defer" | "confirm-no-result";
-type UpdateInput = Partial<UpdatePreferences> | { taskId: string; acknowledgement: "upstream-ended-without-result" };
+type UpdateOperation = "status" | "check" | "download" | "preferences" | "stage" | "approve" | "approve-manual" | "defer" | "retry-result-save-batch";
+type UpdateInput = Partial<UpdatePreferences>;
 export function updateRequest(operation: "progress-window"): Promise<{ url: string }>;
 export function updateRequest(operation: UpdateOperation, input?: UpdateInput): Promise<SoftwareUpdateStatus>;
 export async function updateRequest(operation: UpdateOperation | "progress-window", input?: UpdateInput): Promise<SoftwareUpdateStatus | { url: string }> {

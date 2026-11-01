@@ -21,11 +21,12 @@ const render = value => { status = { state: 'idle', retrying: false, conflict: f
 test('正常空闲、保存中、已保存不显示右下角通知', () => {
     for (const state of ['idle', 'saving', 'saved']) assert.equal(render({ state }), '');
 });
-test('失败与重试期间保留恢复提示，冲突时禁用重试且不宣称已保存', () => {
+test('普通失败保留重试，版本冲突说明不可重试并提供安全指引', () => {
     assert.match(render({ state: 'error' }), /保存尚未确认/);
     assert.match(render({ state: 'error', retrying: true }), /正在核实并重试保存/);
     const conflict = render({ state: 'error', conflict: true });
-    assert.match(conflict, /其他窗口已修改数据/); assert.match(conflict, /disabled/); assert.doesNotMatch(conflict, /已保存到本机/);
+    assert.match(conflict, /其他窗口已修改数据/); assert.match(conflict, /旧版本无法通过重复重试保存/);
+    assert.match(conflict, /导出当前画布/); assert.doesNotMatch(conflict, /<button/); assert.doesNotMatch(conflict, /已保存到本机/);
     assert.equal(render({ state: 'saved' }), '');
 });
 test('自动恢复失败和绝对授权到期显示不同原因', () => {

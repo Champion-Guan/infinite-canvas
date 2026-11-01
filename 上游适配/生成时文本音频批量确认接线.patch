@@ -1,0 +1,58 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index bb912fa..2b1a534 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -2586,7 +2586,7 @@ function InfiniteCanvasPage() {
+                     try {
+                         await requestNodeAudio(generationConfig, effectivePrompt, audio => {
+                             setNodes((prev) => prev.map((node) => (node.id === audioId ? { ...node, metadata: { ...node.metadata, ...audioMetadata(audio), prompt: effectivePrompt, ...buildAudioGenerationMetadata(generationConfig) } } : node)));
+-                        }, { signal: controller.signal, nodeId: audioId, slotId: audioId });
++                        }, { signal: controller.signal, nodeId: audioId, slotId: audioId, deferConfirm: () => isBatchCanvasSaveActive(projectId) });
+                     } finally {
+                         finishGenerationRequest(audioId, controller);
+                     }
+@@ -2660,7 +2660,7 @@ function InfiniteCanvasPage() {
+                                         ),
+                                     );
+                                 },
+-                                { signal: controller.signal, nodeId: rootId, slotId: textId },
++                                { signal: controller.signal, nodeId: rootId, slotId: textId, deferConfirm: () => isBatchCanvasSaveActive(projectId) },
+                             );
+                             const content = answer || streamed;
+                             setNodes((prev) =>
+@@ -2740,7 +2740,7 @@ function InfiniteCanvasPage() {
+                 finishGenerationRequest(nodeId, runController);
+             }
+         },
+-        [completeVideoNodeTask, generationRequestsRef, nodesRef, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, projectId, recordImageGatewayTask, requestNodeText, requestNodeAudio, saveCanvasImageResult, setNodes, startGenerationRequest, t],
++        [completeVideoNodeTask, generationRequestsRef, nodesRef, effectiveConfig, finishGenerationRequest, isAiConfigReady, isBatchCanvasSaveActive, message, openConfigDialog, projectId, recordImageGatewayTask, requestNodeText, requestNodeAudio, saveCanvasImageResult, setNodes, startGenerationRequest, t],
+     );
+     useEffect(() => {
+         generateNodeRef.current = handleGenerateNode;
+@@ -2814,7 +2814,7 @@ function InfiniteCanvasPage() {
+                                 streamed = text;
+                                 setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, type: CanvasNodeType.Text, metadata: { ...item.metadata, content: text, status: NODE_STATUS_LOADING } } : item)));
+                             },
+-                            { signal: controller.signal, nodeId: node.id, slotId: textSlotId, retry: true },
++                            { signal: controller.signal, nodeId: node.id, slotId: textSlotId, retry: true, deferConfirm: () => isBatchCanvasSaveActive(projectId) },
+                         );
+                         setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, type: CanvasNodeType.Text, metadata: { ...item.metadata, content: answer || streamed, prompt, status: NODE_STATUS_SUCCESS } } : item)));
+                         return;
+@@ -2833,7 +2833,7 @@ function InfiniteCanvasPage() {
+                     if (node.type === CanvasNodeType.Audio) {
+                         await requestNodeAudio(generationConfig, prompt, audio => {
+                             setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, ...audioMetadata(audio), prompt, ...buildAudioGenerationMetadata(generationConfig) } } : item)));
+-                        }, { signal: controller.signal, nodeId: node.id, slotId: node.id, retry: true });
++                        }, { signal: controller.signal, nodeId: node.id, slotId: node.id, retry: true, deferConfirm: () => isBatchCanvasSaveActive(projectId) });
+                         return;
+                     }
+ 
+@@ -2886,7 +2886,7 @@ function InfiniteCanvasPage() {
+                 }
+             } finally { retryingNodeIdsRef.current.delete(node.id); }
+         },
+-        [completeVideoNodeTask, generationRequestsRef, nodesRef, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, pollVideoNodeTask, projectId, recordImageGatewayTask, requestNodeText, requestNodeAudio, saveCanvasImageResult, setNodes, startGenerationRequest, t],
++        [completeVideoNodeTask, generationRequestsRef, nodesRef, effectiveConfig, finishGenerationRequest, isAiConfigReady, isBatchCanvasSaveActive, message, openConfigDialog, pollVideoNodeTask, projectId, recordImageGatewayTask, requestNodeText, requestNodeAudio, saveCanvasImageResult, setNodes, startGenerationRequest, t],
+     );
+ 
+     const retryBatchImage = useCallback((node: CanvasNodeData, imageId: string) => void handleRetryNode(node, imageId), [handleRetryNode]);

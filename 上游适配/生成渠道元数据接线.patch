@@ -1,0 +1,107 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index e13997f..07f0698 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -98,6 +98,7 @@ import { buildNodeMentionReferences, getGroupResourceNodes, isCanvasReferenceNod
+ import { exportCanvasProjects } from "@/lib/canvas/canvas-export";
+ import { GENERATED_CONNECTION_DELETE_NOTICE, isGeneratedResultConnection, useCanvasConnectionDeletion } from "@/扩展功能/画布生成/生成连线保护";
+ import { applyNodeConfigPatch, audioMetadata, buildAudioGenerationMetadata, buildImageGenerationMetadata, createCanvasNode, imageMetadata, videoMetadata } from "@/lib/canvas/canvas-node-factory";
++import { resolveGenerationChannelMetadata } from "@/扩展功能/画布生成/配置节点状态显示";
+ import { applyGroupSelection, applyUngroupSelection, canGroupSelectedNodes, canUngroupSelectedNodes, collectGroupMemberNodes, findContainingGroupId, findGroupDropTarget, focusViewportForNode, getConnectionTargetAnchor, getGroupWrapRect, normalizeConnection, nodeBounds, snapNodesIntoGroup } from "@/lib/canvas/canvas-node-geometry";
+ import {
+     buildAngleLabel,
+@@ -2305,6 +2306,7 @@ function InfiniteCanvasPage() {
+             if (!isGenerationModeEnabled(mode)) { message.info("不支持的生成模式。"); return; }
+             const sourceNode = nodesRef.current.find((node) => node.id === nodeId);
+             const generationConfig = buildGenerationConfig(effectiveConfig, generationNodeForExecution(sourceNode, nodeId, nodesRef.current, connectionsRef.current), mode);
++            const generationChannel = resolveGenerationChannelMetadata(generationConfig);
+             if (!isAiConfigReady(generationConfig, generationConfig.model)) {
+                 openConfigDialog(true);
+                 return;
+@@ -2318,7 +2320,7 @@ function InfiniteCanvasPage() {
+                 if (!scene) return;
+ 
+                 const controller = startGenerationRequest(nodeId, nodeId, nodeId);
+-                setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, prompt: scene, status: NODE_STATUS_LOADING, errorDetails: undefined } } : node)));
++                setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, ...generationChannel, prompt: scene, status: NODE_STATUS_LOADING, errorDetails: undefined } } : node)));
+                 try {
+                     const fullPrompt = (builtinPanel.promptPrefix || "") + scene;
+                     const context = await hydrateNodeGenerationContext(buildNodeGenerationContext(nodeId, nodesRef.current, connectionsRef.current, fullPrompt));
+@@ -2328,7 +2330,7 @@ function InfiniteCanvasPage() {
+                         : await requestGeneration({ ...generationConfig, count: "1" }, context.prompt, { signal: controller.signal }).then((items) => items[0]);
+                     const uploaded = await uploadGeneratedImage(image.dataUrl, { signal: controller.signal, targetSize: generationConfig.size });
+                     setNodes((prev) =>
+-                        prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, ...imageMetadata(uploaded), prompt: scene, model: generationConfig.model, status: NODE_STATUS_SUCCESS, errorDetails: undefined } } : node)),
++                        prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, ...generationChannel, ...imageMetadata(uploaded), prompt: scene, model: generationConfig.model, status: NODE_STATUS_SUCCESS, errorDetails: undefined } } : node)),
+                     );
+                     setDialogNodeId(null);
+                 } catch (error) {
+@@ -2357,7 +2359,7 @@ function InfiniteCanvasPage() {
+                 if (runController.signal.aborted) return;
+                 if (!effectivePrompt && (mode === "text" || mode === "audio")) return;
+                 const generationStartedAt = Date.now();
+-                if (markSourceStatus) setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, ...(node.type === CanvasNodeType.Config ? {} : { prompt }), generationStartedAt, status: NODE_STATUS_LOADING, errorDetails: undefined } } : node)));
++                if (markSourceStatus) setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, ...(node.type === CanvasNodeType.Config ? generationChannel : {}), ...(node.type === CanvasNodeType.Config ? {} : { prompt }), generationStartedAt, status: NODE_STATUS_LOADING, errorDetails: undefined } } : node)));
+ 
+                 if (mode === "image") {
+                     const count = getGenerationCount(generationConfig.count);
+@@ -2371,7 +2373,7 @@ function InfiniteCanvasPage() {
+                             : [];
+                     const referenceImages = [...new Map([...sourceReference, ...generationContext.referenceImages].map((image) => [image.id, image])).values()];
+                     const generationType = referenceImages.length ? ("edit" as const) : ("generation" as const);
+-                    const generationMetadata = buildImageGenerationMetadata(generationType, generationConfig, count, referenceImages);
++                    const generationMetadata = { ...buildImageGenerationMetadata(generationType, generationConfig, count, referenceImages), ...generationChannel };
+                     const parentConfig = NODE_DEFAULT_SIZE[isConfigNode ? CanvasNodeType.Config : isImageNode ? CanvasNodeType.Image : CanvasNodeType.Text];
+                     const imageConfig = NODE_DEFAULT_SIZE[CanvasNodeType.Image];
+                     const parentPosition = sourceNode?.position || { x: 0, y: 0 };
+@@ -2516,6 +2518,7 @@ function InfiniteCanvasPage() {
+                         metadata: {
+                             prompt: effectivePrompt,
+                             status: NODE_STATUS_LOADING,
++                            ...generationChannel,
+                             model: generationConfig.model,
+                             generationStartedAt,
+                             ...(batchPlacement ? { generationBatchId: batchPlacement.batchId } : {}),
+@@ -2565,7 +2568,7 @@ function InfiniteCanvasPage() {
+                         position: reuseAudioNode ? sourceNode.position : batchPlacement ? batchResultPosition(batchPlacement, spec) : { x: parent.x + (sourceNode?.width || spec.width) + 96, y: parent.y + ((sourceNode?.height || spec.height) - spec.height) / 2 },
+                         width: reuseAudioNode ? sourceNode.width : spec.width,
+                         height: reuseAudioNode ? sourceNode.height : spec.height,
+-                        metadata: { prompt: effectivePrompt, status: NODE_STATUS_LOADING, ...buildAudioGenerationMetadata(generationConfig), generationStartedAt, ...(batchPlacement ? { generationBatchId: batchPlacement.batchId } : {}) },
++                        metadata: { prompt: effectivePrompt, status: NODE_STATUS_LOADING, ...buildAudioGenerationMetadata(generationConfig), ...generationChannel, generationStartedAt, ...(batchPlacement ? { generationBatchId: batchPlacement.batchId } : {}) },
+                     };
+                     pendingChildIds = [audioId];
+                     setNodes((prev) =>
+@@ -2606,6 +2609,7 @@ function InfiniteCanvasPage() {
+                         prompt: effectivePrompt,
+                         status: NODE_STATUS_LOADING,
+                         fontSize: 14,
++                        ...generationChannel,
+                         model: generationConfig.model,
+                         reasoningEffort: generationConfig.reasoningEffort,
+                         textCount,
+@@ -2764,6 +2768,7 @@ function InfiniteCanvasPage() {
+                               count: "1",
+                           }
+                         : { ...buildGenerationConfig(effectiveConfig, sourceNode, node.type === CanvasNodeType.Text ? "text" : node.type === CanvasNodeType.Video ? "video" : node.type === CanvasNodeType.Audio ? "audio" : "image"), count: "1" };
++                const generationChannel = resolveGenerationChannelMetadata(generationConfig);
+                 if (!isAiConfigReady(generationConfig, generationConfig.model)) {
+                     openConfigDialog(true);
+                     return;
+@@ -2789,7 +2794,7 @@ function InfiniteCanvasPage() {
+                 // Another action may have removed or started this node while references were loading.
+                 if (!nodesRef.current.some(item => item.id === node.id) || generationRequestsRef.current.has(node.id)) return;
+ 
+-                setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, generationStartedAt: Date.now(), status: NODE_STATUS_LOADING, errorDetails: undefined, images: item.metadata?.images?.map((image) => (image.id === imageId ? { ...image, status: NODE_STATUS_LOADING, errorDetails: undefined } : image)) } } : item)));
++                setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, ...generationChannel, generationStartedAt: Date.now(), status: NODE_STATUS_LOADING, errorDetails: undefined, images: item.metadata?.images?.map((image) => (image.id === imageId ? { ...image, status: NODE_STATUS_LOADING, errorDetails: undefined } : image)) } } : item)));
+                 const controller = startGenerationRequest(node.id, sourceNode.id, node.id);
+ 
+                 try {
+@@ -2847,7 +2852,7 @@ function InfiniteCanvasPage() {
+                                       count: savedImageMetadata.count || 1,
+                                       references: savedImageMetadata.references,
+                                   }
+-                                : buildImageGenerationMetadata(useReferenceImages ? "edit" : "generation", generationConfig, 1, retryImages),
++                                : { ...buildImageGenerationMetadata(useReferenceImages ? "edit" : "generation", generationConfig, 1, retryImages), ...generationChannel },
+                         }),
+                     });
+                 } catch (error) {

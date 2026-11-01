@@ -76,7 +76,8 @@ test('重试期间新增编辑也要ACK，重复点击合并同一恢复流程',
   try {
     await assert.rejects(f.store.setItem('x', '先前稿')); offline = false;
     const first = f.app.retryPending(), second = f.app.retryPending(); assert.equal(first, second); await gate;
-    await assert.rejects(f.store.setItem('x', '重试时新稿')); release(); await first; await f.app.flush();
+    const latest = f.store.setItem('x', '重试时新稿');
+    release(); await first; await latest; await f.app.flush();
     assert.equal(await f.store.getItem('x'), '重试时新稿'); assert.equal(document(f).revision, 2);
   } finally { release(); f.close(); }
 });
@@ -108,8 +109,10 @@ test('预发送凭据/容量/快照错误不会被重试按钮清除，不能报
     for (const action of actions) await assert.rejects(action());
     await assert.rejects(f.app.retryPending(), code('save_not_confirmed')); assert.equal(f.app.getStatus().state, 'error');
     assert.equal(f.workspace.listDocuments('extension').length, 0); assert.equal(f.requests.length, 0);
-    const g = fixture();
-    try { await assert.rejects(g.store.setItem('too-large', 'x'.repeat(3 * 1024 * 1024)), code('document_too_large')); await assert.rejects(g.app.retryPending()); assert.equal(g.app.getStatus().state, 'error'); }
+    // 当前协议不再额外设置 2 MiB 应用上限；不要为了触发原来的上限分配
+    // 1 GiB 字符串。用底层明确返回的协议错误验证重试仍不会伪造成功。
+    const g = fixture(async () => { throw new StorageError('document_too_large', '合成文档过大', 413); });
+    try { await assert.rejects(g.store.setItem('too-large', '合成内容'), code('document_too_large')); await assert.rejects(g.app.retryPending()); assert.equal(g.app.getStatus().state, 'error'); }
     finally { g.close(); }
   } finally { f.close(); }
 });

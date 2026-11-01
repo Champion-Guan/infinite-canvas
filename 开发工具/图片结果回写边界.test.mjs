@@ -200,11 +200,22 @@ test('整批图片完成与空主图重试保留批次左边线及垂直中心',
     const sample = structuredClone(samples[0]);
     const node = { ...sample.原节点, metadata: { ...sample.原节点.metadata, generationBatchId: 'aligned-batch', primaryImageId: undefined, content: undefined } };
     const result = { slotId: sample.槽位, uploaded: { ...sample.上传结果, width: 900, height: 1200 }, receipt: sample.回执 };
-    for (const actual of [results.applyBatchImageResult(node, result), results.applyRetriedImageResult(node, result, { imageId: sample.槽位, prompt: '重试', generationMetadata: {} })]) {
+    const batch = results.applyBatchImageResult(node, result);
+    const retry = results.applyRetriedImageResult(node, result, { imageId: sample.槽位, prompt: '重试', generationMetadata: {} });
+    assert.deepEqual([retry.width, retry.height], [batch.width, batch.height], '空主图槽位重试必须复用普通生图卡片尺寸边界');
+    for (const actual of [batch, retry]) {
         assert.equal(actual.position.x, node.position.x);
         assert.equal(actual.position.y + actual.height / 2, node.position.y + node.height / 2);
         assert.equal(actual.metadata.generationBatchId, 'aligned-batch');
     }
+});
+
+test('槽位重试不会使用旧卡片最长边放大图片卡片', () => {
+    const sample = structuredClone(samples[0]);
+    const node = { ...sample.原节点, width: 640, height: 480, metadata: { ...sample.原节点.metadata, content: undefined, primaryImageId: undefined, generationBatchId: undefined } };
+    const result = { slotId: sample.槽位, uploaded: { ...sample.上传结果, width: 900, height: 1200 }, receipt: sample.回执 };
+    const retry = results.applyRetriedImageResult(node, result, { imageId: sample.槽位, prompt: '重试', generationMetadata: {} });
+    assert.deepEqual([retry.width, retry.height], [180, 240]);
 });
 
 test('批次逐图保留原请求、上游尺寸、交付说明，后续结果不能覆盖主图说明', () => {

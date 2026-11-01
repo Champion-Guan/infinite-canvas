@@ -1,0 +1,37 @@
+diff --git a/web/src/pages/image/index.tsx b/web/src/pages/image/index.tsx
+index df62e11..b25897a 100644
+--- a/web/src/pages/image/index.tsx
++++ b/web/src/pages/image/index.tsx
+@@ -443,7 +443,9 @@ export default function ImagePage() {
+                                         event.preventDefault();
+                                         dragDepthRef.current = 0;
+                                         setIsReferenceDragActive(false);
+-                                        void addReferences(event.dataTransfer.files);
++                                        void addReferences(event.dataTransfer.files).catch((error) => {
++                                            message.error(error instanceof Error ? error.message : "图片上传失败，请重试。");
++                                        });
+                                     }}
+                                     onWheel={(event) => {
+                                         if (event.currentTarget.scrollWidth <= event.currentTarget.clientWidth) return;
+@@ -526,7 +528,9 @@ export default function ImagePage() {
+                 multiple
+                 className="hidden"
+                 onChange={(event) => {
+-                    void addReferences(event.target.files);
++                    void addReferences(event.target.files).catch((error) => {
++                        message.error(error instanceof Error ? error.message : "图片上传失败，请重试。");
++                    });
+                     event.target.value = "";
+                 }}
+             />
+@@ -547,7 +551,9 @@ export default function ImagePage() {
+                 </div>
+             </Drawer>
+             <PromptSelectDialog open={promptDialogOpen} onOpenChange={setPromptDialogOpen} onSelect={setPrompt} />
+-            <AssetPickerModal open={assetPickerOpen} defaultTab="my-assets" onInsert={(payload) => void insertPickedAsset(payload)} onClose={() => setAssetPickerOpen(false)} />
++            <AssetPickerModal open={assetPickerOpen} defaultTab="my-assets" onInsert={(payload) => void insertPickedAsset(payload).catch((error) => {
++                message.error(error instanceof Error ? error.message : "素材添加失败，请重试。");
++            })} onClose={() => setAssetPickerOpen(false)} />
+             <Modal title={t("workbench.deleteLogs")} open={deleteConfirmOpen} onCancel={() => setDeleteConfirmOpen(false)} onOk={deleteSelectedLogs} okText={t("common.delete")} okButtonProps={{ danger: true }} cancelText={t("common.cancel")}>
+                 {t("workbench.deleteLogsConfirm", { count: selectedLogIds.length })}
+             </Modal>

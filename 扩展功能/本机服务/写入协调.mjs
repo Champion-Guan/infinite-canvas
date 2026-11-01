@@ -2,8 +2,9 @@ import { StorageError, requireValue } from '../本机存储/协议.mjs';
 
 // 只串行化进程内已经接收的写入和备份，不代表所有页面已保存。
 // 读取不经过本队列；运行中的操作不强行超时，以免把已经提交的结果说成取消。
-export function createWriteCoordinator({ maxQueued = 8, maxWait = 5_000, schedule = setTimeout, cancel = clearTimeout, onStatus = () => {} } = {}) {
-  requireValue(Number.isSafeInteger(maxQueued) && maxQueued >= 1 && maxQueued <= 32 && Number.isSafeInteger(maxWait) && maxWait >= 1 && maxWait <= 10_000 &&
+export function createWriteCoordinator({ maxQueued = Infinity, maxWait = Infinity, schedule = setTimeout, cancel = clearTimeout, onStatus = () => {} } = {}) {
+  requireValue(maxQueued === Infinity || (Number.isSafeInteger(maxQueued) && maxQueued >= 1 && maxQueued <= 32), 'invalid_write_coordinator', '写入协调配置无效。');
+  requireValue((maxWait === Infinity || Number.isSafeInteger(maxWait) && maxWait >= 1 && maxWait <= 60_000) &&
     typeof schedule === 'function' && typeof cancel === 'function' && typeof onStatus === 'function', 'invalid_write_coordinator', '写入协调配置无效。');
   const queue = [];
   let active = null, closing = false, closed = false, closePromise = null, finishClose;
@@ -44,7 +45,7 @@ export function createWriteCoordinator({ maxQueued = 8, maxWait = 5_000, schedul
       queue.push(entry);
       if (active) {
         try {
-          entry.timer = schedule(() => rejectQueued(entry, new StorageError('write_wait_timeout', '等待本机操作超时，本次排队操作尚未提交；请用相同操作ID重试。', 503)), maxWait);
+          if (maxWait !== Infinity) entry.timer = schedule(() => rejectQueued(entry, new StorageError('write_wait_timeout', '等待本机操作超时，本次排队操作尚未提交；请用相同操作ID重试。', 503)), maxWait);
           if (signal) { entry.abort = () => rejectQueued(entry, new StorageError('write_cancelled', '尚未开始的本机操作已取消，没有提交。', 409)); signal.addEventListener('abort', entry.abort, { once: true }); }
         } catch {
           rejectQueued(entry, new StorageError('write_queue_unavailable', '本机写入等待机制不可用，没有接收本次提交。', 503)); return;

@@ -47,7 +47,8 @@ export function LocalProxyPanel({ active = true }: { active?: boolean }) {
     return <Form layout="vertical" requiredMark={false}><section className="guan-motion-panel rounded-lg border border-stone-200 p-3 dark:border-stone-800">
         <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2 text-sm font-semibold"><Network className="size-4" />本地代理</div>
             <Switch aria-label="启用本地代理" checked={enabled} disabled={busy || !ready} onChange={value => void act(port => port.toggleRelay(value))} /></div>
-        {enabled && <Button className="guan-apple-action guan-apple-press mt-3" icon={<Wifi className="size-4" />} loading={busy} disabled={!ready} onClick={() => void act(async port => {
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+        {enabled && <Button className="guan-apple-action guan-apple-press shrink-0" icon={<Wifi className="size-4" />} loading={busy} disabled={!ready} onClick={() => void act(async port => {
                 const status = await port.status();
                 if (status.relayEnabled) {
                     const response = await 本地转发请求(本地转发地址("https://www.gstatic.com/generate_204"), { signal: AbortSignal.timeout(12000) });
@@ -55,6 +56,7 @@ export function LocalProxyPanel({ active = true }: { active?: boolean }) {
                 }
                 return status;
             }, true)}>测试连接</Button>}
-        <span className="ml-2 text-xs" style={{ color: error ? "#dc2626" : enabled ? "#22925a" : "#78716c" }} role="status">{error || (ready ? "本地代理状态：" + (enabled ? "已启用" : "未启用") : "本地代理：查询中…")}</span>
+        <span className="min-w-0 text-xs leading-5" style={{ color: error ? "#dc2626" : enabled ? "#22925a" : "#78716c" }} role="status">{error || (ready ? "本地代理状态：" + (enabled ? "已启用" : "未启用") : "本地代理：查询中…")}</span>
+        </div>
     </section></Form>;
 }

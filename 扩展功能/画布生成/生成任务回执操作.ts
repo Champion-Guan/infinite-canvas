@@ -45,7 +45,7 @@ export function useCanvasTaskReceipts({ projectId, nodesRef, restoredProjectIdRe
         await saveProductCanvas(projectId);
     }, [projectId, setNodes, nodesRef]);
 
-    const requestNodeText = useCallback(async (config: AiConfig, messages: AiTextMessage[], onDelta: (text: string) => void, options: { signal: AbortSignal; nodeId: string; slotId: string; retry?: boolean }) => {
+    const requestNodeText = useCallback(async (config: AiConfig, messages: AiTextMessage[], onDelta: (text: string) => void, options: { signal: AbortSignal; nodeId: string; slotId: string; retry?: boolean; deferConfirm?: () => boolean }) => {
         const current = nodesRef.current.find(node => node.id === options.nodeId);
         if (!current) throw Error("原文本卡片已删除，未发送生成请求");
         const assertTarget = (taskId?: string) => {
@@ -61,6 +61,7 @@ export function useCanvasTaskReceipts({ projectId, nodesRef, restoredProjectIdRe
             scope: { productId: projectId, nodeId: options.nodeId, slotId: options.slotId },
             previous: current.metadata?.gatewayGenerationTasks?.find(task => task.slotId === options.slotId),
             recordTask: task => { assertTarget(); return recordImageGatewayTask(options.nodeId, task); },
+            deferConfirm: options.deferConfirm,
             applyAndSave: async (text, receipt) => {
                 assertTarget(receipt.taskId);
                 onDelta(text);
@@ -69,12 +70,12 @@ export function useCanvasTaskReceipts({ projectId, nodesRef, restoredProjectIdRe
                     texts: node.metadata?.texts?.map(item => item.id !== options.slotId ? item : { ...item, content: text, status: NODE_STATUS_SUCCESS, errorDetails: undefined }),
                     gatewayGenerationReceipts: [...(node.metadata?.gatewayGenerationReceipts || []).filter(item => item.taskId !== receipt.taskId), receipt],
                 } }));
-                await saveProductCanvas(projectId);
+                return await saveProductCanvas(projectId);
             },
         });
     }, [projectId, recordImageGatewayTask, setNodes, nodesRef, restoredProjectIdRef]);
 
-    const requestNodeAudio = useCallback(async (config: AiConfig, prompt: string, apply: (audio: UploadedFile) => void, options: { signal: AbortSignal; nodeId: string; slotId: string; retry?: boolean }) => {
+    const requestNodeAudio = useCallback(async (config: AiConfig, prompt: string, apply: (audio: UploadedFile) => void, options: { signal: AbortSignal; nodeId: string; slotId: string; retry?: boolean; deferConfirm?: () => boolean }) => {
         const current = nodesRef.current.find(node => node.id === options.nodeId);
         if (!current) throw Error("原音频卡片已删除，未发送生成请求。");
         const assertTarget = (taskId: string) => {
@@ -87,6 +88,7 @@ export function useCanvasTaskReceipts({ projectId, nodesRef, restoredProjectIdRe
             scope: { productId: projectId, nodeId: options.nodeId, slotId: options.slotId },
             previous: current.metadata?.gatewayGenerationTasks?.find(task => task.slotId === options.slotId),
             recordTask: task => recordImageGatewayTask(options.nodeId, task),
+            deferConfirm: options.deferConfirm,
             applyAndSave: async (blob, receipt) => {
                 assertTarget(receipt.taskId);
                 const audio = await storeGeneratedAudio(blob, config.audioFormat);
@@ -96,7 +98,7 @@ export function useCanvasTaskReceipts({ projectId, nodesRef, restoredProjectIdRe
                     status: NODE_STATUS_SUCCESS, errorDetails: undefined,
                     gatewayGenerationReceipts: [...(node.metadata?.gatewayGenerationReceipts || []).filter(item => item.taskId !== receipt.taskId), receipt],
                 } }));
-                await saveProductCanvas(projectId);
+                return await saveProductCanvas(projectId);
             },
         });
     }, [projectId, recordImageGatewayTask, setNodes, nodesRef, restoredProjectIdRef]);

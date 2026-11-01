@@ -52,6 +52,8 @@ export function useCanvasImageResults({ projectId, nodesRef, restoredProjectIdRe
         const result: ImageResult = {
             slotId: request.slotId, uploaded, receipt: request.receipt,
             requestedSize: request.image.deliverySize || request.requestedSize, upstreamSize: request.image.upstreamSize,
+            channel: request.image.channel, channelId: request.image.channelId,
+            model: request.image.model, transport: request.image.transport,
         };
         setNodes(previous => previous.map(node => {
             if (node.id === request.nodeId) return request.mode === "batch" ? applyBatchImageResult(node, result)
@@ -61,6 +63,6 @@ export function useCanvasImageResults({ projectId, nodesRef, restoredProjectIdRe
             return node;
         }));
         if (request.mode === "batch") request.onApplied();
-        await saveProductCanvas(projectId);
+        return await saveProductCanvas(projectId);
     }, [projectId, nodesRef, restoredProjectIdRef, surfaceRef, setNodes]);
 }

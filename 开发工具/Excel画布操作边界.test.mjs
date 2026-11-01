@@ -23,7 +23,7 @@ const variableRules = await load('提示词/变量使用规则.ts');
 const rules = await load('Excel画布/旧版参数规则.ts', { './旧版主题翻译.js': themes, '../提示词/变量使用规则': variableRules });
 const contexts = await load('Excel画布/Excel卡片上下文.ts', { './旧版参数规则': rules });
 const titles = await load('Excel画布/旧版最终提示词标题.ts');
-const parameterLinks = await load('Excel画布/产品参数联动.ts', { '../提示词/变量使用规则': variableRules, './旧版最终提示词标题': titles });
+const parameterLinks = await load('Excel画布/产品参数联动.ts', { '../提示词/变量使用规则': variableRules, './旧版最终提示词标题': titles, './旧版参数规则': rules });
 const domain = await load('Excel画布/Excel卡片事务.ts', {
     './旧版参数规则': rules, './产品参数联动': parameterLinks, './旧版最终提示词标题': titles, './Excel卡片上下文': contexts,
 });

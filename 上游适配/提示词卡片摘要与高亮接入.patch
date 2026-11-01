@@ -1,0 +1,55 @@
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -2,6 +2,7 @@
+ import { CardPanelLayer } from "@/扩展功能/画布连线/卡片浮层";
+ import "@/扩展功能/画布连线/并排图片关系透视.css";
+ import { promptHighlightSegments } from "@/扩展功能/画布迁移扩展/prompt-variable-highlight.js";
++import { promptDisplaySegments, promptDisplaySummary } from "@/扩展功能/提示词/提示词展示摘要.js";
+ import { localizePromptTheme } from "@/扩展功能/画布迁移扩展/prompt-theme-labels.js";
+ import { useCanvasTextPreview } from "@/扩展功能/画布生成/文本显示接线";
+ import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+@@ -587,8 +588,15 @@
+     const isExcelPrompt = Boolean(node.metadata?.excelPromptLabel || node.metadata?.excelPromptTheme || node.metadata?.excelPromptTokens?.length || node.metadata?.excelPromptTemplateId || node.metadata?.excelPromptRaw);
+     const paddingClass = isBatchRoot ? "px-4 pb-4 pt-14" : "p-4";
+     const isFinalPrompt = Boolean(node.metadata?.promptVariablePreviewOf);
+-    const highlighted: Array<{ text: string; token?: string }> = isExcelPrompt || isFinalPrompt
+-        ? promptHighlightSegments(content, source?.metadata?.content ?? source?.metadata?.excelPromptRaw, parameters?.metadata?.promptVariableValues)
++    const displayMetadata = isFinalPrompt ? source?.metadata : node.metadata;
++    const summary = isExcelPrompt || isFinalPrompt
++        ? promptDisplaySummary(content, { ...displayMetadata, ...parameters?.metadata })
++        : undefined;
++    const highlighted: Array<{ text: string; token?: string; kind?: string }> = isExcelPrompt || isFinalPrompt
++        ? promptDisplaySegments(
++            promptHighlightSegments(content, source?.metadata?.content ?? source?.metadata?.excelPromptRaw, parameters?.metadata?.promptVariableValues),
++            summary,
++        )
+         : [{ text: content }];
+ 
+     return (
+@@ -618,18 +626,18 @@
+                     />
+                 ) : content ? (
+                     <div className="flex h-full w-full min-h-0 flex-col overflow-hidden" style={textStyle}>
+-                        {isExcelPrompt ? (
+-                            <div className="shrink-0 border-b px-4 pb-2 pt-3 font-sans text-[11px]" style={{ borderColor: theme.node.stroke, color: theme.node.muted }}>
+-                                <div className="flex flex-wrap items-center gap-1.5">
+-                                    <span className="rounded-md px-1.5 py-0.5 font-semibold" style={{ background: theme.toolbar.itemHover, color: theme.toolbar.activeText }}>{node.metadata?.excelPromptLabel || "Excel 提示词"}</span>
+-                                    {node.metadata?.excelPromptTheme ? <span className="truncate opacity-75" title={node.metadata.excelPromptTheme}>主题：{localizePromptTheme(node.metadata.excelPromptTheme)}</span> : null}
++                        {summary ? (
++                            <div className="mx-3 mt-3 shrink-0 rounded-lg border px-3 py-2 font-sans text-[11px] leading-5" style={{ borderColor: theme.node.stroke, background: theme.toolbar.itemHover, color: theme.node.muted }}>
++                                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
++                                    {summary.theme ? <span className="break-words"><span className="font-medium" style={{ color: theme.node.text }}>主题/角度：</span>{localizePromptTheme(summary.theme)}</span> : null}
++                                    {summary.pixels ? <span><span className="font-medium" style={{ color: theme.node.text }}>生成像素：</span>{summary.pixels}</span> : null}
++                                    {summary.ratio ? <span><span className="font-medium" style={{ color: theme.node.text }}>比例：</span>{summary.ratio}</span> : null}
+                                 </div>
+-                                {node.metadata?.excelPromptTokens?.length ? <div className="mt-1 truncate opacity-65" title={node.metadata.excelPromptTokens.join("、")}>变量：{node.metadata.excelPromptTokens.map((token) => token.replace(/^\[|\]$/g, "")).join("、")}</div> : null}
+                             </div>
+                         ) : null}
+                         <div className={`thin-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain whitespace-pre-wrap break-words bg-transparent font-mono ${isExcelPrompt ? "px-4 pb-4 pt-3" : paddingClass}`} onWheelCapture={(event) => event.stopPropagation()}>
+-                            {highlighted.map((part, index) => part.token ? (
+-                                <mark key={index} className="guan-prompt-variable-highlight" title={`变量 ${part.token}`} style={{ color: "inherit", background: "rgba(47,128,255,.18)", borderRadius: 3, boxShadow: "inset 0 -1px rgba(47,128,255,.5)", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>{part.text}</mark>
++                            {highlighted.map((part, index) => part.kind ? (
++                                <mark key={index} className={`guan-prompt-highlight guan-prompt-highlight-${part.kind}`} title={part.kind === "variable" ? `变量 ${part.token}` : part.kind === "theme" ? "主题/角度" : part.kind === "pixels" ? "生成像素" : "图片比例"} style={{ color: "inherit", background: part.kind === "variable" ? "rgba(47,128,255,.18)" : part.kind === "theme" ? "rgba(245,158,11,.18)" : part.kind === "pixels" ? "rgba(16,185,129,.17)" : "rgba(20,184,166,.17)", borderRadius: 3, boxShadow: part.kind === "variable" ? "inset 0 -1px rgba(47,128,255,.5)" : part.kind === "theme" ? "inset 0 -1px rgba(245,158,11,.55)" : part.kind === "pixels" ? "inset 0 -1px rgba(16,185,129,.55)" : "inset 0 -1px rgba(20,184,166,.55)", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>{part.text}</mark>
+                             ) : <React.Fragment key={index}>{part.text}</React.Fragment>)}
+                         </div>
+                     </div>

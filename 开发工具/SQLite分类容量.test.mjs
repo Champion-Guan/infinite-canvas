@@ -109,11 +109,11 @@ test('同图多记录去重；图片与缩略图共享块只在共享内容计�
   assert.equal(usage.breakdown.indexedMediaBytes, blob.size); sums(usage);
 }));
 
-test('33MiB视频重复16MiB块去重，按描述MIME分类而不是octet-stream索引', () => using(async f => {
+test('33MiB视频完整存为单体BLOB，按描述MIME分类', () => using(async f => {
   const bytes = new Uint8Array(33 * 1024 * 1024 + 7); bytes[bytes.length - 1] = 92;
   await f.app().createInstance({ storeName: 'media_files' }).setItem('video', new Blob([bytes], { type: 'video/mp4' }));
   const usage = await f.workspace.readDetailedUsage(), video = category(usage, 'videos');
-  assert.equal(video.files, 1); assert.equal(video.blocks, 2); assert.equal(video.mediaBytes, 17 * 1024 * 1024 + 7);
+  assert.equal(video.files, 1); assert.equal(video.blocks, 1); assert.equal(video.mediaBytes, bytes.length);
   assert.equal(category(usage, 'media_index').records, 1); assert.equal(category(usage, 'other_media').bytes, 0); sums(usage);
 }));
 
@@ -178,11 +178,11 @@ test('清空逻辑记录不删除媒体：当前未引用媒体归保留内容',
   assert.ok(category(usage, 'history').bytes > 0); sums(usage);
 }));
 
-test('大对象拆字段、深图与分页数组的当前记录数正确', () => using(async f => {
+test('大对象完整文档的当前记录数及正文容量正确', () => using(async f => {
   const store = f.app().createInstance({ storeName: 'app_state' });
   await store.setItem('large', { title: '合成', text: 'x'.repeat(1100 * 1024), nested: { values: Array.from({ length: 300 }, (_, i) => i) } });
   const usage = await f.workspace.readDetailedUsage(); assert.equal(category(usage, 'workspace').records, 1);
-  assert.ok(category(usage, 'workspace').documentBytes > 0); assert.ok(category(usage, 'workspace').documentBytes < 1100 * 1024, '重复文本分片也按唯一物理文档去重');
+  assert.ok(category(usage, 'workspace').documentBytes > 1100 * 1024);
   assert.equal(category(usage, 'history').bytes, 0); sums(usage);
 }));
 
@@ -222,6 +222,7 @@ test('未知根版本停止统计，不静默归为其他或空库', () => using
 
 test('媒体文件长度损坏明确失败；不会读取正文进行哈希或自动修复', () => using(async f => {
   const media = f.workspace.writeMedia(Buffer.from('payload'), 'image/png');
+  rawEdit(f, db => db.prepare('UPDATE media SET content=NULL WHERE id=?').run(media.id));
   writeFileSync(join(f.root, '媒体', media.id), 'short');
   await assert.rejects(f.workspace.readDetailedUsage(), code('usage_invalid_data'));
   assert.equal(readFileSync(join(f.root, '媒体', media.id), 'utf8'), 'short');
@@ -300,10 +301,13 @@ test('历史分片超过旧列表1000条上限仍完整统计，不静默遗漏'
 
 test('同大小媒体正文不会被读取：这里只统计，完整内容验签属于读取/备份流程', () => using(async f => {
   const media = f.workspace.writeMedia(Buffer.from('payload'), 'image/png');
+  rawEdit(f, db => db.prepare('UPDATE media SET content=NULL WHERE id=?').run(media.id));
   writeFileSync(join(f.root, '媒体', media.id), 'changed');
   const usage = await f.workspace.readDetailedUsage();
   assert.equal(usage.breakdown.mediaContentVerified, false); assert.equal(usage.breakdown.indexedMediaBytes, 7);
-  assert.throws(() => f.workspace.readMedia(media.id), code('media_corrupt'));
+  f.workspace.close();
+  const cold = openWorkspace({ dataRoot: f.root });
+  try { assert.throws(() => cold.readMedia(media.id), code('media_corrupt')); } finally { cold.close(); }
 }));
 
 test('当前服务分类统计仍在响应前复核原会话，工作区使用根目录统计实现', () => {

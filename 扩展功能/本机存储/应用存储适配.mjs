@@ -1,13 +1,13 @@
 import { createValueCodec } from './应用值编码.mjs';
 import { APP_NAMESPACES, APPLICATION_STORAGE_FORMAT, StorageError, requireValue, serializeDocument } from './协议.mjs';
+import { readFragmentGraph } from './分片值编码.mjs';
 
 export { APP_NAMESPACES, APPLICATION_STORAGE_FORMAT };
 const jsonStores = new Set(['infinite-canvas:canvas_store', 'infinite-canvas:asset_store', 'infinite-canvas:plugin_store', 'infinite-canvas:ai_config_store', 'infinite-canvas:theme_store', 'infinite-canvas:prompt_source_store_v2']);
 const sha = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))].map(byte => byte.toString(16).padStart(2, '0')).join('');
 
 // 兼容当前上游实际使用的localForage子集；不是全量localForage实现。
-// 每命名空间一个有版本文档，删除/clear原子提交，文件不立即物理删除。
-// 当前2MiB文档限制显式生效；达到限制应停止保存，不分页截断或回退浏览器。
+// 旧分片只读兼容；所有新保存直接以一个SQLite文档事务提交。
 export function createApplicationStorage({ client, secretPort, readBlobUrl, onStatus = () => {} }) {
   const codec = createValueCodec({ client, secretPort, readBlobUrl });
   const spaces = new Map(), errors = new Map();
@@ -22,14 +22,38 @@ export function createApplicationStorage({ client, secretPort, readBlobUrl, onSt
   async function load(space) {
     if (space.loaded) return;
     space.id = 'app-' + await sha(space.name);
-    const doc = await client.readDocument('extension', space.id, { allowMissing: true });
+    let doc = await client.readDocument('extension', space.id, { allowMissing: true });
+    let legacyParts;
+    if (doc?.value?.format === 'guan-app-storage.v2' && typeof client.readNamespace === 'function') {
+      const snapshot = await client.readNamespace(space.name);
+      requireValue(snapshot?.root?.id === space.id && snapshot.root.revision >= doc.revision,
+        'invalid_namespace', '旧分片快照与命名空间根不匹配。');
+      doc = snapshot.root;
+      legacyParts = new Map(snapshot.fragments.map(part => [part.id, part]));
+    }
     if (doc) {
       const value = doc.value;
-      requireValue(value.format === APPLICATION_STORAGE_FORMAT && value.namespace === space.name && Array.isArray(value.entries), 'invalid_namespace', '应用存储格式或命名空间不符；没有作为空库启动。');
+      requireValue(value.namespace === space.name, 'invalid_namespace', '应用存储命名空间不符；没有作为空库启动。');
+      let sourceEntries;
+      if (value.format === APPLICATION_STORAGE_FORMAT) sourceEntries = value.entries;
+      else {
+        requireValue(value.format === 'guan-app-storage.v2' && Number.isSafeInteger(value.entryCount) && value.entryCount >= 0,
+          'invalid_namespace', '旧分片存储格式无效；没有作为空库启动。');
+        sourceEntries = await readFragmentGraph({ head: value.head, readDocument: async (collection, id) => {
+          if (legacyParts) return legacyParts.get(id) ?? null;
+          return client.readDocument(collection, id);
+        } });
+        requireValue(sourceEntries.length === value.entryCount, 'invalid_namespace', '旧分片条数不符；没有跳过记录。');
+      }
+      requireValue(Array.isArray(sourceEntries), 'invalid_namespace', '应用存储目录无效；没有作为空库启动。');
       const entries = new Map();
-      for (const item of value.entries) {
+      for (const item of sourceEntries) {
         requireValue(Array.isArray(item) && item.length === 2 && typeof item[0] === 'string' && !entries.has(item[0]) && Array.isArray(item[1]?.tree) && Array.isArray(item[1]?.mediaIds), 'invalid_namespace', '应用记录重复或格式错误。');
         entries.set(item[0], item[1]);
+      }
+      if (Array.isArray(doc.mediaIds)) {
+        const refs = [...new Set([...entries.values()].flatMap(entry => entry.mediaIds))].sort();
+        requireValue(JSON.stringify([...doc.mediaIds].sort()) === JSON.stringify(refs), 'invalid_namespace', '命名空间媒体索引与应用记录不一致。');
       }
       space.entries = entries; space.revision = doc.revision;
     }
@@ -43,9 +67,12 @@ export function createApplicationStorage({ client, secretPort, readBlobUrl, onSt
       await load(space);
       return fn();
     });
-    space.tail = result.then(() => {}, () => {});
-    result.then(() => { if (!space.blocked) errors.delete(space.name); }, () => errors.set(space.name, true)).finally(() => { pending--; notify(); });
-    return result;
+    const tracked = result.then(value => {
+      if (!space.blocked) errors.delete(space.name);
+      pending--; notify(); return value;
+    }, error => { errors.set(space.name, true); pending--; notify(); throw error; });
+    space.tail = tracked.then(() => {}, () => {});
+    return tracked;
   }
   async function commit(space, entries) {
     const value = { format: APPLICATION_STORAGE_FORMAT, namespace: space.name, entries: [...entries] };
@@ -60,6 +87,9 @@ export function createApplicationStorage({ client, secretPort, readBlobUrl, onSt
     requireValue(space.blocked, 'nothing_to_retry', '没有待确认的保存。');
     const { write, entries } = space.blocked;
     const ack = await client.writeDocument(write);
+    requireValue(ack?.persisted === true && ack.collection === write.collection && ack.id === write.id &&
+      ack.operationId === write.operationId && ack.revision === write.expectedRevision + 1 && ack.hash === await sha(JSON.stringify(write.value)),
+    'invalid_ack', '保存没有收到匹配的落盘确认，原操作保留供重试。');
     space.entries = entries; space.revision = ack.revision; space.blocked = null; hasSaved = true;
     return ack;
   }
@@ -92,6 +122,14 @@ export function createApplicationStorage({ client, secretPort, readBlobUrl, onSt
       },
       removeItem(key) { return queue(space, async () => { const entries = new Map(space.entries); entries.delete(key); await commit(space, entries); }); },
       clear() { return queue(space, () => commit(space, new Map())); },
+      removeItems(keys) {
+        requireValue(Array.isArray(keys) && keys.length <= 1024 && keys.every(key => typeof key === 'string' && key.length > 0 && key.length <= 512), 'invalid_key', '批量删除的记录键无效。');
+        return queue(space, () => {
+          const entries = new Map(space.entries);
+          for (const key of new Set(keys)) entries.delete(key);
+          return commit(space, entries);
+        });
+      },
       async iterate(iterator) {
         // 先取得一致快照再执行回调，兼容回调内部再次调用存储；不在队列中等回调造成死锁。
         const entries = await queue(space, () => [...space.entries]);
@@ -112,6 +150,19 @@ export function createApplicationStorage({ client, secretPort, readBlobUrl, onSt
     createInstance,
     getStatus: status,
     readUsage() { return client.readUsage(); },
+    async mediaIdsForKeys(groups) {
+      const ids = new Set();
+      for (const [name, keys] of Object.entries(groups)) {
+        const space = state(name);
+        await queue(space, () => { for (const key of keys) for (const id of space.entries.get(key)?.mediaIds ?? []) ids.add(id); });
+      }
+      return [...ids];
+    },
+    async purgeMedia(ids) {
+      requireValue(typeof client.purgeMedia === 'function', 'cleanup_unavailable', '当前服务不支持媒体清理，请重启服务后重试。');
+      codec.invalidateMedia();
+      try { return await client.purgeMedia(ids); } finally { codec.invalidateMedia(); }
+    },
     retry(name) { const space = state(name); return queue(space, () => retryWrite(space), { retry: true }); },
     async flush() {
       await Promise.all([...spaces.values()].map(space => space.tail));

@@ -8,8 +8,6 @@ import { flushPrivateWrites } from './runtime-paths.mjs';
 import { UpdateError } from './update-auth.mjs';
 import { selectWebRelease, verifyWebManifest, WEB_MANIFEST_NAMES, webReleaseAssetName } from '../客户安装/Web发布协议.mjs';
 import { StorageError, requireValue } from '../本机存储/协议.mjs';
-import { jobLike } from '../生成网关/生成协议.mjs';
-import { NO_RESULT_ACK } from '../生成任务/未决任务核实.mjs';
 
 // 源码与客户包共用验签下载；只有独立客户安装管理器提供版本切换能力。
 export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkProxy, generation, webPackage = true, currentVersion: installedVersion, manager = null }) {
@@ -44,7 +42,8 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
   const status = async () => {
     const value = await updates.status();
     return { ...value, channel: webPackage ? `GitHub Public / Web ${value.preferences.developerMode ? 'Beta + Stable' : 'Stable'}` : value.channel,
-      install: { ...(!manager ? { allowed: false, state: 'source-development', reason: 'web_release_required' } : value.install), blockers: await generation?.updateBlockers() || [] } };
+      install: { ...(!manager ? { allowed: false, state: 'source-development', reason: 'web_release_required' } : value.install), blockers: await generation?.updateBlockers() || [] },
+      taskSummary: await generation?.taskSummary() || { failedWithoutResult: 0 } };
   };
   const handle = async (request, response) => {
     if (request.url !== '/__guan-local/software-updates') return false;
@@ -58,10 +57,9 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
       for await (const chunk of request) { size += chunk.length; requireValue(size <= 4096, 'request_too_large', '更新请求过大。', 413); chunks.push(chunk); }
       let input; try { input = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new UpdateError('invalid_request'); }
       if (!input || typeof input !== 'object' || Array.isArray(input)) throw new UpdateError('invalid_request');
-      const { operation, preferences, taskId, acknowledgement, ...extra } = input;
-      if (Object.keys(extra).length || !['status', 'check', 'download', 'preferences', 'stage', 'approve', 'approve-manual', 'defer', 'confirm-no-result', 'progress-window'].includes(operation) ||
-        (operation !== 'preferences' && preferences !== undefined) || (operation !== 'confirm-no-result' && (taskId !== undefined || acknowledgement !== undefined)) ||
-        operation === 'confirm-no-result' && (!jobLike(taskId) || acknowledgement !== NO_RESULT_ACK || !generation?.confirmNoResult)) throw new UpdateError('invalid_request');
+      const { operation, preferences, ...extra } = input;
+      if (Object.keys(extra).length || !['status', 'check', 'download', 'preferences', 'stage', 'approve', 'approve-manual', 'defer', 'retry-result-save-batch', 'progress-window'].includes(operation) ||
+        (operation !== 'preferences' && preferences !== undefined)) throw new UpdateError('invalid_request');
       await authorize(request);
       if (closed) throw new UpdateError('update_service_stopped');
       if (operation === 'progress-window') {
@@ -77,9 +75,10 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
       else if (operation === 'approve') await updates.approve('saved-and-all-tasks-ended');
       else if (operation === 'approve-manual') await updates.approve('saved-and-all-tasks-ended', { manual: true });
       else if (operation === 'defer') await updates.defer();
-      else if (operation === 'confirm-no-result') await generation.confirmNoResult(taskId, acknowledgement);
+      let taskAction;
+      if (operation === 'retry-result-save-batch') taskAction = await generation?.retryResultSaveBatch();
       await authorize(request);
-      reply(200, { result: await status() });
+      reply(200, { result: { ...await status(), ...(taskAction ? { taskAction } : {}) } });
     } catch (error) {
       reply(error instanceof StorageError ? error.status : 409, { error: { code: error instanceof StorageError || error instanceof UpdateError ? error.code : 'update_operation_failed' } });
       request.resume();

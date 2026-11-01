@@ -13,6 +13,10 @@ export type ImageResult = {
     receipt: CanvasImageReceipt;
     requestedSize?: string;
     upstreamSize?: string;
+    channel?: string;
+    channelId?: string;
+    model?: string;
+    transport?: "direct" | "proxy";
 };
 
 function storedImageFields(image: UploadedImage) {
@@ -27,8 +31,23 @@ function storedImageFields(image: UploadedImage) {
 }
 
 function resultImages(node: CanvasNodeData, result: ImageResult) {
-    const image: CanvasNodeImage = { id: result.slotId, status: "success", ...storedImageFields(result.uploaded), ...deliveryDetails(result) };
+    const image: CanvasNodeImage = {
+        id: result.slotId, status: "success", ...storedImageFields(result.uploaded), ...deliveryDetails(result),
+        ...(result.channel ? { channel: result.channel } : {}),
+        ...(result.channelId ? { channelId: result.channelId } : {}),
+        ...(result.model ? { model: result.model } : {}),
+        ...(result.transport ? { transport: result.transport } : {}),
+    };
     return node.metadata?.images?.map(current => current.id === image.id ? { ...current, ...image, errorDetails: undefined } : current);
+}
+
+function resultChannelFields(result: ImageResult) {
+    return {
+        ...(result.channel ? { channel: result.channel } : {}),
+        ...(result.channelId ? { channelId: result.channelId } : {}),
+        ...(result.model ? { model: result.model } : {}),
+        ...(result.transport ? { transport: result.transport } : {}),
+    };
 }
 
 function resultReceipts(node: CanvasNodeData, receipt: CanvasImageReceipt) {
@@ -43,6 +62,7 @@ export function applyBatchImageResult(node: CanvasNodeData, result: ImageResult)
     const metadata = {
         ...node.metadata, images: resultImages(node, result) || [], status: "success" as const,
         errorDetails: undefined, gatewayGenerationReceipts: resultReceipts(node, result.receipt),
+        ...resultChannelFields(result),
     };
     // 并发返回的后续图片只更新所属槽位，第一张成功图片继续作为主图。
     if (node.metadata?.primaryImageId) return { ...node, metadata };
@@ -61,10 +81,8 @@ export function applyRetriedImageResult(node: CanvasNodeData, result: ImageResul
     generationMetadata: CanvasNodeMetadata;
 }): CanvasNodeData {
     const makePrimary = !options.imageId || !node.metadata?.content;
-    const edge = options.imageId ? Math.max(node.width, node.height) : 0;
     const bounds = NODE_DEFAULT_SIZE[CanvasNodeType.Image];
     const size = options.imageId && node.metadata?.freeResize ? { width: node.width, height: node.height }
-        : options.imageId ? fitNodeSize(result.uploaded.width, result.uploaded.height, edge, edge)
         : fitNodeSize(result.uploaded.width, result.uploaded.height, bounds.width, bounds.height);
     return {
         ...node, type: CanvasNodeType.Image,
@@ -75,14 +93,14 @@ export function applyRetriedImageResult(node: CanvasNodeData, result: ImageResul
             ...(makePrimary ? imageMetadata(result.uploaded, deliveryDetails(result)) : { status: "success" as const }),
             errorDetails: undefined, images: resultImages(node, result),
             primaryImageId: makePrimary ? result.slotId : node.metadata?.primaryImageId,
-            prompt: options.prompt, ...options.generationMetadata,
+            prompt: options.prompt, ...options.generationMetadata, ...resultChannelFields(result),
         },
     };
 }
 
 export function applyToolImageResult(node: CanvasNodeData, result: ImageResult, options: { prompt: string; generationMetadata: CanvasNodeMetadata }): CanvasNodeData {
     const size = fitNodeSize(result.uploaded.width, result.uploaded.height, node.width, node.height);
-    return { ...node, ...size, metadata: { ...node.metadata, ...options.generationMetadata,
+    return { ...node, ...size, metadata: { ...node.metadata, ...options.generationMetadata, ...resultChannelFields(result),
         ...imageMetadata(result.uploaded, deliveryDetails(result)), prompt: options.prompt,
         errorDetails: undefined, gatewayGenerationReceipts: resultReceipts(node, result.receipt),
     } };

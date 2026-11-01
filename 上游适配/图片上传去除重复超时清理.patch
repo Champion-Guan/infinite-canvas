@@ -1,0 +1,65 @@
+diff --git a/web/src/services/image-storage.ts b/web/src/services/image-storage.ts
+index 4e195f0..fec11e8 100644
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -54,7 +54,6 @@ const IMAGE_REMOTE_LOAD_TIMEOUT_MS = 10 * 60_000;
+ const IMAGE_DECODE_TIMEOUT_MS = 10_000;
+ const IMAGE_RESPONSE_ERROR = "ImageResponseError";
+ const IMAGE_TIMEOUT_ERROR = "ImageTimeoutError";
+-const IMAGE_STORAGE_TIMEOUT_MS = 15_000;
+ 
+ type StoredImagePreview = { version: number; blob?: Blob };
+ 
+@@ -96,7 +95,6 @@ async function storeImage(blob: Blob, options?: ImageReadOptions): Promise<Uploa
+     const storageKey = `image:${nanoid()}`;
+     const originalStorageKey = original === blob ? storageKey : `${storageKey}:original`;
+     let url = URL.createObjectURL(blob);
+-    let submitted = false;
+     try {
+         throwIfAborted(options?.signal);
+         const originalMeta = await preflightImageUpload(blob, () => loadImageMeta(url, options));
+@@ -108,13 +106,10 @@ async function storeImage(blob: Blob, options?: ImageReadOptions): Promise<Uploa
+             url = URL.createObjectURL(blob);
+         }
+         throwIfAborted(options?.signal);
+-        submitted = true;
+         // 一次保存原始字节与最终交付图；不二次调用上传，不产生中间图副本。
+-        // SQLite 会话异常时不能让选择文件的按钮永久处于“处理中”；
+-        // 两个媒体记录并行提交并有明确上限，失败由上层显示可重试提示。
+         await Promise.all([
+-            withStorageTimeout(store.setItem(storageKey, blob), storageKey),
+-            ...(originalStorageKey === storageKey ? [] : [withStorageTimeout(store.setItem(originalStorageKey, original), originalStorageKey)]),
++            store.setItem(storageKey, blob),
++            ...(originalStorageKey === storageKey ? [] : [store.setItem(originalStorageKey, original)]),
+         ]);
+         throwIfAborted(options?.signal);
+         objectUrls.set(storageKey, url);
+@@ -142,10 +137,6 @@ async function storeImage(blob: Blob, options?: ImageReadOptions): Promise<Uploa
+         };
+     } catch (error) {
+         URL.revokeObjectURL(url);
+-        if (submitted) {
+-            void withStorageTimeout(store.removeItem(storageKey), storageKey).catch(() => undefined);
+-            if (originalStorageKey !== storageKey) void withStorageTimeout(store.removeItem(originalStorageKey), originalStorageKey).catch(() => undefined);
+-        }
+         throw error;
+     }
+ }
+@@ -204,17 +195,6 @@ function loadImageMeta(url: string, options?: ImageReadOptions, timeoutMs = IMAG
+     });
+ }
+ 
+-function withStorageTimeout<T>(operation: Promise<T>, key: string) {
+-    return new Promise<T>((resolve, reject) => {
+-        const timer = window.setTimeout(() => {
+-            const error = new Error(`本机媒体保存超时（${key}）。请检查本机存储连接后重试。`);
+-            error.name = "ImageStorageTimeoutError";
+-            reject(error);
+-        }, IMAGE_STORAGE_TIMEOUT_MS);
+-        operation.then(value => { window.clearTimeout(timer); resolve(value); }, error => { window.clearTimeout(timer); reject(error); });
+-    });
+-}
+-
+ function namedError(name: string) {
+     const error = new Error(i18n.t("common.imageReadFailed"));
+     error.name = name;

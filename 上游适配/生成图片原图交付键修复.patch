@@ -1,0 +1,40 @@
+diff --git a/web/src/services/image-storage.ts b/web/src/services/image-storage.ts
+index fec11e8..73d7b7a 100644
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -93,7 +93,8 @@ async function storeImage(blob: Blob, options?: ImageReadOptions): Promise<Uploa
+     const { original, delivery } = await prepareCompatibleImage(blob, options);
+     blob = delivery;
+     const storageKey = `image:${nanoid()}`;
+-    const originalStorageKey = original === blob ? storageKey : `${storageKey}:original`;
++    let originalStorageKey = storageKey;
++    let writeStarted = false;
+     let url = URL.createObjectURL(blob);
+     try {
+         throwIfAborted(options?.signal);
+@@ -105,8 +106,12 @@ async function storeImage(blob: Blob, options?: ImageReadOptions): Promise<Uploa
+             blob = prepared.blob;
+             url = URL.createObjectURL(blob);
+         }
++        // 原图和交付图只在内容对象仍相同的时候共用一个键；尺寸适配或 HEIC 转换
++        // 会产生新的交付对象，此时必须保留原始字节，避免交付图覆盖原图。
++        originalStorageKey = original === blob ? storageKey : `${storageKey}:original`;
+         throwIfAborted(options?.signal);
+         // 一次保存原始字节与最终交付图；不二次调用上传，不产生中间图副本。
++        writeStarted = true;
+         await Promise.all([
+             store.setItem(storageKey, blob),
+             ...(originalStorageKey === storageKey ? [] : [store.setItem(originalStorageKey, original)]),
+@@ -137,6 +142,12 @@ async function storeImage(blob: Blob, options?: ImageReadOptions): Promise<Uploa
+         };
+     } catch (error) {
+         URL.revokeObjectURL(url);
++        if (writeStarted) {
++            await Promise.all([
++                store.removeItem(storageKey).catch(() => undefined),
++                ...(originalStorageKey === storageKey ? [] : [store.removeItem(originalStorageKey).catch(() => undefined)]),
++            ]);
++        }
+         throw error;
+     }
+ }

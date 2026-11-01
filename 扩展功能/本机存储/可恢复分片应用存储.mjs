@@ -71,7 +71,7 @@ export function createRecoverableShardedApplicationStorage(options) {
     // 持久化调用方可能不await，但失败仍保留在队列及可见状态中。
     promise.catch(() => {});
     space.queue.push({ invoke, resolve, reject, result, settled: false });
-    if (space.error) rejectPending(space, new StorageError('pending_write_unresolved', '编辑已保留在本页内存；请先重试未确认保存，不要刷新或关闭。', 409));
+    if (space.error && !flight) rejectPending(space, new StorageError('pending_write_unresolved', '编辑已保留在本页内存；请先重试未确认保存，不要刷新或关闭。', 409));
     else void pump(space);
     notify(); return promise;
   }

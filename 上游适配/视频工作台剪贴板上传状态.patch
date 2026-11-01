@@ -1,0 +1,26 @@
+diff --git a/web/src/pages/video/index.tsx b/web/src/pages/video/index.tsx
+index 0ec2bff..4f641a9 100644
+--- a/web/src/pages/video/index.tsx
++++ b/web/src/pages/video/index.tsx
+@@ -158,6 +158,8 @@ export default function VideoPage() {
+     };
+ 
+     const addReferencesFromClipboard = async () => {
++        if (referencesUploading) return;
++        setReferencesUploading(true);
+         try {
+             const items = await navigator.clipboard.read();
+             const blobs = await Promise.all(items.flatMap((item) => item.types.filter((type) => type.startsWith("image/")).map((type) => item.getType(type))));
+@@ -173,8 +175,10 @@ export default function VideoPage() {
+             );
+             setReferences((value) => [...value, ...nextReferences].slice(0, 7));
+             message.success(t("videoWorkbench.clipboardAdded", { count: nextReferences.length }));
+-        } catch {
+-            message.error(t("videoWorkbench.clipboardEmpty"));
++        } catch (error) {
++            message.error(error instanceof Error ? error.message : t("videoWorkbench.clipboardEmpty"));
++        } finally {
++            setReferencesUploading(false);
+         }
+     };
+     const generate = async () => {

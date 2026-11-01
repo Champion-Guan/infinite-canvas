@@ -39,7 +39,8 @@ test('手动备份失败不遗留半份数据库和媒体副本', async t => {
   const root = temporary(t), store = openWorkspace({ dataRoot: root, initialize: true });
   try {
     const media = store.writeMedia(Buffer.from('media'), 'application/octet-stream');
-    writeFileSync(join(root, '媒体', media.id), 'corrupted');
+    const database = new DatabaseSync(join(root, '工作台.sqlite'));
+    try { database.prepare('UPDATE media SET content=? WHERE id=?').run(Buffer.from('corrupted'), media.id); } finally { database.close(); }
     await assert.rejects(store.createBackup(), e => e.code === 'media_corrupt');
     assert.deepEqual(readdirSync(join(root, '备份')), []);
   } finally { store.close(); }

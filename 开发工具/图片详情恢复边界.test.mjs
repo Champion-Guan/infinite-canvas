@@ -49,6 +49,34 @@ test('批次缺少根content仍可预览主图；显式槽位不借用其他图�
     assert.equal(explicit.file.storageKey, 'a'); assert.equal(explicit.dimensions, '900x1200'); assert.equal(explicit.bytes, 1);
     assert.equal(data.imageDetailData(batch, 'missing'), null);
 });
+test('批次单张图片的渠道优先于节点根元数据，详情不会显示渠道未知', () => {
+    const batch = { ...node, metadata: { ...node.metadata, channel: undefined, model: undefined, primaryImageId: 'a', images: [
+        { id: 'a', content: 'local:a', storageKey: 'a', naturalWidth: 900, naturalHeight: 1200, bytes: 1, mimeType: 'image/png', channel: '图片槽位渠道', channelId: 'slot-channel', model: 'slot-channel::gpt-image-slot' },
+    ] } };
+    const detail = data.imageDetailData(batch, 'a');
+    assert.equal(detail.channel, '图片槽位渠道');
+    assert.equal(detail.channelId, 'slot-channel');
+    assert.equal(detail.model, 'slot-channel::gpt-image-slot');
+});
+test('旧图片只保存渠道ID时可通过当前渠道配置显示名称', () => {
+    const detail = data.imageDetailData({ ...node, metadata: { ...node.metadata, channel: undefined, provider: undefined, channelId: 'saved-id', model: 'saved-id::gpt-image-model' } }, null, [{ id: 'saved-id', name: '已保存渠道' }]);
+    assert.equal(detail.channel, '已保存渠道');
+    assert.equal(detail.channelId, 'saved-id');
+});
+test('槽位模型为普通名称时回退读取根节点编码渠道，唯一模型也能恢复旧渠道', () => {
+    const channels = [{ id: 'saved-id', name: '已保存渠道', models: [{ name: 'gpt-image-model' }] }];
+    const encodedRoot = data.imageDetailData({ ...node, metadata: { ...node.metadata, channel: undefined, channelId: undefined,
+        model: 'saved-id::gpt-image-model', primaryImageId: 'slot', images: [
+            { id: 'slot', content: 'local:slot', storageKey: 'slot', model: 'gpt-image-model' },
+        ] } }, 'slot', channels);
+    assert.equal(encodedRoot.channel, '已保存渠道');
+    assert.equal(encodedRoot.channelId, 'saved-id');
+    const uniqueModel = data.imageDetailData({ ...node, metadata: { ...node.metadata, channel: '暂无', channelId: undefined,
+        model: 'gpt-image-model', primaryImageId: 'slot', images: [
+            { id: 'slot', content: 'local:slot', storageKey: 'slot', model: 'gpt-image-model' },
+        ] } }, 'slot', channels);
+    assert.equal(uniqueModel.channel, '已保存渠道');
+});
 test('原生图片与交付图分开记录，请求、原响应和最终尺寸均保持真实', () => {
     const detail = data.imageDetailData({ ...node, metadata: { ...node.metadata, naturalWidth: 900, naturalHeight: 1200,
         originalWidth: 1086, originalHeight: 1448, originalStorageKey: 'original', deliveryNote: '按目标尺寸适配' } });
@@ -75,7 +103,7 @@ test('真实详情组件展示全部信息及下载按钮；关闭入口回调�
     const { CanvasImageDetails } = await load('图片详情面板.tsx', {
         'react/jsx-runtime': { jsx, jsxs: jsx }, antd: { App: { useApp: () => ({ message: {} }) }, Modal: 'Modal', Spin: 'Spin', Tooltip: 'Tooltip' },
         '@/lib/image-utils': { formatBytes: () => '2.8 MB', getDataUrlByteSize: () => 1 },
-        '@/stores/use-config-store': { decodeChannelModel: value => ({ model: value }) },
+        '@/stores/use-config-store': { decodeChannelModel: value => ({ model: value }), useEffectiveConfig: () => ({ channels: [{ id: 'saved-id', name: '已保存渠道' }] }) },
         '../生成历史/历史下载操作': { useHistoryDownloads: () => ({ downloading: false, downloadFile: file => downloads.push(file) }) },
         '../生成历史/历史媒体预览': { useHistoryMediaPreview: file => { previewReads++; return { url: 'blob:' + file.storageKey }; } },
         './图片详情数据': data, './图片详情面板.module.css': { default: {} },
@@ -92,6 +120,14 @@ test('真实详情组件展示全部信息及下载按钮；关闭入口回调�
     const originalTree = originalShell.type(originalShell.props);
     elements(originalTree).find(item => item.type === 'button' && item.props.children === '下载原生图片').props.onClick();
     assert.equal(downloads[1].storageKey, 'original'); assert.equal(downloads[1].content, '');
+    const deliveryShell = CanvasImageDetails({ ...props, node: { ...node, metadata: { ...node.metadata,
+        size: '800x500', naturalWidth: 780, naturalHeight: 488, originalWidth: 1586, originalHeight: 992, originalStorageKey: 'original' } } });
+    const deliveryTree = deliveryShell.type(deliveryShell.props);
+    const sizeRow = elements(deliveryTree).find(item => item.type === 'div' && Array.isArray(item.props.children) && item.props.children.some(child => child?.type === 'dt' && child.props.children === '尺寸'));
+    const displayedSize = JSON.stringify(sizeRow);
+    assert.ok(displayedSize.indexOf('780x488') < displayedSize.indexOf('1586x992'));
+    assert.ok(displayedSize.includes('780x488')); assert.ok(displayedSize.includes('1586x992'));
+    assert.ok(!displayedSize.includes('800x500'), '尺寸主值不能回退到请求参数');
 });
 test('接线替换简化弹窗、关闭清除槽位，历史行内下载未恢复，Hook依赖合法', () => {
     const patch = readFileSync(resolve(root, '上游适配/图片详情面板接入.patch'), 'utf8');

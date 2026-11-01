@@ -1,0 +1,49 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 07f0698..bb912fa 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -99,6 +99,7 @@ import { exportCanvasProjects } from "@/lib/canvas/canvas-export";
+ import { GENERATED_CONNECTION_DELETE_NOTICE, isGeneratedResultConnection, useCanvasConnectionDeletion } from "@/扩展功能/画布生成/生成连线保护";
+ import { applyNodeConfigPatch, audioMetadata, buildAudioGenerationMetadata, buildImageGenerationMetadata, createCanvasNode, imageMetadata, videoMetadata } from "@/lib/canvas/canvas-node-factory";
+ import { resolveGenerationChannelMetadata } from "@/扩展功能/画布生成/配置节点状态显示";
++import { isBatchCanvasSaveActive } from "@/扩展功能/画布生成/批量保存协调";
+ import { applyGroupSelection, applyUngroupSelection, canGroupSelectedNodes, canUngroupSelectedNodes, collectGroupMemberNodes, findContainingGroupId, findGroupDropTarget, focusViewportForNode, getConnectionTargetAnchor, getGroupWrapRect, normalizeConnection, nodeBounds, snapNodesIntoGroup } from "@/lib/canvas/canvas-node-geometry";
+ import {
+     buildAngleLabel,
+@@ -2401,7 +2402,10 @@ function InfiniteCanvasPage() {
+                         metadata: {
+                             prompt: effectivePrompt,
+                             status: NODE_STATUS_LOADING,
+-                            images: imageIds.map((id) => ({ id, status: NODE_STATUS_LOADING, content: "", naturalWidth: 0, naturalHeight: 0, bytes: 0, mimeType: "" })),
++                            images: imageIds.map((id) => ({
++                                id, status: NODE_STATUS_LOADING, content: "", naturalWidth: 0, naturalHeight: 0, bytes: 0, mimeType: "",
++                                ...generationChannel, model: generationConfig.model,
++                            })),
+                             primaryImageId: undefined,
+                             ...generationMetadata,
+                             generationNameBase,
+@@ -2464,6 +2468,7 @@ function InfiniteCanvasPage() {
+                                 await requestCanvasImage({
+                                     config: generationConfig, prompt: effectivePrompt, references: referenceImages,
+                                     scope: { productId: projectId, nodeId: rootId, slotId: imageId }, signal: controller.signal,
++                                    deferConfirm: () => isBatchCanvasSaveActive(projectId),
+                                     recordTask: task => recordImageGatewayTask(rootId, task),
+                                     applyAndSave: (image, receipt) => saveCanvasImageResult({
+                                         mode: "batch", nodeId: rootId, slotId: imageId, image, receipt, signal: controller.signal,
+@@ -2794,7 +2799,7 @@ function InfiniteCanvasPage() {
+                 // Another action may have removed or started this node while references were loading.
+                 if (!nodesRef.current.some(item => item.id === node.id) || generationRequestsRef.current.has(node.id)) return;
+ 
+-                setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, ...generationChannel, generationStartedAt: Date.now(), status: NODE_STATUS_LOADING, errorDetails: undefined, images: item.metadata?.images?.map((image) => (image.id === imageId ? { ...image, status: NODE_STATUS_LOADING, errorDetails: undefined } : image)) } } : item)));
++                setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, ...generationChannel, generationStartedAt: Date.now(), status: NODE_STATUS_LOADING, errorDetails: undefined, images: item.metadata?.images?.map((image) => (image.id === imageId ? { ...image, ...generationChannel, model: generationConfig.model, status: NODE_STATUS_LOADING, errorDetails: undefined } : image)) } } : item)));
+                 const controller = startGenerationRequest(node.id, sourceNode.id, node.id);
+ 
+                 try {
+@@ -2838,6 +2843,7 @@ function InfiniteCanvasPage() {
+                         scope: { productId: projectId, nodeId: node.id, slotId: gatewaySlotId },
+                         previous: node.metadata?.gatewayGenerationTasks?.find(item => item.slotId === gatewaySlotId),
+                         retry: true, signal: controller.signal,
++                        deferConfirm: () => isBatchCanvasSaveActive(projectId),
+                         recordTask: task => recordImageGatewayTask(node.id, task),
+                         applyAndSave: (image, receipt) => saveCanvasImageResult({
+                             mode: "retry", nodeId: node.id, slotId: gatewaySlotId, image, receipt, signal: controller.signal,

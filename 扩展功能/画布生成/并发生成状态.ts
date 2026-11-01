@@ -18,23 +18,23 @@ export function createCanvasGenerationRegistry() {
         snapshot = next;
         listeners.forEach(listener => listener());
     };
-    const startGenerationRequest = (targetNodeId: string, originNodeId: string, runningId = originNodeId, controller = new AbortController()) => {
-        const previous = requests.get(targetNodeId);
+    const startGenerationRequest = (targetNodeId: string, originNodeId: string, runningId = originNodeId, controller = new AbortController(), requestKey = targetNodeId) => {
+        const previous = requests.get(requestKey);
         if (previous?.controller !== controller) previous?.controller.abort();
-        requests.set(targetNodeId, { targetNodeId, originNodeId, runningNodeId: runningId, controller });
+        requests.set(requestKey, { targetNodeId, originNodeId, runningNodeId: runningId, controller });
         publish();
         return controller;
     };
-    const finishGenerationRequest = (targetNodeId: string, controller: AbortController) => {
-        if (requests.get(targetNodeId)?.controller === controller) requests.delete(targetNodeId);
+    const finishGenerationRequest = (targetNodeId: string, controller: AbortController, requestKey = targetNodeId) => {
+        if (requests.get(requestKey)?.controller === controller) requests.delete(requestKey);
         publish();
     };
     const stopGenerationRequests = (runningId: string) => {
         const affected = new Set<string>();
-        requests.forEach(request => {
+        requests.forEach((request, key) => {
             if (request.runningNodeId !== runningId) return;
             request.controller.abort();
-            if (requests.get(request.targetNodeId) === request) requests.delete(request.targetNodeId);
+            if (requests.get(key) === request) requests.delete(key);
             affected.add(request.targetNodeId);
             affected.add(request.originNodeId);
         });

@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/canvas-node-hover-toolbar.tsx b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+index b572fb2..97929aa 100644
+--- a/web/src/components/canvas/canvas-node-hover-toolbar.tsx
++++ b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+@@ -306,7 +306,7 @@ export function CanvasNodeInfoModal({ node, open, onClose }: { node: CanvasNodeD
+                                 <div className="space-y-2 rounded-lg border p-3" style={{ borderColor: theme.node.stroke }}>
+                                     <div className="text-xs font-semibold opacity-60">生成参数</div>
+                                     <InfoRow label="生成来源" value="AI 生图" />
+-                                    <InfoRow label="使用渠道" value={node.metadata.channel || "暂无记录"} />
++                                    <InfoRow label="使用渠道" value={node.metadata.channel || node.metadata.provider || node.metadata.channelName || node.metadata.channelId || (node.metadata.model?.includes("::") ? node.metadata.model.slice(0, node.metadata.model.indexOf("::")) : "渠道未知")} />
+                                     <InfoRow label="使用模型" value={decodeChannelModel(node.metadata.model || "")?.model || node.metadata.model || "暂无记录"} />
+                                     <InfoRow label="生图类型" value={node.metadata.generationType || node.metadata.generationImageType} />
+                                     <InfoRow label="图片尺寸" value={node.metadata.naturalWidth && node.metadata.naturalHeight ? `${node.metadata.naturalWidth} × ${node.metadata.naturalHeight}` : "暂无记录"} />

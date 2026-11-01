@@ -1,0 +1,18 @@
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -12,6 +12,7 @@
+ import i18n from "@/i18n";
+ import { preflightImageUpload } from "@/扩展功能/媒体交付/图片上传预检.mjs";
+ import { prepareCompatibleImage } from "@/扩展功能/媒体交付/HEIC上传兼容.mjs";
++import { assertUploadStorageReady } from "@/扩展功能/媒体交付/上传前存储检查.mjs";
+ import { withLocalProxy } from "@/stores/use-config-store";
+ import { createImageThumbnail } from "@/lib/image-thumbnail";
+ 
+@@ -66,6 +67,7 @@
+ 
+ export async function uploadImage(input: string | Blob, options?: ImageReadOptions): Promise<UploadedImage> {
+     if (typeof input !== "string") {
++        assertUploadStorageReady();
+         const owner = options?.registerAsset === false ? null : captureUserUpload(input, options?.assetProjectId);
+         const image = await storeImage(input, options);
+         if (owner) await (await import("@/扩展功能/素材/上传资产登记")).registerUploadedAsset(owner, "image", image);

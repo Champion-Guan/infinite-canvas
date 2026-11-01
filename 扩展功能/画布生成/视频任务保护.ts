@@ -67,7 +67,7 @@ export function useCanvasVideoProtection({ projectId, nodesRef, restoredProjectI
             setNodes(previous => previous.map(node => node.id !== record.nodeId ? node : { ...node, metadata: { ...node.metadata,
                 videoTaskId: task.id, videoTaskProvider: record.provider, model: task.model,
             } }));
-            await saveProductCanvas(projectId);
+            await saveProductCanvas(projectId, { checkpoint: true });
         });
         return { task, record };
     }, [projectId, setNodes, assertTarget]);

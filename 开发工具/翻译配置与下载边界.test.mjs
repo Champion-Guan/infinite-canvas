@@ -156,20 +156,28 @@ test('参数卡移除AI入口和请求依赖后，填写仍同步原卡和关联
     const ctx = { node: parameter, getNode: id => nodes.find(n => n.id === id), getNodes: () => nodes, getConnections: () => [], applyOps: ops => applied.push(ops), updateMetadata: () => assert.fail('应同笔更新关联节点') };
     const jsx = (type, props) => ({ type, props });
     const titles = await load('Excel画布/旧版最终提示词标题.ts');
-    const linked = await load('Excel画布/产品参数联动.ts', { '../提示词/变量使用规则': variableRules, './旧版最终提示词标题': titles });
+    const linked = await load('Excel画布/产品参数联动.ts', {
+        '../提示词/变量使用规则': variableRules,
+        './旧版最终提示词标题': titles,
+        './旧版参数规则': rules,
+    });
     const editing = await load('Excel画布/产品参数编辑操作.ts', {
         react: { useCallback: callback => callback }, './产品参数联动': linked,
         './Excel参数记忆': { saveProductParameterValues: (...args) => remembered.push(args) },
     });
     const { PromptVariablesContent } = await load('Excel画布/旧版参数卡片.tsx', {
-        react: { useMemo: compute => compute(), useEffect: () => {}, useRef: current => ({ current }) }, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': { Braces: 'icon' },
+        react: { useMemo: compute => compute(), useEffect: () => {}, useRef: current => ({ current }), useState: value => [value, () => {}] }, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': { Braces: 'icon', Sparkles: 'sparkles' },
         '@/lib/canvas-theme': { canvasThemes: { light: { node: {}, toolbar: {} } } }, '@/stores/use-theme-store': { useThemeStore: selector => selector({ theme: 'light' }) },
         './产品参数编辑操作': editing, './旧版参数规则': rules, './Excel画布上下文': { useExcelProductId: () => 'a', useExcelPromptContext: () => ({ templates: [], fileName: '测试.xlsx' }) },
+        '@/types/canvas': {}, '@/services/image-storage': { uploadImage: async () => { throw Error('测试不应上传主图'); }, resolveImageUrl: async (_key, fallback) => fallback },
         './Excel参数记忆': { readProductParameterValues: () => ({}), saveProductParameterValues: (...args) => remembered.push(args) },
     });
     const result = PromptVariablesContent({ ctx }), elements = [];
     function visit(value) { if (!value || typeof value !== 'object') return; if (Array.isArray(value)) return value.forEach(visit); elements.push(value); visit(value.props?.children); }
-    visit(result); assert.equal(elements.some(el => el.type === 'button'), false);
+    visit(result);
+    const aiButton = elements.find(el => el.type === 'button' && el.props?.title === '功能暂未开放');
+    assert.equal(Boolean(aiButton), true);
+    assert.equal(aiButton.props.disabled, true);
     const input = elements.find(el => el.type === 'input' && el.props.placeholder === '[NAME]'); input.props.onChange({ target: { value: '真实产品' } });
     assert.deepEqual(remembered, [['a', { '[NAME]': '真实产品' }]]); assert.equal(applied.length, 1);
     assert.match(applied[0].find(op => op.id === 'preview').metadata.content, /^真实产品 （本画面不使用产品尺寸参数）/);

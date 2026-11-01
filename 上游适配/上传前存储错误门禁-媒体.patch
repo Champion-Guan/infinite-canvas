@@ -1,0 +1,18 @@
+--- a/web/src/services/file-storage.ts
++++ b/web/src/services/file-storage.ts
+@@ -3,6 +3,7 @@
+ import { 本地转发请求 as fetch } from "@/扩展功能/网络代理/本地转发请求";
+ import { sqliteForage as localforage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { nanoid } from "nanoid";
++import { assertUploadStorageReady } from "@/扩展功能/媒体交付/上传前存储检查.mjs";
+ 
+ import { withLocalProxy } from "@/stores/use-config-store";
+ 
+@@ -12,6 +13,7 @@
+ const objectUrls = createMediaUrlCache();
+ 
+ export async function uploadMediaFile(input: string | Blob, prefix = "file", options?: { assetProjectId?: string }): Promise<UploadedFile> {
++    assertUploadStorageReady();
+     const owner = captureUserUpload(input, options?.assetProjectId);
+     let blob: Blob;
+     if (typeof input === "string") {

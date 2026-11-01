@@ -1,0 +1,52 @@
+diff --git a/web/src/pages/video/index.tsx b/web/src/pages/video/index.tsx
+index 73bb477..0ec2bff 100644
+--- a/web/src/pages/video/index.tsx
++++ b/web/src/pages/video/index.tsx
+@@ -82,6 +82,7 @@ export default function VideoPage() {
+     const addAsset = useAssetStore((state) => state.addAsset);
+     const [prompt, setPrompt] = useState("");
+     const [references, setReferences] = useState<ReferenceImage[]>([]);
++    const [referencesUploading, setReferencesUploading] = useState(false);
+     const [results, setResults] = useState<GenerationResult[]>([]);
+     const [logs, setLogs] = useState<GenerationLog[]>([]);
+     const [running, setRunning] = useState(false);
+@@ -120,13 +121,19 @@ export default function VideoPage() {
+         const unsupported = selectedFiles.filter((file) => !file.type.startsWith("image/"));
+         if (unsupported.length) message.warning(t("videoWorkbench.unsupportedFiles"));
+         const imageFiles = selectedFiles.filter((file) => file.type.startsWith("image/")).slice(0, 7 - references.length);
+-        const nextReferences = await Promise.all(
+-            imageFiles.map(async (file) => {
+-                const image = await uploadImage(file);
+-                return { id: nanoid(), name: file.name, type: image.mimeType, dataUrl: image.url, storageKey: image.storageKey };
+-            }),
+-        );
+-        setReferences((value) => [...value, ...nextReferences].slice(0, 7));
++        if (!imageFiles.length) return;
++        setReferencesUploading(true);
++        try {
++            const nextReferences = await Promise.all(
++                imageFiles.map(async (file) => {
++                    const image = await uploadImage(file);
++                    return { id: nanoid(), name: file.name, type: image.mimeType, dataUrl: image.url, storageKey: image.storageKey };
++                }),
++            );
++            setReferences((value) => [...value, ...nextReferences].slice(0, 7));
++        } finally {
++            setReferencesUploading(false);
++        }
+     };
+ 
+     const handleReferenceDragEnter = (event: DragEvent<HTMLDivElement>) => {
+@@ -412,10 +419,10 @@ export default function VideoPage() {
+                                 <div className="mb-2 flex items-center justify-between gap-3">
+                                     <span className="text-base font-semibold">{t("videoWorkbench.references")}</span>
+                                     <div className="flex gap-2">
+-                                        <Button size="small" icon={<ClipboardPaste className="size-3.5" />} onClick={() => void addReferencesFromClipboard()}>
++                                        <Button size="small" loading={referencesUploading} disabled={referencesUploading} icon={<ClipboardPaste className="size-3.5" />} onClick={() => void addReferencesFromClipboard()}>
+                                             {t("workbench.clipboard")}
+                                         </Button>
+-                                        <Button size="small" icon={<Upload className="size-3.5" />} onClick={() => fileInputRef.current?.click()}>
++                                        <Button size="small" loading={referencesUploading} disabled={referencesUploading} icon={<Upload className="size-3.5" />} onClick={() => fileInputRef.current?.click()}>
+                                             {t("workbench.upload")}
+                                         </Button>
+                                     </div>

@@ -2,14 +2,14 @@ import { StorageError, requireValue, PROTOCOL, validUUID } from '../本机存储
 
 const same = (a, b) => ['protocol', 'workspaceId', 'origin', 'token', 'csrf', 'expiresAt'].every(key => a?.[key] === b?.[key]);
 
-// 受控会话的独立后继。重新连接仅由已授权页面的明确操作调用，绝不延长页面租期。
-export function createSessionController({ service, origin, now = Date.now, lifetime = 8 * 60 * 60_000, renewalWindow = 30_000, overlap = 20_000, maxLeases = 16, schedule = setTimeout, cancel = clearTimeout } = {}) {
+// 页面租约默认随页面/服务生命周期结束；短期数据令牌继续轮换，休眠后复用原页面恢复。
+export function createSessionController({ service, origin, now = Date.now, lifetime = Infinity, renewalWindow = 30_000, overlap = 20_000, maxLeases = Infinity, schedule = setTimeout, cancel = clearTimeout } = {}) {
   let address;
   try { address = new URL(origin); } catch { /* 下面统一拒绝。 */ }
   requireValue(service && typeof service.issueSession === 'function' && typeof service.revokeSession === 'function' &&
     address?.origin === origin && address.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(address.hostname) && !!address.port &&
-    Number.isSafeInteger(lifetime) && lifetime > 0 && lifetime <= 8 * 60 * 60_000 && Number.isSafeInteger(renewalWindow) && renewalWindow > 0 &&
-    Number.isSafeInteger(overlap) && overlap >= 0 && overlap <= 30_000 && Number.isSafeInteger(maxLeases) && maxLeases > 0 && maxLeases <= 16 &&
+    (lifetime === Infinity || Number.isSafeInteger(lifetime) && lifetime > 0 && lifetime <= 8 * 60 * 60_000) && Number.isSafeInteger(renewalWindow) && renewalWindow > 0 &&
+    Number.isSafeInteger(overlap) && overlap >= 0 && overlap <= 30_000 && (maxLeases === Infinity || Number.isSafeInteger(maxLeases) && maxLeases > 0 && maxLeases <= 16) &&
     typeof now === 'function' && typeof schedule === 'function' && typeof cancel === 'function', 'invalid_session_controller', '受控会话配置无效。');
   const leases = new Set();
   let closed = false;
@@ -45,7 +45,8 @@ export function createSessionController({ service, origin, now = Date.now, lifet
       for (const lease of leases) if (clock() >= lease.deadline) finish(lease, 'lease_expired');
       requireValue(leases.size < maxLeases, 'too_many_leases', '已授权页面数量达到上限。', 429);
       const lease = { deadline: clock() + lifetime, current: null, retired: null, reconnectedFrom: null, renewedFrom: null, closed: null, timer: null };
-      leases.add(lease); lease.timer = timer(() => finish(lease, 'lease_expired'), lifetime);
+      leases.add(lease);
+      if (lifetime !== Infinity) lease.timer = timer(() => finish(lease, 'lease_expired'), lifetime);
       return Object.freeze({
         initialize() {
           requireLive(lease);
@@ -76,13 +77,19 @@ export function createSessionController({ service, origin, now = Date.now, lifet
           }, delay) };
           return { ...next };
         },
-        reconnect(previous) {
+        reconnect(previous, options = {}) {
           requireLive(lease);
           requireValue(lease.current && (same(previous, lease.current) || lease.reconnectedFrom && same(previous, lease.reconnectedFrom) || lease.renewedFrom && same(previous, lease.renewedFrom)),
             'session_mismatch', '重新连接必须匹配本页面原会话。', 401);
           // 丢失响应后，明确重试原请求返回同一会话；不再签发、不更换工作区。
           if (lease.reconnectedFrom && same(previous, lease.reconnectedFrom) && lease.current.expiresAt > clock()) return { ...lease.current };
-          requireValue(lease.current.expiresAt <= clock(), 'reconnect_not_due', '当前数据会话未过期，不需要重新连接。', 409);
+          // 服务端撤销数据令牌时，页面租约可能仍在有效期内。仅允许页面
+          // 在明确收到 session_denied 后带原因恢复；普通主动重连仍需等令牌到期。
+          // 续期响应在传输途中丢失时，服务端可能已经签发了新会话；
+          // 页面仍持有旧令牌且尚未到期，必须允许在原授权租约内取回
+          // 当前会话，否则保存重试会被误报为“拒绝授权/连接失败”。
+          const sessionDenied = ['session_denied', 'authorization_connection_failed'].includes(options?.reason);
+          requireValue(sessionDenied || lease.current.expiresAt <= clock(), 'reconnect_not_due', '当前数据会话未过期，不需要重新连接。', 409);
           const next = issue(lease), old = lease.current;
           if (lease.retired) { cancel(lease.retired.timer); service.revokeSession(lease.retired.token); }
           lease.current = next; lease.retired = null; lease.reconnectedFrom = { ...previous }; lease.renewedFrom = null;

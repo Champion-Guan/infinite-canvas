@@ -1,0 +1,48 @@
+diff --git a/web/src/services/image-storage.ts b/web/src/services/image-storage.ts
+index d1864a3..8933c7e 100644
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -46,6 +46,7 @@ const previewUrls = createMediaUrlCache();
+ const previewListeners = new Set<() => void>();
+ let previewRevision = 0;
+ let previewQueue: Promise<unknown> = Promise.resolve();
++const previewJobs = new Map<string, Promise<string | undefined>>();
+ const IMAGE_PREVIEW_VERSION = 2;
+ const IMAGE_DOWNLOAD_TIMEOUT_MS = 10 * 60_000;
+ const IMAGE_REMOTE_LOAD_TIMEOUT_MS = 10 * 60_000;
+@@ -264,14 +265,32 @@ export async function ensureImagePreview(storageKey?: string) {
+     return undefined;
+ }
+ 
++export async function resolveCanvasImageSource(storageKey?: string) {
++    if (!storageKey) return undefined;
++    const cached = previewUrls.get(storageKey);
++    if (cached) return cached;
++    const stored = await previewStore.getItem<StoredImagePreview>(storageKey).catch(() => null);
++    if (stored?.version === IMAGE_PREVIEW_VERSION) return stored.blob ? cacheImagePreview(storageKey, stored.blob) : resolveImageUrl(storageKey);
++    const preview = await queueImagePreview(storageKey);
++    return preview || resolveImageUrl(storageKey);
++}
++
+ // 缩略图生成排成一队，避免一次打开大量图片时同时解码。
+ function queueImagePreview(storageKey: string) {
+-    previewQueue = previewQueue
+-        .then(async () => {
++    const existing = previewJobs.get(storageKey);
++    if (existing) return existing;
++    const job = previewQueue
++        .then(async (): Promise<string | undefined> => {
+             const original = await getImageBlob(storageKey);
+-            if (original) await storeImagePreview(storageKey, original);
++            return original ? storeImagePreview(storageKey, original) : undefined;
+         })
+         .catch(() => undefined);
++    previewJobs.set(storageKey, job);
++    previewQueue = job;
++    void job.then(() => {
++        if (previewJobs.get(storageKey) === job) previewJobs.delete(storageKey);
++    });
++    return job;
+ }
+ 
+ async function storeImagePreview(storageKey: string, original: Blob) {

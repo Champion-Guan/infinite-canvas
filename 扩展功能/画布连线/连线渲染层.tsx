@@ -55,8 +55,8 @@ export const SharedConnectionLayer = memo(function SharedConnectionLayer({ geome
     const closePicker = useCallback(() => { setRequest(null); setPreviewId(null); setHoverIds(null); onPreviewNodes?.(new Set()); }, [onPreviewNodes]);
     useEffect(() => { if (request && (dragging || !choices.length)) closePicker(); }, [request, dragging, choices.length, closePicker]);
     const focusSegments = useMemo(() => mergeSharedConnectionSegments(focused, geometry), [focused, geometry]);
-    const junctionContour = useMemo(() => softJunctionContours(geometry.map(item => item.route.points), geometry.map(item => item.route.points), 1, connectionDesign.lineWidth), [geometry, scale]);
-    const focusContour = useMemo(() => softJunctionContours(focused.map(item => item.route.points), geometry.map(item => item.route.points), 1, connectionDesign.focusWidth), [focused, geometry, scale]);
+    const junctionContour = useMemo(() => softJunctionContours(geometry.map(item => item.route.points), geometry.map(item => item.route.points), 1, connectionDesign.lineWidth), [geometry]);
+    const focusContour = useMemo(() => softJunctionContours(focused.map(item => item.route.points), geometry.map(item => item.route.points), 1, connectionDesign.focusWidth), [focused, geometry]);
     const junctionDots = useMemo(() => connectionJunctionDots(geometry.map(item => item.route.points)), [geometry]);
     const focusDots = useMemo(() => connectionJunctionDots(focused.map(item => item.route.points), geometry.map(item => item.route.points)), [focused, geometry]);
     const flowNetwork = useMemo(() => sharedNetworkFlow((flowGeometry ?? geometry).filter(item => displayIds.has(item.connection.id)), flowGeometry ?? geometry), [flowGeometry, geometry, displayIds]);

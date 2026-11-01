@@ -17,7 +17,10 @@ export function promptHighlightSegments(content, raw, values = {}) {
         const resolved = split(raw, true);
         // Only use source provenance when it exactly matches the final card.
         // Manual edits must never be overwritten or guessed by value matching.
-        if (resolved.map(part => part.text).join("") === content) return resolved;
+        const reconstructed = resolved.map(part => part.text).join("");
+        const suffix = content.startsWith(reconstructed) ? content.slice(reconstructed.length) : null;
+        const generatedSuffix = suffix === "" || suffix?.startsWith("\n\n【变量与画面约束】\n") || suffix?.startsWith("\n\n【产品补充】\n");
+        if (generatedSuffix) return suffix ? [...resolved, { text: suffix }] : resolved;
     }
     return split(content, false);
 }

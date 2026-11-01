@@ -70,9 +70,9 @@ export class ProductOperationGate {
 export class ProductSaveRegistry {
   private participants = new Map<
     string,
-    { token: symbol; save: (options?: { deferSQLiteFlush?: boolean }) => Promise<void>; acknowledge: () => void }
+    { token: symbol; save: (options?: { deferSQLiteFlush?: boolean; forceBatch?: boolean }) => Promise<void>; acknowledge: () => void }
   >();
-  register(id: string, save: (options?: { deferSQLiteFlush?: boolean }) => Promise<void>, acknowledge: () => void = () => {}) {
+  register(id: string, save: (options?: { deferSQLiteFlush?: boolean; forceBatch?: boolean }) => Promise<void>, acknowledge: () => void = () => {}) {
     if (!id || this.participants.has(id))
       throw new Error("产品画布实例重复，已停止切换。");
     const token = Symbol(id);
@@ -82,7 +82,7 @@ export class ProductSaveRegistry {
         this.participants.delete(id);
     };
   }
-  async flush(id: string, options?: { deferSQLiteFlush?: boolean }) {
+  async flush(id: string, options?: { deferSQLiteFlush?: boolean; forceBatch?: boolean }) {
     const entry = this.participants.get(id);
     if (!entry) throw new Error("产品画布尚未加载完成，请稍后重试。");
     await entry.save(options);

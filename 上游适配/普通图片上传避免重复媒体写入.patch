@@ -1,0 +1,29 @@
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -94,7 +94,7 @@
+     const { original, delivery } = await prepareCompatibleImage(blob, options);
+     blob = delivery;
+     const storageKey = `image:${nanoid()}`;
+-    const originalStorageKey = `${storageKey}:original`;
++    const originalStorageKey = original === blob ? storageKey : `${storageKey}:original`;
+     let url = URL.createObjectURL(blob);
+     let submitted = false;
+     try {
+@@ -114,7 +114,7 @@
+         // 两个媒体记录并行提交并有明确上限，失败由上层显示可重试提示。
+         await Promise.all([
+             withStorageTimeout(store.setItem(storageKey, blob), storageKey),
+-            withStorageTimeout(store.setItem(originalStorageKey, original), originalStorageKey),
++            ...(originalStorageKey === storageKey ? [] : [withStorageTimeout(store.setItem(originalStorageKey, original), originalStorageKey)]),
+         ]);
+         throwIfAborted(options?.signal);
+         objectUrls.set(storageKey, url);
+@@ -144,7 +144,7 @@
+         URL.revokeObjectURL(url);
+         if (submitted) {
+             void withStorageTimeout(store.removeItem(storageKey), storageKey).catch(() => undefined);
+-            void withStorageTimeout(store.removeItem(originalStorageKey), originalStorageKey).catch(() => undefined);
++            if (originalStorageKey !== storageKey) void withStorageTimeout(store.removeItem(originalStorageKey), originalStorageKey).catch(() => undefined);
+         }
+         throw error;
+     }

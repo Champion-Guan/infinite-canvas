@@ -1,0 +1,31 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 6fa0941..75c27aa 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -3154,8 +3154,24 @@ function InfiniteCanvasPage() {
+                             mentionReferences={mentionReferencesByNodeId.get(node.id) || EMPTY_REFERENCES}
+                             pluginHost={pluginHost}
+                             registryVersion={nodeRegistryVersion}
+-                            promptHighlightSource={node.metadata?.promptVariableSourceNodeId ? nodeById.get(node.metadata.promptVariableSourceNodeId) : undefined}
+-                            promptHighlightParameters={node.metadata?.promptVariablePreviewOf ? nodeById.get(node.metadata.promptVariablePreviewOf) : undefined}
++                            promptHighlightSource={node.metadata?.promptVariableSourceNodeId
++                                ? nodeById.get(node.metadata.promptVariableSourceNodeId)
++                                : node.metadata?.promptVariableTranslationOf
++                                  ? (() => {
++                                      const translatedFrom = nodeById.get(node.metadata.promptVariableTranslationOf);
++                                      const sourceId = translatedFrom?.metadata?.promptVariableSourceNodeId;
++                                      return nodeById.get(sourceId || node.metadata.promptVariableTranslationOf);
++                                  })()
++                                  : undefined}
++                            promptHighlightParameters={node.metadata?.promptVariablePreviewOf
++                                ? nodeById.get(node.metadata.promptVariablePreviewOf)
++                                : node.metadata?.promptVariableTranslationOf
++                                  ? (() => {
++                                      const translatedFrom = nodeById.get(node.metadata.promptVariableTranslationOf);
++                                      const parameterId = translatedFrom?.metadata?.promptVariablePreviewOf;
++                                      return parameterId ? nodeById.get(parameterId) : undefined;
++                                  })()
++                                  : undefined}
+                             renderPanel={renderNodePanel}
+                             renderNodeContent={renderNodeContentPanel}
+                             onMouseDown={handleNodeMouseDown}

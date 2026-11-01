@@ -16,10 +16,10 @@ const variables = await load('扩展功能/提示词/变量使用规则.ts');
 const { resolvePromptVariables: resolvePrompt } = variables;
 const themes = await load('扩展功能/Excel画布/旧版主题翻译.js');
 const rules = await load('扩展功能/Excel画布/旧版参数规则.ts', { './旧版主题翻译.js': themes, '../提示词/变量使用规则': variables });
-const protectedText = await load('扩展功能/提示词/生成文本读取.ts', { './变量使用规则': variables });
+const protectedText = await load('扩展功能/提示词/生成文本读取.ts', { './变量使用规则': variables, '../Excel画布/旧版参数规则': rules });
 const contexts = await load('扩展功能/Excel画布/Excel卡片上下文.ts', { './旧版参数规则': rules });
 const titles = await load('扩展功能/Excel画布/旧版最终提示词标题.ts');
-const parameterLinks = await load('扩展功能/Excel画布/产品参数联动.ts', { '../提示词/变量使用规则': variables, './旧版最终提示词标题': titles });
+const parameterLinks = await load('扩展功能/Excel画布/产品参数联动.ts', { '../提示词/变量使用规则': variables, './旧版最终提示词标题': titles, './旧版参数规则': rules });
 const transactions = await load('扩展功能/Excel画布/Excel卡片事务.ts', { './旧版参数规则': rules, './产品参数联动': parameterLinks, './旧版最终提示词标题': titles, './Excel卡片上下文': contexts });
 const sync = await load('扩展功能/Excel画布/旧版提示词同步.ts', { './旧版参数规则': rules });
 const beforeRules = text => text.split('\n\n【变量与画面约束】')[0];
@@ -120,7 +120,8 @@ const referenceModule = await load('.运行/3100源/画布副本/web/src/lib/can
 });
 const generation = await load('.运行/3100源/画布副本/web/src/components/canvas/canvas-node-generation.ts', {
     '@/i18n': i18n, '@/types/canvas': types, '@/lib/image-reference-prompt': { imageReferenceLabel: n => '图' + n }, '@/lib/canvas/canvas-resource-references': referenceModule,
-    '@/lib/canvas/node-registry': registry, '@/扩展功能/提示词/生成文本读取': protectedText, '@/扩展功能/提示词/变量使用规则': variables,
+    '@/lib/canvas/node-registry': registry, '@/services/file-storage': { resolveMediaUrl: (_key, fallback) => fallback },
+    '@/扩展功能/提示词/生成文本读取': protectedText, '@/扩展功能/提示词/变量使用规则': variables,
 });
 const protocol = await load('扩展功能/画布生成/原版图片协议.ts', {
     '@/i18n/index': i18n, nanoid: { nanoid: () => 'id' }, '@/stores/use-config-store': { resolveModelRequestConfig: config => config, resolveModelScript: () => null },

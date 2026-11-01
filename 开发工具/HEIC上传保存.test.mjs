@@ -7,7 +7,7 @@ import { createValueCodec } from '../扩展功能/本机存储/应用值编码.m
 for (const mime of ['image/heic', 'image/heif']) test(`${mime}原文件编码与解码保留类型和完整字节`, async () => {
   const media = new Map();
   const client = {
-    async writeMedia(blob) { const id = createHash('sha256').update(Buffer.from(await blob.arrayBuffer())).digest('hex'); media.set(id, blob); return { id }; },
+    async writeMedia(blob) { const id = createHash('sha256').update(Buffer.from(await blob.arrayBuffer())).digest('hex'); media.set(id, blob); return { id, size: blob.size }; },
     async readMedia(id) { return media.get(id); },
   };
   const codec = createValueCodec({ client });

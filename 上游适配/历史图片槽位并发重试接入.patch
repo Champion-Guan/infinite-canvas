@@ -1,0 +1,55 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index e68a316..9f95faa 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,6 +1,7 @@
+ import { ASSET_DRAG_TYPE, readAssetDrag } from "@/扩展功能/素材/上传资产规则";
+ import { useCanvasAssetInsertion } from "@/扩展功能/素材/资产插入操作";
+ import { useCanvasGenerationRequests } from "@/扩展功能/画布生成/并发生成状态";
++import { imageRetryKey, canRetryCanvasNode, settleImageRetryStatus } from "@/扩展功能/画布生成/图片重试门控";
+ import { uploadGeneratedImage } from "@/services/image-storage";
+ import { hasHeicNameOrType } from "@/扩展功能/媒体交付/HEIC格式识别.mjs";
+ import { useCanvasConnectionSystem } from "@/扩展功能/画布连线/画布连线状态";
+@@ -2755,9 +2756,11 @@ function InfiniteCanvasPage() {
+     const handleRetryNode = useCallback(
+         async (requestedNode: CanvasNodeData, imageId?: string) => {
+             const node = nodesRef.current.find(item => item.id === requestedNode.id);
+-            if (!node || retryingNodeIdsRef.current.has(node.id) || generationRequestsRef.current.has(node.id) || node.metadata?.status === NODE_STATUS_LOADING || node.metadata?.images?.some(image => image.status === NODE_STATUS_LOADING)) return;
+-            if (imageId && !node.metadata?.images?.some(image => image.id === imageId)) return;
+-            retryingNodeIdsRef.current.add(node.id);
++            if (!canRetryCanvasNode(node, imageId, retryingNodeIdsRef.current, generationRequestsRef.current)) return;
++            if (!node) return;
++            const retryKey = imageRetryKey(node.id, imageId);
++            const requestKey = node.type === CanvasNodeType.Image && imageId ? retryKey : node.id;
++            retryingNodeIdsRef.current.add(retryKey);
+             try {
+                 if (hasResumableVideoTask(node)) {
+                     await pollVideoNodeTask(node);
+@@ -2802,10 +2805,10 @@ function InfiniteCanvasPage() {
+                 }
+                 const retryImages = retryReferenceImages || [];
+                 // Another action may have removed or started this node while references were loading.
+-                if (!nodesRef.current.some(item => item.id === node.id) || generationRequestsRef.current.has(node.id)) return;
++                if (!canRetryCanvasNode(nodesRef.current.find(item => item.id === node.id), imageId, retryingNodeIdsRef.current, generationRequestsRef.current, retryKey)) return;
+ 
+                 setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, ...generationChannel, generationStartedAt: Date.now(), status: NODE_STATUS_LOADING, errorDetails: undefined, images: item.metadata?.images?.map((image) => (image.id === imageId ? { ...image, ...generationChannel, model: generationConfig.model, status: NODE_STATUS_LOADING, errorDetails: undefined } : image)) } } : item)));
+-                const controller = startGenerationRequest(node.id, sourceNode.id, node.id);
++                const controller = startGenerationRequest(node.id, sourceNode.id, node.id, new AbortController(), requestKey);
+ 
+                 try {
+                     if (node.type === CanvasNodeType.Text) {
+@@ -2887,9 +2890,12 @@ function InfiniteCanvasPage() {
+                         ),
+                     );
+                 } finally {
+-                    finishGenerationRequest(node.id, controller);
++                    finishGenerationRequest(node.id, controller, requestKey);
++                    if (node.type === CanvasNodeType.Image && imageId && !controller.signal.aborted) {
++                        setNodes(previous => previous.map(item => item.id === node.id ? settleImageRetryStatus(item) : item));
++                    }
+                 }
+-            } finally { retryingNodeIdsRef.current.delete(node.id); }
++            } finally { retryingNodeIdsRef.current.delete(retryKey); }
+         },
+         [completeVideoNodeTask, generationRequestsRef, nodesRef, effectiveConfig, finishGenerationRequest, isAiConfigReady, isBatchCanvasSaveActive, message, openConfigDialog, pollVideoNodeTask, projectId, recordImageGatewayTask, requestNodeText, requestNodeAudio, saveCanvasImageResult, setNodes, startGenerationRequest, t],
+     );

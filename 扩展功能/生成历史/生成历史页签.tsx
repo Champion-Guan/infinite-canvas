@@ -18,7 +18,7 @@ import { HistoryActionButton } from "./历史操作按钮";
 import actionStyles from "./历史操作栏.module.css";
 import { getMediaBlob } from "@/services/file-storage";
 import { getImageBlob, previewUrlFor, subscribeImagePreviews, getImagePreviewRevision } from "@/services/image-storage";
-import { decodeChannelModel } from "@/stores/use-config-store";
+import { decodeChannelModel, useEffectiveConfig } from "@/stores/use-config-store";
 import { useCanvasSidePanelStore } from "@/stores/use-canvas-side-panel-store";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData } from "@/types/canvas";
 
@@ -34,6 +34,7 @@ export const CanvasGenerationHistoryTab = memo(function CanvasGenerationHistoryT
     useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
     useSyncExternalStore(subscribeImagePreviews, getImagePreviewRevision);
     const { message } = App.useApp();
+    const config = useEffectiveConfig();
     const { downloading, downloadFile, downloadAll } = useHistoryDownloads(message);
     const history = useMemo(() => nodes.filter((node) =>
         (node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video) &&
@@ -127,7 +128,7 @@ export const CanvasGenerationHistoryTab = memo(function CanvasGenerationHistoryT
                 {history.length ? (
                     <div className="space-y-1.5 px-1">
                         {displayedHistory.map((node) => {
-                            const info = historyMediaInfo(node);
+                            const info = historyMediaInfo(node, config.channels);
                             const details = [info.channel, decodeChannelModel(info.model)?.model || info.model, info.dimensions, formatBytes(info.bytes) || "大小未知", info.format].join(" · ");
                             const invalidFiles = filesByNode.get(node.id)?.invalid || [];
                             const invalid = invalidFiles.length > 0;
@@ -138,7 +139,7 @@ export const CanvasGenerationHistoryTab = memo(function CanvasGenerationHistoryT
                             return (
                             <motion.div key={node.id} layout="position" transition={{ layout: { type: "spring", stiffness: 520, damping: 34, mass: .7 } }} onClick={event => { if (selectionMode && event.target instanceof Element && !event.target.closest("button,input,label")) toggleHistorySelection(node.id); }} className={cn("guan-history-list-card flex w-full flex-wrap items-center gap-2 rounded-lg px-2 py-2 text-left text-xs transition-colors hover:bg-black/5 dark:hover:bg-white/10", selectionMode && nodeFiles.some(file => selectedHistoryIds.has(file.id)) && "bg-black/5 dark:bg-white/10")}>
                                 {selectionMode ? <Checkbox aria-label={`勾选${node.title || "生成任务"}`} disabled={downloading || !nodeFiles.length} checked={nodeFiles.length > 0 && nodeFiles.every(file => selectedHistoryIds.has(file.id))} indeterminate={nodeFiles.some(file => selectedHistoryIds.has(file.id)) && !nodeFiles.every(file => selectedHistoryIds.has(file.id))} onChange={() => toggleHistorySelection(node.id)} /> : null}
-                                <button type="button" onClick={() => onPreviewNode(node.id)} className="shrink-0" aria-label={`预览${node.title || "生成任务"}`}>
+                                <button type="button" disabled={!nodeFiles.length} onClick={() => onPreviewNode(node.id)} className="shrink-0 disabled:cursor-default disabled:opacity-50" aria-label={nodeFiles.length ? `预览${node.title || "生成任务"}` : `${node.title || "生成任务"}暂无成功图片`}>
                                 {node.type === CanvasNodeType.Image && (node.metadata?.content || node.metadata?.images?.find((image) => image.content)?.content) ? (
                                     <img src={previewUrlFor(node.metadata.storageKey) || node.metadata.content || node.metadata.images?.find((image) => image.content)?.content} alt="" loading="lazy" decoding="async" className="size-10 shrink-0 rounded-md object-cover guan-image-shared-element" style={{ viewTransitionName: `guan-history-${node.id}` }} />
                                 ) : (
@@ -147,13 +148,13 @@ export const CanvasGenerationHistoryTab = memo(function CanvasGenerationHistoryT
                                     </span>
                                 )}
                                 </button>
-                                <button type="button" disabled={selectionMode && (downloading || !nodeFiles.length)} onClick={() => selectionMode ? toggleHistorySelection(node.id) : onPreviewNode(node.id)} className="flex min-w-0 flex-1 items-center gap-2 self-stretch text-left" aria-label={`${selectionMode ? "选择" : "查看"}${node.title || "生成任务"}`}>
+                                <button type="button" disabled={downloading || (!selectionMode && !nodeFiles.length)} onClick={() => selectionMode ? toggleHistorySelection(node.id) : onPreviewNode(node.id)} className="flex min-w-0 flex-1 items-center gap-2 self-stretch text-left" aria-label={selectionMode ? `选择${node.title || "生成任务"}` : nodeFiles.length ? `查看${node.title || "生成任务"}的成功图片` : `${node.title || "生成任务"}暂无成功图片`}>
                                 <span className="size-2 shrink-0 rounded-full" style={{ background: invalid ? STATUS_COLOR.error : STATUS_COLOR[node.metadata?.status || "idle"] || STATUS_COLOR.idle }} />
                                 <span className="min-w-0 flex-1 break-words">
                                     <span className="font-medium">{node.title || (node.type === CanvasNodeType.Video ? "生成视频" : "生成图片")}</span>
                                     <span className="guan-history-media-info ml-2 break-words text-[10px] leading-relaxed opacity-55" title={invalid ? "媒体缓存不可用" : details}>{invalid ? "媒体缓存不可用" : details}</span>
                                 </span>
-                                {!selectionMode ? <span className="shrink-0 opacity-55">查看</span> : null}
+                                {!selectionMode && nodeFiles.length ? <span className="shrink-0 opacity-55">查看</span> : null}
                                 </button>
                                 {nodeRetryTargets.length ? (
                                     <button type="button" disabled={retrying || busy} onClick={() => void retryTargets(nodeRetryTargets)} className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 font-medium text-red-500 transition hover:bg-red-500/10 disabled:opacity-40" title="重试" aria-label={`重试${node.title || "生成任务"}`}>
@@ -174,7 +175,7 @@ export const CanvasGenerationHistoryTab = memo(function CanvasGenerationHistoryT
                     <HistoryActionButton disabled={downloading || !selectedHistoryFiles.length} onClick={() => void downloadAll(selectedHistoryFiles)} aria-busy={downloading} label={downloading ? "正在打包…" : "下载选中"} icon={<Download className="size-3.5" />} description="打包下载已勾选的成功文件" />
                 </div>
             ) : null}
-            {overviewOpen ? <HistoryOverviewPanel history={displayedHistory} files={validCompletedFiles} selectedFiles={selectedHistoryFiles} selectedIds={selectedHistoryIds} downloading={downloading} theme={theme} onSelect={selectFiles} onDownload={file => void downloadFile(file)} onDownloadSelected={() => void downloadAll(selectedHistoryFiles)} onClose={() => setOverviewOpen(false)} /> : null}
+            {overviewOpen ? <HistoryOverviewPanel history={displayedHistory} files={validCompletedFiles} selectedFiles={selectedHistoryFiles} selectedIds={selectedHistoryIds} channels={config.channels} sorted={sorted} downloading={downloading} theme={theme} onSelect={selectFiles} onDownload={file => void downloadFile(file)} onDownloadSelected={() => void downloadAll(selectedHistoryFiles)} onToggleSort={toggleHistorySorted} onClose={() => setOverviewOpen(false)} /> : null}
         </div>
     );
 });

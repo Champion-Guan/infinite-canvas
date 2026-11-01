@@ -22,6 +22,7 @@ test('参数卡记忆恢复和补齐一次提交；重复渲染不写入，明�
     const cells = [], effects = []; let cursor = 0;
     const hooks = {
         useMemo: callback => callback(),
+        useState: value => [value, () => {}],
         useRef(value) { const index = cursor++; return cells[index] ||= { current: value }; },
         useEffect: callback => effects.push(callback),
     };
@@ -32,7 +33,7 @@ test('参数卡记忆恢复和补齐一次提交；重复渲染不写入，明�
         '@/stores/use-theme-store': { useThemeStore: callback => callback({ theme: 'light' }) },
         './旧版参数规则': { ...rules, productVariableTokens: () => ['[LENGTH]', '[COUNT]'], variableLabel: token => token },
         './Excel画布上下文': { useExcelProductId: () => 'product', useExcelPromptContext: () => ({ templates: [], fileName: '参数.xlsx' }) },
-        './Excel参数记忆': memory, './产品参数编辑操作': { useProductParameterEditing: () => ({ updateValue() {}, updateSupplement() {} }) },
+        './Excel参数记忆': memory, './产品参数编辑操作': { useProductParameterEditing: () => ({ updateValue() {}, updateSupplement() {}, updateMetadata() {} }) },
     });
     let node = { id: 'parameter', metadata: {} };
     const render = () => {

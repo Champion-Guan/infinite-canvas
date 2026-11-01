@@ -1,49 +1,47 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { requireValue, validHash, validId } from '../本机存储/协议.mjs';
 import { GENERATION_PROTOCOL, TASK_STATES, terminalState, validateSubmission, jobLike, exactKeys, bindingLike } from '../生成网关/生成协议.mjs';
-import { recordNoResultResolution } from './未决任务核实.mjs';
 import { createTransientTextProgress } from './文本临时进度.mjs';
 import { createPreparedTaskRetirement } from './未提交任务重试收口.mjs';
-import { failNoResultTasks, noResultTaskFailure } from './无结果任务收口.mjs';
 
 const ledgerId = 'guan-generation-ledger-v1', format = 'guan-generation-ledger.v1';
 const hash = value => createHash('sha256').update(value).digest('hex');
 const publicJob = job => ({ id: job.id, productId: job.productId, nodeId: job.nodeId, state: job.state, applied: job.applied, createdAt: job.createdAt, updatedAt: job.updatedAt,
   result: job.result && { ...job.result }, reason: job.reason });
 
-export function validateGenerationLedgerDocument(doc, { workspaceId, maxTasks = 256 } = {}) {
-  if (!doc) return { revision: 0, jobs: [], mediaIds: [] };
-  requireValue(doc.workspaceId === workspaceId && exactKeys(doc.value, ['format', 'workspaceId', 'jobs']) && doc.value.format === format && doc.value.workspaceId === workspaceId && Array.isArray(doc.value.jobs) && doc.value.jobs.length <= maxTasks,
-    'generation_ledger_invalid', '任务账本不完整，未当作空账本。', 409);
-  const ids = new Set(), refs = new Set();
-  for (const job of doc.value.jobs) {
-    requireValue(exactKeys(job, ['id', 'productId', 'nodeId', 'binding', 'requestHash', 'state', 'applied', 'createdAt', 'updatedAt', 'result', 'reason']) &&
-      jobLike(job.id) && !ids.has(job.id) && validId(job.productId) && validId(job.nodeId) && bindingLike(job.binding) && validHash(job.requestHash) && TASK_STATES.includes(job.state) && typeof job.applied === 'boolean' &&
-      Number.isSafeInteger(job.createdAt) && job.createdAt >= 0 && Number.isSafeInteger(job.updatedAt) && job.updatedAt >= job.createdAt && typeof job.reason === 'string' && /^[a-z_]{0,64}$/.test(job.reason) &&
-      (!job.applied || job.state === 'succeeded') && (job.result === null || exactKeys(job.result, ['id', 'status', 'contentType', 'size']) && validHash(job.result.id) &&
-        Number.isInteger(job.result.status) && job.result.status >= 200 && job.result.status <= 599 && typeof job.result.contentType === 'string' && job.result.contentType.length <= 256 && !/[\r\n\0]/.test(job.result.contentType) &&
-        Number.isSafeInteger(job.result.size) && job.result.size > 0 && job.result.size <= 32 * 1024 * 1024) &&
-      (!['succeeded', 'failed'].includes(job.state) || job.result && (job.state === 'succeeded' ? job.result.status < 300 : job.result.status >= 400) ||
-        job.state === 'failed' && job.result === null && ['upstream_result_missing', 'interrupted_before_dispatch'].includes(job.reason)), 'generation_ledger_invalid', '任务记录不完整或状态冲突。', 409);
-    ids.add(job.id); if (job.result) refs.add(job.result.id);
-  }
-  requireValue([...refs].sort().join(',') === [...doc.mediaIds].sort().join(','), 'generation_ledger_invalid', '任务结果媒体引用不完整。', 409);
-  return { revision: doc.revision, jobs: doc.value.jobs, mediaIds: doc.mediaIds };
-}
-
 // 请求正文只在进程内使用；账本只存摘要、归属、状态和已消毒响应的媒体引用。
 // running提交后才允许发出请求。重启不重发，succeeded不等于画布已保存。
-export async function openGenerationTasks({ workspace, gateway, coordinator, verifyApplied, maxTasks = 256, maxConcurrent = 4, now = Date.now } = {}) {
+export async function openGenerationTasks({ workspace, gateway, coordinator, verifyApplied, maxTasks = Infinity, maxConcurrent = Infinity, now = Date.now } = {}) {
   requireValue(workspace?.workspaceId && typeof workspace.writeMedia === 'function' && typeof workspace.readMedia === 'function' &&
     typeof gateway?.validate === 'function' && typeof gateway.execute === 'function' && typeof coordinator?.runWrite === 'function' &&
-    typeof verifyApplied === 'function' && Number.isInteger(maxTasks) && maxTasks > 0 && maxTasks <= 512 && Number.isInteger(maxConcurrent) && maxConcurrent > 0 && maxConcurrent <= 8 && typeof now === 'function',
+    typeof verifyApplied === 'function' && (maxTasks === Infinity || Number.isInteger(maxTasks) && maxTasks > 0 && maxTasks <= 512) &&
+    (maxConcurrent === Infinity || Number.isInteger(maxConcurrent) && maxConcurrent > 0 && maxConcurrent <= 512) && typeof now === 'function',
   'invalid_generation_service', '生成任务必须显式接入同一工作区、网关、写入协调和画布保存核验。');
   let closed = false, tail = Promise.resolve();
   const active = new Map(), pendingResults = new Map();
   const textProgress = createTransientTextProgress();
   function clock() { const value = now(); requireValue(Number.isSafeInteger(value) && value >= 0, 'invalid_generation_clock', '任务时钟无效。'); return value; }
   function ledger() {
-    return validateGenerationLedgerDocument(workspace.readDocument('extension', ledgerId), { workspaceId: workspace.workspaceId, maxTasks });
+    const doc = workspace.readDocument('extension', ledgerId);
+    if (!doc) return { revision: 0, jobs: [] };
+    requireValue(doc.workspaceId === workspace.workspaceId && exactKeys(doc.value, ['format', 'workspaceId', 'jobs']) && doc.value.format === format && doc.value.workspaceId === workspace.workspaceId && Array.isArray(doc.value.jobs) && doc.value.jobs.length <= maxTasks,
+      'generation_ledger_invalid', '任务账本不完整，未当作空账本。', 409);
+    const ids = new Set(), refs = new Set();
+    for (const job of doc.value.jobs) {
+      requireValue(exactKeys(job, ['id', 'productId', 'nodeId', 'binding', 'requestHash', 'state', 'applied', 'createdAt', 'updatedAt', 'result', 'reason']) &&
+        jobLike(job.id) && !ids.has(job.id) && validId(job.productId) && validId(job.nodeId) && bindingLike(job.binding) && validHash(job.requestHash) && TASK_STATES.includes(job.state) && typeof job.applied === 'boolean' &&
+        Number.isSafeInteger(job.createdAt) && job.createdAt >= 0 && Number.isSafeInteger(job.updatedAt) && job.updatedAt >= job.createdAt && typeof job.reason === 'string' && /^[a-z_]{0,64}$/.test(job.reason) &&
+        (!job.applied || job.state === 'succeeded') && (job.result === null || exactKeys(job.result, ['id', 'status', 'contentType', 'size']) && validHash(job.result.id) &&
+          Number.isInteger(job.result.status) && job.result.status >= 200 && job.result.status <= 599 && typeof job.result.contentType === 'string' && job.result.contentType.length <= 256 && !/[\r\n\0]/.test(job.result.contentType) &&
+          Number.isSafeInteger(job.result.size) && job.result.size > 0 && job.result.size <= 32 * 1024 * 1024) &&
+        (!['succeeded', 'failed'].includes(job.state) || (job.state === 'succeeded'
+          ? job.result?.status < 300
+          : job.result ? job.result.status >= 400 : ['upstream_result_missing', 'interrupted_before_dispatch'].includes(job.reason))),
+      'generation_ledger_invalid', '任务记录不完整或状态冲突。', 409);
+      ids.add(job.id); if (job.result) refs.add(job.result.id);
+    }
+    requireValue([...refs].sort().join(',') === [...doc.mediaIds].sort().join(','), 'generation_ledger_invalid', '任务结果媒体引用不完整。', 409);
+    return { revision: doc.revision, jobs: doc.value.jobs };
   }
   async function mutate(operation) {
     const task = tail.then(() => coordinator.runWrite(() => {
@@ -64,9 +62,17 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
   }
   const find = (jobs, id) => { const job = jobs.find(item => item.id === id); requireValue(job, 'generation_not_found', '生成任务不存在。', 404); return job; };
   function read(id) { requireValue(jobLike(id), 'invalid_generation', '任务ID无效。'); return find(ledger().jobs, id); }
-  // 没有收到结果的图片任务直接失败，绝不重发；保存回执未确认仍保持独立保护状态。
+  // 冷启动仅收口上次进程的未决状态。没有上游支持幂等时，不可能承诺exactly-once远端执行。
   const previous = ledger();
-  if (previous.jobs.some(job => noResultTaskFailure(job))) await mutate(jobs => failNoResultTasks(jobs, clock()));
+  if (previous.jobs.some(job => ['accepted', 'running'].includes(job.state) || job.state === 'uncertain' && !job.result)) await mutate(jobs => {
+    for (const job of jobs) if (['accepted', 'running'].includes(job.state) || job.state === 'uncertain' && !job.result) {
+      // 本机没有持久结果时按失败收口，避免让用户核实或阻塞升级；不会自动重新请求上游。
+      const reason = job.state === 'accepted' ? 'interrupted_before_dispatch' : 'upstream_result_missing';
+      job.state = 'failed';
+      job.reason = reason;
+      job.updatedAt = Math.max(clock(), job.updatedAt);
+    }
+  });
   async function persistResult(id) {
     const result = pendingResults.get(id);
     requireValue(result, 'generation_result_unavailable', '本进程没有可重试保存的结果；不会重新请求上游。', 409);
@@ -81,11 +87,9 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
     pendingResults.delete(id); return publicJob(read(id));
   }
   async function run(input, controller) {
-    let dispatched = false;
     try {
       await mutate(jobs => { const job = find(jobs, input.id); requireValue(job.state === 'accepted', 'generation_state_conflict', '任务不能重复执行。', 409); job.state = 'running'; job.updatedAt = Math.max(clock(), job.updatedAt); });
       requireValue(!controller.signal.aborted, 'generation_not_dispatched', '任务在发出前已取消。', 409);
-      dispatched = true;
       const result = await gateway.execute(input.binding, input.request, { signal: controller.signal, taskId: input.id,
         onText: text => textProgress.update(input.id, text),
       });
@@ -94,11 +98,12 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
       pendingResults.set(input.id, result); await persistResult(input.id);
     } catch {
       try { await mutate(jobs => { const job = find(jobs, input.id); if (!terminalState(job.state)) {
+        const reason = job.state === 'accepted' ? 'interrupted_before_dispatch' : 'upstream_result_missing';
         job.state = pendingResults.has(input.id) ? 'uncertain' : 'failed';
-        job.reason = pendingResults.has(input.id) ? 'result_save_unconfirmed' : dispatched ? 'upstream_result_missing' : 'interrupted_before_dispatch';
+        job.reason = pendingResults.has(input.id) ? 'result_save_unconfirmed' : reason;
         job.updatedAt = Math.max(clock(), job.updatedAt);
       } }); }
-      catch { /* 保留旧running记录；冷重开必须待核实，不能伪造失败或重发。 */ }
+      catch { /* 保留原任务；下次冷启动会按无结果失败收口，绝不重发。 */ }
     } finally { active.delete(input.id); textProgress.clear(input.id); }
   }
   return Object.freeze({
@@ -151,17 +156,14 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
     retryResultSave: persistResult,
     updateBlockers() {
       return ledger().jobs.filter(job => !(['failed', 'cancelled'].includes(job.state) || job.state === 'succeeded' && job.applied))
-        .map(job => ({ id: job.id, state: job.state, reason: job.reason, createdAt: job.createdAt,
-          canConfirmNoResult: !closed && !active.has(job.id) && !pendingResults.has(job.id) && job.state === 'uncertain' && job.result === null && job.reason === 'upstream_result_unknown' }));
+        .map(job => ({ id: job.id, productId: job.productId, nodeId: job.nodeId, state: job.state, applied: job.applied, reason: job.reason, createdAt: job.createdAt,
+          canRecoverCanvas: job.state === 'succeeded' && !job.applied,
+          canRetryResultSave: !closed && pendingResults.has(job.id) && job.state === 'uncertain' && job.reason === 'result_save_unconfirmed' }));
     },
-    async confirmNoResult(id, acknowledgement) {
-      requireValue(!closed && jobLike(id), 'generation_resolution_denied', '任务入口已关闭或任务ID无效。', 409);
-      await mutate(jobs => {
-        requireValue(!active.has(id) && !pendingResults.has(id), 'generation_resolution_denied', '任务仍在运行或存在待保存结果，不能人工收口。', 409);
-        const job = find(jobs, id), receipt = recordNoResultResolution(workspace, job, acknowledgement, clock());
-        job.state = 'cancelled'; job.reason = 'operator_confirmed_no_result'; job.updatedAt = Math.max(receipt.confirmedAt, job.updatedAt);
-      });
-      return publicJob(read(id));
+    taskSummary() {
+      const jobs = ledger().jobs;
+      return { failedWithoutResult: jobs.filter(job => job.state === 'failed' && !job.result &&
+        ['upstream_result_missing', 'interrupted_before_dispatch'].includes(job.reason)).length };
     },
     async cancel(id) {
       const job = read(id), entry = active.get(id);

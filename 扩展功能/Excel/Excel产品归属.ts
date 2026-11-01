@@ -2,6 +2,7 @@ import type { CanvasProject, CanvasDeletedProject } from "@/stores/canvas/use-ca
 import { createEmptyWorkbook, importPromptProducts } from "./旧版Excel合同.js";
 import { productDisplayName } from "../产品/旧版产品显示名.js";
 import { imageInfoDefaults } from "../图片设置/图片信息偏好";
+import { ensureProductParameterNode } from "../Excel画布/产品参数卡片默认";
 
 export type PromptTemplate = { id: string; order: number; route: string; sourceRowNumber: number; prompts: Record<string, string> };
 export type WorkbookSource = {
@@ -121,7 +122,7 @@ export function planExcelImport(snapshot: WorkbookSnapshot, input: ExcelImportIn
   const existing = new Set(projects.map(project => project.id));
   const additions = imported.filter(product => !existing.has(product.id) && !archived.has(product.id)).map(product => ({
     id: product.id, title: productDisplayName(product, product.order - 1), productSetId: owner,
-    createdAt: product.createdAt, updatedAt: product.updatedAt, nodes: [], connections: [], chatSessions: [], activeChatId: null,
+    createdAt: product.createdAt, updatedAt: product.updatedAt, nodes: ensureProductParameterNode([]), connections: [], chatSessions: [], activeChatId: null,
     backgroundMode: "lines" as const, ...imageInfoDefaults, viewport: { x: 0, y: 0, k: 1 },
   }));
   projects = [...additions.reverse(), ...projects];

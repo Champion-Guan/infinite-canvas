@@ -51,7 +51,7 @@ export function createGenerationClient({ command, observe } = {}) {
         'generation_ack_invalid', '任务完成确认尚未收到有效响应，请保留原任务。', 503);
       return applied;
     },
-    async deliver(task, { applyAndSave } = {}) {
+    async deliver(task, { applyAndSave, deferConfirm = () => false } = {}) {
       requireValue(typeof applyAndSave === 'function', 'generation_save_port_required', '需要原产品的保存确认端口。');
       const job = match(await call({ operation: 'result', id: task.id }), task);
       requireValue(job.state === 'succeeded' && terminalState(job.state) && typeof job.bytes === 'string', 'generation_not_successful', '任务没有可应用的成功结果。', 409);
@@ -61,6 +61,9 @@ export function createGenerationClient({ command, observe } = {}) {
       requireValue(job.result?.id === digest && job.result.size === bytes.length, 'generation_result_invalid', '任务结果大小或摘要不匹配。', 409);
       // 原产品ID/节点ID来自提交时快照，绝不根据当前激活胶囊重新选目标。
       const checkpoint = await applyAndSave(Object.freeze({ ...job }));
+      // 批量生成期间媒体已经可靠落盘，但画布快照由批量入口统一提交。
+      // 暂不发送 applied，避免把延后的画布保存误判为失败。
+      if (checkpoint?.deferred === true || deferConfirm()) return job;
       return match(await call({ operation: 'applied', id: task.id, checkpoint }), task);
     },
   });

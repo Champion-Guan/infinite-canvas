@@ -56,7 +56,7 @@ export async function readCategorizedUsage({ dataRoot, workspaceId }) {
       check(docs.size <= 100_000, '统计记录超过本次安全上限，请使用后续分页统计。');
       await yieldPeriodically();
     }
-    for (const row of db.prepare('SELECT id,mime,size FROM media').iterate()) {
+    for (const row of db.prepare('SELECT id,mime,size,content IS NULL AS external FROM media').iterate()) {
       check(validHash(row.id) && MEDIA_TYPES.includes(row.mime) && Number.isSafeInteger(row.size) && row.size > 0);
       media.set(row.id, row); indexedMediaBytes += row.size;
       check(media.size <= 100_000, '媒体索引超过本次安全上限，请使用后续分页统计。');
@@ -77,9 +77,6 @@ export async function readCategorizedUsage({ dataRoot, workspaceId }) {
       if (category === 'contract-root') return field === 'workspace' ? 'workspace' : 'owned-records';
       if (category === 'workbook-root') return 'workspace';
       return category;
-    }
-    function treeString(tree) {
-      return Array.isArray(tree) && tree[0] === 'string' && typeof tree[1] === 'string' ? tree[1] : null;
     }
     function objectField(tree, name) {
       if (!Array.isArray(tree) || tree[0] !== 'object' || !Array.isArray(tree[1])) return null;
@@ -135,18 +132,30 @@ export async function readCategorizedUsage({ dataRoot, workspaceId }) {
       // 渠道绑定由应用编码器持久化；统计只校验引用格式，不访问或解密凭据。
       if (tag === 'provider') { check(typeof value === 'string' && /^provider:[a-f0-9]{64}$/.test(value), '渠道凭据引用格式无效，容量统计已停止。'); return; }
       if (['blob', 'blob-url', 'array-buffer'].includes(tag)) {
-        check(value && typeof value.mime === 'string' && (!value.mime || MEDIA_TYPES.includes(value.mime)) && Number.isSafeInteger(value.size) && value.size >= 0 && value.size <= 512 * 1024 * 1024 && Array.isArray(value.parts) && value.parts.every(validHash) && value.parts.length === Math.ceil(value.size / (16 * 1024 * 1024)));
+        check(value && typeof value.mime === 'string' && (!value.mime || MEDIA_TYPES.includes(value.mime)) && Number.isSafeInteger(value.size) && value.size >= 0);
         const ownerCategory = mediaCategory(category);
         const kind = ['product_recycle', 'workbook_recycle', 'shared'].includes(ownerCategory) ? ownerCategory
           : ownerCategory === 'previews' ? 'previews'
           : !value.mime || value.mime === 'application/octet-stream' ? ownerCategory === 'images' ? 'images' : 'other_media'
           : mimeCategory(value.mime);
-        const fileKey = JSON.stringify([value.mime, value.size, value.parts]);
-        own(files, fileKey, kind);
-        for (let i = 0; i < value.parts.length; i++) {
-          const id = value.parts[i];
-          check(media.get(id)?.size === Math.min(16 * 1024 * 1024, value.size - i * 16 * 1024 * 1024), '媒体块索引缺失或长度不符，统计已停止。');
-          refs.add(id); own(mediaOwners, id, kind);
+        if (Object.hasOwn(value, 'id')) {
+          check(Object.keys(value).length === 3 && (value.size === 0 ? value.id === null : validHash(value.id)));
+          const fileKey = JSON.stringify([value.mime, value.size, value.id]);
+          own(files, fileKey, kind);
+          if (value.size > 0) {
+            const indexed = media.get(value.id);
+            check(indexed?.size === value.size, '媒体索引缺失或长度不符，统计已停止。');
+            refs.add(value.id); own(mediaOwners, value.id, kind);
+          }
+        } else {
+          check(Array.isArray(value.parts) && value.parts.every(validHash) && value.parts.length === Math.ceil(value.size / (16 * 1024 * 1024)));
+          const fileKey = JSON.stringify([value.mime, value.size, value.parts]);
+          own(files, fileKey, kind);
+          for (let i = 0; i < value.parts.length; i++) {
+            const id = value.parts[i];
+            check(media.get(id)?.size === Math.min(16 * 1024 * 1024, value.size - i * 16 * 1024 * 1024), '媒体块索引缺失或长度不符，统计已停止。');
+            refs.add(id); own(mediaOwners, id, kind);
+          }
         }
         return;
       }
@@ -288,6 +297,7 @@ export async function readCategorizedUsage({ dataRoot, workspaceId }) {
     for (const owners of files.values()) categories.get(owner(owners)).files++;
     db.exec('COMMIT'); db.close(); db = null;
 
+    const externalMedia = new Map([...media].filter(([, row]) => row.external));
     let mediaDiskBytes = 0, unindexedMediaBytes = 0, unindexedMediaFiles = 0;
     const seen = new Set();
     for (const entry of readdirSync(mediaRoot, { withFileTypes: true })) {
@@ -297,11 +307,11 @@ export async function readCategorizedUsage({ dataRoot, workspaceId }) {
         throw error;
       }
       mediaDiskBytes += stat.size;
-      if (media.has(entry.name)) { check(stat.size === media.get(entry.name).size, '媒体文件缺失或大小不符，统计已停止。'); seen.add(entry.name); }
+      if (externalMedia.has(entry.name)) { check(stat.size === externalMedia.get(entry.name).size, '媒体文件缺失或大小不符，统计已停止。'); seen.add(entry.name); }
       else { unindexedMediaBytes += stat.size; unindexedMediaFiles++; }
       await yieldPeriodically();
     }
-    check(seen.size === media.size, '已索引媒体文件缺失，统计已停止。');
+    check(seen.size === externalMedia.size, '已索引媒体文件缺失，统计已停止。');
     const databaseFileBytes = safeStat(dbPath).size, walBytes = safeStat(dbPath + '-wal', false, true)?.size ?? 0, shmBytes = safeStat(dbPath + '-shm', false, true)?.size ?? 0;
     const databaseBytes = databaseFileBytes + walBytes + shmBytes;
     const stores = [...categories.values()].map(row => ({ ...row, bytes: row.documentBytes + row.mediaBytes }));

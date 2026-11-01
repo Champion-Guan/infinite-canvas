@@ -5,11 +5,11 @@ export function historyDownloadFiles(nodes) {
     return nodes.flatMap(node => {
         const metadata = node.metadata || {};
         if (metadata.images?.length) {
-            return metadata.images.flatMap(image => image.content && image.status !== 'loading' && image.status !== 'error'
+            return metadata.images.flatMap(image => image.status === 'success' && image.content
                 ? [{ id: JSON.stringify([node.id, image.id]), imageId: image.id, node, content: image.content, storageKey: image.storageKey, name: generatedImageName(node, image.id) }]
                 : []);
         }
-        return metadata.content && metadata.status !== 'loading' && metadata.status !== 'error'
+        return metadata.status === 'success' && metadata.content
             ? [{ id: JSON.stringify([node.id]), node, content: metadata.content, storageKey: metadata.storageKey, name: node.title || '生成文件' }]
             : [];
     });

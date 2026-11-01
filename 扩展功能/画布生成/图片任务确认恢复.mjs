@@ -17,50 +17,118 @@ export function imageConfirmationTargets(productId, nodes) {
   return targets;
 }
 
-/** @param {{host: any, targets: any[], save: Function, serialize: Function, afterConfirmed?: (target: {id: string, productId: string, nodeId: string, responseHash: string}) => Promise<void>, isCurrent?: () => boolean}} options */
-export function createImageConfirmationRecovery({ host, targets, save, serialize, afterConfirmed = async () => {}, isCurrent = () => true }) {
+/** @param {{host: any, targets: any[], save: Function, serialize: Function, waitForBatchSave?: (productId: string) => Promise<"saved"|"not-saved"|"failed">|null, afterConfirmed?: (target: {id: string, productId: string, nodeId: string, responseHash: string}) => Promise<void>, isCurrent?: () => boolean, onProgress?: (value: {phase: string, current: number, total: number}) => void}} options */
+export function createImageConfirmationRecovery({ host, targets, save, serialize, waitForBatchSave = () => null, afterConfirmed = async () => {}, isCurrent = () => true, onProgress = () => {} }) {
   const confirmed = new Set();
   let flight;
   function run() {
     if (flight) return flight;
     flight = (async () => {
       const pending = [];
+      const failures = [];
       const remaining = targets.filter(target => !confirmed.has(target.id));
-      if (!remaining.length || !isCurrent()) return { pending, confirmed: [...confirmed] };
+      if (!remaining.length || !isCurrent()) return { pending, confirmed: [...confirmed], failures };
+      let canvasSave;
+      const saveCanvasOnce = async () => {
+        canvasSave ||= Promise.resolve().then(() => save(remaining[0].productId));
+        const result = await canvasSave;
+        if (result?.deferred) canvasSave = undefined;
+        return result;
+      };
+      const report = (phase, current = 0) => { try { onProgress({ phase, current, total: remaining.length }); } catch {} };
+      const failure = (id, phase, error) => ({ id, phase, code: /^[a-z][a-z0-9_]{0,63}$/.test(error?.code || '') ? error.code : '' });
+      let batchSnapshotSaved = false;
+      try {
+        const waiting = waitForBatchSave(remaining[0].productId);
+        if (waiting) {
+          report('save');
+          const outcome = await waiting;
+          if (!isCurrent()) return { pending: remaining.map(target => target.id), confirmed: [...confirmed], failures };
+          if (outcome === 'failed') {
+            const error = Object.assign(new Error('批量最终画布保存未确认'), { code: 'batch_save_failed' });
+            for (const target of remaining) failures.push(failure(target.id, 'save', error));
+            return { pending: remaining.map(target => target.id), confirmed: [...confirmed], failures };
+          }
+          batchSnapshotSaved = outcome === 'saved';
+        }
+      } catch (error) {
+        for (const target of remaining) failures.push(failure(target.id, 'save', error));
+        return { pending: remaining.map(target => target.id), confirmed: [...confirmed], failures };
+      }
       let jobs;
+      report('task-list');
       try {
         requireValue(typeof host?.list === 'function' && typeof host?.confirmSaved === 'function' && remaining.every(target => target.productId === remaining[0].productId),
           'generation_confirmation_unavailable', '任务确认端口尚未就绪，请保留画布并重试。', 503);
         jobs = await host.list(remaining[0].productId);
         requireValue(Array.isArray(jobs), 'generation_ack_invalid', '任务清单响应无效，原收据保留。', 503);
-      } catch { return { pending: remaining.map(target => target.id), confirmed: [...confirmed] }; }
-      for (const target of targets) {
+      } catch (error) {
+        for (const target of remaining) failures.push(failure(target.id, 'task-list', error));
+        return { pending: remaining.map(target => target.id), confirmed: [...confirmed], failures };
+      }
+      for (const [index, target] of targets.entries()) {
         if (!isCurrent()) break;
         if (confirmed.has(target.id)) continue;
+        let phase = 'scope';
+        report('scope', index + 1);
+        let retryAfterBatch = true;
         try {
-          await serialize(target.productId, async () => {
-            if (!isCurrent()) return;
-            // 一次清单处理整幅画布，避免重开大量历史图片时逐任务查询；确认时客户端会再次查询原ID。
-            const matches = jobs.filter(job => job?.id === target.id), current = matches[0];
-            requireValue(matches.length === 1 && current.productId === target.productId && current.nodeId === target.nodeId &&
-              current.state === 'succeeded' && typeof current.applied === 'boolean' && current.result?.id === target.responseHash,
-            'generation_scope_mismatch', '任务与原产品、卡片或收据不符，未确认完成。', 409);
-            if (!current.applied) {
+          while (retryAfterBatch && isCurrent()) {
+            retryAfterBatch = false;
+            let deferredInsideLock = false;
+            await serialize(target.productId, async () => {
               if (!isCurrent()) return;
-              await save(target.productId);
-              if (!isCurrent()) return;
-              const { responseHash, ...task } = target;
-              await host.confirmSaved(task, { responseHash });
+              // 一次清单处理整幅画布，避免重开大量历史图片时逐任务查询；确认时客户端会再次查询原ID。
+              const matches = jobs.filter(job => job?.id === target.id), current = matches[0];
+              requireValue(matches.length === 1 && current.productId === target.productId && current.nodeId === target.nodeId &&
+                current.state === 'succeeded' && typeof current.applied === 'boolean' && current.result?.id === target.responseHash,
+              'generation_scope_mismatch', '任务与原产品、卡片或收据不符，未确认完成。', 409);
+              if (!current.applied) {
+                if (!isCurrent()) return;
+                if (!batchSnapshotSaved) {
+                  phase = 'save';
+                  report('save', index + 1);
+                  const result = await saveCanvasOnce();
+                  if (result?.deferred) {
+                    // 不能在产品写入锁内等待批量收尾，否则批量结果保存
+                    // 也需要这把锁，会形成互相等待。
+                    deferredInsideLock = true;
+                    return;
+                  }
+                  batchSnapshotSaved = true;
+                }
+                if (!isCurrent()) return;
+                const { responseHash, ...task } = target;
+                phase = 'confirm';
+                report('confirm', index + 1);
+                await host.confirmSaved(task, { responseHash });
+              }
+              phase = 'cleanup';
+              report('cleanup', index + 1);
+              if (isCurrent()) await afterConfirmed(target);
+              if (isCurrent()) confirmed.add(target.id);
+            });
+            if (deferredInsideLock) {
+              const waiting = waitForBatchSave(target.productId);
+              if (waiting) {
+                const outcome = await waiting;
+                if (!isCurrent()) break;
+                if (outcome === 'failed') {
+                  throw Object.assign(new Error('批量最终画布保存未确认'), { code: 'batch_save_failed' });
+                }
+                retryAfterBatch = true;
+                batchSnapshotSaved = outcome === 'saved';
+              } else {
+                retryAfterBatch = true;
+              }
             }
-            if (isCurrent()) await afterConfirmed(target);
-            if (isCurrent()) confirmed.add(target.id);
-          });
-        } catch {
-          // 保留失败项，下一次保存恢复事件或明确点击仅重试确认；不展示端口内部错误。
+          }
+        } catch (error) {
           pending.push(target.id);
+          failures.push(failure(target.id, phase, error));
         }
       }
-      return { pending, confirmed: [...confirmed] };
+      return { pending, confirmed: [...confirmed], failures };
     })().finally(() => { flight = undefined; });
     return flight;
   }

@@ -1,0 +1,81 @@
+diff --git a/web/src/stores/use-asset-store.ts b/web/src/stores/use-asset-store.ts
+index 485b236..13f71a3 100644
+--- a/web/src/stores/use-asset-store.ts
++++ b/web/src/stores/use-asset-store.ts
+@@ -54,26 +54,35 @@ const ASSET_STORE_KEY = "infinite-canvas:asset_store";
+ const assetReadGate = createRecoveryReadGate();
+ const assetCleanupCheckpoint = createPersistenceCheckpoint();
+ 
+-async function restoreAsset(asset: Asset): Promise<Asset> {
+-    // 恢复是后台索引工作，单个过期/损坏媒体不能让整个素材库永远处于未完成状态。
+-    try {
+-        if ((asset.kind === "video" || asset.kind === "audio") && asset.data.storageKey) {
+-            const url = await resolveMediaUrl(asset.data.storageKey, asset.data.url).catch(() => asset.data.url);
+-            return { ...asset, data: { ...asset.data, url } };
+-        }
+-        if (asset.kind !== "image") return asset;
+-        if (asset.data.storageKey) {
+-            void ensureImagePreview(asset.data.storageKey).catch(() => undefined);
+-            const coverUrl = asset.coverUrl.startsWith("blob:")
+-                ? await resolveImageUrl(asset.data.storageKey, asset.coverUrl).catch(() => asset.coverUrl)
+-                : asset.coverUrl;
+-            const dataUrl = await resolveImageUrl(asset.data.storageKey, asset.data.dataUrl).catch(() => asset.data.dataUrl);
+-            return { ...asset, coverUrl, data: { ...asset.data, dataUrl } };
++const pendingAssetRefreshes: Asset[] = [];
++
++function restoreAsset(asset: Asset): Asset {
++    // 媒体地址恢复放到 hydration 完成后后台执行，不能占住上传和素材索引主流程。
++    if (asset.kind !== "text" && asset.data.storageKey) pendingAssetRefreshes.push(asset);
++    return asset;
++}
++
++async function refreshAssetMedia(assets: Asset[]) {
++    for (const asset of assets) {
++        try {
++            const current = useAssetStore.getState().assets.find(item => item.id === asset.id);
++            if (!current || current.kind === "text" || !current.data.storageKey) continue;
++            if (current.kind === "video" || current.kind === "audio") {
++                const url = await resolveMediaUrl(current.data.storageKey, current.data.url).catch(() => current.data.url);
++                if (url !== current.data.url) useAssetStore.getState().updateAsset(current.id, { data: { ...current.data, url } } as Partial<Asset>);
++                continue;
++            }
++            void ensureImagePreview(current.data.storageKey).catch(() => undefined);
++            const coverUrl = current.coverUrl.startsWith("blob:")
++                ? await resolveImageUrl(current.data.storageKey, current.coverUrl).catch(() => current.coverUrl)
++                : current.coverUrl;
++            const dataUrl = await resolveImageUrl(current.data.storageKey, current.data.dataUrl).catch(() => current.data.dataUrl);
++            if (coverUrl !== current.coverUrl || dataUrl !== current.data.dataUrl) {
++                useAssetStore.getState().updateAsset(current.id, { coverUrl, data: { ...current.data, dataUrl } } as Partial<Asset>);
++            }
++        } catch {
++            // 单个损坏媒体只保留原记录，其他资产和上传继续工作。
+         }
+-        // [image omitted] 是历史兼容占位，恢复阶段不重新上传或请求网络；保留记录，待用户打开/替换时再处理。
+-        return asset;
+-    } catch {
+-        return asset;
+     }
+ }
+ 
+@@ -82,7 +91,7 @@ const assetStorage: PersistStorage<AssetStore> = {
+         const value = await localForageStorage.getItem(name);
+         if (!value) return null;
+         const parsed = JSON.parse(value) as StorageValue<AssetStore>;
+-        parsed.state.assets = await Promise.all(parsed.state.assets.map(restoreAsset));
++        parsed.state.assets = parsed.state.assets.map(restoreAsset);
+         return parsed;
+     }),
+     setItem: (name, value) => { assetReadGate.assertWritable(name); return localForageStorage.setItem(name, JSON.stringify(value)); },
+@@ -134,7 +143,11 @@ export const useAssetStore = create<AssetStore>()(
+             onRehydrateStorage: () => (_state, error) => {
+                 // Failed recovery is not an empty, successfully loaded library.
+                 // Don't persist default assets over an unreadable original.
+-                if (_state !== undefined && error === undefined) useAssetStore.setState({ hydrated: true });
++                if (_state !== undefined && error === undefined) {
++                    useAssetStore.setState({ hydrated: true });
++                    const queued = pendingAssetRefreshes.splice(0);
++                    if (queued.length) void refreshAssetMedia(queued);
++                }
+             },
+         },
+     ),

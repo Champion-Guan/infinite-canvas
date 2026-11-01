@@ -43,6 +43,17 @@ function readStaticBundle(directory) {
   }
   return { files, scriptHashes: [...hashes].join(' ') };
 }
+function resolveStaticFile(files, route) {
+  const exact = files.get(route);
+  if (exact) return exact;
+  // 开发热更新会替换该懒加载分块的哈希；旧页面仍可能在上传时请求旧名。
+  // 仅将已确认的历史名称和同一逻辑模块的旧哈希映射到当前上传登记模块。
+  const isLegacyUploadAssetModule = route === '/assets/Wor850_f.js' ||
+    /^\/assets\/上传资产登记-[A-Za-z0-9_-]+\.js$/.test(route);
+  if (!isLegacyUploadAssetModule) return undefined;
+  const candidates = [...files.keys()].filter(path => /^\/assets\/上传资产登记-[A-Za-z0-9_-]+\.js$/.test(path));
+  return candidates.length === 1 ? files.get(candidates[0]) : undefined;
+}
 
 // 日常入口从3000顺延；保留旧客户管理器要求的固定3100兼容入口。
 // storage由可信启动工具装配同一个已批准的四文件包，避免跨模块StorageError身份漂移。
@@ -81,7 +92,7 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
     try { path = decodeURIComponent(req.url); } catch { res.writeHead(400); res.end(); return; }
     if (!['GET', 'HEAD'].includes(req.method) || path.includes('?') || path.includes('\\') || path.split('/').includes('..')) { res.writeHead(404); res.end(); req.resume(); return; }
     const route = path === '/' || /^\/canvas\/[A-Za-z0-9_-]+$/.test(path) ? '/index.html' : path;
-    const value = files.get(route);
+    const value = resolveStaticFile(files, route);
     if (!value) { res.writeHead(404); res.end(); return; }
     let bytes = value.bytes;
     if (value.type === 'text/html') {

@@ -63,12 +63,12 @@ test('OpenAI与Gemini仅在后端加入认证头，响应回显消毒，不返�
 });
 test('跨主机重定向不跟随，任务待核实且原密钥不外泄', async () => {
   const f = await generationFixture();
-  try { const bound = await f.bind(), input = f.submit(bound.binding); f.reply.redirect = true; await f.tasks.submit(input); await f.tasks.drain(); assert.equal(f.tasks.get(input.id).state, 'uncertain'); assert.equal(f.requests.length, 1); }
+  try { const bound = await f.bind(), input = f.submit(bound.binding); f.reply.redirect = true; await f.tasks.submit(input); await f.tasks.drain(); assert.equal(f.tasks.get(input.id).state, 'failed'); assert.equal(f.requests.length, 1); }
   finally { await f.close(); }
 });
 test('二进制回显已知密钥拒绝交付，不能借MIME绕过', async () => {
   const f = await generationFixture();
-  try { const bound = await f.bind(), input = f.submit(bound.binding); f.reply.type = 'image/png'; f.reply.bytes = Buffer.from(bound.value); await f.tasks.submit(input); await f.tasks.drain(); assert.equal(f.tasks.get(input.id).state, 'uncertain'); }
+  try { const bound = await f.bind(), input = f.submit(bound.binding); f.reply.type = 'image/png'; f.reply.bytes = Buffer.from(bound.value); await f.tasks.submit(input); await f.tasks.drain(); assert.equal(f.tasks.get(input.id).state, 'failed'); }
   finally { await f.close(); }
 });
 test('任务格式严格：不接受任意URL、请求头、凭据与非规范base64', () => {

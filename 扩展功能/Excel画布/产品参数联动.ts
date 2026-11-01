@@ -3,9 +3,10 @@ import type { CanvasAgentOp } from "@/lib/canvas/canvas-agent-ops";
 import type { CanvasConnection, CanvasNodeData, CanvasNodeMetadata } from "@/types/canvas";
 import { resolvePromptVariables } from "../提示词/变量使用规则";
 import { finalPromptPreviewTitle } from "./旧版最终提示词标题";
+import { productParameterSupplement } from "./旧版参数规则";
 
 const rawPrompt = (node: CanvasNodeData) => String(node.metadata?.content ?? node.metadata?.excelPromptRaw ?? node.metadata?.prompt ?? "");
-const resolvedPrompt = (source: CanvasNodeData, parameter: CanvasNodeData) => resolvePromptVariables(rawPrompt(source), parameter.metadata?.promptVariableValues, parameter.metadata?.promptVariableSupplement || "");
+const resolvedPrompt = (source: CanvasNodeData, parameter: CanvasNodeData) => resolvePromptVariables(rawPrompt(source), parameter.metadata?.promptVariableValues, productParameterSupplement(parameter.metadata));
 const parameterChanged = (before: CanvasNodeData | undefined, current: CanvasNodeData) =>
     before?.metadata?.promptVariableValues !== current.metadata?.promptVariableValues || before?.metadata?.promptVariableSupplement !== current.metadata?.promptVariableSupplement;
 
@@ -15,7 +16,14 @@ export function buildProductParameterEdits(nodes: CanvasNodeData[], connections:
     const parameter = { ...original, metadata: { ...original.metadata, ...patch } };
     const linked = nodes.find(node => node.id === parameter.metadata.promptVariableSourceNodeId);
     const raw = linked ? rawPrompt(linked) : parameter.metadata.promptVariableRawPrompt || "";
-    const metadata = { ...patch, promptVariableResolvedPrompt: resolvePromptVariables(raw, parameter.metadata.promptVariableValues, parameter.metadata.promptVariableSupplement || "") };
+    const metadata = {
+        ...patch,
+        promptVariableResolvedPrompt: resolvePromptVariables(
+            raw,
+            parameter.metadata.promptVariableValues,
+            productParameterSupplement({ ...parameter.metadata, ...patch }),
+        ),
+    };
     const ops: CanvasAgentOp[] = [{ type: "update_node" as const, id: parameterId, metadata }];
     for (const source of nodes.filter(node => node.type === "text" && !node.metadata?.promptVariablePreviewOf &&
         (!node.metadata?.excelPromptBindingNodeId || node.metadata.excelPromptBindingNodeId === parameterId) &&

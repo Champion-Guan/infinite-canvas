@@ -1,0 +1,69 @@
+diff --git a/web/src/pages/assets/index.tsx b/web/src/pages/assets/index.tsx
+index 537806c..de59400 100644
+--- a/web/src/pages/assets/index.tsx
++++ b/web/src/pages/assets/index.tsx
+@@ -48,6 +48,7 @@ export default function AssetsPage() {
+     const [deletingAsset, setDeletingAsset] = useState<Asset | null>(null);
+     const [formKind, setFormKind] = useState<AssetKind>("text");
+     const [imageDraft, setImageDraft] = useState<ImageDraft>(null);
++    const [imageBusy, setImageBusy] = useState(false);
+     const coverUrl = Form.useWatch("coverUrl", form) || "";
+     const title = Form.useWatch("title", form) || "";
+     const tags = Form.useWatch("tags", form) || [];
+@@ -126,19 +127,29 @@ export default function AssetsPage() {
+ 
+     const readCoverFile = async (file?: File) => {
+         if (!file) return;
+-        const image = await uploadImage(file);
+-        const dataUrl = image.url;
+-        form.setFieldValue("coverUrl", dataUrl);
++        setImageBusy(true);
++        try {
++            const image = await uploadImage(file);
++            const dataUrl = image.url;
++            form.setFieldValue("coverUrl", dataUrl);
++        } finally {
++            setImageBusy(false);
++        }
+     };
+ 
+     const readImageFile = async (file?: File) => {
+         if (!file || !file.type.startsWith("image/")) return;
+-        const image = await uploadImage(file);
+-        const { url, ...stored } = image;
+-        const draft = { ...stored, dataUrl: url };
+-        setImageDraft(draft);
+-        if (!form.getFieldValue("coverUrl")) form.setFieldValue("coverUrl", draft.dataUrl);
+-        if (!form.getFieldValue("title")) form.setFieldValue("title", file.name);
++        setImageBusy(true);
++        try {
++            const image = await uploadImage(file);
++            const { url, ...stored } = image;
++            const draft = { ...stored, dataUrl: url };
++            setImageDraft(draft);
++            if (!form.getFieldValue("coverUrl")) form.setFieldValue("coverUrl", draft.dataUrl);
++            if (!form.getFieldValue("title")) form.setFieldValue("title", file.name);
++        } finally {
++            setImageBusy(false);
++        }
+     };
+ 
+     const copyAssetText = async (asset: Asset) => {
+@@ -313,7 +324,7 @@ export default function AssetsPage() {
+                         <Form.Item name="coverUrl" label={t("assets.fields.coverUrl")}>
+                             <Space.Compact className="w-full">
+                                 <Input placeholder={t("assets.fields.coverPlaceholder")} />
+-                                <Button icon={<Upload className="size-3.5" />} onClick={() => coverInputRef.current?.click()}>
++                                    <Button loading={imageBusy} disabled={imageBusy} icon={<Upload className="size-3.5" />} onClick={() => coverInputRef.current?.click()}>
+                                     {t("common.upload")}
+                                 </Button>
+                             </Space.Compact>
+@@ -336,7 +347,7 @@ export default function AssetsPage() {
+                         ) : (
+                             <Form.Item label={t("assets.fields.imageContent")} required>
+                                 <div className="rounded-lg border border-dashed border-stone-300 p-4 dark:border-stone-700">
+-                                    <Button icon={<Upload className="size-4" />} onClick={() => imageInputRef.current?.click()}>
++                                    <Button loading={imageBusy} disabled={imageBusy} icon={<Upload className="size-4" />} onClick={() => imageInputRef.current?.click()}>
+                                         {t("assets.selectImageFile")}
+                                     </Button>
+                                     {imageDraft ? (

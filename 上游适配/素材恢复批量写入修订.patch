@@ -1,0 +1,56 @@
+diff --git a/web/src/stores/use-asset-store.ts b/web/src/stores/use-asset-store.ts
+index 13f71a3..35a2517 100644
+--- a/web/src/stores/use-asset-store.ts
++++ b/web/src/stores/use-asset-store.ts
+@@ -63,27 +63,41 @@ function restoreAsset(asset: Asset): Asset {
+ }
+ 
+ async function refreshAssetMedia(assets: Asset[]) {
+-    for (const asset of assets) {
++    const updates = new Map<string, { expectedUrl?: string; expectedDataUrl?: string; expectedCoverUrl?: string; url?: string; dataUrl?: string; coverUrl?: string }>();
++    await Promise.all(assets.map(async (asset) => {
+         try {
+             const current = useAssetStore.getState().assets.find(item => item.id === asset.id);
+-            if (!current || current.kind === "text" || !current.data.storageKey) continue;
++            if (!current || current.kind === "text" || !current.data.storageKey) return;
+             if (current.kind === "video" || current.kind === "audio") {
+                 const url = await resolveMediaUrl(current.data.storageKey, current.data.url).catch(() => current.data.url);
+-                if (url !== current.data.url) useAssetStore.getState().updateAsset(current.id, { data: { ...current.data, url } } as Partial<Asset>);
+-                continue;
++                if (url !== current.data.url) updates.set(current.id, { expectedUrl: current.data.url, url });
++                return;
+             }
+             void ensureImagePreview(current.data.storageKey).catch(() => undefined);
+-            const coverUrl = current.coverUrl.startsWith("blob:")
+-                ? await resolveImageUrl(current.data.storageKey, current.coverUrl).catch(() => current.coverUrl)
+-                : current.coverUrl;
+-            const dataUrl = await resolveImageUrl(current.data.storageKey, current.data.dataUrl).catch(() => current.data.dataUrl);
++            const [coverUrl, dataUrl] = await Promise.all([
++                current.coverUrl.startsWith("blob:")
++                    ? resolveImageUrl(current.data.storageKey, current.coverUrl).catch(() => current.coverUrl)
++                    : Promise.resolve(current.coverUrl),
++                resolveImageUrl(current.data.storageKey, current.data.dataUrl).catch(() => current.data.dataUrl),
++            ]);
+             if (coverUrl !== current.coverUrl || dataUrl !== current.data.dataUrl) {
+-                useAssetStore.getState().updateAsset(current.id, { coverUrl, data: { ...current.data, dataUrl } } as Partial<Asset>);
++                updates.set(current.id, { expectedDataUrl: current.data.dataUrl, expectedCoverUrl: current.coverUrl, coverUrl, dataUrl });
+             }
+         } catch {
+             // 单个损坏媒体只保留原记录，其他资产和上传继续工作。
+         }
+-    }
++    }));
++    if (!updates.size) return;
++    const latest = useAssetStore.getState().assets;
++    useAssetStore.getState().replaceAssets(latest.map((asset) => {
++        const update = updates.get(asset.id);
++        if (!update || asset.kind === "text" || !asset.data.storageKey) return asset;
++        if ((update.expectedUrl !== undefined && asset.data.url !== update.expectedUrl) ||
++            (update.expectedDataUrl !== undefined && asset.data.dataUrl !== update.expectedDataUrl) ||
++            (update.expectedCoverUrl !== undefined && asset.coverUrl !== update.expectedCoverUrl)) return asset;
++        if (update.url !== undefined) return { ...asset, data: { ...asset.data, url: update.url } } as Asset;
++        return { ...asset, coverUrl: update.coverUrl ?? asset.coverUrl, data: { ...asset.data, dataUrl: update.dataUrl ?? asset.data.dataUrl } } as Asset;
++    }));
+ }
+ 
+ const assetStorage: PersistStorage<AssetStore> = {

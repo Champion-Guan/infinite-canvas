@@ -16,7 +16,10 @@
 .metadata p { margin: 8px 0 0; }
 .sidebar { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; border-left: 1px solid var(--历史边框); }
 .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; flex: none; padding: 12px; border-bottom: 1px solid var(--历史边框); font-size: 12px; }
-.actions button { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+.actionButtons { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.actionButtons button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 30px; padding: 0 8px; border-radius: 6px; white-space: nowrap; }
+.actionButtons button:hover:not(:disabled) { background: var(--历史底色); }
+.actionButtons button[aria-pressed="true"] { background: var(--历史底色); }
 .tasks { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scroll-behavior: smooth; padding: 12px; }
 .task { margin-bottom: 12px; padding: 10px; border: 1px solid var(--历史边框); border-radius: 8px; transition: transform var(--guan-motion-normal, 220ms) var(--guan-motion-spring, cubic-bezier(.22,1,.36,1)), background-color var(--guan-motion-fast, 140ms) var(--guan-motion-gentle, ease), border-color var(--guan-motion-fast, 140ms) var(--guan-motion-gentle, ease); }
 @media (hover: hover) and (pointer: fine) { .task:hover { background: var(--历史底色); } }
