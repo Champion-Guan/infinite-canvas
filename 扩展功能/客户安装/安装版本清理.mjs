@@ -26,10 +26,10 @@ export async function 清理过期安装版本(paths, { clearInterrupted = false
 }
 
 // 只在新版本健康确认且提交指针后调用。启动时也补清中途退出遗留的已安装包。
-export async function 清理已完成Web安装(paths, downloadDirectory) {
+export async function 清理已完成Web安装(paths, downloadDirectory, { clearInterrupted = false } = {}) {
   const state = await readState(paths.state);
   if (!state?.current || !['committed', 'rolled-back'].includes(state.phase)) fail('update_activation_unconfirmed');
-  const result = await 清理更新缓存(downloadDirectory, { currentVersion: state.current.version, manifestNames: WEB_MANIFEST_NAMES, installedOnly: true });
+  const result = await 清理更新缓存(downloadDirectory, { currentVersion: state.current.version, manifestNames: WEB_MANIFEST_NAMES, installedOnly: true, clearInterrupted });
   const stageFile = join(paths.root, '待安装版本.json'), staged = await readState(stageFile);
   if (staged?.next && compareVersions(staged.next.version, state.current.version) <= 0) await unlink(stageFile);
   await 清理过期安装版本(paths);

@@ -39,7 +39,7 @@ export async function 查找已验证更新缓存(directory, selected, bytes, si
 
 // 仅清理本程序生成的 verified-UUID 目录。安装成功后 currentVersion 会淘汰该包；
 // 尚未安装时只留最新一个完整下载；真正复用前仍由下载器重新验签、核对摘要。
-export async function 清理更新缓存(directory, { keep, currentVersion, manifestNames = ['guan-stable-manifest.json', 'guan-stable-manifest.sig'], installedOnly = false } = {}) {
+export async function 清理更新缓存(directory, { keep, currentVersion, manifestNames = ['guan-stable-manifest.json', 'guan-stable-manifest.sig'], installedOnly = false, clearInterrupted = false } = {}) {
   let root;
   try { root = await lstat(directory); } catch (error) { if (error.code === 'ENOENT') return { removed: 0 }; throw error; }
   if (!root.isDirectory() || root.isSymbolicLink() || root.uid !== process.getuid() || root.mode & 0o077) throw new UpdateError('download_cache_unsafe');
@@ -55,10 +55,17 @@ export async function 清理更新缓存(directory, { keep, currentVersion, mani
     for (const item of folders) {
       try {
         const file = join(item.folder, manifestNames[0]), info = await lstat(file);
-        if (!info.isFile() || info.isSymbolicLink() || info.size > 65536) continue;
+        if (!info.isFile() || info.isSymbolicLink() || info.size > 65536) throw Error('invalid-cache');
         const manifest = JSON.parse(await readFile(file, 'utf8'));
-        if (compareVersions(manifest.version, currentVersion) > 0) continue;
-      } catch { continue; }
+        if (compareVersions(manifest.version, currentVersion) > 0) {
+          const zip = await lstat(join(item.folder, 'package.zip'));
+          if (zip.isFile() && !zip.isSymbolicLink() && zip.size <= 更新下载缓存上限) continue;
+          throw Error('incomplete-cache');
+        }
+      } catch {
+        // 仅持锁管理器在客户服务启动前补清中断下载；运行中不删除新下载半成品。
+        if (!clearInterrupted) continue;
+      }
       await rm(item.folder, { recursive: true, force: true }); removed++;
     }
     return { removed };

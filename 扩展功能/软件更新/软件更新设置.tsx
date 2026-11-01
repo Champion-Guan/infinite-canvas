@@ -37,7 +37,7 @@ export function ConfigSoftwareUpdates() {
             <div className="flex flex-wrap items-center gap-5">
                 <label className="flex items-center gap-2"><Switch aria-label="自动检查更新" checked={prefs?.autoCheck ?? true} disabled={!prefs || saving} onChange={autoCheck => void save({ autoCheck })} />自动检查（启动及每 6 小时）</label>
                 <label className="flex items-center gap-2"><Switch aria-label="自动下载更新" checked={prefs?.autoDownload ?? true} disabled={!prefs || saving} onChange={autoDownload => void save({ autoDownload })} />自动下载（仅可信签名包）</label>
-                <label className="flex items-center gap-2"><Switch aria-label="自动安装更新" checked={prefs?.autoInstall ?? false} disabled={!managed || saving} onChange={autoInstall => void save({ autoInstall })} />确认并关闭页面后安装</label>
+                <label className="flex items-center gap-2"><Switch aria-label="自动安装更新" checked={prefs?.autoInstall ?? false} disabled={!managed || saving} onChange={autoInstall => void save({ autoInstall })} />确认后自动准备安装</label>
                 <label className="flex items-center gap-2" title="开启后接收 Beta 和 Stable；关闭后仅接收 Stable"><Switch aria-label="开发者模式" checked={prefs?.developerMode ?? false} disabled={!prefs || saving || checking || Boolean(channelBusy)} onChange={developerMode => void save({ developerMode })} />开发者模式</label>
             </div>
             <div className="flex items-center gap-3"><span>更新网络</span><Select aria-label="更新网络" className="min-w-44" value={prefs?.network || "auto"} disabled={!prefs || saving} options={[{ value: "auto", label: "自动（有代理则使用代理）" }, { value: "direct", label: "直连" }, { value: "proxy", label: "本地代理" }]} onChange={network => void save({ network })} /></div>

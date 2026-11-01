@@ -5,7 +5,7 @@ function escapeHtml(value) {
   }[char]));
 }
 
-export function excelImportMarkup(pending) {
+export function excelImportMarkup(pending, { contentOnly = false } = {}) {
   const progress = Math.max(0, Math.min(100, Number(pending.progress || 0)));
   const templates = Array.isArray(pending.promptTemplates) ? pending.promptTemplates : [];
   const selected = new Set(Array.isArray(pending.selectedPromptIndexes) ? pending.selectedPromptIndexes : []);
@@ -26,9 +26,7 @@ export function excelImportMarkup(pending) {
       </label>
     `;
   }).join("");
-  return `
-    <div class="guan-dc-excel-import-backdrop" data-excel-import-cancel></div>
-    <section class="guan-dc-excel-import-card" role="document">
+  const contents = `
       <header class="guan-dc-excel-import-head">
         <div>
           <strong id="guan-dc-excel-import-title">导入提示词产品</strong>
@@ -66,7 +64,10 @@ export function excelImportMarkup(pending) {
           <button type="button" class="primary" data-excel-import-confirm ${selectedCount ? "" : "disabled"}>导入${selectedCount ? ` ${selectedCount} 个产品` : ""}</button>
         </footer>
       `}
-    </section>
+  `;
+  return contentOnly ? contents : `
+    <div class="guan-dc-excel-import-backdrop" data-excel-import-cancel></div>
+    <section class="guan-dc-excel-import-card" role="document">${contents}</section>
   `;
 }
 

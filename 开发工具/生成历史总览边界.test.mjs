@@ -190,6 +190,7 @@ test('选择模式缩略图仅预览、文字才勾选；排序立即切换，�
     const actionStyles = { default: {} };
     const { HistoryActionButton } = await load('历史操作按钮.tsx', {
         'react/jsx-runtime': { jsx, jsxs: jsx }, antd: { Tooltip: 'Tooltip' },
+        'motion/react': { motion: { button: 'button' }, useReducedMotion: () => false },
         '@/lib/utils': { cn: (...values) => values.filter(Boolean).join(' ') }, './历史操作栏.module.css': actionStyles,
     });
     const renderElement = (type, props, key) => type === HistoryActionButton ? type(props) : jsx(type, props, key);

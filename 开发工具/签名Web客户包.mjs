@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WEB_APP, WEB_REPOSITORY, WEB_MANIFEST_NAMES, validateWebManifest, verifyWebManifest, sha256 } from '../扩展功能/客户安装/Web发布协议.mjs';
-import { verifyWebDirectory } from '../扩展功能/客户安装/Web安装包核验.mjs';
+import { verifyWebDirectory, verifyWebUpgradeCompatibility } from '../扩展功能/客户安装/Web安装包核验.mjs';
 import { keyId } from '../扩展功能/软件更新/stable-manifest.mjs';
 import { STABLE_TRUSTED_KEYS } from '../扩展功能/软件更新/stable-trust.mjs';
 import { assertWebReleaseSource } from './Web发布源码核对.mjs';
@@ -20,6 +20,7 @@ export async function signWebPackage({ record, privateKey, approval, trustedKeys
     commit: record.commit, builtAt: new Date().toISOString(), keyId: id, inventorySHA256: record.inventorySHA256, packages: [record.descriptor] });
   const archive = await readFile(record.archive);
   assert.equal(archive.length, record.descriptor.size); assert.equal(sha256(archive), record.descriptor.sha256);
+  verifyWebUpgradeCompatibility(archive, { manifest: m, selected: record.descriptor });
   await verifyWebDirectory(record.stage, { manifest: m, selected: record.descriptor });
   const bytes = Buffer.from(JSON.stringify(m, null, 2) + '\n'), signature = sign(null, bytes, privateKey);
   verifyWebManifest(bytes, signature, { trustedKeys, releaseVersion: record.version });

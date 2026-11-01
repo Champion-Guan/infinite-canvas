@@ -53,6 +53,24 @@ export async function verifySignedWebDirectory(root, options = {}) {
   const identity = verifyWebManifest(await readFile(join(root, WEB_MANIFEST_NAMES[0])), await readFile(join(root, WEB_MANIFEST_NAMES[1])), options);
   return { ...identity, inventory: await verifyWebDirectory(root, identity) };
 }
+// beta.19 已发布安装器把这个入口列为必需文件；后续包必须继续携带。
+// 只约束新构建/签名/发布，不改变旧包冷启动和回退时的库存规则。
+export function verifyWebUpgradeCompatibility(archive, { manifest, selected }) {
+  if (archive.length !== selected.size || sha256(archive) !== selected.sha256) fail('package_integrity_failed');
+  const decoded = readWebArchive(archive, { trustedRuntime: selected });
+  const files = new Map([...decoded.files].map(([name, entry]) => [safeMember(name.slice(decoded.root.length + 1)), entry]));
+  const inventory = files.get('工作台发布.json');
+  if (!inventory || sha256(inventory.bytes) !== manifest.inventorySHA256) fail('web_package_invalid');
+  const record = JSON.parse(inventory.bytes);
+  if (record.version !== manifest.version || record.commit !== manifest.commit || !record.files || typeof record.files !== 'object') fail('web_package_invalid');
+  const actual = [...files.keys()].filter(name => !['工作台发布.json', ...WEB_MANIFEST_NAMES].includes(name));
+  if (actual.length !== Object.keys(record.files).length ||
+      actual.some(name => record.files[name] !== sha256(files.get(name).bytes))) fail('web_package_invalid');
+  for (const name of ['启动工作台.command', '安装工作台.command', '修复升级入口.command']) {
+    if (!files.get(name)?.executable) fail('web_package_invalid');
+  }
+  return decoded;
+}
 export async function extractSignedWebPackage(download, destination, options = {}) {
   const identity = verifyWebManifest(await readFile(join(download, WEB_MANIFEST_NAMES[0])), await readFile(join(download, WEB_MANIFEST_NAMES[1])), options);
   const archive = await readFile(join(download, 'package.zip'));

@@ -128,16 +128,18 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
       proc.on('message', message); proc.once('exit', exited); proc.send({ type: 'web-service-stop', update });
     });
   }
+  const cleanupDownloads = async (options) => {
+    try { await 清理已完成Web安装(paths, join(dailyWorkbenchPaths().dataRoot, 'software-updates/packages'), options); }
+    catch (error) { log.write('更新包清理未完成：' + (error.code || 'download_storage_failed') + '\n'); }
+  };
   try {
     await 清理过期安装版本(paths, { clearInterrupted: true });
+    // 此时已独占管理锁且客户服务尚未启动，没有运行中的下载需要保护。
+    await cleanupDownloads({ clearInterrupted: true });
     const ready = await start(current);
     assertWebHealth(ready, current, state.workspaceId);
     await save({ ...state, workspaceId: ready.workspaceId });
     await checkDesktopEntry();
-    const cleanupDownloads = async () => {
-      try { await 清理已完成Web安装(paths, join(dailyWorkbenchPaths().dataRoot, 'software-updates/packages')); }
-      catch (error) { log.write('更新包清理未完成：' + (error.code || 'download_storage_failed') + '\n'); }
-    };
     await cleanupDownloads();
     try {
       staged = await restoreWebStage(paths, ready.workspaceId, current);

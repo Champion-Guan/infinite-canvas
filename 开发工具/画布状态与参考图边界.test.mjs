@@ -89,7 +89,9 @@ test('指定拖放位置只跳过本次自动布局，重叠坐标与原节点�
 });
 
 async function persistence(options = {}) {
-    const effects = [], updates = [], pendingTimers = new Map(), cleared = [];
+    const effects = [], updates = [], pendingTimers = new Map(), cleared = [], activeCleanups = new Set();
+    const windowEvents = new EventTarget(), documentEvents = new EventTarget();
+    documentEvents.visibilityState = 'visible';
     let registration, timerId = 0, flushed = 0;
     const nodes = [node('original')], viewport = { x: 10, y: 20, k: 1.14 };
     const port = { projectId: 'original-product', nodes, connections: [], chatSessions: [], activeChatId: null,
@@ -104,15 +106,22 @@ async function persistence(options = {}) {
         }, ...options.port };
     const store = { projects: [{ id: 'original-product', ...options.project }] };
     const { useCanvasPersistence } = await load(names[1], {
-        react: { useEffect: effect => effects.push(effect), useMemo: callback => callback() },
+        react: { useEffect: effect => effects.push(() => {
+            const cleanup = effect();
+            if (typeof cleanup !== 'function') return cleanup;
+            const dispose = () => { activeCleanups.delete(dispose); cleanup(); };
+            activeCleanups.add(dispose); return dispose;
+        }), useMemo: callback => callback() },
         '@/stores/canvas/use-canvas-store': { useCanvasStore: { getState: () => store } },
         './产品操作': { useProductCanvasSave: (...args) => { registration = args; } },
         './画布保存判定': save判定,
-        '../画布生成/批量保存协调': { isBatchCanvasSaveActive: () => false, markBatchCanvasDirty: () => {} },
+        '../画布生成/批量保存协调': { isBatchCanvasSaveActive: () => options.batchActive ?? false, markBatchCanvasDirty: () => options.markDirty?.() },
         '../本机存储/上游浏览器存储桥': { flushSQLiteStorage: async () => { flushed++; await options.flush?.(); } },
     }, { setTimeout: (callback, delay) => { const id = ++timerId; pendingTimers.set(id, { callback, delay }); return id; },
-        clearTimeout: id => { cleared.push(id); pendingTimers.delete(id); } });
+        clearTimeout: id => { cleared.push(id); pendingTimers.delete(id); },
+        window: windowEvents, document: documentEvents });
     const render = (changes = {}) => {
+        for (const cleanup of activeCleanups) cleanup();
         Object.assign(port, changes);
         effects.length = 0;
         useCanvasPersistence(port);
@@ -120,8 +129,48 @@ async function persistence(options = {}) {
     render();
     return { port, store, get id() { return registration[0]; }, get snapshot() { return registration[1]; },
         ready: () => registration[2](), persist: () => registration[3](registration[1]), canDelete: () => registration[4](),
-        render, effects, updates, pendingTimers, cleared, flushed: () => flushed };
+        render, effects, updates, pendingTimers, cleared, windowEvents, documentEvents, flushed: () => flushed };
 }
+test('平移后未到两秒就关闭时先提交最终视区并阻止未确认退出，卸载后不遗留监听', async () => {
+    const api = await persistence({ applyUpdates: true });
+    api.store.projects[0] = { id: api.id, ...api.snapshot, viewport: { x: 0, y: 0, k: 1 } };
+    const cleanups = api.effects.map(effect => effect());
+    assert.equal(api.updates.length, 0);
+    const leave = new Event('beforeunload', { cancelable: true });
+    api.windowEvents.dispatchEvent(leave);
+    assert.equal(api.updates.length, 1, '两秒计时器尚未触发时也必须提交视区');
+    assert.equal(api.updates[0].patch.viewport, api.port.viewportRef.current);
+    assert.equal(leave.defaultPrevented, true, '不能在异步SQLite回执之前静默允许退出');
+    assert.equal(api.flushed(), 1);
+    assert.equal(api.port.viewportSaveTimerRef.current, null);
+    cleanups.forEach(cleanup => cleanup?.());
+    api.port.viewportRef.current = { x: 80, y: 90, k: 2 };
+    api.windowEvents.dispatchEvent(new Event('beforeunload', { cancelable: true }));
+    assert.equal(api.updates.length, 1, '卸载监听必须移除');
+});
+test('切到后台先保存最终视区，未完成手势和批量生成仍遵守保存门控', async () => {
+    const api = await persistence({ applyUpdates: true });
+    api.store.projects[0] = { id: api.id, ...api.snapshot, viewport: { x: 0, y: 0, k: 1 } };
+    const cleanups = api.effects.map(effect => effect());
+    api.documentEvents.visibilityState = 'hidden';
+    api.documentEvents.dispatchEvent(new Event('visibilitychange'));
+    assert.equal(api.updates.length, 1);
+    cleanups.forEach(cleanup => cleanup?.());
+    const panning = await persistence({ port: { canvasPanningRef: { current: true } } });
+    const blockedCleanups = panning.effects.map(effect => effect());
+    panning.windowEvents.dispatchEvent(new Event('beforeunload', { cancelable: true }));
+    assert.equal(panning.updates.length, 0, '手势中的预览不能当作最终视区提交');
+    blockedCleanups.forEach(cleanup => cleanup?.());
+    let dirty = 0;
+    const batch = await persistence({ batchActive: true, markDirty: () => { dirty++; } });
+    batch.store.projects[0] = { id: batch.id, ...batch.snapshot, viewport: { x: 0, y: 0, k: 1 } };
+    const batchCleanups = batch.effects.map(effect => effect());
+    const leave = new Event('beforeunload', { cancelable: true });
+    batch.windowEvents.dispatchEvent(leave);
+    assert.equal(batch.updates.length, 0); assert.equal(dirty, 1);
+    assert.equal(leave.defaultPrevented, true);
+    batchCleanups.forEach(cleanup => cleanup?.());
+});
 test('保存票据只在节点、产品身份和交互稳定时就绪，未决生成阻止删除', async () => {
     const api = await persistence();
     assert.equal(api.id, 'original-product'); assert.equal(api.snapshot.nodes, api.port.nodes);

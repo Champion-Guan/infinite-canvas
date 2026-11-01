@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { App } from "antd";
+import { motion, useReducedMotion } from "motion/react";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useProductNavigation } from "../产品/产品操作";
@@ -20,13 +21,9 @@ export function ExcelWorkbookPicker() {
   const [menu, setMenu] = useState<"closed" | "opening" | "open" | "closing">("closed");
   const [file, setFile] = useState<File | null>(null);
   const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
+  const reducedMotion = useReducedMotion();
   const closePanel = useCallback(() => setFile(null), []);
   const closeMenu = useCallback(() => setMenu(state => state === "closed" ? state : "closing"), []);
-  useEffect(() => {
-    if (menu !== "opening" && menu !== "closing") return;
-    const timer = window.setTimeout(() => setMenu(menu === "opening" ? "open" : "closed"), menu === "opening" ? 190 : 170);
-    return () => window.clearTimeout(timer);
-  }, [menu]);
   useEffect(() => {
     if (menu === "closed") return;
     const outside = (event: PointerEvent) => { if (event.target instanceof Node && !root.current?.contains(event.target)) closeMenu(); };
@@ -42,7 +39,13 @@ export function ExcelWorkbookPicker() {
         <span className="guan-dc-file-trigger-label">{sets.find(set => set.id === active)?.source.fileName || "暂无已上传 Excel"}</span>
         <svg className="guan-dc-file-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
       </button>
-      <div className="guan-dc-file-menu" role="listbox" aria-label="已上传的 Excel 文件" data-state={menu} hidden={menu === "closed"} inert={menu === "closing"}>
+      <motion.div className="guan-dc-file-menu" role="listbox" aria-label="已上传的 Excel 文件" data-state={menu} hidden={menu === "closed"} inert={menu === "closing"}
+        initial={false}
+        animate={{ opacity: menu === "closed" || menu === "closing" ? 0 : 1,
+          y: reducedMotion || menu === "opening" || menu === "open" ? 0 : -6,
+          scale: reducedMotion || menu === "opening" || menu === "open" ? 1 : .98 }}
+        transition={reducedMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 34, mass: .7 }}
+        onAnimationComplete={() => setMenu(state => state === "closing" ? "closed" : state === "opening" ? "open" : state)}>
         {sets.map(set => <div key={set.id} className="guan-dc-file-option-row">
           <button type="button" className="guan-dc-file-option" role="option" aria-selected={set.id === active} disabled={busy}
             onClick={() => { closeMenu(); void selectWorkbook(set.id).catch(error => message.error(error instanceof Error ? error.message : String(error))); }}>
@@ -64,7 +67,7 @@ export function ExcelWorkbookPicker() {
           onClick={() => { setMenu("closed"); input.current?.click(); }}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg><span>上传 Excel</span>
         </button>
-      </div>
+      </motion.div>
       <input ref={input} className="guan-dc-header-file-input" type="file" accept=".xlsx,.xls,.csv" tabIndex={-1} aria-hidden="true"
         onChange={event => { const selected = event.currentTarget.files?.[0]; event.currentTarget.value = ""; if (selected) setFile(selected); }} />
     </div>

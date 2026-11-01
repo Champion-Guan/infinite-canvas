@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { motion, useReducedMotion } from "motion/react";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useProductNavigation } from "../产品/产品操作";
 import { excelImportMarkup, updateExcelImportSelection } from "./旧版Excel弹窗.js";
@@ -11,6 +12,7 @@ export function ExcelImportPanel({ file, onClose }: { file: File; onClose(): voi
   const { importWorkbook } = useProductNavigation();
   const [pending, setPending] = useState<ExcelPending>({ fileName: file.name, busy: true, progress: 4, progressMessage: "正在读取文件…" });
   const [closing, setClosing] = useState(false);
+  const reducedMotion = useReducedMotion();
   const root = useRef<HTMLDivElement>(null);
   const selection = useRef<ExcelPreview | null>(null);
   const submitting = useRef(false);
@@ -22,13 +24,8 @@ export function ExcelImportPanel({ file, onClose }: { file: File; onClose(): voi
     void readExcelFile(file, controller.signal, setPending).then(result => {
       if (!controller.signal.aborted) { selection.current = result; setPending({ ...result, selectedPromptIndexes: [...result.selectedPromptIndexes] }); }
     }, reason => { if (!controller.signal.aborted) setPending({ fileName: file.name, error: reason instanceof Error ? reason.message : String(reason) }); });
-    return () => { controller.abort(); focusToRestore?.focus(); };
+    return () => { controller.abort(); abort.current = null; selection.current = null; focusToRestore?.focus(); };
   }, [file]);
-  useEffect(() => {
-    if (!closing) return;
-    const timer = window.setTimeout(onClose, 180);
-    return () => window.clearTimeout(timer);
-  }, [closing, onClose]);
   useLayoutEffect(() => {
     root.current?.querySelector<HTMLButtonElement>("button[data-excel-import-cancel]")?.focus();
   }, [pending.busy, pending.error]);
@@ -80,6 +77,16 @@ export function ExcelImportPanel({ file, onClose }: { file: File; onClose(): voi
         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
         if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
       }}
-      dangerouslySetInnerHTML={{ __html: excelImportMarkup(pending) }} />
+    >
+      <motion.div className="guan-dc-excel-import-backdrop" data-excel-import-cancel
+        initial={{ opacity: 0 }} animate={{ opacity: closing ? 0 : 1 }}
+        transition={reducedMotion ? { duration: 0 } : { duration: .15 }} />
+      <motion.section className="guan-dc-excel-import-card" role="document"
+        initial={{ opacity: 0, y: reducedMotion ? 0 : 8, scale: reducedMotion ? 1 : .97 }}
+        animate={{ opacity: closing ? 0 : 1, y: !reducedMotion && closing ? 8 : 0, scale: !reducedMotion && closing ? .97 : 1 }}
+        transition={reducedMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 34, mass: .7 }}
+        onAnimationComplete={() => { if (closing) onClose(); }}
+        dangerouslySetInnerHTML={{ __html: excelImportMarkup(pending, { contentOnly: true }) }} />
+    </div>
   </div>, document.body);
 }

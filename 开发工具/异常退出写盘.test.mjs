@@ -36,11 +36,14 @@ test('素材索引失败清本次文件；已存在媒体不删除；中断暂�
   } finally { store.close(); }
 });
 test('手动备份失败不遗留半份数据库和媒体副本', async t => {
-  const root = temporary(t), store = openWorkspace({ dataRoot: root, initialize: true });
+  const root = temporary(t); let store = openWorkspace({ dataRoot: root, initialize: true });
   try {
     const media = store.writeMedia(Buffer.from('media'), 'application/octet-stream');
     const database = new DatabaseSync(join(root, '工作台.sqlite'));
     try { database.prepare('UPDATE media SET content=? WHERE id=?').run(Buffer.from('corrupted'), media.id); } finally { database.close(); }
+    // Reopen so the backup check cannot reuse the prior connection's media hash cache.
+    store.close();
+    store = openWorkspace({ dataRoot: root });
     await assert.rejects(store.createBackup(), e => e.code === 'media_corrupt');
     assert.deepEqual(readdirSync(join(root, '备份')), []);
   } finally { store.close(); }

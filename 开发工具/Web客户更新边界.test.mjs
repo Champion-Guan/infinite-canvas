@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { keyId } from '../扩展功能/软件更新/stable-manifest.mjs';
 import { WEB_APP, WEB_REPOSITORY, WEB_ORIGIN, WEB_MANIFEST_NAMES, webReleaseAssetName, packageName, sha256, verifyWebManifest, selectWebRelease } from '../扩展功能/客户安装/Web发布协议.mjs';
 import { StableDownload } from '../扩展功能/软件更新/stable-download.mjs';
-import { inventoryWebFiles, verifyWebDirectory, verifySignedWebDirectory, extractSignedWebPackage, safeMember } from '../扩展功能/客户安装/Web安装包核验.mjs';
+import { inventoryWebFiles, verifyWebDirectory, verifySignedWebDirectory, verifyWebUpgradeCompatibility, extractSignedWebPackage, safeMember } from '../扩展功能/客户安装/Web安装包核验.mjs';
 import { switchWebVersion } from '../扩展功能/客户安装/Web版本事务.mjs';
 import { readWebArchive } from '../扩展功能/客户安装/Web压缩包读取.mjs';
 import { writeState, readState } from '../扩展功能/客户安装/Web安装目录.mjs';
@@ -104,7 +104,7 @@ for (const path of ['../数据', '/tmp/a', 'a/../b', 'a//b', 'a\\b', '.运行/x'
 async function fixture() {
   const parent = await 临时目录('Web更新边界-'), root = join(parent, '包'); await mkdir(root, { mode: 0o700 });
   const binary = Buffer.alloc(8); binary.writeUInt32LE(0xfeedfacf); binary.writeUInt32LE(0x0100000c, 4);
-  for (const name of ['web/index.html', '扩展功能/客户安装/Web客户命令.mjs', '扩展功能/客户安装/Web客户服务.mjs', '扩展功能/客户安装/客户桌面入口.mjs', '启动工作台.command', '安装工作台.command', 'runtime/node', '系统助手/系统钥匙串']) {
+  for (const name of ['web/index.html', '扩展功能/客户安装/Web客户命令.mjs', '扩展功能/客户安装/Web客户服务.mjs', '扩展功能/客户安装/客户桌面入口.mjs', '启动工作台.command', '安装工作台.command', '修复升级入口.command', 'runtime/node', '系统助手/系统钥匙串']) {
     await mkdir(join(root, name, '..'), { recursive: true, mode: 0o700 });
     await writeFile(join(root, name), ['runtime/node', '系统助手/系统钥匙串'].includes(name) ? binary : 'fixture', { mode: 0o700 });
   }
@@ -122,6 +122,29 @@ test('严格库存：原样通过；额外文件、字节篡改和软链接均�
   await assert.rejects(verifyWebDirectory(g.root, { manifest: g.m, selected: g.m.packages[0] }));
   const h = await fixture(); await symlink('web/index.html', join(h.root, '链接'));
   await assert.rejects(inventoryWebFiles(h.root));
+});
+test('新包兼容 beta.19 安装入口；遗漏入口即使库存自洽也禁止签名发布，旧包冷启动规则不变', async () => {
+  for (const variant of ['完整', '缺少兼容入口', '入口不可执行', '归档库存不符']) {
+    const f = await fixture();
+    if (variant === '缺少兼容入口') await rm(join(f.root, '修复升级入口.command'));
+    if (variant === '入口不可执行') await chmod(join(f.root, '修复升级入口.command'), 0o600);
+    f.inventory.files = await inventoryWebFiles(f.root);
+    await writeFile(join(f.root, '工作台发布.json'), encode(f.inventory));
+    f.m.inventorySHA256 = sha256(encode(f.inventory));
+    // beta.20 既有运行目录不能因为新增发布检查而无法冷启动或回退。
+    await verifyWebDirectory(f.root, { manifest: f.m, selected: f.m.packages[0] });
+    if (variant === '归档库存不符') await writeFile(join(f.root, 'web/index.html'), 'different-archive');
+    const archive = join(f.parent, '兼容检查.zip');
+    execFileSync('/usr/bin/zip', ['-qr', archive, '包'], { cwd: f.parent });
+    const bytes = await readFile(archive);
+    f.m.packages[0].size = bytes.length; f.m.packages[0].sha256 = sha256(bytes);
+    const check = () => verifyWebUpgradeCompatibility(bytes, { manifest: f.m, selected: f.m.packages[0] });
+    if (variant === '完整') {
+      assert.ok(check().files.size > 0);
+      assert.throws(() => verifyWebUpgradeCompatibility(bytes, { manifest: { ...f.m, inventorySHA256: '0'.repeat(64) }, selected: f.m.packages[0] }));
+      assert.throws(() => verifyWebUpgradeCompatibility(bytes, { manifest: f.m, selected: { ...f.m.packages[0], sha256: '0'.repeat(64) } }));
+    } else assert.throws(check, error => error.code === 'web_package_invalid');
+  }
 });
 test('真实ZIP下载→再次验签→解包→库存核验；不执行包内任何文件', async () => {
   const f = await fixture(), archive = join(f.parent, '原始.zip');

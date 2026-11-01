@@ -86,14 +86,6 @@
   transform-origin: top center;
 }
 
-.guan-dc-file-menu[data-state="opening"] {
-  animation: guan-dc-dropdown-down .18s cubic-bezier(.16, 1, .3, 1) both;
-}
-
-.guan-dc-file-menu[data-state="closing"] {
-  animation: guan-dc-dropdown-up .15s cubic-bezier(.4, 0, .2, 1) both;
-}
-
 .guan-dc-file-option {
   display: flex;
   align-items: center;
@@ -294,11 +286,6 @@
   background: var(--dc-bg);
   box-shadow: 0 28px 90px rgba(0, 0, 0, .28);
   pointer-events: auto;
-  animation: guan-dc-confirm-in .2s cubic-bezier(.16, 1, .3, 1) both;
-}
-
-.guan-dc-excel-import-modal[data-state="closing"] .guan-dc-excel-import-card {
-  animation: guan-dc-confirm-out .16s cubic-bezier(.4, 0, .2, 1) both;
 }
 
 .guan-dc-excel-import-head {

@@ -8,7 +8,7 @@ export function UpdateProgressPanel({ status }: { status: SoftwareUpdateStatus |
     const error = download?.error || install?.stageError || (install?.allowed ? install.reason : null);
     const target = install?.targetVersion || (status?.hasNewVersion ? status.latest?.version : null);
     const pending = Boolean(target || download && !["idle", "trust-not-configured", "not-implemented"].includes(download.state));
-    const steps = ["下载与验签", "暂存复核", "关闭工作台页面", "切换与启动"];
+    const steps = ["下载与验签", "暂存复核", "保存并准备安装", "切换与启动"];
     const state = install?.state || "";
     const step = !pending ? -1 : install?.staging ? 1 : ["staged", "awaiting-browser-exit", "deferred"].includes(state) ? 2
         : ["prepared", "stopping", "switching", "starting", "restarting-manager", "committed", "rolling-back", "rolled-back"].includes(state) ? 3

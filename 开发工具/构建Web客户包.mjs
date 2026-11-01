@@ -5,9 +5,8 @@ import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, cpSync, chmodSync,
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { 装配开发源码 } from './装配开发源码.mjs';
-import { inventoryWebFiles } from '../扩展功能/客户安装/Web安装包核验.mjs';
+import { inventoryWebFiles, verifyWebUpgradeCompatibility } from '../扩展功能/客户安装/Web安装包核验.mjs';
 import { WEB_APP, WEB_REPOSITORY, WEB_ORIGIN, packageName, sha256 } from '../扩展功能/客户安装/Web发布协议.mjs';
-import { readWebArchive } from '../扩展功能/客户安装/Web压缩包读取.mjs';
 import { webSourceSnapshot, assertWebReleaseSource } from './Web发布源码核对.mjs';
 import { 执行有界构建命令 } from './有界构建进程.mjs';
 import { 占用Web构建目录 } from './Web构建占用保护.mjs';
@@ -106,12 +105,12 @@ export async function buildWebPackage({ root = sourceRoot, runtimeDirectory, ups
   try { execFileSync(helper, [], { input: '{}', stdio: ['pipe', 'pipe', 'pipe'], timeout: 10000 }); assert.fail('助手未拒绝非法输入'); }
   catch (error) { assert.equal(error.status, 1, '助手必须在访问Keychain前拒绝非法输入'); }
 
-  for (const [file, mode] of [['安装工作台.command', 'install'], ['启动工作台.command', 'start']]) {
-    writeFileSync(join(stage, file), '#!/bin/sh\nset -eu\n工作台目录=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nexec "$工作台目录/runtime/node" "$工作台目录/扩展功能/客户安装/Web客户命令.mjs" ' + mode + '\n', { mode: 0o700 });
+  // 保留 beta.19 安装器的入口契约；旧修复入口仅打开当前已安装工作台，不修改任务或数据。
+  for (const [file, mode] of [['安装工作台.command', 'install'], ['启动工作台.command', 'start'], ['修复升级入口.command', 'desktop-start']]) {
     // shell标识符需ASCII；面向客户的文件名称仍为中文。
-    writeFileSync(join(stage, file), readFileSync(join(stage, file), 'utf8').replaceAll('工作台目录', 'GUAN_WEB_ROOT'), { mode: 0o700 });
+    writeFileSync(join(stage, file), '#!/bin/sh\nset -eu\nGUAN_WEB_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nexec "$GUAN_WEB_ROOT/runtime/node" "$GUAN_WEB_ROOT/扩展功能/客户安装/Web客户命令.mjs" ' + mode + '\n', { mode: 0o700 });
   }
-  writeFileSync(join(stage, '安装使用说明.txt'), 'Apple Silicon Web预览版。\n先双击“安装工作台.command”，联网验证固定仓库签名后安装；安装完成会检查并创建桌面“生图工作台.app”。也可以双击“启动工作台.command”，按启动器显示的实际地址打开。默认 http://localhost:3000，被占用时自动顺延空闲端口。\n点击桌面入口时，服务未运行会先启动当前安装版本，确认本机工作台健康后再打开实际地址；版本更新后入口继续指向当前版本。\n个人SQLite数据位于AI-Workbench-重建版/工作区，安装版本单独保存，更新不清空或替换私人数据。\n更新在设置的软件更新页操作；确认保存且任务结束后关闭工作台页面，其余网站可继续使用。\n', { mode: 0o600 });
+  writeFileSync(join(stage, '安装使用说明.txt'), 'Apple Silicon Web预览版。\n先双击“安装工作台.command”，联网验证固定仓库签名后安装；安装完成会检查并创建桌面“生图工作台.app”。也可以双击“启动工作台.command”，按启动器显示的实际地址打开。默认 http://localhost:3000，被占用时自动顺延空闲端口。\n点击桌面入口时，服务未运行会先启动当前安装版本，确认本机工作台健康后再打开实际地址；版本更新后入口继续指向当前版本，图标和启动文件缺失时自动修复。\n个人SQLite数据位于AI-Workbench-重建版/工作区，安装版本单独保存，更新不清空或替换私人数据。\n更新在设置的软件更新页操作；暂存完成后确认安装，页面自动保存并准备切换。未完成的真实生成和保存会显示具体原因，完成后再试；不需要手动处理历史账本。\n', { mode: 0o600 });
   // 统一包权限，包含npm依赖；不带链接或构建机身份信息。
   execFileSync('/bin/chmod', ['-R', 'go-w', stage]);
   const inventory = { format: 1, app: WEB_APP, repository: WEB_REPOSITORY, version: release.版本, commit,
@@ -119,13 +118,14 @@ export async function buildWebPackage({ root = sourceRoot, runtimeDirectory, ups
   save(join(stage, '工作台发布.json'), inventory);
   const archiveFile = join(output, packageName(release.版本));
   await 执行有界构建命令('/usr/bin/zip', ['-qr', archiveFile, dirname(stage) === output ? stage.slice(output.length + 1) : ''], { cwd: output, budgetDirectory: outputParent, timeout: 120000 });
-  const bytes = readFileSync(archiveFile); readWebArchive(bytes, { trustedRuntime: runtime });
+  const bytes = readFileSync(archiveFile);
   assert.deepEqual(webSourceSnapshot(root), sourceSHA256, '构建期间源码发生变化，请重新构建');
   if (releaseReady) assertWebReleaseSource(root, commit, sourceSHA256);
   const descriptor = { platform: 'darwin', arch: 'arm64', name: packageName(release.版本), sha256: sha256(bytes), size: bytes.length,
     nodeVersion: runtime.nodeVersion, runtimeSha256: runtime.runtimeSha256, runtimeSize: runtime.runtimeSize };
   const result = { archive: archiveFile, stage, version: release.版本, commit, inventorySHA256: sha256(readFileSync(join(stage, '工作台发布.json'))),
     descriptor, sourceFingerprint: assembled.指纹, sourceSHA256, releaseReady, signed: false };
+  verifyWebUpgradeCompatibility(bytes, { manifest: { version: result.version, commit, inventorySHA256: result.inventorySHA256 }, selected: descriptor });
   save(join(output, '构建结果.json'), result);
   清理Web构建缓存(output);
   return result;

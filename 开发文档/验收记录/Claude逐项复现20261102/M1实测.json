@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-01T16:45:50.022Z",
+  "cpu": "Apple M1",
+  "memoryGiB": 8,
+  "runtime": "v24.16.0",
+  "measurements": [
+    {
+      "nodes": 200,
+      "bytes": 369106,
+      "stringifyMs": 0.44,
+      "encodeWriteAckMs": 39.61
+    },
+    {
+      "nodes": 1000,
+      "bytes": 1846026,
+      "stringifyMs": 2.71,
+      "encodeWriteAckMs": 133.64
+    },
+    {
+      "nodes": 5000,
+      "bytes": 9237026,
+      "stringifyMs": 11.59,
+      "encodeWriteAckMs": 441.88
+    },
+    {
+      "databasePagesBefore": 267,
+      "freedPages": 256,
+      "databasePagesAfter": 267,
+      "databaseBytes": 1093632,
+      "queryPlan": [
+        "SEARCH documents USING INDEX sqlite_autoindex_documents_1 (collection=? AND id=?)"
+      ]
+    },
+    {
+      "concurrentSubmissions": 128,
+      "peakSQLiteWriters": 1,
+      "completed": 128
+    }
+  ],
+  "scope": "当前本机、合成画布、真实编码与SQLite落盘回执；不含浏览器绘制、上游生图或Mac B实机升级。单次测量用于复现报告估算，不作为统计基准。临时数据库均已清理。"
+}

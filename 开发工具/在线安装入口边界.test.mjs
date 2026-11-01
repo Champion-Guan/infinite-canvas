@@ -47,12 +47,12 @@ test('源码模式没有独立管理器，不能因手动选项而取得安装�
 });
 const source=await readFile(new URL('../扩展功能/软件更新/在线安装操作.tsx',import.meta.url),'utf8');
 const {code:compiled}=await transformWithEsbuild(source,'在线安装操作.tsx',{loader:'tsx',jsx:'automatic',format:'cjs',target:'es2022',tsconfigRaw:'{}'});
-function render(status, { blockedPopup = false, progressError = false } = {}){
+function render(status, { blockedPopup = false, progressError = false, stageError = false } = {}){
     const calls=[],confirmations=[],module={exports:{}};
     const jsx=(type,props)=>({type,props});
     const fakeRequire=name=>name.includes('产品界面边界')?{useProductActive:()=>true}:name.includes('独立进度窗口')?{connectUpdateProgressWindow:async popup=>{if(!popup||progressError)throw Error('进度未连接');calls.push('progress-window');}}:name.includes('更新进度面板')?{UpdateProgressPanel:'progress'}:name==='react'?{useEffect(){},useState:()=>[false,()=>{}]}:name==='react/jsx-runtime'?{jsx,jsxs:jsx}:
         name==='antd'?{App:{useApp:()=>({message:{error(){}},modal:{confirm:options=>confirmations.push(options)}})},Button:'button'}:
-        {installationMessages:{},updateMessages:{},updateRequest:async operation=>{calls.push(operation);}};
+        {installationMessages:{},updateMessages:{},updateRequest:async operation=>{calls.push(operation);if(operation==='stage'&&stageError)throw Error('暂存失败');}};
     new Function('require','module','exports','window',compiled)(fakeRequire,module,module.exports,{open:()=>blockedPopup?null:{close(){}}});
     const tree=module.exports.OnlineInstallActions({status,refresh:async()=>{calls.push('refresh');}});
     const buttons=tree.props.children[1].props.children.filter(child=>child?.type==='button');
@@ -62,12 +62,22 @@ function render(status, { blockedPopup = false, progressError = false } = {}){
 const status=(extra={})=>({download:{state:'verified'},preferences:{autoInstall:false},install:{allowed:true,state:'idle'},...extra});
 test('共享入口先暂存，再经确认提交手动安装；不会为安装自动开启偏好',async()=>{
     const first=render(status());assert.equal(first.button.props.disabled,false);await first.button.props.onClick();
-    // onClick启动异步任务，等待其一次微任务完成。
-    await Promise.resolve();assert.deepEqual(first.calls,['stage','refresh']);
+    // 同一次点击完成暂存后直接进入唯一确认，不再要求用户重复点击安装。
+    await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(first.calls,['stage','refresh']);
+    assert.equal(first.confirmations.length,1);assert.equal(first.calls.includes('approve-manual'),false);
+    await first.confirmations[0].onOk();assert.deepEqual(first.calls,['stage','refresh','progress-window','approve-manual','refresh']);
     const staged=render(status({install:{allowed:true,state:'staged',canApprove:true}}));
     assert.equal(staged.button.props.disabled,false);assert.equal(staged.button.props.children,'确认并安装');
     staged.button.props.onClick();assert.equal(staged.calls.length,0);assert.equal(staged.confirmations.length,1);
+    assert.equal(staged.confirmations[0].title,'安装更新');assert.equal(staged.confirmations[0].okText,'确认安装');
+    assert.match(staged.confirmations[0].content,/先结束所有生成任务/);
+    assert.ok(staged.confirmations[0].content.length<60);
     await staged.confirmations[0].onOk();assert.deepEqual(staged.calls,['progress-window','approve-manual','refresh']);
+});
+test('暂存失败不弹安装确认，也不执行确认或打开进度页',async()=>{
+    const f=render(status(),{stageError:true});f.button.props.onClick();
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.deepEqual(f.calls,['stage']);assert.deepEqual(f.confirmations,[]);
 });
 test('进度窗口被拦截或连接失败时不确认安装',async()=>{
     for(const options of [{blockedPopup:true},{progressError:true}]){

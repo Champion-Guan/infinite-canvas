@@ -17,6 +17,7 @@ import { productDisplayName } from "./旧版产品显示名.js";
 import { readCanvasCapsuleStatus } from "./旧版产品胶囊状态.js";
 import styles from "./产品胶囊.module.css";
 import { ProductDeleteDialog, ProductTrashIcon } from "./产品回收面板";
+import { motion, useReducedMotion } from "motion/react";
 
 type Summary = {
   id: string;
@@ -94,6 +95,7 @@ function capsuleStorage(product: Summary) {
 }
 
 export function ProductCapsules() {
+  const reducedMotion = useReducedMotion();
   const selector = useMemo(createSummarySelector, []);
   const { activeId, busy, selectProduct } = useProductNavigation();
   const allProducts = useCanvasStore(selector);
@@ -149,8 +151,11 @@ export function ProductCapsules() {
           const label = productDisplayName(product, index);
           return (
             <div key={product.id} className="guan-product-capsule-wrap">
-              <button
+              <motion.button
                 type="button"
+                whileHover={reducedMotion || busy ? undefined : { y: -1, scale: 1.015 }}
+                whileTap={reducedMotion || busy ? undefined : { y: 0, scale: .97 }}
+                transition={reducedMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 34, mass: .7 }}
                 className={`guan-dc-product-capsule guan-apple-action guan-apple-press guan-dc-product-capsule-${status} ${active ? "guan-shared-product-capsule is-active" : ""}`}
                 role="tab"
                 aria-selected={active}
@@ -172,7 +177,7 @@ export function ProductCapsules() {
                   <path d="m5.5 17 4.4-4.4 3.2 3.2 2.2-2.2 3.2 3.4" />
                 </svg>
                 <span>{label}</span>
-              </button>
+              </motion.button>
               <button type="button" className="guan-product-delete"
                 aria-label={`删除${label}及对应画布`}
                 title={product.status === "loading" ? "生成任务运行中，暂不能删除" : "删除产品及对应画布"}

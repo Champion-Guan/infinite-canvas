@@ -102,4 +102,36 @@ export function useCanvasPersistence({ projectId, nodes, connections, chatSessio
             if (viewportSaveTimerRef.current === timer) viewportSaveTimerRef.current = null;
         };
     }, [projectId, projectLoaded, updateProject, viewport, viewportRef, viewportSaveTimerRef, isNodeDragging, isNodeResizing, isCanvasPanning, dragRef, historyPausedRef, nodeResizingRef, canvasPanningRef, focusAnimRef, restoredProjectIdRef]);
+
+    useEffect(() => {
+        const commitPendingViewport = (event?: BeforeUnloadEvent) => {
+            if (!projectLoaded || restoredProjectIdRef.current !== projectId || historyPausedRef.current
+                || isNodeDragging || isNodeResizing || isCanvasPanning || dragRef.current.isDraggingNode
+                || nodeResizingRef?.current || canvasPanningRef?.current || focusAnimRef.current !== null) return;
+            const current = useCanvasStore.getState().projects.find(project => project.id === projectId);
+            if (!current || !canvasHasPendingChanges(current, { viewport: viewportRef.current })) return;
+            // 退出前必须等待SQLite回执，浏览器不能保证卸载后的异步请求继续执行。
+            if (event) { event.preventDefault(); event.returnValue = ""; }
+            if (isBatchCanvasSaveActive(projectId)) {
+                markBatchCanvasDirty(projectId);
+                return;
+            }
+            updateProject(projectId, retainCanvasReferences(current, { viewport: viewportRef.current }));
+            if (viewportSaveTimerRef.current) clearTimeout(viewportSaveTimerRef.current);
+            viewportSaveTimerRef.current = null;
+            // 写入失败保留在SQLite恢复队列，由既有保存状态条显示并重试。
+            void flushSQLiteStorage().catch(() => {});
+        };
+        const onVisibilityChange = () => {
+            if (document.visibilityState === "hidden") commitPendingViewport();
+        };
+        window.addEventListener("beforeunload", commitPendingViewport);
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        return () => {
+            window.removeEventListener("beforeunload", commitPendingViewport);
+            document.removeEventListener("visibilitychange", onVisibilityChange);
+        };
+    }, [projectId, projectLoaded, updateProject, isNodeDragging, isNodeResizing, isCanvasPanning,
+        restoredProjectIdRef, historyPausedRef, dragRef, nodeResizingRef, canvasPanningRef,
+        focusAnimRef, viewportRef, viewportSaveTimerRef]);
 }

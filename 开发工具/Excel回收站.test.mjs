@@ -19,6 +19,7 @@ const ownership = load(readFileSync(join(根目录, '扩展功能/Excel/Excel产
   './旧版Excel合同.js': { createEmptyWorkbook: () => ({ schema: 'guan-workbench.v1', version: 1, workspace: { activeProductSetId: null, activeProductId: null }, productSets: [], products: [], importRecords: [], slots: [], prompts: [], tasks: [], runs: [], providerAttempts: [], assets: [] }), importPromptProducts: () => { throw Error('不应在回收站测试中调用导入'); } },
   '../产品/旧版产品显示名.js': { productDisplayName: product => product.identity?.titleZh || product.title || '未命名产品' },
   '../图片设置/图片信息偏好': { imageInfoDefaults: { showImageInfo: false } },
+  '../Excel画布/产品参数卡片默认': { ensureProductParameterNode: nodes => nodes },
 });
 const recycle = load(readFileSync(join(根目录, '扩展功能/Excel删除/Excel回收站规则.ts'), 'utf8'));
 const deletion = load(readFileSync(join(根目录, '扩展功能/Excel删除/工作簿删除规则.ts'), 'utf8'), {

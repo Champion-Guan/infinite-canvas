@@ -36,8 +36,8 @@ export function OnlineInstallActions({ status, refresh, leadingActions }: Props)
         const popup = window.open("about:blank", "guan-web-update-progress", "popup,width=740,height=700");
         return connectUpdateProgressWindow(popup).then(url => ({ popup, url }));
     };
-    const approve = () => modal.confirm({ title: "在线安装更新", content: "请确认所有生成任务已经结束。确认后会自动保存当前画布，转入更新进度页，并在安装完成后自动返回新版工作台。同版本的其他工作台页面也会自动准备更新；更早版本的页面请手动关闭。安装器会再次核实保存与任务状态。",
-        okText: "已保存，任务已结束，安装本次更新", cancelText: "暂不安装", onOk: async () => {
+    const approve = () => modal.confirm({ title: "安装更新", content: "请先结束所有生成任务。确认后会自动保存画布并安装更新，完成后返回工作台。",
+        okText: "确认安装", cancelText: "暂不安装", onOk: async () => {
             const restart = (window as unknown as { __guanAutomaticUpdateRestart?: (url: string) => Promise<boolean> }).__guanAutomaticUpdateRestart;
             let observation;
             try { observation = restart ? { popup: null, ...(await updateRequest("progress-window")) } : await openProgress(); }
@@ -49,7 +49,7 @@ export function OnlineInstallActions({ status, refresh, leadingActions }: Props)
     const reason = !status ? "正在读取安装状态" : install?.state === "source-development" ? "当前为源码开发版，只检查和下载；在线安装请通过“启动工作台.command”打开客户安装版。"
         : !managed ? "独立安装管理器尚未就绪，请通过“启动工作台.command”重新打开客户安装版。"
         : install?.reason === "update_channel_excluded" ? updateMessages.update_channel_excluded
-        : waiting ? "已确认，等待关闭所有工作台页面；请保留独立进度窗口，完成后可从进度窗口返回工作台。"
+        : waiting ? "正在自动保存并准备安装。若有旧版工作台页面未退出，请保存后关闭该页面。"
         : canApprove ? "安装包已暂存并再次验签，请确认后安装。"
         : staging ? "正在解包并再次验证签名和全部文件，请稍候。"
         : status.download.state === "verified" ? "已下载并验证，点击安装更新进行暂存复核。"
@@ -59,7 +59,7 @@ export function OnlineInstallActions({ status, refresh, leadingActions }: Props)
         <div role="group" aria-label="软件更新操作" className="flex flex-wrap items-center gap-3">
             {leadingActions}
             <Button type="primary" loading={operating || staging} disabled={!managed || staging || operating || waiting || switching || (!canApprove && status?.download.state !== "verified")}
-                onClick={() => canApprove ? approve() : void operate("stage").catch(() => {})}>{canApprove ? "确认并安装" : "安装更新"}</Button>
+                onClick={() => canApprove ? approve() : void operate("stage").then(() => { approve(); }).catch(() => {})}>{canApprove ? "确认并安装" : "安装更新"}</Button>
             {waiting ? <Button disabled={operating} onClick={() => void operate("defer").catch(() => {})}>稍后安装</Button> : null}
             {managed && (canApprove || waiting || switching) ? <Button disabled={operating} onClick={() => void openProgress().catch(error => message.error(error instanceof Error ? error.message : "进度窗口未能打开"))}>查看安装进度</Button> : null}
         </div>

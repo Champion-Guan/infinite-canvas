@@ -215,15 +215,19 @@ test('画布视频接线先保存ID，保存结果后才确认；未知创建不
     } finally { if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow; }
 });
 
-test('正式服务装配合并视频升级门禁与核实入口，未决可正常退出但不可安装升级', async () => {
+test('正式服务装配保留未决视频账本，但升级不再被画布核实门禁阻塞', async () => {
     const { assembleGenerationService } = await import('../扩展功能/生成网关/生成服务装配.mjs');
     const f = await fixture(); let service;
     try {
         const scope = await f.scope(); f.reply.disconnect = true; await assert.rejects(f.videos.create(scope, f.request()));
         service = await assembleGenerationService({ workspace: f.workspace, vault: f.vault, runTrustedWrite: action => f.coordinator.runWrite(action), authorize() {}, origin: 'http://localhost:3001', networkProxy: {} });
         assert.equal((await service.updateBlockers())[0].reason, 'video_remote_unknown');
-        await assert.rejects(service.assertCanUpdate(), code('install_tasks_pending')); service.assertCanClose();
-        assert.equal((await service.confirmNoResult(scope.id, NO_RESULT_ACK)).state, 'cancelled');
-        await service.assertCanUpdate(); assert.deepEqual(await service.updateBlockers(), []);
+        const before = f.workspace.readDocument('extension', 'guan-video-remote-tasks');
+        assert.ok(before);
+        await service.assertCanUpdate(); service.assertCanClose();
+        await service.close(); service = null;
+        assert.deepEqual(f.workspace.readDocument('extension', 'guan-video-remote-tasks'), before);
+        assert.equal(f.videos.find(scope.productId, scope.nodeId).state, 'uncertain');
+        assert.equal(f.requests.length, 1);
     } finally { await service?.close(); await f.close(); }
 });

@@ -76,6 +76,29 @@ test('历史重复下载及半成品收敛为一个包，安装成功清零，�
   assert.equal(readFileSync(join(root, '客户数据/文件'), 'utf8'), 'keep');
 });
 
+test('启动补清旧版残缺下载，保留完整未来更新和当前回退版本', async t => {
+  const root = temporary(t), paths = { root, versions: join(root, '版本'), state: join(root, '当前版本.json') };
+  mkdirSync(paths.versions, { mode: 0o700 });
+  const identity = n => ({ name: `2.0.0-beta.${n}-${'a'.repeat(40)}`, version: `2.0.0-beta.${n}`,
+    commit: 'a'.repeat(40), origin: WEB_ORIGIN, dataSchema: 1 });
+  for (const n of [14, 17, 19]) mkdirSync(join(paths.versions, identity(n).name), { mode: 0o700 });
+  await writeState(paths.state, { app: WEB_APP, phase: 'committed', current: identity(19), previous: identity(17) });
+  const downloads = join(root, '下载'); mkdirSync(downloads, { mode: 0o700 });
+  const folder = () => { const path = join(downloads, 'verified-' + randomUUID()); mkdirSync(path, { mode: 0o700 }); return path; };
+  const old = folder(), corrupt = folder(), interrupted = folder(), future = folder();
+  writeFileSync(join(old, WEB_MANIFEST_NAMES[0]), JSON.stringify({ version: '2.0.0-beta.17' }));
+  writeFileSync(join(old, 'package.zip'), 'old');
+  writeFileSync(join(corrupt, WEB_MANIFEST_NAMES[0]), '{');
+  writeFileSync(join(corrupt, 'package.zip'), 'old-corrupt');
+  writeFileSync(join(interrupted, 'package.part'), 'old-interrupted');
+  writeFileSync(join(future, WEB_MANIFEST_NAMES[0]), JSON.stringify({ version: '2.0.0-beta.21' }));
+  writeFileSync(join(future, 'package.zip'), 'future');
+  const result = await 清理已完成Web安装(paths, downloads, { clearInterrupted: true });
+  assert.equal(result.removed, 3);
+  assert.deepEqual(readdirSync(downloads), [future.split('/').at(-1)]);
+  assert.deepEqual(readdirSync(paths.versions).sort(), [17, 19].map(n => identity(n).name));
+});
+
 test('仅保留当前、回退与待安装版本；启动回收中断解压，不触及外部数据', async t => {
   const root = temporary(t), paths = { root, versions: join(root, '版本'), state: join(root, '当前版本.json') }; mkdirSync(paths.versions, { mode: 0o700 });
   const identity = n => ({ name: `2.0.${n}-${String(n).repeat(40)}`, version: `2.0.${n}`, commit: String(n).repeat(40), origin: WEB_ORIGIN, dataSchema: 1 });
