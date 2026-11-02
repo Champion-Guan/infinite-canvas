@@ -17,8 +17,18 @@ import { 根目录 } from './公共.mjs';
 import { openSQLiteCredentialVault } from '../扩展功能/本机凭据/SQLite凭据保管.mjs';
 import { createLocalAuthorizationGateway as createCurrentAuthorizationGateway } from '../扩展功能/本机服务/本机授权网关.mjs';
 import { authorizeLocalStorage as authorizeCurrentStorage } from '../扩展功能/本机存储/本机授权客户端.mjs';
+import * as upgradeState from '../扩展功能/软件更新/升级页面状态.mjs';
 
 const code = expected => error => error.code === expected;
+function loadStorageBridge() {
+  const require = createRequire(join(根目录, '.运行/3100源/画布副本/web/package.json')), ts = require('typescript');
+  const source = readFileSync(join(根目录, '扩展功能/本机存储/上游浏览器存储桥.ts'), 'utf8');
+  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const module = { exports: {} };
+  new Function('module', 'exports', 'require', js)(module, module.exports,
+    id => { assert.equal(id, '../软件更新/升级页面状态.mjs'); return upgradeState; });
+  return module.exports;
+}
 const roots = [];
 const write = (title = '合成文档', revision = 0, operationId = randomUUID()) => ({ collection: 'canvas', id: 'resume-demo',
   value: { id: 'resume-demo', title, nodes: [], connections: [] }, expectedRevision: revision, operationId });
@@ -251,10 +261,7 @@ test('存储桥以同一运行时恢复，页内缓存/队列保留，重复点�
     const view = new EventTarget(); let mounts = 0, reconnects = 0;
     view.__guanSQLiteHost = { async initialize() { mounts++; return app; }, async reconnect() { reconnects++; await client.reconnect(); } };
     globalThis.window = view;
-    const require = createRequire(join(根目录, '.运行/3100源/画布副本/web/package.json')), ts = require('typescript');
-    const source = readFileSync(join(根目录, '扩展功能/本机存储/上游浏览器存储桥.ts'), 'utf8');
-    const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
-    const bridge = await import('data:text/javascript;base64,' + Buffer.from(js).toString('base64') + '#' + randomUUID());
+    const bridge = loadStorageBridge();
     await bridge.initializeSQLiteApplication(); f.tick(60_000);
     const value = JSON.stringify({ state: { title: '页内稿' }, version: 0 });
     await assert.rejects(bridge.sqliteStateStorage.setItem('demo', value));
@@ -272,6 +279,125 @@ test('存储桥以同一运行时恢复，页内缓存/队列保留，重复点�
     assert.equal(bridge.storageStatus().reconnectError, 'authorization_expired');
     assert.equal(bridge.storageStatus().state, 'error'); assert.equal(bridge.sqliteStateStorage.getItem('demo'), changed);
   } finally { globalThis.window = previous; await f.close(); }
+});
+
+test('授权响应丢失时点击重试忽略 reconnect_not_due，并继续重试原保存', async () => {
+  const previous = globalThis.window;
+  let reconnects = 0, attempts = 0, retried = false, state = 'idle';
+  const events = new EventTarget();
+  const fakeStore = {
+    async iterate() {},
+    getItem: async () => null,
+    async setItem(key, value) {
+      attempts++;
+      if (attempts === 1) {
+        state = 'error';
+        const error = new Error('合成授权响应丢失');
+        error.code = 'authorization_connection_failed';
+        throw error;
+      }
+      state = 'saved';
+      return value;
+    },
+    removeItem: async () => {},
+    clear: async () => {},
+  };
+  const fakeApp = {
+    createInstance: () => fakeStore,
+    getStatus: () => ({ state, pending: 0, failures: state === 'error' ? [{ namespace: 'app_state', code: 'authorization_connection_failed' }] : [] }),
+    subscribe: callback => { events.addEventListener('status', callback); return () => events.removeEventListener('status', callback); },
+    async retryPending() {
+      // 第一次让桥看到授权响应丢失，随后重试应复用原保存操作。
+      if (!retried) {
+        retried = true;
+        const error = new Error('合成授权响应丢失');
+        error.code = 'authorization_connection_failed';
+        throw error;
+      }
+      state = 'saved';
+    },
+    async flush() {},
+  };
+  const view = {
+    __guanSQLiteHost: {
+      async initialize() { return fakeApp; },
+      async reconnect() {
+        reconnects++;
+        const error = new Error('当前会话仍有效');
+        error.code = 'reconnect_not_due';
+        throw error;
+      },
+    },
+    addEventListener: events.addEventListener.bind(events),
+    dispatchEvent: events.dispatchEvent.bind(events),
+  };
+  try {
+    globalThis.window = view;
+    const bridge = loadStorageBridge();
+    await bridge.initializeSQLiteApplication();
+    const value = JSON.stringify({ state: { title: '授权丢失后保留的编辑' }, version: 0 });
+    await assert.rejects(bridge.sqliteStateStorage.setItem('demo', value), error => error.code === 'authorization_connection_failed');
+    assert.equal(bridge.storageStatus().reconnectRequired, true);
+    await bridge.retrySQLiteStorage();
+    assert.equal(reconnects, 1);
+    assert.equal(bridge.storageStatus().state, 'saved');
+    assert.equal(bridge.storageStatus().pending, 0);
+  } finally { globalThis.window = previous; }
+});
+
+test('普通连接失败时点击重试只继续原保存，不误触发授权恢复', async () => {
+  const previous = globalThis.window;
+  let initialized = 0, reconnects = 0, writes = 0, retries = 0;
+  let state = 'idle', failures = [];
+  const events = new EventTarget();
+  const fakeStore = {
+    async iterate() {},
+    getItem: async () => null,
+    async setItem() {
+      writes++;
+      state = 'error';
+      failures = [{ namespace: 'app_state', code: 'connection_failed' }];
+      const error = new Error('合成网络连接失败');
+      error.code = 'connection_failed';
+      throw error;
+    },
+    removeItem: async () => {},
+    clear: async () => {},
+  };
+  const fakeApp = {
+    createInstance: () => fakeStore,
+    getStatus: () => ({ state, pending: 0, failures }),
+    subscribe: callback => { events.addEventListener('status', callback); return () => events.removeEventListener('status', callback); },
+    async retryPending() {
+      retries++;
+      state = 'saved';
+      failures = [];
+    },
+    async flush() {},
+  };
+  const view = {
+    __guanSQLiteHost: {
+      async initialize() { initialized++; return fakeApp; },
+      async reconnect() { reconnects++; },
+    },
+    addEventListener: events.addEventListener.bind(events),
+    dispatchEvent: events.dispatchEvent.bind(events),
+  };
+  try {
+    globalThis.window = view;
+    const bridge = loadStorageBridge();
+    await bridge.initializeSQLiteApplication();
+    const value = JSON.stringify({ state: { title: '连接失败后保留的编辑' }, version: 0 });
+    await assert.rejects(bridge.sqliteStateStorage.setItem('demo', value), error => error.code === 'connection_failed');
+    assert.equal(bridge.storageStatus().reconnectRequired, false, '普通连接失败不能误显示为需要重新连接授权');
+    await bridge.retrySQLiteStorage();
+    assert.equal(initialized, 1, '重试不能重新初始化运行时');
+    assert.equal(writes, 1, '重试不能重新直接写入并生成第二笔操作');
+    assert.equal(reconnects, 0, '普通连接失败先重试原操作，不应触发无必要的重新授权');
+    assert.equal(retries, 1, '普通连接失败只重试原操作一次，不启动授权恢复');
+    assert.equal(bridge.storageStatus().state, 'saved');
+    assert.equal(bridge.storageStatus().pending, 0);
+  } finally { globalThis.window = previous; }
 });
 
 test('凭据端口沿用同一会话恢复；仅合成密钥加密落盘，不绕过过期校验', async () => {

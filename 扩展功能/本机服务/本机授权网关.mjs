@@ -135,7 +135,9 @@ export function createLocalAuthorizationGateway({ origin, dataURL, controller, c
       const page = capability && pages.get(digest(capability));
       requireValue(page, 'authorization_denied', '本页面授权已结束。', 401);
       page.port.initialize();
+      return digest(capability);
     },
+    getUpdatePageIds() { live(); return [...pages.keys()]; },
     getStatus() { const time = clock(); purge(time); return { closed, pendingTickets: tickets.size, authorizedPages: pages.size, activeRequests: active }; },
     close() { closed = true; tickets.clear(); for (const page of pages.values()) page.port.close(); pages.clear(); },
   });

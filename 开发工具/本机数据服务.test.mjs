@@ -4,10 +4,14 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
+import { DatabaseSync } from 'node:sqlite';
 import { request } from 'node:http';
 import { openWorkspace } from '../扩展功能/本机存储/SQLite工作区.mjs';
 import { startDataService } from '../扩展功能/本机服务/数据服务.mjs';
 import { createDataClient } from '../扩展功能/本机存储/浏览器适配.mjs';
+import { createValueCodec } from '../扩展功能/本机存储/应用值编码.mjs';
+import { MAX_DOCUMENT_BYTES } from '../扩展功能/本机存储/协议.mjs';
 
 const origin = 'http://localhost:43101', otherOrigin = 'http://localhost:43102';
 const roots = [];
@@ -24,6 +28,21 @@ async function fixture(options = {}) {
 const value = (title = 'API合成画布') => ({ id: 'demo', title, nodes: [], connections: [] });
 const body = (title, expectedRevision = 0, operationId = randomUUID()) => JSON.stringify({ value: value(title), expectedRevision, operationId, mediaIds: [] });
 async function expectError(response, status, code) { assert.equal(response.status, status); assert.equal((await response.json()).error.code, code); }
+function oversizedRequest(f, path, length) {
+  return new Promise((resolve, reject) => {
+    const req = request(f.service.url + path, { method: 'PUT', headers: {
+      Origin: origin, Authorization: `Bearer ${f.session.token}`, 'X-Guan-CSRF': f.session.csrf,
+      'Content-Type': 'application/json', 'Content-Length': String(length),
+    } }, response => {
+      let text = '';
+      response.setEncoding('utf8');
+      response.on('data', chunk => { text += chunk; });
+      response.on('end', () => resolve({ status: response.statusCode, json: async () => JSON.parse(text) }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
 
 test('Host、Origin、会话、CSRF、工作区、方法及路径逐层受限', async () => {
   const f = await fixture();
@@ -71,7 +90,12 @@ test('体积、JSON、Content-Type和媒体安全；错误不泄露本机路径'
     const path = `${f.base}/documents/canvas/demo`;
     await expectError(await f.call(path, { method: 'PUT', body: body() }), 415, 'content_type_denied');
     await expectError(await f.call(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{' }), 400, 'invalid_json');
-    await expectError(await f.call(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: 'x'.repeat(2 * 1024 * 1024 + 65537) }), 413, 'body_too_large');
+    const largeValue = { payload: 'x'.repeat(3 * 1024 * 1024) };
+    const largeWrite = await f.call(`${f.base}/documents/extension/large-document`, { method: 'PUT',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: largeValue, expectedRevision: 0, operationId: randomUUID(), mediaIds: [] }) });
+    assert.equal(largeWrite.status, 200, '超过旧2MiB边界的文档仍可保存');
+    assert.equal(f.store.readDocument('extension', 'large-document').value.payload.length, largeValue.payload.length);
+    await expectError(await oversizedRequest(f, path, MAX_DOCUMENT_BYTES + 1024 * 1024 + 1), 413, 'body_too_large');
     await expectError(await f.call(`${f.base}/media`, { method: 'POST', headers: { 'Content-Type': 'text/html' }, body: '<script/>' }), 400, 'invalid_media');
     const media = await (await f.call(`${f.base}/media`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: 'only synthetic' })).json();
     const download = await f.call(`${f.base}/media/${media.id}`); assert.equal(await download.text(), 'only synthetic');
@@ -80,6 +104,170 @@ test('体积、JSON、Content-Type和媒体安全；错误不泄露本机路径'
     assert.equal(error.status, 404); assert.equal(text.includes(f.root), false);
     assert.equal(f.store.readDocument('canvas', 'demo'), null);
   } finally { await f.close(); }
+});
+
+test('超过32MiB的媒体通过单次HTTP请求写入单个SQLite BLOB并可冷读', async () => {
+  const f = await fixture();
+  try {
+    const bytes = Buffer.alloc(33 * 1024 * 1024, 0x7a);
+    const blob = new Blob([bytes], { type: 'application/octet-stream' });
+    let mediaPosts = 0;
+    const client = createDataClient({
+      url: f.service.url, session: f.session,
+      fetchImpl: (url, init) => {
+        if (url.endsWith(`${f.base}/media`) && init.method === 'POST') mediaPosts++;
+        return fetch(url, { ...init, headers: { ...init.headers, Origin: origin } });
+      },
+    });
+    const saved = await client.writeMedia(blob);
+    assert.equal(mediaPosts, 1);
+    assert.equal(saved.size, bytes.length);
+    assert.equal(saved.id, createHash('sha256').update(bytes).digest('hex'));
+    const db = new DatabaseSync(join(f.root, '工作台.sqlite'), { readOnly: true });
+    try {
+      const row = db.prepare('SELECT typeof(content) AS kind,length(content) AS size FROM media WHERE id=?').get(saved.id);
+      assert.equal(row.kind, 'blob');
+      assert.equal(row.size, bytes.length);
+    } finally { db.close(); }
+    const cold = f.store.readMedia(saved.id);
+    assert.equal(cold.bytes.length, bytes.length);
+    assert.equal(createHash('sha256').update(cold.bytes).digest('hex'), saved.id);
+    client.close();
+  } finally { await f.close(); }
+});
+
+test('多张几MiB媒体使用一次本机请求和一个SQLite事务，逐张确认并可冷读', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'guan-media-batch-'));
+  let commits = 0, store, service, client;
+  try {
+    store = openWorkspace({ dataRoot: root, initialize: true, beforeCommit: () => commits++ });
+    service = await startDataService({ workspace: store, allowedOrigins: [origin], port: 0, rateLimit: 0 });
+    const session = service.issueSession(origin), base = `/v1/workspaces/${store.workspaceId}`;
+    let batchPosts = 0;
+    client = createDataClient({
+      url: service.url, session,
+      fetchImpl: (url, init) => {
+        if (url.endsWith(`${base}/media/batch`) && init.method === 'POST') batchPosts++;
+        return fetch(url, { ...init, headers: { ...init.headers, Origin: origin } });
+      },
+    });
+    const blobs = [1, 2, 3].map((value, index) => new Blob([Buffer.alloc((index + 1) * 1024 * 1024, value)], { type: index === 1 ? 'image/jpeg' : 'image/png' }));
+    const saved = await client.writeMediaBatch(blobs.map(blob => ({ blob })));
+    assert.equal(batchPosts, 1);
+    assert.equal(commits, 1);
+    assert.equal(saved.length, blobs.length);
+    for (let index = 0; index < blobs.length; index++) {
+      assert.equal(saved[index].size, blobs[index].size);
+      assert.equal(saved[index].id, createHash('sha256').update(Buffer.from(await blobs[index].arrayBuffer())).digest('hex'));
+      assert.equal((await client.readMedia(saved[index].id)).size, blobs[index].size);
+    }
+    const bad = await fetch(service.url + `${base}/media/batch`, { method: 'POST',
+      headers: { Origin: origin, Authorization: `Bearer ${session.token}`, 'X-Guan-CSRF': session.csrf, 'Content-Type': 'application/x-guan-media-batch' },
+      body: Buffer.from('invalid batch') });
+    await expectError(bad, 400, 'invalid_media_batch');
+    assert.equal(commits, 1, '格式错误的媒体批次不能打开SQLite写事务');
+  } finally {
+    client?.close();
+    if (service) await service.close();
+    store?.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('单文件媒体在写入队列繁忙时仍先接收完整请求体', async () => {
+  const f = await fixture();
+  let releaseWrite;
+  const heldWrite = new Promise(resolve => { releaseWrite = resolve; });
+  let enteredWrite;
+  const entered = new Promise(resolve => { enteredWrite = resolve; });
+  try {
+    const active = f.service.runTrustedWrite(async () => {
+      enteredWrite();
+      await heldWrite;
+    });
+    await entered;
+
+    const size = 32 * 1024 * 1024;
+    let response, stalled = false, sent = 0;
+    const received = new Promise((resolve, reject) => {
+      const req = request(f.service.url + `${f.base}/media`, { method: 'POST', headers: {
+        Origin: origin, Authorization: `Bearer ${f.session.token}`, 'X-Guan-CSRF': f.session.csrf,
+        'Content-Type': 'application/octet-stream', 'Content-Length': String(size),
+      } }, res => {
+        response = res;
+        res.resume();
+        res.on('end', resolve);
+        res.on('error', reject);
+      });
+      req.on('error', reject);
+      const chunk = Buffer.alloc(64 * 1024, 0x5a);
+      const write = () => {
+        while (sent < size) {
+          const end = Math.min(sent + chunk.length, size);
+          const accepted = req.write(chunk.subarray(0, end - sent));
+          sent = end;
+          if (!accepted) {
+            stalled = true;
+            req.once('drain', () => { stalled = false; write(); });
+            return;
+          }
+        }
+        req.end();
+      };
+      write();
+    });
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const sentBeforeRelease = sent === size && !stalled && !response;
+    releaseWrite();
+    await active;
+    await received;
+    assert.equal(sentBeforeRelease, true, `媒体请求体应在等待 SQLite 写队列时被完整接收（${sent}/${size}）`);
+  } finally {
+    releaseWrite();
+    await f.close();
+  }
+});
+
+test('真实编码器保存24张几MiB图片时按批减少HTTP请求和SQLite提交', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'guan-image-workflow-'));
+  let commits = 0, store, service, client, codec;
+  try {
+    store = openWorkspace({ dataRoot: root, initialize: true, beforeCommit: () => commits++ });
+    service = await startDataService({ workspace: store, allowedOrigins: [origin], port: 0, rateLimit: 0 });
+    const session = service.issueSession(origin), base = `/v1/workspaces/${store.workspaceId}`;
+    let mediaPosts = 0;
+    client = createDataClient({
+      url: service.url, session,
+      fetchImpl: (url, init) => {
+        if (init.method === 'POST' && (url.endsWith(`${base}/media`) || url.endsWith(`${base}/media/batch`))) mediaPosts++;
+        return fetch(url, { ...init, headers: { ...init.headers, Origin: origin } });
+      },
+    });
+    codec = createValueCodec({ client });
+    const sizes = [1_600_000, 2_100_000, 2_900_000];
+    const images = Array.from({ length: 24 }, (_, index) => new Blob([Buffer.alloc(sizes[index % sizes.length], index + 1)], { type: 'image/png' }));
+    const started = performance.now();
+    const encoded = await codec.encode({ images });
+    const uploadMs = performance.now() - started;
+    assert.equal(encoded.mediaIds.length, images.length);
+    assert.ok(mediaPosts < images.length, `上传请求 ${mediaPosts} 次应少于图片数 ${images.length}`);
+    assert.equal(commits, mediaPosts, '每个批次请求对应一个SQLite提交');
+    const saved = await client.writeDocument({
+      collection: 'extension', id: 'many-small-images', value: { tree: encoded.tree }, expectedRevision: 0,
+      operationId: randomUUID(), mediaIds: encoded.mediaIds,
+    });
+    assert.equal(saved.persisted, true);
+    assert.equal(commits, mediaPosts + 1, '画布文档在图片ACK之后只提交一次');
+    assert.equal(store.readDocument('extension', 'many-small-images').mediaIds.length, images.length);
+    assert.equal(store.readUsage().databases[0].stores.find(item => item.name === 'media_blobs').records, images.length);
+    console.log(`[图片工作流性能] ${images.length}张、${(images.reduce((sum, blob) => sum + blob.size, 0) / 1048576).toFixed(1)} MiB，上传${mediaPosts}次请求，耗时${uploadMs.toFixed(1)} ms`);
+  } finally {
+    codec?.close();
+    client?.close();
+    if (service) await service.close();
+    store?.close();
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('会话过期与频率限制', async () => {

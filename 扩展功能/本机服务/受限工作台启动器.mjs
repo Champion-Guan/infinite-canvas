@@ -153,7 +153,8 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
     networkProxy = await assembleNetworkProxyService({ workspace, vault: credentialPort, origin, deferStartup: true, runTrustedWrite: operation => service.runTrustedWrite(operation), authorize: request => gateway.assertGenerationPage(request),
       runtimeOptions: { runtimeParent: join(realpathSync(tmpdir()), 'ai-workbench-proxy-' + workspace.workspaceId), ...networkProxyOptions }, initialConfiguration: initialProxyConfiguration, resourceUpdateOptions: proxyResourceUpdateOptions });
     generation = await assembleGenerationService({ workspace, networkProxy, vault: credentialPort, origin, runTrustedWrite: operation => service.runTrustedWrite(operation), authorize: request => gateway.assertGenerationPage(request) });
-    updates = assembleSoftwareUpdates({ ...softwareUpdateOptions, dataRoot, origin, networkProxy, generation, authorize: request => gateway.assertGenerationPage(request) });
+    updates = assembleSoftwareUpdates({ ...softwareUpdateOptions, dataRoot, origin, networkProxy, generation, authorize: request => gateway.assertGenerationPage(request),
+      updatePages: () => gateway.getUpdatePageIds() });
     mediaConversion = createMediaConversionService({ origin, authorize: request => gateway.assertGenerationPage(request) });
     updates.start();
     ready = !deferActivation;

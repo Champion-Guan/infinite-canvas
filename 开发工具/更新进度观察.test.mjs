@@ -134,7 +134,7 @@ test('前端只接受回环只读进度地址，拒绝外部URL和伪状态响�
   reply = { url: 'http://127.0.0.1:45678/' + 'a'.repeat(48) + '/' };
   assert.deepEqual(await module.exports.updateRequest('progress-window'), reply);
 });
-test('面板显示真实下载百分比；安装不编造百分比，最新版本不假装有待安装任务', () => {
+test('面板只在下载触发或恢复安装时出现，检查更新及发现新版不显示空框', () => {
   const source = readFileSync(new URL('../扩展功能/软件更新/更新进度面板.tsx', import.meta.url), 'utf8');
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   const module = { exports: {} }, jsx = (type, props) => ({ type, props });
@@ -142,41 +142,83 @@ test('面板显示真实下载百分比；安装不编造百分比，最新版�
   function flatten(value) { if (!value || typeof value !== 'object') return []; if (Array.isArray(value)) return value.flatMap(flatten); return [value, ...flatten(value.props?.children)]; }
   const base = { hasNewVersion: true, latest: { version: target }, download: { state: 'downloading', progress: 37 }, install: { allowed: true, state: 'idle' } };
   const render = status => flatten(module.exports.UpdateProgressPanel({ status }));
+  assert.deepEqual(render(null), []);
+  for (const state of ['unchecked', 'checking', 'up-to-date', 'error', 'available']) {
+    for (const downloadState of ['idle', 'trust-not-configured', 'not-implemented']) {
+      assert.deepEqual(render({ ...base, hasNewVersion: state === 'available', state,
+        download: { state: downloadState, progress: 0 } }), [], `${state}/${downloadState}`);
+    }
+  }
+  assert.deepEqual(render({ ...base, download: { state: 'idle', progress: 0 },
+    install: { allowed: true, state: 'idle', targetVersion: target } }), []);
   assert.equal(render(base).find(item => item.type === 'progress').props.percent, 37);
   const installing = render({ ...base, download: { state: 'verified', progress: 100 }, install: { allowed: true, state: 'starting', targetVersion: target } });
   assert.equal(installing.find(item => item.type === 'progress').props['aria-label'], '安装包下载进度');
   assert.ok(installing.some(item => item.props?.['aria-current'] === 'step' && item.props.children.includes('切换与启动')));
-  const idle = render({ ...base, hasNewVersion: false, state: 'up-to-date', download: { state: 'idle', progress: 0 } });
-  assert.equal(idle.some(item => item.type === 'progress'), false);
-  assert.equal(idle.some(item => item.props?.['aria-current'] === 'step'), false);
+  for (const install of [{ allowed: true, state: 'idle', staging: true },
+    { allowed: true, state: 'staged', targetVersion: target },
+    { allowed: true, state: 'starting', targetVersion: target }]) {
+    assert.equal(render({ ...base, download: { state: 'idle', progress: 0 }, install })
+      .filter(item => Object.hasOwn(item.props || {}, 'data-guan-update-progress')).length, 1, install.state);
+  }
 });
 
-test('版本弹窗复用统一更新面板，不再另画重复下载进度和状态行', () => {
-  const source = readFileSync(new URL('../.运行/3100源/画布副本/web/src/components/layout/version-release-modal.tsx', import.meta.url), 'utf8');
-  const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
-  const module = { exports: {} }, Fragment = Symbol('fragment');
+test('版本弹窗展开真实安装操作和进度组件，下载各状态始终只显示一条进度', () => {
+  const Fragment = Symbol('fragment');
   const jsx = (type, props) => ({ type, props }), jsxs = jsx;
+  let status = { hasNewVersion: true, latest: { version: '2.0.0-beta.21' }, download: { state: 'downloading', progress: 2 }, install: { allowed: true, state: 'idle' } };
+  const client = { updateMessages: { downloading: '正在下载', web_package_invalid: '安装包核验失败，原版本保留' }, installationMessages: {}, updateRequest: async () => {} };
   const mocks = {
-    react: {}, 'react/jsx-runtime': { Fragment, jsx, jsxs },
-    antd: { App: { useApp: () => ({ message: { error() {} } }) }, Button: 'button', Modal: 'modal', Tag: 'tag', Timeline: 'timeline' },
+    react: { useEffect() {}, useState: () => [false, () => {}] }, 'react/jsx-runtime': { Fragment, jsx, jsxs },
+    antd: { App: { useApp: () => ({ message: { error() {} }, modal: { confirm() {} } }) }, Button: 'button', Modal: 'modal', Progress: 'progress', Tag: 'tag', Timeline: 'timeline' },
     i18next: {}, 'react-i18next': { useTranslation: () => ({ t: value => value }) },
-    '@/hooks/use-version-check': { useVersionCheck: () => ({ open: true, setOpen() {}, openReleaseModal() {}, currentVersion: '2.0.0-beta.14', latestVersion: '2.0.0-beta.15', releases: [], checking: false, hasNewVersion: true, checkLatestRelease() {}, refresh: async () => {}, unavailable: false,
-      status: { hasNewVersion: true, latest: { version: '2.0.0-beta.15' }, download: { state: 'downloading', progress: 78 }, install: { allowed: false, state: 'idle' } } }) },
+    '@/hooks/use-version-check': { useVersionCheck: () => ({ open: true, setOpen() {}, openReleaseModal() {}, currentVersion: '2.0.0-beta.19', latestVersion: '2.0.0-beta.21', releases: [], checking: false, hasNewVersion: status.hasNewVersion, checkLatestRelease() {}, refresh: async () => {}, unavailable: false, status }) },
     '@/constant/env': { formatDisplayVersion: value => value },
-    '@/扩展功能/软件更新/软件更新客户端': { updateMessages: {}, updateRequest: async () => {} },
+    '@/扩展功能/软件更新/软件更新客户端': client, './软件更新客户端': client,
     '@/扩展功能/存储界面/设置视区': { useSettingsViewport: () => null },
-    '@/扩展功能/软件更新/在线安装操作': { OnlineInstallActions: 'online-install-actions' },
+    './独立进度窗口': { connectUpdateProgressWindow: async () => {} },
     '@/扩展功能/产品/产品界面边界': { useProductActive: () => true },
+    '../产品/产品界面边界': { useProductActive: () => true },
   };
-  new Function('module', 'exports', 'require', code)(module, module.exports, name => {
-    assert.ok(name in mocks, `未声明依赖：${name}`); return mocks[name];
-  });
+  function load(path) {
+    const source = readFileSync(new URL(path, import.meta.url), 'utf8');
+    const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
+    const module = { exports: {} };
+    new Function('module', 'exports', 'require', code)(module, module.exports, name => {
+      assert.ok(name in mocks, `未声明依赖：${name}`); return mocks[name];
+    });
+    return module.exports;
+  }
+  mocks['./更新进度面板'] = load('../扩展功能/软件更新/更新进度面板.tsx');
+  mocks['@/扩展功能/软件更新/在线安装操作'] = load('../扩展功能/软件更新/在线安装操作.tsx');
+  const { VersionReleaseModal } = load('../.运行/3100源/画布副本/web/src/components/layout/version-release-modal.tsx');
   function flatten(value) {
     if (!value || typeof value !== 'object') return [];
     if (Array.isArray(value)) return value.flatMap(flatten);
+    if (typeof value.type === 'function') return flatten(value.type(value.props));
     return [value, ...flatten(value.props?.children)];
   }
-  const tree = flatten(module.exports.VersionReleaseModal({}));
-  assert.equal(tree.filter(item => item.type === 'progress').length, 0);
-  assert.equal(tree.filter(item => item.type === 'online-install-actions').length, 1);
+  const base = status;
+  for (const download of [{ state: 'verifying-manifest', progress: 0 }, { state: 'downloading', progress: 2 },
+    { state: 'downloading', progress: 78 }, { state: 'verified', progress: 100 },
+    { state: 'error', progress: 2, error: 'web_package_invalid' }]) {
+    status = { ...base, download };
+    const tree = flatten(VersionReleaseModal({}));
+    const panels = tree.filter(item => Object.hasOwn(item.props || {}, 'data-guan-update-progress'));
+    const progress = tree.filter(item => item.type === 'progress');
+    assert.equal(panels.length, 1, download.state);
+    assert.equal(progress.length, 1, download.state);
+    assert.equal(progress[0].props.percent, download.progress);
+    assert.equal(flatten(panels[0]).filter(item => item.type === 'progress').length, 1);
+    assert.equal(tree.filter(item => item.props?.role === 'status' && item.props.className.includes('text-stone-600')).length, 0);
+    if (download.error) assert.equal(progress[0].props.status, 'exception');
+  }
+  for (const state of ['up-to-date', 'available', 'error']) {
+    status = { ...base, hasNewVersion: state === 'available', state, download: { state: 'idle', progress: 0 } };
+    const { OnlineInstallActions } = mocks['@/扩展功能/软件更新/在线安装操作'];
+    for (const tree of [flatten(VersionReleaseModal({})), flatten(jsx(OnlineInstallActions, { status, refresh: async () => {} }))]) {
+      assert.equal(tree.filter(item => Object.hasOwn(item.props || {}, 'data-guan-update-progress')).length, 0, state);
+      assert.equal(tree.filter(item => item.type === 'progress').length, 0, state);
+    }
+  }
 });

@@ -54,9 +54,14 @@ async function loadImageStorage(createImageThumbnail) {
             queueMicrotask(() => this.onload?.());
         }
     }
+    const cacheFile = "扩展功能/媒体交付/缩略图缓存.ts";
+    const cacheModule = { exports: {} };
+    const cacheCode = await transformWithEsbuild(readFileSync(cacheFile, "utf8"), cacheFile, { loader: "ts", format: "cjs", target: "es2022", tsconfigRaw: "{}" });
+    new Function("module", "exports", "FileReader", cacheCode.code)(cacheModule, cacheModule.exports, Reader);
     const dependencies = {
         "@/扩展功能/素材/上传资产规则": { captureUserUpload: () => null },
         "@/扩展功能/媒体交付/媒体地址缓存": { createMediaUrlCache: () => mediaCache },
+        "@/扩展功能/媒体交付/缩略图缓存": cacheModule.exports,
         "@/扩展功能/网络代理/本地转发请求": { 本地转发请求: async () => ({ ok: true, blob: async () => new Blob(["read-by-key"], { type: "image/png" }) }) },
         "@/扩展功能/本机存储/上游浏览器存储桥": { sqliteForage: localforage },
         nanoid: { nanoid: () => "test" },
@@ -93,10 +98,34 @@ test("同一图片并发恢复共用一次解码，优先返回缓存缩略图",
     assert.equal(decodes, 1);
     assert.equal(fixture.reads.get("image_files:image:shared"), 1);
     assert.equal(fixture.stores.get("image_previews").get("image:shared").version, 2);
-    assert.equal(fixture.createdUrls.length, 1);
+    assert.equal(fixture.createdUrls.length, 0);
+    assert.match(sources[0], /^data:image\/webp/);
     assert.equal(new Set(sources).size, 1);
 });
 
+test("已有缩略图的40次并发恢复只读取一次、创建一个预览地址", async () => {
+    const fixture = await loadImageStorage(async () => { throw Error("不应重新解码"); });
+    fixture.stores.get("image_previews").set("image:stored", { version: 2, blob: new Blob(["preview"], { type: "image/webp" }) });
+    const sources = await Promise.all(Array.from({ length: 40 }, () => fixture.image.resolveCanvasImageSource("image:stored")));
+    assert.equal(fixture.reads.get("image_previews:image:stored"), 1);
+    assert.equal(new Set(sources).size, 1);
+    assert.equal(fixture.createdUrls.length, 0);
+    for (let index = 0; index < 30; index++) assert.equal(await fixture.image.ensureImagePreview("image:stored"), sources[0]);
+    assert.equal(fixture.reads.get("image_previews:image:stored"), 1);
+});
+
+test("删除图片时，尚未完成的缩略图解码不复活缓存或重写预览记录", async () => {
+    let finish;
+    const fixture = await loadImageStorage(() => new Promise(resolve => { finish = resolve; }));
+    fixture.stores.get("image_files").set("image:deleted", new Blob(["original"]));
+    const pending = fixture.image.ensureImagePreview("image:deleted");
+    await new Promise(resolve => setImmediate(resolve));
+    await fixture.image.deleteStoredImages(["image:deleted"]);
+    finish(new Blob(["late-preview"], { type: "image/webp" }));
+    assert.equal(await pending, undefined);
+    assert.equal(fixture.image.previewUrlFor("image:deleted"), undefined);
+    assert.equal(fixture.stores.get("image_previews").has("image:deleted"), false);
+});
 test("无需缩略图时回退原图URL，并复用同一个原图对象URL", async () => {
     let decodes = 0;
     const fixture = await loadImageStorage(async () => { decodes++; return undefined; });

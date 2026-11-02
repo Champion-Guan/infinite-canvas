@@ -1,0 +1,45 @@
+diff --git a/web/src/lib/image-thumbnail.ts b/web/src/lib/image-thumbnail.ts
+index f16f29f..87f4d87 100644
+--- a/web/src/lib/image-thumbnail.ts
++++ b/web/src/lib/image-thumbnail.ts
+@@ -29,21 +29,25 @@ export function getThumbnailDimensions(width: number, height: number, maxEdge =
+ 
+ export async function createImageThumbnail(blob: Blob, maxEdge = CANVAS_IMAGE_PREVIEW_MAX_EDGE) {
+     const bitmap = await createImageBitmap(blob);
+-    const { width, height } = getThumbnailDimensions(bitmap.width, bitmap.height, maxEdge);
+-    if (width === bitmap.width && height === bitmap.height) {
++    let bitmapOpen = true;
++    let canvas: HTMLCanvasElement | undefined;
++    try {
++        const { width, height } = getThumbnailDimensions(bitmap.width, bitmap.height, maxEdge);
++        if (width === bitmap.width && height === bitmap.height) return undefined;
++        canvas = document.createElement("canvas");
++        canvas.width = width;
++        canvas.height = height;
++        const context = canvas.getContext("2d");
++        if (!context) return undefined;
++        context.drawImage(bitmap, 0, 0, width, height);
+         bitmap.close();
+-        return undefined;
++        bitmapOpen = false;
++        return await new Promise<Blob | undefined>((resolve) => canvas!.toBlob((result) => resolve(result || undefined), "image/webp", 0.86));
++    } finally {
++        if (bitmapOpen) bitmap.close();
++        if (canvas) {
++            canvas.width = 0;
++            canvas.height = 0;
++        }
+     }
+-
+-    const canvas = document.createElement("canvas");
+-    canvas.width = width;
+-    canvas.height = height;
+-    const context = canvas.getContext("2d");
+-    if (!context) {
+-        bitmap.close();
+-        return undefined;
+-    }
+-    context.drawImage(bitmap, 0, 0, width, height);
+-    bitmap.close();
+-    return new Promise<Blob | undefined>((resolve) => canvas.toBlob((result) => resolve(result || undefined), "image/webp", 0.86));
+ }

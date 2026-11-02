@@ -9,7 +9,7 @@ const pkg = JSON.parse(readFileSync(resolve(root, 'package.json')));
 const files = new Set(['test:boundaries', 'test:disk-guards', 'test:ux', 'test:image-delivery', 'test:concurrent-generation', 'test:upgrade-continuity', 'test:update-channels'].flatMap(key => pkg.scripts[key].split(' ').filter(item => item.endsWith('.test.mjs'))));
 // 新保存已改为单文档；使用现行提交/失败恢复及旧多块冷读用例，不执行要求继续分片写入的历史矩阵。
 const extras = ['编辑图片读取边界', '请求队列并发边界', '浮层与媒体生命周期', '读取切换提速', '保存提速', 'SQLite单文档存储', '旧分片读取与单体保存', 'SQLite分类容量', 'SQLite生成任务', 'SQLite保存恢复', 'SQLite会话恢复', '本机数据服务', '本机授权', '受控会话', '写入协调', '生成网关', '生成HTTP闭环', '代理与Fallback闭环', '代理交接与本地转发', '代理配置兼容', '内置订阅设置', '本地转发请求', '画布保存核验', '模型价格配置安全', '一键启动工作台', '在线安装入口边界', '更新进度观察', '画布性能迁移', '媒体任务迁移', '视频任务迁移', '文本流式迁移', '渠道读取迁移'];
-for (const name of [...extras, '凭据后端隔离', '代理状态自动刷新', '客户桌面入口', 'M1问题复现']) files.add('开发工具/' + name + '.test.mjs');
+for (const name of [...extras, '凭据后端隔离', '代理状态自动刷新', '客户桌面入口', 'M1问题复现', 'M1媒体资源', '画布渐进媒体加载']) files.add('开发工具/' + name + '.test.mjs');
 // 资源密集的构建、代理启动和故障矩阵独占执行，避免测试争用导致假超时。
 const exclusive = ['内置网络代理', '异常退出写盘', 'Web构建缓存清理', 'SQLite分片存储', 'SQLite分片故障矩阵'].map(name => '开发工具/' + name + '.test.mjs');
 const directory = resolve(root, '开发文档/验收记录/用户体验20261026');

@@ -12,6 +12,18 @@ function load(text, imports = {}, globals = {}) {
     vm.runInContext(ts.transpileModule(text, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText, context);
     return context.exports;
 }
+
+function extractReferenceUpload(pagePath) {
+    const text = source(pagePath), ast = ts.createSourceFile(pagePath, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    let declaration;
+    function visit(node) {
+        if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === 'addReferences') declaration = node;
+        ts.forEachChild(node, visit);
+    }
+    visit(ast);
+    assert.ok(declaration, `${pagePath} 应有参考图上传入口`);
+    return declaration.getText(ast);
+}
 const rules = () => load(source('扩展功能/素材/上传资产规则.ts'));
 const plain = value => JSON.parse(JSON.stringify(value));
 const image = { url: 'blob:preview', storageKey: 'image:delivery', originalStorageKey: 'image:original', deliveryStorageKey: 'image:delivery', width: 900, height: 1200, bytes: 500, mimeType: 'image/jpeg', originalWidth: 1800, originalHeight: 2400, originalMimeType: 'image/heic', originalBytes: 6000000, deliveryWidth: 900, deliveryHeight: 1200 };
@@ -158,8 +170,7 @@ test('外部拖放真实入口对图片、视频、音频保留转换后的松�
         isAudioFile: file => file.type.startsWith('audio/'), hasHeicNameOrType: () => false, insertStoredAsset() {},
     });
     const files = [new File(['i'], '图.png', { type: 'image/png' }), new File(['v'], '视频.mp4', { type: 'video/mp4' }), new File(['a'], '音频.wav', { type: 'audio/wav' })];
-    api.handleDrop({ preventDefault() {}, clientX: 280.25, clientY: 315.5, dataTransfer: { types: ['Files'], files, getData: () => '' } });
-    await new Promise(resolve => setImmediate(resolve));
+    await api.handleDrop({ preventDefault() {}, clientX: 280.25, clientY: 315.5, dataTransfer: { types: ['Files'], files, getData: () => '' } });
     assert.equal(transaction.nodesRef.current.length, 4);
     for (const [index, file] of files.entries()) {
         const node = transaction.nodesRef.current.find(item => item.title === file.name);
@@ -170,20 +181,88 @@ test('外部拖放真实入口对图片、视频、音频保留转换后的松�
     assert.equal(transaction.getCurrentNode('old'), old);
 });
 
+test('画布批量拖入统一收集音视频失败并继续处理后续文件', async () => {
+    const placement = load(source('扩展功能/画布布局/卡片自动避让.ts'));
+    const transaction = load(source('扩展功能/画布生成/画布节点事务.ts'), {
+        react: { useCallback: fn => fn, useState: value => [value, () => {}], useRef: value => ({ current: value }) },
+        '../Excel画布/Excel卡片事务': { reconcileExcelPreviews: (_previous, next) => next },
+        '../画布布局/卡片自动避让': placement,
+    }).useCanvasNodeTransactions();
+    let mediaAttempts = [], messages = [];
+    const file = '.运行/3100源/画布副本/web/src/pages/canvas/project.tsx';
+    const ast = ts.createSourceFile(file, source(file), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const names = ['createImageFileNode', 'createVideoFileNode', 'createAudioFileNode', 'handleDrop'];
+    const statements = new Map();
+    function visit(node) {
+        if (ts.isVariableStatement(node)) for (const decl of node.declarationList.declarations) {
+            if (ts.isIdentifier(decl.name) && names.includes(decl.name.text)) statements.set(decl.name.text, node.getText(ast));
+        }
+        ts.forEachChild(node, visit);
+    }
+    visit(ast);
+    const sizing = load(source('.运行/3100源/画布副本/web/src/lib/canvas/canvas-node-size.ts'));
+    const api = load([...statements.values()].join('\n') + '\nexports.handleDrop = handleDrop;', {}, {
+        useCallback: fn => fn, ...transaction, projectId: 'A',
+        setSelectedNodeIds() {}, setSelectedConnectionId() {}, setDialogNodeId() {},
+        attemptImageUpload: async fn => { try { return await fn(); } catch { return undefined; } },
+        message: { error: value => messages.push(value) },
+        uploadImage: async () => ({ ...image, width: 240, height: 180 }),
+        uploadMediaFile: async file => {
+            mediaAttempts.push(file.name);
+            if (file.name === '失败视频.mp4' || file.name === '失败音频.wav') throw Error('SQLite 写入未确认');
+            return { url: 'blob:media', storageKey: `media:${file.name}`, width: 320, height: 180 };
+        },
+        fitNodeSize: sizing.fitNodeSize,
+        imageMetadata: value => ({ content: value.url }), videoMetadata: value => ({ content: value.url }), audioMetadata: value => ({ content: value.url }),
+        CanvasNodeType: { Image: 'image', Video: 'video', Audio: 'audio' }, NODE_DEFAULT_SIZE: { audio: { width: 340, height: 120 } },
+        VIDEO_NODE_MAX_WIDTH: 420, VIDEO_NODE_MAX_HEIGHT: 420,
+        screenToCanvas: (x, y) => ({ x, y }),
+        ASSET_DRAG_TYPE: 'application/x-guan-canvas-asset', EXCEL_PROMPT_DRAG_TYPE: 'application/x-excel', dropExcelCards: () => false,
+        isAudioFile: file => file.type.startsWith('audio/'), hasHeicNameOrType: () => false, insertStoredAsset() {},
+    });
+    const files = [
+        new File(['v'], '失败视频.mp4', { type: 'video/mp4' }),
+        new File(['a'], '成功音频.wav', { type: 'audio/wav' }),
+        new File(['a'], '失败音频.wav', { type: 'audio/wav' }),
+        new File(['v'], '成功视频.mp4', { type: 'video/mp4' }),
+    ];
+    await api.handleDrop({ preventDefault() {}, clientX: 100, clientY: 200, dataTransfer: { types: ['Files'], files, getData: () => '' } });
+    assert.deepEqual(mediaAttempts, files.map(file => file.name), '单个失败后仍逐项处理后续文件');
+    assert.equal(transaction.nodesRef.current.length, 2, '只创建成功的音视频节点');
+    assert.deepEqual(messages, ['有 2 个文件上传失败，请重试。']);
+});
+
+test('图片与视频工作台参考图存储失败时上传忙碌状态在 finally 中复位', async () => {
+    for (const page of ['.运行/3100源/画布副本/web/src/pages/image/index.tsx', '.运行/3100源/画布副本/web/src/pages/video/index.tsx']) {
+        let busy = false, busyTransitions = [];
+        const api = load(`${extractReferenceUpload(page)}\nexports.addReferences = addReferences;`, {}, {
+            references: [], setReferences() {},
+            setReferencesUploading(value) { busy = value; busyTransitions.push(value); },
+            uploadImage: async () => { throw Error('SQLite 写入未确认'); },
+            nanoid: () => 'reference',
+            message: { warning() {} },
+            t: () => 'unsupported',
+        });
+        await assert.rejects(api.addReferences([new File(['bad'], '参考图.png', { type: 'image/png' })]), /SQLite 写入未确认/);
+        assert.equal(busy, false);
+        assert.deepEqual(busyTransitions, [true, false]);
+    }
+});
+
 test('真实图片上传入口在首次await前捕获归属，成功才登记；生成和失败不误登记', async () => {
     const file = '.运行/3100源/画布副本/web/src/services/image-storage.ts', text = source(file);
     const ast = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
     const fn = ast.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'uploadImage').getText(ast);
     const rule = rules(); let finish, registrations = [];
     const api = load(fn, { '@/扩展功能/素材/上传资产登记': { async registerUploadedAsset(...args) { registrations.push(args); } } }, {
-        captureUserUpload: rule.captureUserUpload, storeImage: () => new Promise(resolve => { finish = resolve; }),
+        captureUserUpload: rule.captureUserUpload, assertUploadStorageReady: () => {}, storeImage: () => new Promise(resolve => { finish = resolve; }),
     });
     rule.activateAssetProject('A'); const pending = api.uploadImage(new File(['x'], '上传.png'));
     rule.activateAssetProject('B'); finish(image); await pending;
     assert.equal(registrations[0][0].projectId, 'A');
     const generated = api.uploadImage(new File(['x'], '生成.png'), { registerAsset: false }); finish(image); await generated;
     assert.equal(registrations.length, 1);
-    const failed = load(fn, {}, { captureUserUpload: rule.captureUserUpload, storeImage: async () => { throw Error('存储失败'); } });
+    const failed = load(fn, {}, { captureUserUpload: rule.captureUserUpload, assertUploadStorageReady: () => {}, storeImage: async () => { throw Error('存储失败'); } });
     await assert.rejects(failed.uploadImage(new File(['x'], '坏图.png')), /存储失败/);
 });
 
@@ -193,7 +272,7 @@ test('真实音视频上传入口捕获原画布，登记成功后返回；生�
     const fn = ast.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'uploadMediaFile').getText(ast);
     const rule = rules(); let finish, registrations = [], writes = 0;
     const api = load(fn, { '@/扩展功能/素材/上传资产登记': { async registerUploadedAsset(...args) { registrations.push(args); } } }, {
-        captureUserUpload: rule.captureUserUpload, nanoid: () => String(++writes),
+        captureUserUpload: rule.captureUserUpload, assertUploadStorageReady: () => {}, nanoid: () => String(++writes),
         store: { setItem: () => new Promise(resolve => { finish = resolve; }) },
         URL: { createObjectURL: () => 'blob:stored' }, objectUrls: new Map(),
         readVideoMeta: async () => ({ width: 1920, height: 1080, durationMs: 1500 }), readAudioMeta: async () => ({ durationMs: 1000 }),
@@ -208,6 +287,12 @@ test('真实音视频上传入口捕获原画布，登记成功后返回；生�
     }
     const generated = api.uploadMediaFile(new Blob(['generated'], { type: 'video/mp4' }), 'video'); finish(); await generated;
     assert.equal(registrations.length, 2); assert.equal(writes, 3);
+    const failed = load(fn, {}, {
+        captureUserUpload: rule.captureUserUpload, assertUploadStorageReady: () => {}, nanoid: () => 'failed',
+        store: { setItem: async () => { throw Error('媒体保存失败'); } },
+        URL: { createObjectURL: () => 'blob:failed' }, objectUrls: new Map(),
+    });
+    await assert.rejects(failed.uploadMediaFile(new File(['media'], '失败视频', { type: 'video/mp4' }), 'video'), /媒体保存失败/);
 });
 
 test('拥挤落点优先找可见空位，保留间隔且不把视频沿现有卡片一路挤到屏幕下方', () => {

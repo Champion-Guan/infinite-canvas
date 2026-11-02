@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { 根目录, 基线 } from './公共.mjs';
 import { openWorkspace } from '../扩展功能/本机存储/SQLite工作区.mjs';
 import { createRecoverableShardedApplicationStorage as createApplicationStorage } from '../扩展功能/本机存储/可恢复分片应用存储.mjs';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
 const ts = createRequire(join(根目录, '.运行', 基线.提交, 'web/package.json'))('typescript');
@@ -20,16 +20,16 @@ function windowFixture() {
   const target = new EventTarget();
   globalThis.window = { addEventListener: target.addEventListener.bind(target), dispatchEvent: target.dispatchEvent.bind(target) };
 }
+const syntheticRoots = [];
 function databaseFixture() {
-  const root = mkdtempSync(join(tmpdir(), 'guan-stage6-bootstrap-'));
+  const root = mkdtempSync(join(tmpdir(), 'guan-stage6-bootstrap-')); syntheticRoots.push(root);
   const workspace = openWorkspace({ dataRoot: root, initialize: true });
   const client = {
     async readDocument(collection, id) { return workspace.readDocument(collection, id); },
     async writeDocument(input) { return workspace.writeDocument(input); },
     async readUsage() { return workspace.readUsage(); },
   };
-  const app = createApplicationStorage({ client });
-  console.log(JSON.stringify({ syntheticBootstrapRoot: root }));
+  const app = createApplicationStorage({ client, requestLimit: 0 });
   return { workspace, client, app };
 }
 
@@ -95,4 +95,4 @@ test('异步保存失败不显示已保存，退出提醒和flush持续失败', 
   const event = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(event); assert.equal(event.defaultPrevented, true);
 });
 
-test.after(() => { delete globalThis.window; });
+test.after(() => { delete globalThis.window; for (const root of syntheticRoots) rmSync(root, { recursive: true, force: true }); });

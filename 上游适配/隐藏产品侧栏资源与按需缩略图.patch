@@ -1,0 +1,81 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index 24344d8..26a409f 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -1,4 +1,5 @@
+ import { isAudioFile } from "@/lib/canvas/canvas-generation-helpers";
++import { MediaThumbnail } from "@/扩展功能/媒体交付/媒体缩略图";
+ import { ASSET_DRAG_TYPE, assetDragData } from "@/扩展功能/素材/上传资产规则";
+ import { hasHeicNameOrType } from "@/扩展功能/媒体交付/HEIC格式识别.mjs";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+@@ -196,6 +197,7 @@ function nodePreviewText(node: CanvasNodeData) {
+ }
+ 
+ function CanvasNodesTab({ nodes, connections, selectedNodeIds, onFocusNode, onPreviewNode, onHoverNode, theme }: { nodes: CanvasNodeData[]; connections: CanvasConnection[]; selectedNodeIds: Set<string>; onFocusNode: (nodeId: string) => void; onPreviewNode: (nodeId: string) => void; onHoverNode: (nodeId: string | null) => void; theme: CanvasTheme }) {
++    const productActive = useProductActive();
+     const { message } = App.useApp();
+     const { t } = useTranslation();
+     useSyncExternalStore(subscribeImagePreviews, getImagePreviewRevision);
+@@ -290,6 +292,7 @@ function CanvasNodesTab({ nodes, connections, selectedNodeIds, onFocusNode, onPr
+         }
+     };
+ 
++    if (!productActive) return null;
+     return (
+         <div className="flex h-full flex-col" onMouseLeave={() => onHoverNode(null)}>
+             <div className="flex items-center gap-2 px-3 pb-2.5 pt-1">
+@@ -343,7 +346,7 @@ function CanvasNodesTab({ nodes, connections, selectedNodeIds, onFocusNode, onPr
+                                         title={selectMode ? undefined : t("canvas.sidePanel.focusNode")}
+                                     >
+                                         <span className="relative grid aspect-square w-full place-items-center overflow-hidden rounded-md">
+-                                            {isImage ? <img src={previewUrlFor(node.metadata?.storageKey) || node.metadata?.content} alt={node.title} className="size-full object-cover" /> : <Icon className="size-6 opacity-60" />}
++                                            {isImage ? <MediaThumbnail storageKey={node.metadata?.storageKey} fallback={node.metadata?.content} alt={node.title} className="size-full object-cover" /> : <Icon className="size-6 opacity-60" />}
+                                             {selectMode ? (
+                                                 <span className="absolute left-1 top-1">
+                                                     <CheckMark checked={isChecked} theme={theme} />
+@@ -387,7 +390,7 @@ function CanvasNodesTab({ nodes, connections, selectedNodeIds, onFocusNode, onPr
+                                     <button type="button" onClick={() => (selectMode ? toggleChecked(node.id) : activateNode(node))} className={cn("flex min-w-0 flex-1 items-center gap-3 py-2 pr-2 text-left", node.type === CanvasNodeType.Group && hasChildren ? "pl-0" : "pl-2")} title={selectMode ? undefined : t("canvas.sidePanel.focusNode")}>
+                                         {selectMode ? <CheckMark checked={isChecked} theme={theme} /> : null}
+                                         <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-md">
+-                                            {isImage ? <img src={previewUrlFor(node.metadata?.storageKey) || node.metadata?.content} alt={node.title} className="size-full object-cover" /> : <Icon className="size-5 opacity-60" />}
++                                            {isImage ? <MediaThumbnail storageKey={node.metadata?.storageKey} fallback={node.metadata?.content} alt={node.title} className="size-full object-cover" /> : <Icon className="size-5 opacity-60" />}
+                                         </span>
+                                         <span className="min-w-0 flex-1 space-y-0.5">
+                                             <span className="block truncate text-sm font-medium leading-snug">{node.title || getNodeDefinition(node.type)?.title || t("canvas.node.untitled")}{sourceTitleByNodeId.has(node.id) ? ` · ${sourceTitleByNodeId.get(node.id)}` : ""}</span>
+@@ -456,6 +459,7 @@ function buildInsertPayload(asset: Asset): InsertAssetPayload {
+ }
+ 
+ const CanvasAssetsTab = memo(function CanvasAssetsTab({ projectId, onInsert, theme }: { projectId: string; onInsert: (payload: InsertAssetPayload) => void; theme: CanvasTheme }) {
++    const productActive = useProductActive();
+     const { message } = App.useApp();
+     const { t } = useTranslation();
+     const assets = useAssetStore((state) => state.assets);
+@@ -504,6 +508,7 @@ const CanvasAssetsTab = memo(function CanvasAssetsTab({ projectId, onInsert, the
+         }
+     };
+ 
++    if (!productActive) return null;
+     return (
+         <div className="flex h-full flex-col">
+             <div className="flex items-center gap-2 px-3 pb-2 pt-1">
+@@ -569,6 +574,7 @@ const CanvasAssetsTab = memo(function CanvasAssetsTab({ projectId, onInsert, the
+ });
+ 
+ const CanvasRecycleBinTab = memo(function CanvasRecycleBinTab({ batches, activeNodes, onRestore, onPermanentlyDelete, theme }: { batches: CanvasDeletedNodeBatch[]; activeNodes: CanvasNodeData[]; onRestore: (batchId: string) => Promise<void>; onPermanentlyDelete: (batchId: string) => Promise<void>; theme: CanvasTheme }) {
++    const productActive = useProductActive();
+     useSyncExternalStore(subscribeImagePreviews, getImagePreviewRevision);
+     const [busy, setBusy] = useState(false);
+     const pendingRef = useRef(false);
+@@ -594,9 +600,11 @@ const CanvasRecycleBinTab = memo(function CanvasRecycleBinTab({ batches, activeN
+     }, [visibleBatches]);
+ 
+     useEffect(() => {
++        if (!productActive) return;
+         imageStorageKeys.forEach((storageKey) => { void ensureImagePreview(storageKey); });
+-    }, [imageStorageKeys]);
++    }, [imageStorageKeys, productActive]);
+ 
++    if (!productActive) return null;
+     return (
+         <div className="h-full overflow-y-auto px-2 pb-3 pt-1">
+             {visibleBatches.length ? (

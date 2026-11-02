@@ -8,6 +8,7 @@ import globals from 'globals';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
 import { clearConfirmedImageErrors } from '../扩展功能/画布生成/图片任务确认恢复.mjs';
 import { canvasTaskSummary } from '../扩展功能/产品/产品任务摘要.js';
+import * as upgradePage from '../扩展功能/软件更新/升级页面状态.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const hooks = { useCallback: value => value, useRef: value => ({ current: value }) };
@@ -16,6 +17,7 @@ async function load(name, dependencies) {
   const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file, { loader: 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
   const module = { exports: {} };
   new Function('require', 'module', 'exports', code)(id => {
+    if (id === '../软件更新/升级页面状态.mjs') return upgradePage;
     assert.ok(Object.hasOwn(dependencies, id), '未注入依赖：' + id);
     return dependencies[id];
   }, module, module.exports);

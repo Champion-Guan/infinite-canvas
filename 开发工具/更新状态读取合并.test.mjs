@@ -5,6 +5,11 @@ import { readFileSync } from 'node:fs';
 
 const require = createRequire(new URL('../.运行/3100源/画布副本/web/package.json', import.meta.url));
 const ts = require('typescript');
+const releaseModule = { exports: {} };
+new Function('module', 'exports', ts.transpileModule(
+    readFileSync(new URL('../.运行/3100源/画布副本/web/src/lib/release.ts', import.meta.url), 'utf8'),
+    { compilerOptions: { module: ts.ModuleKind.CommonJS } },
+).outputText)(releaseModule, releaseModule.exports);
 function load(host) {
     const source = readFileSync(new URL('../扩展功能/软件更新/软件更新客户端.ts', import.meta.url), 'utf8');
     const javascript = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
@@ -63,6 +68,7 @@ test('隐藏产品和后台标签不轮询，重新可见立即刷新，卸载�
         '@/扩展功能/产品/产品界面边界': { useProductActive: () => active },
         antd: { App: { useApp: () => ({ message: {} }) } }, '@/constant/env': { APP_VERSION: 'test' },
         '@/扩展功能/软件更新/软件更新客户端': { updateRequest: async () => { calls++; return {}; }, updateMessages: {} },
+        '@/lib/release': releaseModule.exports,
     };
     const source = readFileSync(new URL('../.运行/3100源/画布副本/web/src/hooks/use-version-check.ts', import.meta.url), 'utf8');
     const javascript = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
@@ -77,4 +83,36 @@ test('隐藏产品和后台标签不轮询，重新可见立即刷新，卸载�
     assert.equal(calls, 2); assert.equal(listeners.size, 0);
     unmount(); active = true; render(); assert.equal(calls, 3);
     unmount(); t.mock.timers.tick(60000); assert.equal(calls, 3); assert.equal(listeners.size, 0);
+});
+
+test('在线更新日志沿用逐条分类标签，发布身份采用服务端，旧说明和本地历史保留', () => {
+    const localReleases = [{ version: '2.0.0-beta.22', items: [{ type: '修复', content: '本地旧摘要' }] },
+        { version: '0.19.0', items: [{ type: '优化', content: '缩略图渲染' }] }];
+    let status, stateIndex;
+    const dependencies = {
+        react: { useCallback: callback => callback, useMemo: callback => callback(), useState: initial => [stateIndex++ === 0 ? status : initial, () => {}], useEffect() {} },
+        '@/扩展功能/产品/产品界面边界': { useProductActive: () => true },
+        antd: { App: { useApp: () => ({ message: {} }) } }, '@/constant/env': { APP_VERSION: 'test' },
+        '@/扩展功能/软件更新/软件更新客户端': { updateRequest: async () => ({}), updateMessages: {} },
+        '@/lib/release': releaseModule.exports,
+    };
+    const source = readFileSync(new URL('../.运行/3100源/画布副本/web/src/hooks/use-version-check.ts', import.meta.url), 'utf8');
+    const javascript = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+    const module = { exports: {} };
+    new Function('require', 'module', 'exports', '__APP_RELEASES__', javascript)(
+        id => { assert.ok(Object.hasOwn(dependencies, id), id); return dependencies[id]; }, module, module.exports, localReleases);
+    const render = notes => {
+        stateIndex = 0;
+        status = { latest: { version: '2.0.0-beta.22', publishedAt: '2026-11-02T04:00:00Z', notes } };
+        return module.exports.useVersionCheck().releases;
+    };
+    const items = ['新增', '优化', '调整', '修复', '文档'].map(type => ({ type, content: `${type}对应的一项用户可见变化。` }));
+    const categorized = render('## 2.0.0-beta.22 - 2026-11-01\r\n\r\n' + items.map(item => `+ [${item.type}] ${item.content}`).join('\r\n'));
+    assert.deepEqual(categorized, [{ version: '2.0.0-beta.22', date: '2026-11-02', items }, localReleases[1]]);
+    assert.deepEqual(render('+ [修复] 单项说明。')[0].items, [{ type: '修复', content: '单项说明。' }]);
+    const legacy = '# 生图工作台 Web beta.21\n\n- 修复桌面入口。\n\n首次安装：解压后启动。';
+    assert.deepEqual(render(legacy)[0].items, [{ type: '更新', content: legacy }]);
+    assert.deepEqual(render('')[0].items, [{ type: '更新', content: '暂无更新说明' }]);
+    status = null; stateIndex = 0;
+    assert.deepEqual(module.exports.useVersionCheck().releases, localReleases);
 });

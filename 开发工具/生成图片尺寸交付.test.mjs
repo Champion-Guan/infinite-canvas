@@ -30,6 +30,7 @@ async function fixture({ width = 1086, height = 1448, failAt, failFetch = false,
     '@/扩展功能/素材/上传资产规则': rules.exports,
     '@/扩展功能/媒体交付/上传前存储检查.mjs': { assertUploadStorageReady() {} },
     '@/扩展功能/媒体交付/媒体地址缓存': { createMediaUrlCache: () => ({ set() {}, get() {}, delete() {} }) },
+    '@/扩展功能/媒体交付/缩略图缓存': { createThumbnailCache: () => ({ get() {}, delete() {}, resolve: async () => undefined }) },
     '@/扩展功能/网络代理/本地转发请求': { 本地转发请求: async () => { if (failFetch) throw Error('network'); return new Response(original); } },
     '@/扩展功能/本机存储/上游浏览器存储桥': { sqliteForage: { createInstance: ({ storeName }) => ({
       async setItem(key, blob) { if (storeName !== 'image_files') return; writes.push(key); if (writes.length === failAt) throw Error('disk full'); media.set(key, blob); abortOnWrite?.(); },
@@ -130,10 +131,8 @@ test('HEIC原字节保留，JPEG兼容图仍可按生成交付尺寸处理', asy
   assert.equal(f.media.get(result.storageKey), encoded); assert.equal(result.width, 900);
 });
 
-test('真实PNG像素处理：1086×1448到900×1200，透明像素保留，原图字节不变', { skip: !process.env.GUAN_CANVAS_MODULES }, async () => {
-  const { createRequire } = await import('node:module');
-  const require = createRequire(process.env.GUAN_CANVAS_MODULES + '/package.json');
-  const { createCanvas, loadImage } = require('@napi-rs/canvas');
+test('真实PNG像素处理：1086×1448到900×1200，透明像素保留，原图字节不变', async () => {
+  const { createCanvas, loadImage } = await import('@napi-rs/canvas');
   const { createHash } = await import('node:crypto');
   const { resizeDeliveryBlob } = await import('../扩展功能/媒体交付/生成图片尺寸交付.mjs');
   const canvas = createCanvas(1086, 1448), ctx = canvas.getContext('2d');

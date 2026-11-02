@@ -8,9 +8,10 @@ import { flushPrivateWrites } from './runtime-paths.mjs';
 import { UpdateError } from './update-auth.mjs';
 import { selectWebRelease, verifyWebManifest, WEB_MANIFEST_NAMES, webReleaseAssetName } from '../客户安装/Web发布协议.mjs';
 import { StorageError, requireValue } from '../本机存储/协议.mjs';
+import { createIdleUpgradeCoordinator } from './智能升级协调.mjs';
 
 // 源码与客户包共用验签下载；只有独立客户安装管理器提供版本切换能力。
-export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkProxy, generation, webPackage = true, currentVersion: installedVersion, manager = null }) {
+export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkProxy, generation, webPackage = true, currentVersion: installedVersion, manager = null, readinessProbe = null, updatePages = () => [] }) {
   const directory = join(dataRoot, 'software-updates');
   const currentVersion = installedVersion || readFileSync(new URL('../../VERSION', import.meta.url), 'utf8').trim().replace(/^v/, '');
   let closed = false;
@@ -39,13 +40,15 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
     downloader: new StableDownload({ directory: join(directory, 'packages'), readAsset: routed(readReleaseAsset), ...(webPackage ? { verifyManifest: verifyWebManifest, manifestNames: WEB_MANIFEST_NAMES, releaseAssetName: webReleaseAssetName } : {}) }) });
   // network='proxy' 的实际运行状态在每次请求取得租约时核实。
   updates.proxyUrl = () => networkProxy.getStatus().enabled ? 'managed-proxy' : null;
+  const coordinator = createIdleUpgradeCoordinator({ updates, pages: updatePages, generation });
   const status = async () => {
     const value = await updates.status();
     return { ...value, channel: webPackage ? `GitHub Public / Web ${value.preferences.developerMode ? 'Beta + Stable' : 'Stable'}` : value.channel,
-      install: { ...(!manager ? { allowed: false, state: 'source-development', reason: 'web_release_required' } : value.install), blockers: await generation?.updateBlockers() || [] },
+      install: { ...(!manager ? { allowed: false, state: 'source-development', reason: 'web_release_required' } : value.install), coordination: coordinator.status(), blockers: await generation?.updateBlockers() || [] },
       taskSummary: await generation?.taskSummary() || { failedWithoutResult: 0 } };
   };
   const handle = async (request, response) => {
+    if (readinessProbe && await readinessProbe.handle(request, response, origin)) return true;
     if (request.url !== '/__guan-local/software-updates') return false;
     const reply = (code, value) => { if (!response.destroyed && !response.writableEnded) { response.writeHead(code, { 'content-type': 'application/json' }); response.end(JSON.stringify({ protocol: 'guan-local-authorization.v1', ...value })); } };
     try {
@@ -57,10 +60,10 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
       for await (const chunk of request) { size += chunk.length; requireValue(size <= 4096, 'request_too_large', '更新请求过大。', 413); chunks.push(chunk); }
       let input; try { input = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new UpdateError('invalid_request'); }
       if (!input || typeof input !== 'object' || Array.isArray(input)) throw new UpdateError('invalid_request');
-      const { operation, preferences, ...extra } = input;
-      if (Object.keys(extra).length || !['status', 'check', 'download', 'preferences', 'stage', 'approve', 'approve-manual', 'defer', 'retry-result-save-batch', 'progress-window'].includes(operation) ||
-        (operation !== 'preferences' && preferences !== undefined)) throw new UpdateError('invalid_request');
-      await authorize(request);
+      const { operation, preferences, activity, ...extra } = input;
+      if (Object.keys(extra).length || !['status', 'check', 'download', 'preferences', 'stage', 'install', 'activity', 'approve', 'approve-manual', 'defer', 'retry-result-save-batch', 'progress-window'].includes(operation) ||
+        (operation !== 'preferences' && preferences !== undefined) || (operation !== 'activity' && activity !== undefined)) throw new UpdateError('invalid_request');
+      const pageId = await authorize(request);
       if (closed) throw new UpdateError('update_service_stopped');
       if (operation === 'progress-window') {
         const result = await updates.progressWindow();
@@ -72,9 +75,14 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
       } else if (operation === 'check') await updates.check();
       else if (operation === 'download') await updates.download();
       else if (operation === 'stage') await updates.stage();
+      else if (operation === 'install') {
+        if (!manager) throw new UpdateError('web_release_required');
+        await coordinator.install();
+      }
+      else if (operation === 'activity') await coordinator.activity(pageId, activity);
       else if (operation === 'approve') await updates.approve('saved-and-all-tasks-ended');
       else if (operation === 'approve-manual') await updates.approve('saved-and-all-tasks-ended', { manual: true });
-      else if (operation === 'defer') await updates.defer();
+      else if (operation === 'defer') await coordinator.defer();
       let taskAction;
       if (operation === 'retry-result-save-batch') taskAction = await generation?.retryResultSaveBatch();
       await authorize(request);
@@ -85,10 +93,10 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
     }
     return true;
   };
-  return Object.freeze({ handle, status, start() { closed = false; updates.start(); }, async close() {
-    closed = true; updates.stop();
+  return Object.freeze({ handle, status, start() { closed = false; updates.start(); coordinator.start(); }, async close() {
+    closed = true; await coordinator.close(); updates.stop();
     for (const controller of requests) controller.abort();
-    await Promise.allSettled([updates.inFlight, updates.downloader.pending, updates.tail]);
+    await Promise.allSettled([updates.inFlight, updates.downloader.pending, updates.staging, updates.tail]);
     await flushPrivateWrites();
   } });
 }

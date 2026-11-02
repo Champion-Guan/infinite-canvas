@@ -160,6 +160,7 @@ test('总览详情只含已选文件；排序只切换顺序，不改变图片�
         'lucide-react': { ArrowDownWideNarrow: 'Sort', Download: 'Download', Image: 'Image', Video: 'Video' }, '@/lib/image-utils': { formatBytes: size => size + ' B' },
         'motion/react': { useInView: () => true },
         '@/stores/use-config-store': { decodeChannelModel: () => null }, '@/services/image-storage': { previewUrlFor: () => undefined }, '@/types/canvas': types,
+        '../媒体交付/媒体缩略图': { MediaThumbnail: 'Thumbnail' },
         './历史媒体详情': { historyMediaInfo }, './历史媒体预览': { useHistoryMediaPreview: file => ({ url: file.content }) },
         './历史总览面板.module.css': { __esModule: true, default: new Proxy({}, { get: (_object, key) => key }) },
     });
@@ -184,8 +185,9 @@ test('总览详情只含已选文件；排序只切换顺序，不改变图片�
     assert.deepEqual(elements(tree).filter(item => typeof item.type === 'function' && item.props.file).map(item => item.props.file.id), [files[1].id, files[0].id]);
 });
 
-test('选择模式缩略图仅预览、文字才勾选；排序立即切换，总览紧跟下载', async () => {
+test('选择模式缩略图仅预览、文字才勾选；隐藏产品卸下展示并保留选择状态', async () => {
     const runtime = hookFixture(), previews = [], sorts = [];
+    let productActive = true;
     const selection = await load('历史选择操作.ts', { react: runtime.hooks });
     const actionStyles = { default: {} };
     const { HistoryActionButton } = await load('历史操作按钮.tsx', {
@@ -203,6 +205,8 @@ test('选择模式缩略图仅预览、文字才勾选；排序立即切换，�
         './历史下载操作': { useHistoryDownloads: () => ({ downloading: false, downloadFile: () => {}, downloadAll: () => {} }) },
         './历史选择操作': selection, './历史总览面板': { HistoryOverviewPanel: 'Overview' },
         './历史操作按钮': { HistoryActionButton }, './历史操作栏.module.css': actionStyles,
+        '../产品/产品界面边界': { useProductActive: () => productActive },
+        '../媒体交付/媒体缩略图': { MediaThumbnail: 'Thumbnail' },
         '@/services/file-storage': { getMediaBlob: async () => new Blob(['media']) },
         '@/services/image-storage': { getImageBlob: async () => new Blob(['image']), previewUrlFor: () => undefined, subscribeImagePreviews: () => () => {}, getImagePreviewRevision: () => 0 },
         '@/stores/use-config-store': { decodeChannelModel: () => null, useEffectiveConfig: () => ({ channels: [] }) }, '@/stores/use-canvas-side-panel-store': { useCanvasSidePanelStore: callback => callback({ historySorted: false, toggleHistorySorted: () => sorts.push('sorted') }) }, '@/types/canvas': types,
@@ -221,6 +225,10 @@ test('选择模式缩略图仅预览、文字才勾选；排序立即切换，�
     elements(tree).find(item => item.props['aria-label'] === '预览主图').props.onClick();
     tree = render(); assert.deepEqual(previews, ['batch']); assert.deepEqual(selected(), [true, true]);
     elements(tree).find(item => item.props['aria-label'] === '选择主图').props.onClick();
+    tree = render(); assert.deepEqual(selected(), [false, true]);
+    productActive = false;
+    assert.equal(render(), null);
+    productActive = true;
     tree = render(); assert.deepEqual(selected(), [false, true]);
 
     const failedOnly = { id: 'failed-only', title: '失败的图片', type: 'image', metadata: {

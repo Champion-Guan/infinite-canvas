@@ -10,11 +10,18 @@ export type SoftwareUpdateStatus = {
     download: { state: string; progress: number; error?: string | null };
     install: { allowed: boolean; state: string; currentVersion?: string | null; targetVersion?: string | null;
         reason?: string | null; staging?: boolean; stageError?: string | null; canApprove?: boolean; progressAvailable?: boolean; blockers?: UpdateBlocker[];
+        coordination?: { mode: "manual" | "automatic" | null; state: string; reason: string | null; targetVersion: string | null };
         diagnostic?: StartupDiagnostic | null; waiting?: { pages: number | null; tickets: number | null; requests: number | null } };
     taskSummary?: { failedWithoutResult: number };
     taskAction?: UpdateTaskAction;
 };
 export const updateMessages: Record<string, string> = {
+    upgrade_waiting_download: "下载完成后将自动安装",
+    upgrade_waiting_pages: "正在等待其他工作台页面就绪，随后自动继续",
+    upgrade_waiting_tasks: "正在等待生成任务完成，随后自动保存并安装",
+    upgrade_waiting_activity: "正在等待当前操作完成，随后自动继续",
+    upgrade_waiting_idle: "更新已准备好，将在所有页面空闲时自动安装",
+    upgrade_save_failed: "自动保存未成功，已保留当前画布；处理保存提示后重试安装",
     web_manifest_invalid: "Web版签名清单无效，更新已停止",
     web_package_invalid: "Web安装包库存或文件核验失败，原版本保留",
     web_migration_required: "此版本的数据结构不同，需要专门迁移，未自动替换",
@@ -59,7 +66,7 @@ export const updateMessages: Record<string, string> = {
     update_manager_handoff_failed: "新版管理器接续未确认，原数据保留",
     update_manager_handoff_timeout: "等待原管理器退出超时，未启动第二个数据写入者",
     install_pages_releasing: "正在等待页面请求和未使用的启动票据释放，安装会自动继续",
-    install_disabled: "请先开启确认后自动安装",
+    install_disabled: "自动安装已关闭，可点击安装更新",
     install_operator_confirmation_required: "此版本需要重新确认已保存且全部任务结束",
     install_operator_record_invalid: "安装确认记录损坏，已保留并停止安装",
     install_tasks_pending: "存在未决任务、失败保存或未确认记录，不能安装",
@@ -82,7 +89,7 @@ export const installationMessages: Record<string, string> = {
 type UpdateHost = { request(operation: string, input?: unknown): Promise<unknown> };
 const pendingStatuses = new WeakMap<UpdateHost, Promise<SoftwareUpdateStatus>>();
 
-type UpdateOperation = "status" | "check" | "download" | "preferences" | "stage" | "approve" | "approve-manual" | "defer" | "retry-result-save-batch";
+type UpdateOperation = "status" | "check" | "download" | "preferences" | "stage" | "install" | "approve" | "approve-manual" | "defer" | "retry-result-save-batch";
 type UpdateInput = Partial<UpdatePreferences>;
 export function updateRequest(operation: "progress-window"): Promise<{ url: string }>;
 export function updateRequest(operation: UpdateOperation, input?: UpdateInput): Promise<SoftwareUpdateStatus>;

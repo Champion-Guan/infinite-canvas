@@ -1,4 +1,6 @@
-import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { useProductActive } from "../产品/产品界面边界";
+import { MediaThumbnail } from "../媒体交付/媒体缩略图";
 import { App, Checkbox, Empty } from "antd";
 import { ArrowDownWideNarrow, Download, Image as ImageIcon, LayoutGrid, ListChecks, RotateCcw, Video } from "lucide-react";
 import { motion } from "motion/react";
@@ -17,7 +19,7 @@ import { HistoryOverviewPanel } from "./历史总览面板";
 import { HistoryActionButton } from "./历史操作按钮";
 import actionStyles from "./历史操作栏.module.css";
 import { getMediaBlob } from "@/services/file-storage";
-import { getImageBlob, previewUrlFor, subscribeImagePreviews, getImagePreviewRevision } from "@/services/image-storage";
+import { getImageBlob } from "@/services/image-storage";
 import { decodeChannelModel, useEffectiveConfig } from "@/stores/use-config-store";
 import { useCanvasSidePanelStore } from "@/stores/use-canvas-side-panel-store";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData } from "@/types/canvas";
@@ -25,6 +27,7 @@ import { CanvasNodeType, type CanvasConnection, type CanvasNodeData } from "@/ty
 const STATUS_COLOR: Record<string, string> = { success: "#22c55e", loading: "#f59e0b", error: "#ef4444", idle: "transparent" };
 
 export const CanvasGenerationHistoryTab = memo(function CanvasGenerationHistoryTab({ nodes, connections, getCurrentNode, onPreviewNode, onRetryNode, theme }: { nodes: CanvasNodeData[]; connections: CanvasConnection[]; getCurrentNode: (id: string) => CanvasNodeData | undefined; onPreviewNode: (nodeId: string) => void; onRetryNode: (node: CanvasNodeData, imageId?: string) => void | Promise<void>; theme: CanvasTheme }) {
+    const productActive = useProductActive();
     const sorted = useCanvasSidePanelStore((state) => state.historySorted);
     const toggleHistorySorted = useCanvasSidePanelStore((state) => state.toggleHistorySorted);
     const [overviewOpen, setOverviewOpen] = useState(false);
@@ -32,7 +35,6 @@ export const CanvasGenerationHistoryTab = memo(function CanvasGenerationHistoryT
     const retryGuard = useRef(false);
     const mounted = useRef(true);
     useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-    useSyncExternalStore(subscribeImagePreviews, getImagePreviewRevision);
     const { message } = App.useApp();
     const config = useEffectiveConfig();
     const { downloading, downloadFile, downloadAll } = useHistoryDownloads(message);
@@ -109,6 +111,8 @@ export const CanvasGenerationHistoryTab = memo(function CanvasGenerationHistoryT
             if (mounted.current) setRetrying(false);
         }
     };
+    // 保留重试、下载和勾选的所有者；仅卸下隐藏产品的图片展示。
+    if (!productActive) return null;
     return (
         <div className={cn("guan-apple-enter flex h-full flex-col", actionStyles.panel)}>
             <div className="guan-apple-stagger flex flex-wrap items-center gap-2 px-3 pb-2 pt-1">
@@ -141,7 +145,7 @@ export const CanvasGenerationHistoryTab = memo(function CanvasGenerationHistoryT
                                 {selectionMode ? <Checkbox aria-label={`勾选${node.title || "生成任务"}`} disabled={downloading || !nodeFiles.length} checked={nodeFiles.length > 0 && nodeFiles.every(file => selectedHistoryIds.has(file.id))} indeterminate={nodeFiles.some(file => selectedHistoryIds.has(file.id)) && !nodeFiles.every(file => selectedHistoryIds.has(file.id))} onChange={() => toggleHistorySelection(node.id)} /> : null}
                                 <button type="button" disabled={!nodeFiles.length} onClick={() => onPreviewNode(node.id)} className="shrink-0 disabled:cursor-default disabled:opacity-50" aria-label={nodeFiles.length ? `预览${node.title || "生成任务"}` : `${node.title || "生成任务"}暂无成功图片`}>
                                 {node.type === CanvasNodeType.Image && (node.metadata?.content || node.metadata?.images?.find((image) => image.content)?.content) ? (
-                                    <img src={previewUrlFor(node.metadata.storageKey) || node.metadata.content || node.metadata.images?.find((image) => image.content)?.content} alt="" loading="lazy" decoding="async" className="size-10 shrink-0 rounded-md object-cover guan-image-shared-element" style={{ viewTransitionName: `guan-history-${node.id}` }} />
+                                    <MediaThumbnail storageKey={node.metadata.storageKey || node.metadata.images?.find(image => image.content)?.storageKey} fallback={node.metadata.content || node.metadata.images?.find(image => image.content)?.content} className="size-10 shrink-0 rounded-md object-cover guan-image-shared-element" style={{ viewTransitionName: `guan-history-${node.id}` }} />
                                 ) : (
                                     <span className="grid size-10 shrink-0 place-items-center rounded-md bg-black/5 dark:bg-white/10">
                                         {node.type === CanvasNodeType.Video ? <Video className="size-4 opacity-60" /> : <ImageIcon className="size-4 opacity-60" />}

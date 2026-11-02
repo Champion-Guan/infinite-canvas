@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { transformWithEsbuild } from "../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js";
 import { createImageConfirmationRecovery } from "../扩展功能/画布生成/图片任务确认恢复.mjs";
 import { serializeProductResult } from "../扩展功能/画布生成/图片任务衔接.mjs";
+import * as upgradePage from "../扩展功能/软件更新/升级页面状态.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -25,6 +26,7 @@ async function loadFile(file, dependencies) {
   const module = { exports: {} };
   new Function("require", "module", "exports", code)(
     id => {
+      if (id === "../软件更新/升级页面状态.mjs") return upgradePage;
       assert.ok(Object.hasOwn(dependencies, id), `未注入依赖：${id}`);
       return dependencies[id];
     },

@@ -1,3 +1,4 @@
+import { canPreparePageUpgrade, flushPageUpgrade } from "../软件更新/升级页面状态.mjs";
 // 根目录唯一维护来源；画布和失败通知共用本页保存状态与恢复队列。
 function shouldSkipStorageWrite(cache: ReadonlyMap<string, string>, failed: ReadonlyMap<string, unknown>, cacheKey: string, value: string, failureKey: string) {
     return cache.get(cacheKey) === value && !failed.has(failureKey);
@@ -92,7 +93,15 @@ export async function initializeSQLiteApplication() {
     for (const [key, value] of nextState) stateCache.set(key, value);
     for (const [key, value] of nextPreferences) preferencesCache.set(key, value);
     appState = app; preferencesStore = prefs; runtime = candidate;
-    Object.defineProperty(window, "__guanPrepareUpdate", { value: flushSQLiteStorage });
+    Object.defineProperty(window, "__guanReadUpdateState", { value: () => ({ ready: canPreparePageUpgrade() && !storageStatus().conflict && !reconnecting }) });
+    Object.defineProperty(window, "__guanPrepareUpdate", { value: async () => {
+        try { await flushPageUpgrade(); await flushSQLiteStorage(); }
+        catch (error) {
+            if (storageStatus().conflict) throw error;
+            await retrySQLiteStorage();
+            await flushPageUpgrade(); await flushSQLiteStorage();
+        }
+    } });
     candidate.subscribe(statusChanged);
     window.addEventListener("beforeunload", event => { const status = storageStatus(); if (status.state === "saving" || status.state === "error") { event.preventDefault(); event.returnValue = ""; } });
     statusChanged();

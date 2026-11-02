@@ -11,20 +11,25 @@ import { 清理更新缓存 } from '../软件更新/更新缓存限制.mjs';
 import { WEB_MANIFEST_NAMES } from './Web发布协议.mjs';
 import { continueLegacyManager } from './旧管理器兼容.mjs';
 import { safeStartupDiagnostic } from './启动健康诊断.mjs';
+import { createUpdateReadinessProbe } from './更新就绪探针.mjs';
 
 if (!process.connected || process.argv.length !== 2) throw Error('Web客户服务必须由独立管理器启动。');
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const inventory = JSON.parse(readFileSync(join(root, '工作台发布.json')));
 const manager = createWebManagerClient();
 let app, timer, cancelContinuity, stopping = false;
+const readinessProbe = createUpdateReadinessProbe(async () => ({
+  ready: Boolean(app?.getStatus().ready && !stopping), version: inventory.version,
+  workspaceId: app?.workspaceId, managerVersion: (await manager.status()).managerVersion,
+}));
 const send = message => { if (process.connected) process.send(message); };
 try {
   const helper = await copyStableHelper(root, inventory);
   app = await startDailyWorkbench({ webRoot: join(root, 'web'), storage: { openWorkspace, startDataService }, ...helper,
     // beta3管理器仍校验3100；其升级事务完成后，下次由新版管理器启动即使用自动端口。
     ...(process.env.GUAN_WEB_PORT_POLICY === 'automatic-v1' ? {} : { endpoint: { hostname: 'localhost', port: 3100 } }),
-    initialize: !existsSync(dailyWorkbenchPaths().dataRoot), deferActivation: true, softwareUpdateOptions: { webPackage: true, currentVersion: inventory.version, manager } });
-  const status = () => ({ ...app.getStatus(), acceptingPages: app.getStatus().ready, workspaceId: app.workspaceId, version: inventory.version, origin: app.origin });
+    initialize: !existsSync(dailyWorkbenchPaths().dataRoot), deferActivation: true, softwareUpdateOptions: { webPackage: true, currentVersion: inventory.version, manager, readinessProbe } });
+  const status = () => ({ ...app.getStatus(), acceptingPages: app.getStatus().ready, workspaceId: app.workspaceId, version: inventory.version, origin: app.origin, readinessPath: readinessProbe.path });
   send({ type: 'web-service-ready', status: { ...status(), ready: true, acceptingPages: false } });
   timer = setInterval(() => send({ type: 'web-service-status', status: status() }), 1000);
   const stop = async update => {

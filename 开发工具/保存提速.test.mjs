@@ -7,6 +7,7 @@ import { buildFragmentPlan, readFragmentGraph } from '../扩展功能/本机存�
 import { createShardedApplicationStorage } from '../扩展功能/本机存储/分片应用存储.mjs';
 import { syntheticCanvas } from './分片合成数据.mjs';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
+import * as upgradeState from '../扩展功能/软件更新/升级页面状态.mjs';
 
 function fixture() {
   const media = new Map(), calls = { writes: 0, reads: 0, urls: 0 }, revoked = [];
@@ -271,8 +272,9 @@ async function bridge({ verifiedBaseline = false } = {}) {
   }, setItem: (key, value) => new Promise((resolve, reject) => operations.push({ key, value, resolve, reject })) }),
     getStatus: () => ({ state: verifiedBaseline ? 'idle' : 'saved', pending: 0, errors: [] }), subscribe() {}, retryPending: async () => {}, flush: async () => {} };
   const module = { exports: {} }, window = { __guanSQLiteHost: { initialize: async () => app }, dispatchEvent() {}, addEventListener() {} };
-  new Function('module', 'exports', 'window', 'setTimeout', 'clearTimeout', 'performance', code)(module, module.exports, window,
-    (run, delay) => { const key = ++id; timers.set(key, { run, at: time + delay }); return key; }, key => timers.delete(key), { now: () => time });
+  new Function('module', 'exports', 'window', 'setTimeout', 'clearTimeout', 'performance', 'require', code)(module, module.exports, window,
+    (run, delay) => { const key = ++id; timers.set(key, { run, at: time + delay }); return key; }, key => timers.delete(key), { now: () => time },
+    id => { assert.equal(id, '../软件更新/升级页面状态.mjs'); return upgradeState; });
   await module.exports.initializeSQLiteApplication();
   function advance(ms) {
     const until = time + ms;

@@ -40,7 +40,8 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
       while ((!childStatus?.ready || childStatus.acceptingPages === false) && Date.now() < deadline && child?.connected) await new Promise(resolve => setTimeout(resolve, 20));
       assertWebHealth(childStatus, state.current, state.workspaceId, { active: true });
     }
-    await writeState(paths.address, { owner, ready, origin: ready ? childStatus.origin : null, version: state.current?.version, workspaceId: state.workspaceId });
+    await writeState(paths.address, { owner, ready, origin: ready ? childStatus.origin : null,
+      readinessPath: ready ? childStatus.readinessPath : null, version: state.current?.version, workspaceId: state.workspaceId });
   };
   const checkDesktopEntry = async () => {
     try { return await ensureDesktopEntry(paths); }

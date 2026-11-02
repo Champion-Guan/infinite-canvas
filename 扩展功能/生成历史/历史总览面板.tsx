@@ -5,7 +5,7 @@ import { ArrowDownWideNarrow, Download, Image as ImageIcon, Video } from "lucide
 import type { CanvasTheme } from "@/lib/canvas-theme";
 import { formatBytes } from "@/lib/image-utils";
 import { decodeChannelModel } from "@/stores/use-config-store";
-import { previewUrlFor } from "@/services/image-storage";
+import { MediaThumbnail } from "../媒体交付/媒体缩略图";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
 import type { HistoryDownloadFile } from "./历史下载文件";
 import { historyMediaInfo } from "./历史媒体详情";
@@ -98,7 +98,7 @@ export function HistoryOverviewPanel({ history, files, selectedFiles, selectedId
                             {nodeFiles.map(file => <div key={file.id} className={singleFile ? `${styles.file} ${styles.singleFile}` : styles.file}>
                                 <Checkbox aria-label={`勾选图片 ${file.name}`} disabled={downloading} checked={selectedIds.has(file.id)} onChange={event => onSelect([file.id], event.target.checked)} />
                                 <button type="button" className={styles.thumbnail} onClick={() => setPreviewFile(file)} aria-label={`预览 ${file.name}`}>
-                                    {node.type === CanvasNodeType.Image ? <img src={previewUrlFor(file.storageKey) || file.content} alt="" loading="lazy" decoding="async" /> : <Video size={20} />}
+                                    {node.type === CanvasNodeType.Image ? <MediaThumbnail storageKey={file.storageKey} fallback={file.content} className="size-full object-cover" /> : <Video size={20} />}
                                 </button>
                                 <button type="button" className={styles.fileName} disabled={downloading} onClick={() => onSelect([file.id])}>{file.name}</button>
                                 {singleFile ? <small className={styles.fileStatus}>{status}</small> : null}

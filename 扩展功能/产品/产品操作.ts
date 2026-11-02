@@ -21,6 +21,7 @@ import { visibleWorkbookId, withVisibleSelection, planExcelImport, prepareWorkbo
 import { ensureProductParameterNode } from "../Excel画布/产品参数卡片默认";
 import { productRestoreMountGate } from "./产品恢复挂载门禁";
 import { isBatchCanvasSaveActive, markBatchCanvasDirty, withBatchCanvasCheckpoint } from "../画布生成/批量保存协调";
+import { registerUpgradeParticipant } from "../软件更新/升级页面状态.mjs";
 
 export const ACTIVE_PRODUCT_KEY = "guan-products:active:v1";
 const operations = new ProductOperationGate();
@@ -69,6 +70,13 @@ export async function saveProductCanvas(id: string, options: { force?: boolean; 
   return commit();
 }
 const deletionGuards = new Map<string, () => boolean>();
+registerUpgradeParticipant("products", {
+  ready: () => !operations.getSnapshot() && !workbookDeletionGate.getSnapshot()
+    && [...deletionGuards].every(([id, idle]) => idle() && !isBatchCanvasSaveActive(id)),
+  async flush() {
+    for (const id of deletionGuards.keys()) await saves.flush(id);
+  },
+});
 
 export function useProductCanvasSave<T>(
   projectId: string,

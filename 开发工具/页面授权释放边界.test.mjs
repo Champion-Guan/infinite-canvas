@@ -30,3 +30,24 @@ test('释放仍使用原同源Bearer和协议，keepalive不改变权限或期�
   await authorization.host.close(); assert.equal(calls.length, 2);
   await assert.rejects(authorization.host.initialize(), error => error.code === 'authorization_expired');
 });
+test('更新释放页面连接丢失后可用原能力重试，丢失已提交回执也能确认结束', async () => {
+  for (const committed of [false, true]) {
+    const origin = 'http://localhost:3100', capability = 'a'.repeat(64);
+    let requests = 0, active = true;
+    const authorization = await authorizeLocalStorage({ code: 'b'.repeat(64), origin, now: () => 1000, fetchImpl: async (url, init) => {
+      if (url.endsWith('/authorize')) return { ok: true, json: async () => ({ protocol: 'guan-local-authorization.v1',
+        origin, dataURL: 'http://127.0.0.1:3001', capability, expiresAt: null }) };
+      assert.equal(init.headers.Authorization, 'Bearer ' + capability);
+      assert.deepEqual(JSON.parse(init.body), { operation: 'close' });
+      if (++requests === 1) { if (committed) active = false; throw Error('合成连接中断'); }
+      if (!active) return { ok: false, status: 401, json: async () => ({ protocol: 'guan-local-authorization.v1', error: { code: 'authorization_denied' } }) };
+      active = false;
+      return { ok: true, json: async () => ({ protocol: 'guan-local-authorization.v1' }) };
+    } });
+    await assert.rejects(authorization.host.close(), { code: 'authorization_connection_failed' });
+    await authorization.host.close();
+    assert.equal(requests, 2); assert.equal(active, false);
+    await authorization.host.close(); assert.equal(requests, 2);
+    await assert.rejects(authorization.host.initialize(), { code: 'authorization_expired' });
+  }
+});

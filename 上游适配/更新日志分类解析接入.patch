@@ -1,0 +1,25 @@
+diff --git a/web/src/hooks/use-version-check.ts b/web/src/hooks/use-version-check.ts
+index ad91fdc..95f9a59 100644
+--- a/web/src/hooks/use-version-check.ts
++++ b/web/src/hooks/use-version-check.ts
+@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { App } from "antd";
+ import { APP_VERSION } from "@/constant/env";
+-import type { ReleaseInfo } from "@/lib/release";
++import { parseChangelog, type ReleaseInfo } from "@/lib/release";
+ import { updateRequest, updateMessages, type SoftwareUpdateStatus } from "@/扩展功能/软件更新/软件更新客户端";
+ 
+ export function resolveCurrentWorkbenchVersion(serverVersion: string | null | undefined, bundleVersion = APP_VERSION) {
+@@ -63,7 +63,10 @@ export function useVersionCheck() {
+     // The backend owns the running application version. The canvas bundle may
+     // be ahead during source-mode rollout or stale in an already-open iframe.
+     const currentVersion = resolveCurrentWorkbenchVersion(status?.currentVersion);
+-    const releases = latest ? [{ version: latest.version, date: latest.publishedAt.slice(0, 10), items: [{ type: "更新", content: latest.notes || "暂无更新说明" }] }, ...localReleases.filter(r => r.version !== latest.version)] : localReleases;
++    const remoteItems = latest ? parseChangelog(`## ${latest.version}\n${latest.notes || ""}`)[0]?.items : undefined;
++    const releases = latest ? [{ version: latest.version, date: latest.publishedAt.slice(0, 10),
++        items: remoteItems || [{ type: "更新", content: latest.notes || "暂无更新说明" }] },
++        ...localReleases.filter(r => r.version !== latest.version)] : localReleases;
+ 
+     return {
+         open,

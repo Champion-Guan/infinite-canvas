@@ -8,6 +8,7 @@ import { 根目录, 基线 } from './公共.mjs';
 import { openWorkspace } from '../扩展功能/本机存储/SQLite工作区.mjs';
 import { createRecoverableApplicationStorage } from '../扩展功能/本机存储/可恢复应用存储.mjs';
 import { StorageError } from '../扩展功能/本机存储/协议.mjs';
+import * as upgradePage from '../扩展功能/软件更新/升级页面状态.mjs';
 
 const code = expected => error => error.code === expected, roots = [];
 function fixture(fault = async action => action(), options = {}) {
@@ -174,5 +175,38 @@ test('恢复期间新增400ms合并保存，最新快照收到ACK后才清除桥
     assert.equal(b.storageStatus().state, 'error'); release(); await retry; await pending;
     assert.equal(b.storageStatus().state, 'saved'); assert.equal(JSON.parse(await f.store.getItem(key)).state.x, 2);
   } finally { release(); delete globalThis.window; f.close(); }
+});
+test('升级准备调用真实画布检查点后等待SQLite回执，丢失回执只恢复原操作', async () => {
+  for (const loseAck of [false, true]) {
+    let lose = loseAck, idle = false;
+    const f = fixture(async action => { const ack = await action(); if (lose) { lose = false; throw Error('合成ACK丢失'); } return ack; });
+    let unregister;
+    try {
+      const events = new EventTarget();
+      globalThis.window = { __guanSQLiteHost: { initialize: async () => f.app },
+        addEventListener: events.addEventListener.bind(events), dispatchEvent: events.dispatchEvent.bind(events) };
+      const current = readFileSync(new URL('../扩展功能/本机存储/上游浏览器存储桥.ts', import.meta.url), 'utf8');
+      const js = ts.transpileModule(current, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+      const module = { exports: {} };
+      new Function('require', 'module', 'exports', js)(id => {
+        assert.equal(id, '../软件更新/升级页面状态.mjs'); return upgradePage;
+      }, module, module.exports);
+      const b = module.exports;
+      await b.initializeSQLiteApplication();
+      const key = 'infinite-canvas:canvas_store', value = JSON.stringify({ state: { viewport: { x: 987, y: 654 }, nodes: ['原卡片'] } });
+      unregister = upgradePage.registerUpgradeParticipant('test-canvas', { ready: () => idle,
+        flush: () => b.sqliteStateStorage.setItem(key, value) });
+      assert.equal(window.__guanReadUpdateState().ready, false);
+      await assert.rejects(window.__guanPrepareUpdate());
+      assert.equal(f.requests.length, 0);
+      idle = true;
+      await window.__guanPrepareUpdate();
+      assert.equal(b.storageStatus().state, 'saved');
+      assert.equal(await f.store.getItem(key), value);
+      assert.equal(document(f).revision, 1);
+      assert.equal(f.requests.length, loseAck ? 2 : 1);
+      if (loseAck) assert.deepEqual(f.requests[0], f.requests[1]);
+    } finally { unregister?.(); delete globalThis.window; f.close(); }
+  }
 });
 test.after(() => { for (const root of roots) rmSync(root, { recursive: true, force: true }); });

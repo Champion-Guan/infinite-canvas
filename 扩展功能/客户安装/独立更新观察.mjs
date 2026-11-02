@@ -4,6 +4,7 @@ import { readState, versionPath } from './Web安装目录.mjs';
 import { ownedProcess } from './管理进程身份.mjs';
 import { readWebAddress } from './Web运行地址.mjs';
 import { serveWebUpdateProgress } from './Web更新进度服务.mjs';
+import { readUpdateReadinessProbe } from './更新就绪探针.mjs';
 
 // 观察进程不安装、不写事务、不持有页面授权。管理器换代后仍使用同一进度地址。
 export async function readDetachedProgress(paths, target, live) {
@@ -11,12 +12,31 @@ export async function readDetachedProgress(paths, target, live) {
   const origin = await readWebAddress(paths, owner, state, ownedProcess);
   const expectedCommand = state?.current && versionPath(paths, state.current) + '/扩展功能/客户安装/Web客户命令.mjs supervisor';
   const matchingManager = Boolean(owner?.command?.endsWith(expectedCommand));
-  const healthy = origin && matchingManager;
-  if (state?.current?.version === target && state.phase === 'committed') return {
+  const completed = state?.current?.version === target && state.phase === 'committed';
+  const rolledBack = state?.phase === 'rolled-back' && state.previous?.version === target;
+  let healthy = origin && matchingManager, reason = origin ? 'update_waiting_manager' : 'update_waiting_service';
+  if (origin && (completed || rolledBack)) {
+    const address = await readState(paths.address);
+    if (address?.readinessPath) {
+      const probe = await readUpdateReadinessProbe(origin, address.readinessPath);
+      // 新版以实时服务和管理器的共同回答为准，避免命令行显示格式造成永久等待。
+      healthy = Boolean(probe?.ready === true && probe.version === state.current.version &&
+        probe.managerVersion === state.current.version && probe.workspaceId === state.workspaceId);
+      reason = !probe ? 'update_progress_probe_unavailable' : probe.managerVersion !== state.current.version
+        ? 'update_waiting_manager' : 'update_waiting_service';
+      // HTTP往返期间可能又发生停服或版本切换，不接受已经过期的就绪结果。
+      if (healthy) {
+        healthy = JSON.stringify(await readState(paths.state)) === JSON.stringify(state) &&
+          JSON.stringify(await readState(paths.lock)) === JSON.stringify(owner) &&
+          await readWebAddress(paths, owner, state, ownedProcess) === origin;
+      }
+    }
+  }
+  if (completed) return {
     target, currentVersion: target, state: healthy ? 'success' : 'restarting-manager', origin: healthy ? origin : null,
-    reason: null, diagnostic: state.diagnostic || null,
+    reason: healthy ? null : reason, diagnostic: state.diagnostic || null,
   };
-  if (state?.phase === 'rolled-back' && state.previous?.version === target) return {
+  if (rolledBack) return {
     target, currentVersion: state.current.version, state: healthy ? 'rolled-back' : 'recovery-required',
     origin: healthy ? origin : null, reason: 'update_failed_rolled_back', diagnostic: state.diagnostic || null,
   };

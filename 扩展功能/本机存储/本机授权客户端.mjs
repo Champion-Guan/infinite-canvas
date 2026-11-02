@@ -106,7 +106,7 @@ export async function authorizeLocalStorage({ code, origin = globalThis.location
   requireValue(Number.isSafeInteger(time) && time >= 0 && exchange.origin === origin && localOrigin(exchange.dataURL, true) &&
     /^[0-9a-f]{64}$/.test(exchange.capability) && (exchange.expiresAt === null || Number.isSafeInteger(exchange.expiresAt) && exchange.expiresAt > time && exchange.expiresAt - time <= 8 * 60 * 60_000),
   'invalid_authorization_response', '本机授权返回的地址、期限或能力不匹配。');
-  let capability = exchange.capability, closed = false;
+  let capability = exchange.capability, closed = false, closeCapability = '', closeFlight = null;
   const pageActive = () => !closed && (exchange.expiresAt === null || now() < exchange.expiresAt);
   exchange.capability = '';
   async function businessCommand(path, value, options) {
@@ -131,7 +131,7 @@ export async function authorizeLocalStorage({ code, origin = globalThis.location
   return Object.freeze({
     url: exchange.dataURL,
     updatePort: Object.freeze({ async request(operation, input) {
-      return (await businessCommand('software-updates', { operation, ...(operation === 'preferences' ? { preferences: input } : {}) })).result;
+      return (await businessCommand('software-updates', { operation, ...(operation === 'preferences' ? { preferences: input } : operation === 'activity' ? { activity: input } : {}) })).result;
     } }),
     networkProxyPort: createNetworkProxyClient({ command(value, options) {
       return businessCommand('network-proxy', value, options);
@@ -153,10 +153,21 @@ export async function authorizeLocalStorage({ code, origin = globalThis.location
       // 复用原页面授权恢复同工作区；不交换新授权码，不延长页面授权期限。
       reconnect: (session, options = {}) => command({ operation: 'reconnect', session: structuredClone(session), ...(options?.reason ? { reason: options.reason } : {}) }),
       async close({ keepalive = false } = {}) {
-        if (closed) return;
-        // 在发出请求前封住后续操作；卸载请求仅约20字节，仍带原Origin/协议/页面能力校验。
-        const currentCapability = capability; closed = true; capability = '';
-        if (exchange.expiresAt === null || now() < exchange.expiresAt) await post('session', { operation: 'close' }, currentCapability, keepalive === true);
+        if (!closed) { closeCapability = capability; closed = true; capability = ''; }
+        if (closeFlight) return closeFlight;
+        if (!closeCapability) return;
+        // 先封住业务；释放未确认时仅保留原能力用于重试关闭，不重新授权。
+        closeFlight = (async () => {
+          try {
+            if (exchange.expiresAt === null || now() < exchange.expiresAt)
+              await post('session', { operation: 'close' }, closeCapability, keepalive === true);
+          } catch (error) {
+            // 首次关闭可能已提交但回执丢失；原能力明确撤销也代表关闭完成。
+            if (error?.code !== 'authorization_denied' || error.status !== 401) throw error;
+          }
+          closeCapability = '';
+        })().finally(() => { closeFlight = null; });
+        return closeFlight;
       },
     }),
   });
