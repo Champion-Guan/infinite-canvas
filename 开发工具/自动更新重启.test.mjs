@@ -6,18 +6,26 @@ import { createIdleUpgradeCoordinator } from '../扩展功能/软件更新/智�
 const url = 'http://127.0.0.1:12345/' + 'a'.repeat(48) + '/';
 function fixture({ failSave = false, failClose = false, state = 'awaiting-browser-exit' } = {}) {
   const calls = [], intervals = new Set(), listeners = {}, panels = [];
+  let time = 0, closing = false;
   class Channel { postMessage() { calls.push('broadcast'); } close() { calls.push('channel-close'); } }
   function element() { return { children: [], listeners: {}, setAttribute() {}, append(child) { this.children.push(child); }, showModal() {},
     addEventListener(type, callback) { this.listeners[type] = callback; }, close() {}, remove() {} }; }
   const view = { BroadcastChannel: Channel, document: { createElement: element, body: { append: value => panels.push(value) } },
     location: { replace: value => calls.push(['navigate', value]) }, setInterval(fn) { intervals.add(fn); return fn; }, clearInterval(fn) { intervals.delete(fn); },
     addEventListener(type, fn) { listeners[type] = fn; } };
-  const cleanup = bindAutomaticUpdateRestart({ view, updatePort: { async request(operation) { calls.push(operation); return operation === 'status' ? { install: { state } } : { url }; } },
+  const cleanup = bindAutomaticUpdateRestart({ view, now: () => time, updatePort: { async request(operation) {
+    calls.push(operation); assert.equal(closing, false, '关闭后不得依赖已封住的业务端口继续退出');
+    return operation === 'status' ? { install: { state } } : { url };
+  } },
     flush: async () => { calls.push('flush'); if (failSave) throw Error('未保存'); }, host: { async close() {
+      closing = true;
       calls.push('close');
       if (failClose) { failClose = typeof failClose === 'number' ? failClose - 1 : false; throw Object.assign(Error('合成连接中断'), { code: 'authorization_connection_failed' }); }
     } } });
-  return { view, calls, intervals, cleanup, panels };
+  return { view, calls, intervals, cleanup, panels, async advance(ms) {
+    time += ms; for (const fn of intervals) fn();
+    for (let i = 0; i < 8; i++) await new Promise(resolve => setImmediate(resolve));
+  } };
 }
 test('确认后排空保存→释放页面→当前标签转进度；不需要浏览器弹窗', async () => {
   const f = fixture();
@@ -52,6 +60,28 @@ test('持续断线后可原地继续退出，不要求重新保存或重新授�
     assert.equal(f.calls.filter(call => call === 'close').length, 3);
     assert.deepEqual(f.calls.at(-1), ['navigate', url]);
   } finally { f.cleanup(); }
+});
+test('退出连续断线后自动退避重试，不永久停等、不重复保存或叠加面板', async () => {
+  const f = fixture({ failClose: 4 });
+  try {
+    assert.equal(await f.view.__guanAutomaticUpdateRestart(url), false);
+    await f.advance(1999);
+    assert.equal(f.calls.filter(call => call === 'close').length, 2);
+    await f.advance(1);
+    assert.equal(f.calls.filter(call => call === 'close').length, 4);
+    assert.equal(f.panels.length, 1);
+    await f.advance(4000);
+    assert.equal(f.calls.filter(call => call === 'flush').length, 1);
+    assert.equal(f.calls.filter(call => call === 'close').length, 5);
+    assert.deepEqual(f.calls.at(-1), ['navigate', url]);
+    assert.equal(f.calls.filter(call => call === 'status').length, 1);
+  } finally { f.cleanup(); }
+});
+test('页面已卸载后停止退出重试，保存失败仍不释放授权', async () => {
+  const f = fixture({ failClose: 4 });
+  assert.equal(await f.view.__guanAutomaticUpdateRestart(url), false);
+  f.cleanup(); await f.advance(60_000);
+  assert.equal(f.calls.filter(call => call === 'close').length, 2);
 });
 test('跨页通知须核实管理器等待态，源码模式停止兜底轮询', async () => {
   for (const state of ['staged', 'source-development']) {

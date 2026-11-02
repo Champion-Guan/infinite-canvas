@@ -11,6 +11,7 @@ import { authorizeLocalStorage } from '../扩展功能/本机存储/本机授权
 import { createRenewingDataClient } from '../扩展功能/本机存储/续期数据客户端.mjs';
 import { openWorkspace } from '../扩展功能/本机存储/SQLite工作区.mjs';
 import { startDataService } from '../扩展功能/本机服务/数据服务.mjs';
+import { bindAutomaticUpdateRestart } from '../扩展功能/软件更新/自动更新重启.mjs';
 
 const roots = [];
 test.after(() => { for (const root of roots) rmSync(root, { recursive: true, force: true }); });
@@ -131,6 +132,35 @@ test('默认页面授权跨越多天仍可恢复SQLite读写，关闭立即撤�
     assert.equal((await f.transport(f.service.url + '/health', { headers: { Authorization: 'Bearer ' + last.token } })).status, 401);
     await assert.rejects(auth.host.initialize(), errorCode('authorization_expired'));
   } finally { await f.close(); }
+});
+
+test('真实授权HTTP：升级退出连续断线后自动释放原页面，零页面门禁可继续', async () => {
+  const f = await fixture({ persistent: true });
+  let dropped = 0, flushes = 0, navigated = null, clock = 0;
+  const intervals = new Set(), panels = [];
+  function element() { return { append() {}, setAttribute() {}, addEventListener() {}, showModal() {}, close() {}, remove() {} }; }
+  const view = { document: { createElement: element, body: { append: panel => panels.push(panel) } },
+    location: { replace: value => { navigated = value; } }, addEventListener() {},
+    setInterval(fn) { intervals.add(fn); return fn; }, clearInterval(fn) { intervals.delete(fn); } };
+  const url = 'http://127.0.0.1:12345/' + 'a'.repeat(48) + '/';
+  let cleanup;
+  try {
+    const auth = await f.authorize({ fetchImpl: (url, init) => {
+      if (url.endsWith('/session') && JSON.parse(init.body).operation === 'close' && dropped++ < 4) throw Error('合成卸载连接丢失');
+      return f.transport(url, init);
+    } });
+    cleanup = bindAutomaticUpdateRestart({ view, host: auth.host, now: () => clock, flush: async () => { flushes++; },
+      updatePort: { request: async () => ({ install: { state: 'awaiting-browser-exit' } }) } });
+    assert.equal(await view.__guanAutomaticUpdateRestart(url), false);
+    assert.equal(f.gateway.getStatus().authorizedPages, 1);
+    for (clock of [2000, 6000]) {
+      for (const fn of intervals) fn();
+      for (let i = 0; i < 50 && !navigated; i++) await new Promise(resolve => setTimeout(resolve, 2));
+    }
+    assert.equal(f.gateway.getStatus().authorizedPages, 0);
+    assert.equal(f.gateway.getStatus().pendingTickets, 0);
+    assert.equal(flushes, 1); assert.equal(navigated, url); assert.equal(panels.length, 1);
+  } finally { cleanup?.(); await f.close(); }
 });
 
 test('码与页面数量受限；关闭页面撤销数据令牌并释放名额', async () => {

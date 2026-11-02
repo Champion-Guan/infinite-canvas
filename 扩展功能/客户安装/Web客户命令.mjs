@@ -10,6 +10,7 @@ import { readReleaseAsset } from '../软件更新/github-assets.mjs';
 import { readWebAddress, waitWebAddress } from './Web运行地址.mjs';
 import { acceptsWebRelease } from '../软件更新/更新发布渠道.mjs';
 import { ensureDesktopEntry, openWorkbenchAddress } from './客户桌面入口.mjs';
+import { recoverWaitingUpgrade } from './升级等待恢复.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url)), paths = webInstallPaths();
 async function bootstrapProof() {
@@ -41,6 +42,19 @@ export async function customerCommand(operation) {
     return result.identity;
   }
   if (operation === 'supervisor') return runWebSupervisor();
+  if (operation === 'recover-update') {
+    try { await verifySignedWebDirectory(root); }
+    catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      await bootstrapProof();
+      await verifySignedWebDirectory(root);
+    }
+    const result = await recoverWaitingUpgrade(paths, { report: value => console.log(value) });
+    await ensureDesktopEntry(paths);
+    await openWorkbenchAddress(result.address);
+    console.log('升级已完成并通过健康检查，正在打开工作台。');
+    return result;
+  }
   const state = await readState(paths.state), running = await readState(paths.lock);
   if (operation === 'status') return { installed: Boolean(state), running: Boolean(ownedProcess(running)), version: state?.current?.version, phase: state?.phase,
     address: await readWebAddress(paths, running, state, ownedProcess) };
@@ -71,5 +85,5 @@ export async function customerCommand(operation) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (process.argv.length !== 3) fail('invalid_request');
   try { const result = await customerCommand(process.argv[2]); if (result?.address) console.log('工作台已就绪，请打开：' + result.address); if (result) console.log(JSON.stringify(result)); }
-  catch (e) { console.error('操作未完成：' + (e.code || 'web_operation_failed') + '。现有版本与个人数据保留。'); process.exitCode = 1; }
+  catch (e) { console.error(e.code === 'update_recovery_browsers_open' ? e.message : '操作未完成：' + (e.code || 'web_operation_failed') + '。现有版本与个人数据保留。'); process.exitCode = 1; }
 }

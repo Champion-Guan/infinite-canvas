@@ -33,7 +33,7 @@ const reasons = {
   update_waiting_manager: '正在等待新版管理器确认接管，完成后自动返回工作台。',
   update_waiting_service: '正在等待新版服务就绪并激活，完成后自动返回工作台。',
   update_progress_probe_unavailable: '正在重新连接新版服务，确认运行状态后自动返回工作台。',
-  install_browsers_running: '还有工作台页面打开，请保存并关闭。',
+  install_browsers_running: '正在等待工作台保存并释放连接；进度页不会阻止安装。',
   install_tasks_pending: '有未结束任务或未保存内容，请先回到工作台处理。',
   update_failed_rolled_back: '新版启动未完成，已恢复旧版。',
   update_rollback_failed: '尚未确认服务恢复，请联系维护人员。',
@@ -63,11 +63,13 @@ function render(value) {
   const detail = diagnostic ? ' 原因：' + (reasons[diagnostic.code] || '启动未完成') +
     (fields[diagnostic.field] ? '（' + fields[diagnostic.field] + '）' : '') : '';
   const waiting = state === 'awaiting-browser-exit' && value.waiting && Number.isSafeInteger(value.waiting.pages)
-    ? ' 仍打开 ' + value.waiting.pages + ' 个工作台页面。' : '';
+    ? ' 仍有 ' + value.waiting.pages + ' 个工作台连接尚未确认退出。' : '';
   const elapsed = Math.floor((Date.now() - since) / 1000);
   const delayed = elapsed >= 120 && ['restarting-manager', 'starting', 'unavailable'].includes(state)
     ? ' 等待时间较长，仍在自动核对安装结果；请勿重复安装。' : '';
-  document.querySelector('#detail').textContent = (reasons[value.reason] || label[1]) + detail + waiting + delayed;
+  const recovery = elapsed >= 120 && state === 'awaiting-browser-exit'
+    ? ' 若工作台已关闭仍未继续，请保存后完全退出工作台所在浏览器，再运行新安装包中的“恢复卡住的升级.command”。' : '';
+  document.querySelector('#detail').textContent = (reasons[value.reason] || label[1]) + detail + waiting + delayed + recovery;
   document.querySelector('#time').textContent = '当前阶段已等待 ' + elapsed + ' 秒';
   const order = ['staged', 'awaiting-browser-exit', 'prepared', 'starting', 'success'];
   let step = order.indexOf(state);

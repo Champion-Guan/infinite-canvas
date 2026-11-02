@@ -3,12 +3,14 @@ const progressURL = value => typeof value === 'string' && /^http:\/\/127\.0\.0\.
 // 每个已授权页面排空自己的编辑队列，再离开到只读进度页。后台服务仍核实全部页面与任务。
 export function bindAutomaticUpdateRestart({ view, updatePort, host, flush, now = Date.now, idleMs = 60_000 }) {
   let stopped = false, busy = false, failed = false, leaving = false, timer, checking = null, preparation = null, pressed = false, epoch = 0;
+  let exitPanel = null, retryExit = null, retryAt = 0, exitFailures = 0, retryButton = null;
   let lastActivity = now(), nextCheck = 0;
   const channel = typeof view.BroadcastChannel === 'function' ? new view.BroadcastChannel('guan-workbench-update') : null;
   const removePreparation = () => { preparation?.panel.close(); preparation?.panel.remove(); preparation = null; };
   const panelFor = () => {
     const document = view.document, panel = document.createElement('dialog'), text = document.createElement('p');
     panel.setAttribute('aria-label', '正在准备更新'); text.setAttribute('role', 'status');
+    panel.addEventListener('cancel', event => event.preventDefault());
     text.textContent = '正在保存画布并准备更新，请稍候…'; panel.append(text); document.body.append(panel); panel.showModal();
     return { panel, text, prepared: false };
   };
@@ -16,8 +18,8 @@ export function bindAutomaticUpdateRestart({ view, updatePort, host, flush, now 
     if (stopped || busy || failed || preparation?.cancelled || !progressURL(url)) return false;
     busy = true;
     const started = epoch;
-    const { panel, text } = preparation || panelFor();
-    const cancel = event => event.preventDefault(); panel.addEventListener('cancel', cancel);
+    const { panel, text } = exitPanel ||= preparation || panelFor();
+    retryButton?.remove(); retryButton = null;
     try {
       if (!leaving && !preparation?.prepared) await flush();
       if (stopped || started !== epoch) return false;
@@ -27,15 +29,21 @@ export function bindAutomaticUpdateRestart({ view, updatePort, host, flush, now 
         if (error?.code !== 'authorization_connection_failed') throw error;
         await host.close();
       }
+      retryExit = null;
       view.location.replace(url); return true;
     } catch {
-      failed = true;
-      text.textContent = leaving ? '画布已保存，页面退出尚未确认。恢复本机连接后可继续安装。'
+      failed = !leaving;
+      if (leaving) {
+        retryExit = url;
+        retryAt = now() + Math.min(2000 * 2 ** Math.min(exitFailures++, 3), 15_000);
+      }
+      text.textContent = leaving ? '画布已保存，正在自动重试退出并继续安装…'
         : '更新前保存尚未确认，已保留当前画布。请返回画布处理保存提示后重试。';
       const button = view.document.createElement('button'); button.type = 'button'; button.textContent = leaving ? '重试继续安装' : '返回画布'; panel.append(button);
+      retryButton = button;
       button.addEventListener('click', () => {
-        panel.close(); panel.remove();
-        if (leaving) { failed = false; void prepare(url); }
+        if (leaving) { retryAt = 0; void check(); }
+        else { panel.close(); panel.remove(); exitPanel = null; }
       }, { once: true });
       return false;
     } finally { busy = false; }
@@ -49,6 +57,8 @@ export function bindAutomaticUpdateRestart({ view, updatePort, host, flush, now 
   };
   const runCheck = async supplied => {
     if (stopped || busy || failed) return false;
+    // close 已封住业务端口，不能再查询授权状态；只用原关闭能力重试释放。
+    if (retryExit) return now() >= retryAt ? prepare(retryExit) : false;
     try {
       let status = await updatePort.request('status');
       if (status.install?.state === 'source-development') { view.clearInterval(timer); return false; }
@@ -106,7 +116,7 @@ export function bindAutomaticUpdateRestart({ view, updatePort, host, flush, now 
   Object.defineProperty(view, '__guanAutomaticUpdateRestart', { value: notify });
   view.addEventListener('guan:update-requested', wake);
   if (channel) channel.onmessage = message => { if (message.data === 'confirmed') wake(); };
-  timer = view.setInterval(() => { if (now() >= nextCheck) void check(); }, 2000);
+  timer = view.setInterval(() => { if (retryExit || now() >= nextCheck) void check(); }, 2000);
   const cleanup = () => {
     stopped = true; epoch++; view.clearInterval(timer); channel?.close(); removePreparation();
     for (const event of events) view.removeEventListener?.(event, activity, { capture: true });
