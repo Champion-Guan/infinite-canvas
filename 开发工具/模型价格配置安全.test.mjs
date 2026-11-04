@@ -4,10 +4,10 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { ts } from './检查首批功能适配.mjs';
 import { 根目录 } from './公共.mjs';
-import { 配置安全旧目录 } from './预审配置文件安全.mjs';
+import { 配置安全旧目录, 配置安全旧指纹 } from './预审配置文件安全.mjs';
 import { openWorkspace } from '../扩展功能/本机存储/SQLite工作区.mjs';
 import { openSQLiteCredentialVault } from '../扩展功能/本机凭据/SQLite凭据保管.mjs';
 import { createValueCodec } from '../扩展功能/本机存储/应用值编码.mjs';
@@ -84,7 +84,9 @@ test('认证/查询/片段及本机绑定URL不进入导出，普通端点保留
   assert.equal(data.promptSources.sources[0].homepage, 'https://source.example');
 });
 test('旧导出核心字段行为对照：脱敏后的共同字段一致', () => {
-  const oldFile = ts.createSourceFile('old.ts', readFileSync(join(配置安全旧目录, 'src/canvas/services/config-file.ts'), 'utf8'), ts.ScriptTarget.Latest, true);
+  const oldPath = 'src/canvas/services/config-file.ts', oldSource = readFileSync(join(配置安全旧目录, oldPath), 'utf8');
+  assert.equal(createHash('sha256').update(oldSource).digest('hex'), 配置安全旧指纹[oldPath]);
+  const oldFile = ts.createSourceFile('old.ts', oldSource, ts.ScriptTarget.Latest, true);
   const functions = oldFile.statements.filter(node => ts.isFunctionDeclaration(node) && ['portableEndpoint', 'createPortableAppConfig'].includes(node.name?.text));
   const old = evaluate(functions.map(node => node.getText(oldFile)).join('\n'));
   const f = fixture(), data = f.payload(), oldValue = clone(old.createPortableAppConfig(data.config, data.webdav, data.promptSources.sources, data.promptSources.schedule));

@@ -2,6 +2,7 @@ import { localizePromptTheme } from "./旧版主题翻译.js";
 import type { CanvasNodeContext, CanvasNodeResource } from "@/types/canvas-plugin";
 import type { CanvasNodeData, CanvasNodeMetadata } from "@/types/canvas";
 import { promptVariableTokens, resolvePromptVariables, completePromptVariableValues } from "../提示词/变量使用规则";
+import type { ProductMainImage } from "./产品主图规则";
 export { promptVariableTokens, resolvePromptVariables, completePromptVariableValues } from "../提示词/变量使用规则";
 export const PROMPT_VARIABLES_NODE_TYPE = "guan:prompt-variables";
 
@@ -30,13 +31,70 @@ export type ExcelPromptContext = {
 
 export const WILDBERRIES_PLATFORM = "Wildberries";
 export const WILDBERRIES_LANGUAGE = "俄文";
+export type ProductOption = { value: string; label: string };
+export const PRODUCT_PLATFORM_OPTIONS: ProductOption[] = [
+    { value: WILDBERRIES_PLATFORM, label: "Wildberries" },
+    { value: "Ozon", label: "OZON" },
+    { value: "亚马逊", label: "亚马逊" },
+    { value: "淘宝天猫", label: "淘宝天猫" },
+    { value: "1688", label: "1688" },
+    { value: "Temu", label: "Temu" },
+    { value: "TikTok Shop", label: "TikTok Shop" },
+    { value: "拼多多", label: "拼多多" },
+    { value: "抖音电商", label: "抖音电商" },
+    { value: "独立站", label: "独立站" },
+    { value: "Shopee", label: "Shopee" },
+    { value: "阿里国际站", label: "阿里国际站" },
+    { value: "速卖通", label: "速卖通" },
+    { value: "SHEIN", label: "SHEIN" },
+    { value: "京东", label: "京东" },
+    { value: "美客多", label: "美客多" },
+];
+export const PRODUCT_LANGUAGE_OPTIONS: ProductOption[] = [
+    { value: "英文", label: "英文" },
+    { value: "中文", label: "中文" },
+    { value: "日文", label: "日文" },
+    { value: "韩文", label: "韩文" },
+    { value: "西班牙文", label: "西班牙文" },
+    // 沿用旧产品的存储值，只更新俄语的显示名称。
+    { value: WILDBERRIES_LANGUAGE, label: "俄语" },
+    { value: "泰语", label: "泰语" },
+    { value: "马来语", label: "马来语" },
+];
 export const WILDBERRIES_RULES_TEXT = [
+    "主图/轮播图：1800 x 2400 px ，3 : 4 ，PNG ，单张小于10MB 。",
+    "富内容：800 x 500 px ，PNG ，单张最大5MB 。",
+    "商品卡视频：3 : 4 ，MP4 ，小于50MB 。",
+].join("\n");
+
+const LEGACY_WILDBERRIES_RULES_TEXT = [
     "主图/轮播图：1800×2400，3:4，JPG/PNG/WEBP，单张小于10MB，最多30张，最低700×933。",
     "商品卡视频：3:4，MOV/MP4，单个小于50MB。",
     "富内容：仅图片，800×500，JPG/PNG，单张最大5MB。",
 ].join("\n");
 
-type ProductParameterMetadata = CanvasNodeMetadata & {
+export const PRODUCT_BRIEF_FIELDS = [
+    { key: "nameCategory", label: "商品名称／品类", kind: "text", help: "填写这是什么商品、属于什么品类，以及具体用途。" },
+    { key: "colorModel", label: "销售颜色／型号", kind: "text", help: "标明本次销售的颜色、型号或款式，并区分参考图片中的其他款式。" },
+    { key: "dimensions", label: "真实尺寸与参数", kind: "multiline", help: "填写尺寸、重量、容量、型号、适配范围等真实参数，注明数值和单位；未知项可写“待确认”。" },
+    { key: "material", label: "材质／成分", kind: "text", help: "填写主体、配件的真实材质或成分及已知比例，以产品资料为准；不确定可写“待确认”。" },
+    { key: "packageContents", label: "包装清单及数量", kind: "multiline", help: "列出买家实际收到哪些物品、各多少件，并注明图片中的场景道具是否包含。" },
+    { key: "sellingPoints", label: "核心卖点（1–3 个）", kind: "multiline", help: "填写最希望突出的 1–3 个优势，以及能够支持这些优势的资料或实拍依据。" },
+    { key: "targetBuyer", label: "目标买家", kind: "text", help: "描述谁会购买，例如人群、年龄、职业、使用经验或送礼对象。" },
+    { key: "usageScenarios", label: "主要使用场景", kind: "multiline", help: "描述买家在什么地方、什么情况下使用，以及希望解决什么问题。" },
+    { key: "buyerConcerns", label: "买家最担心的问题", kind: "multiline", help: "填写买家购买前最在意的疑问，例如尺寸是否合适、是否耐用、是否易用或配件是否齐全。" },
+    { key: "richContent", label: "富内容", kind: "choice", help: "选择本次是否需要制作富内容图片。" },
+    { key: "styleReference", label: "风格或竞品参考", kind: "multiline", help: "可填写参考风格、竞品链接、品牌 Logo、品牌色，以及希望借鉴的排版或氛围。" },
+    { key: "preserveConstraints", label: "必须保留／禁止改变的地方", kind: "multiline", help: "说明必须保持一致的外形、颜色、结构、Logo、数量等，以及禁止添加、删减或改动的内容。" },
+] as const;
+
+export type ProductBriefField = typeof PRODUCT_BRIEF_FIELDS[number]["key"];
+// 旧字段仅兼容读取，不再作为规划条件或生成约束。
+export type ProductBriefValues = Partial<Record<ProductBriefField | "carouselCount" | "generationTool", string>>;
+
+export type ProductParameterMetadata = CanvasNodeMetadata & {
+    productMainImages?: ProductMainImage[];
+    productBrief?: ProductBriefValues;
     productPlatform?: string;
     productLanguage?: string;
     productPlatformRules?: string;
@@ -48,20 +106,33 @@ type ProductParameterMetadata = CanvasNodeMetadata & {
     productMainImageMimeType?: string;
 };
 
-export function productPlatformRules(metadata?: CanvasNodeMetadata) {
-    const value = metadata as ProductParameterMetadata | undefined;
-    return value?.productPlatform === WILDBERRIES_PLATFORM
-        ? String(value.productPlatformRules || WILDBERRIES_RULES_TEXT).trim()
-        : "";
+export function productPlatformRules(metadata?: ProductParameterMetadata) {
+    const value = metadata;
+    if (value?.productPlatform !== WILDBERRIES_PLATFORM) return "";
+    const rules = String(value.productPlatformRules || "").trim();
+    return !rules || rules === LEGACY_WILDBERRIES_RULES_TEXT ? WILDBERRIES_RULES_TEXT : rules;
 }
 
 export function productParameterSupplement(metadata?: CanvasNodeMetadata) {
+    const value = metadata as ProductParameterMetadata | undefined;
     const user = String(metadata?.promptVariableSupplement || "").trim();
     const rules = productPlatformRules(metadata);
-    return [user, rules].filter(Boolean).join("\n\n");
+    const richContentRequirement = value?.productPlatform === WILDBERRIES_PLATFORM ? "富内容必须制作：800 x 500 px，PNG，单张最大5MB。" : "";
+    return [productBriefSupplement(metadata), user, rules, richContentRequirement].filter(Boolean).join("\n\n");
 }
 
-
+export function productBriefSupplement(metadata?: CanvasNodeMetadata) {
+    const value = metadata as ProductParameterMetadata | undefined;
+    const lines = PRODUCT_BRIEF_FIELDS.flatMap(field => {
+        if (field.key === "richContent" && value?.productPlatform === WILDBERRIES_PLATFORM) return [];
+        const text = String(value?.productBrief?.[field.key] || "").trim();
+        return text ? [`${field.label}：${text}`] : [];
+    });
+    if (!lines.length) return "";
+    if (value?.productMainImages ? value.productMainImages.length > 0 : value?.productMainImageStorageKey || value?.productMainImageUrl) lines.splice(2, 0, "实物图：已附");
+    if (value?.productLanguage) lines.push(`图片文字语言：${value.productLanguage}`);
+    return ["【商品资料】", ...lines, "未填写的资料保持待确认，不猜测或编造产品参数。"].join("\n");
+}
 
 function productName(route: string) {
     return String(route || "").split(/[|｜]/, 1)[0].trim();

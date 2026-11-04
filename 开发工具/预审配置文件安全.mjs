@@ -9,7 +9,9 @@ import { 读取凭据网关任务隔离记录, 核验凭据网关任务完整包
 
 export const 配置安全前置 = join(根目录, '.运行/凭据网关任务-qD9PwY/凭据网关任务接入记录.json');
 export const 配置安全来源 = '扩展功能/配置文件/配置文件安全.ts';
-export const 配置安全旧目录 = '/Users/guanchengbin/CodexProjects/guan-ai-workbench-projects/guan-ai-workbench';
+const 历史配置目录 = '/Users/guanchengbin/CodexProjects/guan-ai-workbench-projects/guan-ai-workbench';
+export const 配置安全旧目录 = [历史配置目录, 根目录, join(根目录, '.运行/GitHub发布')]
+  .find(directory => existsSync(join(directory, 'src/canvas/services/config-file.ts'))) || 历史配置目录;
 export const 配置安全旧指纹 = Object.freeze({
   'src/canvas/services/config-file.ts': 'b778666823951ebe597a0a443b3ca6b58097f43d3ad6318bdb2dcd639bdff1bf',
   'src/canvas/lib/config-portability.ts': 'c30486f832bfd5018c928a85ca66a492dd4ff440f01e102055bf212b78d64c47',

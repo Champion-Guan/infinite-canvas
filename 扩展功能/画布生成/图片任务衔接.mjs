@@ -1,5 +1,6 @@
 import { requireValue } from '../本机存储/协议.mjs';
 import { bindingLike, jobLike, terminalState, TASK_STATES } from '../生成网关/生成协议.mjs';
+import { assertGenerationActive, isGenerationConnectionError, recoverGenerationResponse } from '../生成任务/本机任务响应恢复.mjs';
 
 // 仅把原图片协议与本机任务端口连接起来，不知道当前路由，不读取浏览器数据库。
 // 保存/应用按产品串行；上游生成仍可并行，避免多张结果互相使React提交票据失效。
@@ -24,7 +25,7 @@ function scoped(job, scope, id) {
 const delay = () => new Promise(resolve => setTimeout(resolve, 3000));
 
 const slots = new Set();
-/** @param {{host: any, scope: {productId: string, nodeId: string, slotId: string}, prepare: Function, bind: Function, previous?: any, recordTask: Function, applyAndSave: Function, onProgress?: Function, signal?: AbortSignal, retry?: boolean, wait?: Function, makeId?: Function, deferConfirm?: () => boolean}} options */
+/** @param {{host: any, scope: {productId: string, nodeId: string, slotId: string}, prepare: Function, bind: Function, previous?: any, recordTask: Function, applyAndSave: Function, onProgress?: Function, signal?: AbortSignal, retry?: boolean, wait?: Function, retryWait?: Function, makeId?: Function, deferConfirm?: () => boolean}} options */
 export async function runCanvasImageTask(options) {
   const key = JSON.stringify([options.scope?.productId, options.scope?.nodeId, options.scope?.slotId]);
   requireValue(!slots.has(key), 'generation_slot_busy', '该生成任务正在处理，请勿重复点击。', 409);
@@ -32,17 +33,19 @@ export async function runCanvasImageTask(options) {
   try { return await run(options); } finally { slots.delete(key); }
 }
 async function run({ host, scope, prepare, bind, previous, recordTask, applyAndSave,
-  signal, onProgress, retry = false, wait = delay, makeId = () => crypto.randomUUID(), deferConfirm } = {}) {
+  signal, onProgress, retry = false, wait = delay, retryWait, makeId = () => crypto.randomUUID(), deferConfirm } = {}) {
   requireValue(host?.submit && host?.get && host?.deliver && host?.checkpoint && typeof prepare === 'function' &&
     typeof bind === 'function' && typeof recordTask === 'function' && typeof applyAndSave === 'function' &&
     typeof scope?.productId === 'string' && typeof scope.nodeId === 'string' && typeof scope.slotId === 'string',
   'invalid_canvas_generation', '原画布生成接入不完整，没有改用直连接口。');
   const target = Object.freeze({ ...scope });
+  const recovery = { signal, wait: retryWait };
+  const get = id => recoverGenerationResponse(async () => scoped(await host.get(id), target, id), recovery);
   let descriptor = previous ? structuredClone(previous) : null, job, replacementId;
   if (descriptor) {
     requireValue(jobLike(descriptor.taskId) && descriptor.slotId === target.slotId && bindingLike(descriptor.binding) &&
       /^[0-9a-f]{64}$/.test(descriptor.requestHash), 'invalid_canvas_task', '原卡片任务记录无效，没有重新生成。');
-    try { job = scoped(await host.get(descriptor.taskId), target, descriptor.taskId); }
+    try { job = await get(descriptor.taskId); }
     catch (error) {
       if (error?.code !== 'generation_not_found') throw error;
       if (retry && typeof host.retirePreparedTask === 'function') {
@@ -85,7 +88,12 @@ async function run({ host, scope, prepare, bind, previous, recordTask, applyAndS
     if (!job) {
       // 记录已落盘后才允许收费提交。Abort发生在保存期间时不发送。
       if (signal?.aborted) throw new DOMException('已取消', 'AbortError');
-      job = scoped(await host.submit({ ...task, binding: descriptor.binding, request }), target, task.id);
+      try { job = scoped(await host.submit({ ...task, binding: descriptor.binding, request }), target, task.id); }
+      catch (error) {
+        if (!isGenerationConnectionError(error)) throw error;
+        // 提交可能已被接受并计费；响应丢失后只查询已保存的原ID。
+        job = await get(task.id);
+      }
       if (cancelled) cancel();
     }
     if (onProgress && host.observeText && !terminalState(job.state)) {
@@ -93,13 +101,14 @@ async function run({ host, scope, prepare, bind, previous, recordTask, applyAndS
       catch {
         if (signal?.aborted) throw new DOMException('已取消', 'AbortError');
         // 观察失败只查询原任务，不重提submit，不将部分文字当作最终成功。
-        job = scoped(await host.get(task.id), target, task.id);
+        job = await get(task.id);
       }
     }
     while (!terminalState(job.state)) {
       if (signal?.aborted) { cancel(); throw new DOMException('已取消', 'AbortError'); }
       await wait();
-      job = scoped(await host.get(task.id), target, task.id);
+      assertGenerationActive(signal);
+      job = await get(task.id);
     }
     // 结果落盘失败可以重试同一份响应，不重新调用上游。
     if (job.state === 'uncertain' && job.reason === 'result_save_unconfirmed')
@@ -107,12 +116,14 @@ async function run({ host, scope, prepare, bind, previous, recordTask, applyAndS
     requireValue(job.state === 'succeeded', job.state === 'uncertain' ? 'generation_result_unknown' : 'generation_failed',
       job.state === 'uncertain' ? '上游是否完成尚未确认，不能自动重试或重复计费。' : '原生成任务未成功；可明确重试，不会自动切换渠道。', 409);
     if (signal?.aborted) throw new DOMException('已取消', 'AbortError');
-    return await serializeProductResult(target.productId, () => host.deliver(task, { applyAndSave: async saved => {
+    return await host.deliver(task, { signal, retryWait,
+      commit: operation => serializeProductResult(target.productId, operation), applyAndSave: async saved => {
+      assertGenerationActive(signal);
       scoped(saved, target, task.id);
       const persistence = await applyAndSave(saved, Object.freeze({ taskId: task.id, responseHash: saved.result.id }));
       if (persistence?.deferred || deferConfirm?.()) return { deferred: true };
       // 后端再次核对已落盘的原产品、节点和收据；不能以setNodes或saved:true代替。
-      return host.checkpoint(task.id);
-    }, deferConfirm: () => Boolean(deferConfirm?.()) }));
+      return recoverGenerationResponse(() => host.checkpoint(task.id), recovery);
+    }, deferConfirm: () => Boolean(deferConfirm?.()) });
   } finally { signal?.removeEventListener('abort', cancel); }
 }

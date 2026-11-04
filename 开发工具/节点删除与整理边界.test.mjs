@@ -112,6 +112,7 @@ const servicePorts = {
     '@/扩展功能/媒体交付/上传前存储检查.mjs': {},
     '@/扩展功能/媒体交付/HEIC上传兼容.mjs': {},
     "@/扩展功能/媒体交付/媒体地址缓存": await load("媒体交付/媒体地址缓存.ts"),
+    "@/扩展功能/媒体交付/缩略图缓存": await load("媒体交付/缩略图缓存.ts"),
     '@/扩展功能/网络代理/本地转发请求': { 本地转发请求: globalThis.fetch, 本地转发Axios: {} },
     '@/扩展功能/本机存储/上游浏览器存储桥': { sqliteForage: { createInstance: () => ({}) } },
     nanoid: { nanoid: () => 'unused' }, '@/扩展功能/画布迁移扩展/内嵌图片解码.mjs': {},

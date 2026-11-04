@@ -3,12 +3,19 @@ import type { CanvasAgentOp } from "@/lib/canvas/canvas-agent-ops";
 import type { CanvasConnection, CanvasNodeData, CanvasNodeMetadata } from "@/types/canvas";
 import { resolvePromptVariables } from "../提示词/变量使用规则";
 import { finalPromptPreviewTitle } from "./旧版最终提示词标题";
-import { productParameterSupplement } from "./旧版参数规则";
+import { productParameterSupplement, type ProductParameterMetadata } from "./旧版参数规则";
 
 const rawPrompt = (node: CanvasNodeData) => String(node.metadata?.content ?? node.metadata?.excelPromptRaw ?? node.metadata?.prompt ?? "");
 const resolvedPrompt = (source: CanvasNodeData, parameter: CanvasNodeData) => resolvePromptVariables(rawPrompt(source), parameter.metadata?.promptVariableValues, productParameterSupplement(parameter.metadata));
-const parameterChanged = (before: CanvasNodeData | undefined, current: CanvasNodeData) =>
-    before?.metadata?.promptVariableValues !== current.metadata?.promptVariableValues || before?.metadata?.promptVariableSupplement !== current.metadata?.promptVariableSupplement;
+const parameterChanged = (before: CanvasNodeData | undefined, current: CanvasNodeData) => {
+    const old = before?.metadata as ProductParameterMetadata | undefined;
+    const next = current.metadata as ProductParameterMetadata | undefined;
+    return old?.promptVariableValues !== next?.promptVariableValues || old?.promptVariableSupplement !== next?.promptVariableSupplement ||
+        old?.productBrief !== next?.productBrief || old?.productLanguage !== next?.productLanguage ||
+        old?.productPlatform !== next?.productPlatform || old?.productPlatformRules !== next?.productPlatformRules ||
+        old?.productMainImages !== next?.productMainImages ||
+        old?.productMainImageStorageKey !== next?.productMainImageStorageKey || old?.productMainImageUrl !== next?.productMainImageUrl;
+};
 
 export function buildProductParameterEdits(nodes: CanvasNodeData[], connections: CanvasConnection[], parameterId: string, patch: CanvasNodeMetadata) {
     const original = nodes.find(node => node.id === parameterId && node.type === "guan:prompt-variables");

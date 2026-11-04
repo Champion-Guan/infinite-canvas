@@ -3,6 +3,7 @@ import type { CanvasNodeContext } from "@/types/canvas-plugin";
 import type { CanvasNodeMetadata } from "@/types/canvas";
 import { saveProductParameterValues } from "./Excel参数记忆";
 import { buildProductParameterEdits } from "./产品参数联动";
+import type { ProductBriefField, ProductParameterMetadata } from "./旧版参数规则";
 
 // 每次输入读取当前节点，复用原画布事务、撤销和保存，不另建表单状态。
 export function useProductParameterEditing(ctx: CanvasNodeContext, productId: string, tokens: string[]) {
@@ -17,5 +18,11 @@ export function useProductParameterEditing(ctx: CanvasNodeContext, productId: st
         update({ promptVariableValues: { ...current.metadata?.promptVariableValues, [token]: value }, promptVariableTokens: tokens });
     }, [ctx, productId, tokens, update]);
     const updateSupplement = useCallback((value: string) => update({ promptVariableSupplement: value }), [update]);
-    return { updateValue, updateSupplement, updateMetadata: update };
+    const updateBrief = useCallback((field: ProductBriefField, value: string) => {
+        const current = ctx.getNode(ctx.node.id);
+        if (!current) return;
+        const metadata = current.metadata as ProductParameterMetadata | undefined;
+        update({ productBrief: { ...metadata?.productBrief, [field]: value } } as ProductParameterMetadata);
+    }, [ctx, update]);
+    return { updateValue, updateSupplement, updateBrief, updateMetadata: update };
 }

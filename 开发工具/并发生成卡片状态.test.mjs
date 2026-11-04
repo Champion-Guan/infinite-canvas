@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import ts from '../.运行/3100源/画布副本/web/node_modules/typescript/lib/typescript.js';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
+import { variantModules } from './产品变体生成夹具.mjs';
 
 async function load(file, dependencies = {}) {
   const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file, { loader: file.endsWith('tsx') ? 'tsx' : 'ts', jsx: 'automatic', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
@@ -86,8 +87,10 @@ async function executionFixture({ failPreparation = false, blank = false } = {})
   const registry = createCanvasGenerationRegistry(), tasks = [], errors = [];
   const nodesRef = { current: ['A','B','C'].map((id, index) => ({ id, type: 'config', position: { x: 0, y: index * 500 }, width: 300, height: 240, metadata: { prompt: '产品照片' } })) };
   const connectionsRef = { current: [] }; let sequence = 0, generated = 0;
+  const variants = variantModules();
   const scope = {
-    ...registry, generationRequestsRef: { current: registry.requests }, nodesRef, connectionsRef,
+    ...registry, ...variants.load('画布生成/产品变体生成.ts'), ...variants.load('画布生成/商品提示词生成.ts'),
+    generationRequestsRef: { current: registry.requests }, nodesRef, connectionsRef,
     resolveGenerationChannelMetadata: () => ({ channel: '测试渠道', channelId: 'test-channel' }),
     isGenerationModeEnabled: () => true, generationNodeForExecution: node => node,
     effectiveConfig: {}, buildGenerationConfig: () => ({ count: '1' }), isAiConfigReady: () => true, getNodeDefinition: () => undefined,
@@ -109,7 +112,7 @@ async function executionFixture({ failPreparation = false, blank = false } = {})
     projectId: '本机合成验收', isGenerationCanceled: error => error.name === 'AbortError', isVideoTaskFailed: () => false,
     message: { error: text => errors.push(text) }, t: key => key,
   };
-  return { ...scope, registry, tasks, errors, generated: () => generated, run: await callback('handleGenerateNode', scope) };
+  return { ...scope, registry, tasks, errors, generated: () => generated, run: await callback('executeGenerateNode', scope) };
 }
 const flush = () => new Promise(resolve => setImmediate(resolve));
 test('执行真实画布生成回调：三任务同时待响应，B先结束后A/C仍显示运行', async () => {

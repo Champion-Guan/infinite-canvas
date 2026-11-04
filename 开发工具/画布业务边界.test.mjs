@@ -9,6 +9,7 @@ import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_m
 import { clearConfirmedImageErrors } from '../扩展功能/画布生成/图片任务确认恢复.mjs';
 import { canvasTaskSummary } from '../扩展功能/产品/产品任务摘要.js';
 import * as upgradePage from '../扩展功能/软件更新/升级页面状态.mjs';
+import { variantModules } from './产品变体生成夹具.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const hooks = { useCallback: value => value, useRef: value => ({ current: value }) };
@@ -137,6 +138,7 @@ async function batchModule(generationParameters = { promptGenerationPatch: () =>
   const layout = await load('画布布局/卡片自动避让.ts', {});
   const columns = await load('画布布局/批量结果排布.ts', { './卡片自动避让': layout });
   const batchSave = await load('画布生成/批量保存协调.ts', {});
+  const variants = variantModules();
   const module = await load('画布生成/批量生成操作.ts', {
     react: hooks, '@/types/canvas': { CanvasNodeType: { Config: 'config', Text: 'text', Image: 'image', Video: 'video', Audio: 'audio' } },
     '@/constant/canvas': { getNodeSpec: () => ({ width: 100, height: 80 }) },
@@ -149,6 +151,9 @@ async function batchModule(generationParameters = { promptGenerationPatch: () =>
     '../画布布局/卡片自动避让': { placeCanvasNode: node => node },
     '../画布布局/批量结果排布': columns,
     './批量保存协调': batchSave,
+    './产品变体生成': variants.load('画布生成/产品变体生成.ts'),
+    '../Excel画布/商品提示词规则': variants.load('Excel画布/商品提示词规则.ts'),
+    '../Excel画布/商品提示词画布': variants.load('Excel画布/商品提示词画布.ts'),
   });
   return { ...module, batchSave };
 }

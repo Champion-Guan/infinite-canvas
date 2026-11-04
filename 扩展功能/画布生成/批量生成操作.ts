@@ -12,8 +12,11 @@ import { promptGenerationPatch, generationSettingsFromNode } from "./生成参�
 import { promptGenerationMode } from "../安全与批量/prompt-generation-mode";
 import { settleActivityGroup } from "../安全与批量/settle-activity-group";
 import { placeCanvasNode } from "../画布布局/卡片自动避让";
-import { planBatchResultColumn, type BatchResultPlacement } from "../画布布局/批量结果排布";
+import type { BatchResultPlacement } from "../画布布局/批量结果排布";
+import { planProductGenerationJobs, productGenerationImageCount, type ProductGenerationJob } from "./产品变体生成";
 import { beginBatchCanvasSave, completeBatchCanvasSave, finishBatchCanvasSave } from "./批量保存协调";
+import { promptDocument, PRODUCT_IMAGE_MODEL, type ProductPromptMetadata } from "../Excel画布/商品提示词规则";
+import { productImageConfig, productConfigSignature } from "../Excel画布/商品提示词画布";
 
 type BatchGenerationPort = {
     projectId: string;
@@ -31,7 +34,8 @@ type BatchGenerationPort = {
 export function useCanvasBatchGeneration({ projectId, nodesRef, connectionsRef, effectiveConfig, setNodes, setConnections, setSelectedNodeIds, setSelectedConnectionId, handleGenerateNode, saveCanvas = async () => {}, message }: BatchGenerationPort) {
     const NODE_STATUS_LOADING = "loading";
     const addGenerationConfigsForPromptNodes = useCallback(() => {
-        const promptNodes = nodesRef.current.filter((node) => node.type === CanvasNodeType.Text && Boolean((node.metadata?.content || node.metadata?.prompt || "").trim()));
+        const promptNodes = nodesRef.current.filter((node) => !(node.metadata as ProductPromptMetadata)?.productPromptRetired
+            && (promptDocument(node) || node.type === CanvasNodeType.Text && Boolean((node.metadata?.content || node.metadata?.prompt || "").trim())));
         const connectedPromptIds = new Set(connectionsRef.current.map((connection) => connection.fromNodeId));
         const candidates = promptNodes.filter((node) => !connectedPromptIds.has(node.id));
         if (!candidates.length) {
@@ -43,6 +47,7 @@ export function useCanvasBatchGeneration({ projectId, nodesRef, connectionsRef, 
         const created: CanvasNodeData[] = [];
         const nextConnections = [...connectionsRef.current];
         candidates.forEach((sourceNode) => {
+            const document = promptDocument(sourceNode);
             const mode = promptGenerationMode(sourceNode, nodesRef.current, connectionsRef.current) || "image";
             const x = sourceNode.position.x + sourceNode.width + 96;
             const y = sourceNode.position.y;
@@ -59,7 +64,9 @@ export function useCanvasBatchGeneration({ projectId, nodesRef, connectionsRef, 
                 ...generationSettingsFromNode(sourceNode),
                 generationMode: mode,
                 ...(mode !== "image" ? { model: mode === "video" ? effectiveConfig.videoModel : mode === "audio" ? effectiveConfig.audioModel : effectiveConfig.textModel } : {}),
+                ...(document ? { ...productImageConfig(document, PRODUCT_IMAGE_MODEL), productPromptConfigKey: sourceNode.id } : {}),
             }), occupied);
+            if (document) configNode.metadata = { ...configNode.metadata, productPromptConfigSignature: productConfigSignature(configNode) } as ProductPromptMetadata;
             created.push(configNode);
             occupied.push(configNode);
             nextConnections.push({ id: nanoid(), fromNodeId: sourceNode.id, toNodeId: configNode.id });
@@ -77,34 +84,30 @@ export function useCanvasBatchGeneration({ projectId, nodesRef, connectionsRef, 
     const batchGenerationRunning = useRef(false);
     const generateAllConfigNodes = useCallback(async () => {
         if (batchGenerationRunning.current) return;
-        const configNodes = nodesRef.current.filter((node) => node.type === CanvasNodeType.Config && node.metadata?.status !== NODE_STATUS_LOADING);
+        const configNodes = nodesRef.current.filter((node) => node.type === CanvasNodeType.Config && node.metadata?.status !== NODE_STATUS_LOADING
+            && !(node.metadata as ProductPromptMetadata)?.productPromptRetired);
         if (!configNodes.length) {
             message.info("画布上没有生成配置卡片");
             return;
         }
-        let placements: Map<string, BatchResultPlacement>;
+        let jobs: ProductGenerationJob[];
         try {
-            placements = planBatchResultColumn(configNodes.map(source => {
-                const mode = source.metadata?.generationMode || "image";
-                const type = mode === "video" ? CanvasNodeType.Video : mode === "audio" ? CanvasNodeType.Audio : mode === "text" ? CanvasNodeType.Text : CanvasNodeType.Image;
-                const spec = getNodeSpec(type);
-                return { source, width: spec.width, height: mode === "video" ? 420 : spec.height };
-            }), nodesRef.current, nanoid());
+            jobs = planProductGenerationJobs(configNodes, nodesRef.current, connectionsRef.current, nanoid());
         } catch (error) {
             message.error(error instanceof Error ? error.message : "无法确定批量结果位置");
             return;
         }
         batchGenerationRunning.current = true;
         beginBatchCanvasSave(projectId);
-        const imageNodes = configNodes.filter(node => (node.metadata?.generationMode || "image") === "image");
-        const boundedNodes = configNodes.filter(node => (node.metadata?.generationMode || "image") !== "image");
-        message.info(`已加入 ${configNodes.length} 个生成任务；生图任务立即并行执行，视频、音频和文本最多同时执行 3 个`);
+        const imageNodes = jobs.filter(job => job.mode === "image");
+        const boundedNodes = jobs.filter(job => job.mode !== "image");
+        message.info(`已加入 ${jobs.length} 个生成任务，共 ${productGenerationImageCount(jobs, effectiveConfig.canvasImageCount || effectiveConfig.count)} 张图片；生图任务立即并行执行，视频、音频和文本最多同时执行 3 个`);
         let failed = 0;
-        const runOne = async (queued: CanvasNodeData) => {
-            const node = nodesRef.current.find((item) => item.id === queued.id);
-            if (!node || node.metadata?.status === NODE_STATUS_LOADING) return;
+        const runOne = async (job: ProductGenerationJob) => {
+            const node = nodesRef.current.find((item) => item.id === job.source.id);
+            if (!node) return;
             try {
-                await handleGenerateNode(node.id, node.metadata?.generationMode || "image", node.metadata?.composerContent || node.metadata?.prompt || "", placements.get(node.id));
+                await handleGenerateNode(node.id, job.mode, job.prompt, job.placement);
             } catch {
                 failed++;
             }
@@ -140,7 +143,7 @@ export function useCanvasBatchGeneration({ projectId, nodesRef, connectionsRef, 
             }
             batchGenerationRunning.current = false;
         }
-    }, [handleGenerateNode, message, nodesRef, projectId, saveCanvas]);
+    }, [handleGenerateNode, message, nodesRef, connectionsRef, effectiveConfig.canvasImageCount, effectiveConfig.count, projectId, saveCanvas]);
 
     const completeAndGenerateRunning = useRef(false);
     const completeAndGenerateAll = useCallback(async () => {

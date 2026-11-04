@@ -82,6 +82,56 @@ test('多张完整媒体在单个SQLite事务中原子保存并按内容去重',
   } finally { store.close(); }
 });
 
+test('保存文档只读取媒体索引与长度，不把已存图片BLOB复制到JavaScript', () => {
+  const store = openWorkspace({ dataRoot: temp(), initialize: true });
+  const prepare = DatabaseSync.prototype.prepare;
+  let checks = 0;
+  try {
+    const media = store.writeMedia(Buffer.alloc(4 * 1024 * 1024, 17), 'image/png');
+    DatabaseSync.prototype.prepare = function (sql) {
+      const statement = prepare.call(this, sql);
+      if (!/^SELECT\b/i.test(sql) || !/\bFROM media\b/i.test(sql)) return statement;
+      return new Proxy(statement, { get(target, key) {
+        const method = Reflect.get(target, key);
+        if (key !== 'get') return typeof method === 'function' ? method.bind(target) : method;
+        return (...args) => {
+          const row = method.apply(target, args);
+          checks++;
+          assert.equal(Object.values(row).some(value => ArrayBuffer.isView(value)), false,
+            '每次任务状态/画布保存都不能复制历史图片字节');
+          return row;
+        };
+      } });
+    };
+    assert.equal(put(store, canvas(), 0, { mediaIds: [media.id] }).revision, 1);
+    assert.equal(checks, 1);
+  } finally { DatabaseSync.prototype.prepare = prepare; store.close(); }
+});
+
+test('媒体引用轻量校验仍拒绝损坏BLOB及缺失、长度错误的旧外置文件', () => {
+  const root = temp(); let store = openWorkspace({ dataRoot: root, initialize: true });
+  try {
+    const content = Buffer.from('synthetic-reference'), media = store.writeMedia(content, 'image/png');
+    store.close();
+    const raw = new DatabaseSync(join(root, '工作台.sqlite'));
+    raw.prepare('UPDATE media SET content=? WHERE id=?').run(Buffer.from('truncated'), media.id);
+    raw.close();
+    store = openWorkspace({ dataRoot: root });
+    assert.throws(() => put(store, canvas(), 0, { mediaIds: [media.id] }), code('media_corrupt'));
+    store.close();
+    const legacy = new DatabaseSync(join(root, '工作台.sqlite'));
+    legacy.prepare('UPDATE media SET content=NULL WHERE id=?').run(media.id);
+    legacy.close();
+    store = openWorkspace({ dataRoot: root });
+    assert.throws(() => put(store, canvas(), 0, { mediaIds: [media.id] }), code('media_not_found'));
+    writeFileSync(join(root, '媒体', media.id), Buffer.from('truncated'));
+    assert.throws(() => put(store, canvas(), 0, { mediaIds: [media.id] }), code('media_corrupt'));
+    writeFileSync(join(root, '媒体', media.id), content);
+    assert.equal(put(store, canvas(), 0, { mediaIds: [media.id] }).revision, 1);
+    assert.deepEqual(Buffer.from(store.readMedia(media.id).bytes), content);
+  } finally { store.close(); }
+});
+
 test('空间不足与中途事务失败不能产生成功ACK或半条文档', () => {
   const root = temp(); let noSpace = false, failCommit = false;
   const store = openWorkspace({ dataRoot: root, initialize: true, availableBytes: () => noSpace ? 0 : 1e12, beforeCommit: () => { if (failCommit) throw new Error('synthetic interruption'); } });

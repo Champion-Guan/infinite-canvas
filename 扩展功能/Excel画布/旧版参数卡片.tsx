@@ -1,25 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Braces, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
+import { Braces } from "lucide-react";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { CanvasNodeContext } from "@/types/canvas-plugin";
 import type { CanvasNodeMetadata } from "@/types/canvas";
-import { promptVariableTokens, completePromptVariableValues, variableLabel, productVariableTokens, WILDBERRIES_LANGUAGE, WILDBERRIES_PLATFORM, WILDBERRIES_RULES_TEXT } from "./旧版参数规则";
+import { promptVariableTokens, completePromptVariableValues, variableLabel, productVariableTokens, productPlatformRules, PRODUCT_LANGUAGE_OPTIONS, PRODUCT_PLATFORM_OPTIONS, WILDBERRIES_LANGUAGE, WILDBERRIES_PLATFORM, WILDBERRIES_RULES_TEXT } from "./旧版参数规则";
 import { useExcelProductId, useExcelPromptContext } from "./Excel画布上下文";
 import { restoreProductParameterValues } from "./Excel参数记忆";
 import { useProductParameterEditing } from "./产品参数编辑操作";
+import { ProductBriefForm } from "./产品资料表单";
+import type { ProductParameterMetadata } from "./旧版参数规则";
+import { ProductMainImageUploader } from "./产品主图上传";
+import { ProductOptionSelect } from "./产品选项下拉";
+import { ProductVariantEditor } from "./产品变体编辑";
+import { productVariants } from "./产品变体规则";
+import { ProductPlanningButton, ProductPlanOverview } from "./商品策划按钮";
 
-type ProductCardMetadata = CanvasNodeMetadata & {
-    productPlatform?: string;
-    productLanguage?: string;
-    productPlatformRules?: string;
-    productMainImageStorageKey?: string;
-    productMainImageUrl?: string;
-    productMainImageWidth?: number;
-    productMainImageHeight?: number;
-    productMainImageBytes?: number;
-    productMainImageMimeType?: string;
-};
+type ProductCardMetadata = ProductParameterMetadata;
 
 export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
     const productId = useExcelProductId();
@@ -36,12 +33,10 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
     const tokens = Array.from(new Set([...(productTokens || []), ...(metadata.promptVariableTokens || []), ...linkedTokens, ...promptVariableTokens(currentPrompt)]));
     const values = useMemo(() => metadata.promptVariableValues || {}, [metadata.promptVariableValues]);
     const initialized = useRef<{ nodeId: string; productId: string } | null>(null);
-    const mainImageInputRef = useRef<HTMLInputElement>(null);
-    const [mainImageUrl, setMainImageUrl] = useState(cardMetadata.productMainImageUrl || "");
-    const [imageBusy, setImageBusy] = useState(false);
-    const [imageError, setImageError] = useState("");
 
-    const { updateValue, updateSupplement, updateMetadata } = useProductParameterEditing(ctx, productId, tokens);
+    const { updateValue, updateSupplement, updateBrief, updateMetadata } = useProductParameterEditing(ctx, productId, tokens);
+    const platform = cardMetadata.productPlatform || WILDBERRIES_PLATFORM;
+    const language = cardMetadata.productLanguage ?? (platform === WILDBERRIES_PLATFORM ? WILDBERRIES_LANGUAGE : "");
 
     useEffect(() => {
         const node = ctx.getNode(ctx.node.id);
@@ -59,26 +54,14 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
 
     useEffect(() => {
         const platform = cardMetadata.productPlatform || WILDBERRIES_PLATFORM;
-        const language = platform === WILDBERRIES_PLATFORM ? WILDBERRIES_LANGUAGE : (cardMetadata.productLanguage || "");
-        const rules = platform === WILDBERRIES_PLATFORM ? (cardMetadata.productPlatformRules || WILDBERRIES_RULES_TEXT) : "";
+        const language = cardMetadata.productLanguage ?? (platform === WILDBERRIES_PLATFORM ? WILDBERRIES_LANGUAGE : "");
+        const rules = productPlatformRules({ productPlatform: platform, productPlatformRules: cardMetadata.productPlatformRules } as CanvasNodeMetadata);
         const patch: ProductCardMetadata = {};
         if (cardMetadata.productPlatform !== platform) patch.productPlatform = platform;
         if (cardMetadata.productLanguage !== language) patch.productLanguage = language;
         if (cardMetadata.productPlatformRules !== rules) patch.productPlatformRules = rules;
         if (Object.keys(patch).length) updateMetadata(patch);
     }, [cardMetadata.productLanguage, cardMetadata.productPlatform, cardMetadata.productPlatformRules, updateMetadata]);
-
-    useEffect(() => {
-        let cancelled = false;
-        if (!cardMetadata.productMainImageStorageKey) {
-            setMainImageUrl(cardMetadata.productMainImageUrl || "");
-            return () => { cancelled = true; };
-        }
-        void import("@/services/image-storage").then(({ resolveImageUrl }) => resolveImageUrl(cardMetadata.productMainImageStorageKey!, cardMetadata.productMainImageUrl || "")).then((url) => {
-            if (!cancelled) setMainImageUrl(url);
-        });
-        return () => { cancelled = true; };
-    }, [cardMetadata.productMainImageStorageKey, cardMetadata.productMainImageUrl]);
 
     const selectPlatform = (platform: string) => {
         const language = platform === WILDBERRIES_PLATFORM ? WILDBERRIES_LANGUAGE : (cardMetadata.productLanguage || "");
@@ -88,36 +71,14 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
             productPlatformRules: platform === WILDBERRIES_PLATFORM ? WILDBERRIES_RULES_TEXT : "",
         } as CanvasNodeMetadata);
     };
-    const uploadProductImage = async (file?: File) => {
-        if (!file) return;
-        setImageBusy(true);
-        setImageError("");
-        try {
-            const { uploadImage } = await import("@/services/image-storage");
-            const image = await uploadImage(file, { assetProjectId: productId });
-            setMainImageUrl(image.url);
-            updateMetadata({
-                productMainImageStorageKey: image.storageKey,
-                productMainImageUrl: image.url,
-                productMainImageWidth: image.width,
-                productMainImageHeight: image.height,
-                productMainImageBytes: image.bytes,
-                productMainImageMimeType: image.mimeType,
-            } as CanvasNodeMetadata);
-        } catch (error) {
-            setImageError(error instanceof Error ? error.message : "产品主图上传失败");
-        } finally {
-            setImageBusy(false);
-        }
-    };
 
     return (
         <div
             data-canvas-no-zoom
             className="flex h-full w-full min-h-0 flex-col overflow-hidden rounded-[inherit] p-3 text-sm"
             style={{ color: theme.node.text }}
-            onMouseDown={(event) => { if ((event.target as HTMLElement).closest("input, textarea, select, button")) event.stopPropagation(); }}
-            onPointerDown={(event) => { if ((event.target as HTMLElement).closest("input, textarea, select, button")) event.stopPropagation(); }}
+            onMouseDown={(event) => { if ((event.target as HTMLElement).closest("input, textarea, select, button, [data-card-panel-anchor]")) event.stopPropagation(); }}
+            onPointerDown={(event) => { if ((event.target as HTMLElement).closest("input, textarea, select, button, [data-card-panel-anchor]")) event.stopPropagation(); }}
             onWheel={(event) => event.stopPropagation()}
         >
             <div className="mb-2 flex items-start justify-between gap-2">
@@ -125,67 +86,36 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
                     <span className="grid size-8 shrink-0 place-items-center rounded-lg" style={{ background: theme.toolbar.itemHover, color: theme.toolbar.activeText }}><Braces className="size-4" /></span>
                     <div className="min-w-0">
                         <div className="truncate text-sm font-semibold">产品参数设置</div>
-                        <div className="truncate text-[11px] opacity-60">{metadata.promptVariableProductName || context.activeProductName || "当前 Excel 产品"}</div>
+                        <div className="truncate text-[11px] opacity-60">{metadata.promptVariableProductName || cardMetadata.productBrief?.nameCategory || context.activeProductName || "当前产品"}</div>
                     </div>
                 </div>
-                <button
-                    type="button"
-                    disabled
-                    title="功能暂未开放"
-                    className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium opacity-60"
-                    style={{ borderColor: theme.node.stroke, color: theme.node.text }}
-                >
-                    <Sparkles aria-hidden="true" className="size-3.5" />
-                    AI写提示词
-                </button>
+                <ProductPlanningButton ctx={ctx} productId={productId} />
             </div>
 
             <div className="thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
             <section className="space-y-2 rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
                 <div className="grid grid-cols-2 gap-2">
-                    <label className="block text-[11px]">
+                    <div className="block text-[11px]">
                         <span className="mb-1 block font-medium">上架平台</span>
-                        <select value={cardMetadata.productPlatform || WILDBERRIES_PLATFORM} onChange={(event) => selectPlatform(event.target.value)} className="h-8 w-full rounded-lg border bg-transparent px-2 text-xs outline-none" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
-                            <option value={WILDBERRIES_PLATFORM}>Wildberries</option>
-                            <option value="Ozon">Ozon</option>
-                            <option value="自定义">自定义</option>
-                        </select>
-                    </label>
-                    <label className="block text-[11px]">
+                        <ProductOptionSelect value={platform} options={PRODUCT_PLATFORM_OPTIONS} onChange={selectPlatform} borderColor={theme.node.stroke} textColor={theme.node.text} label="上架平台" />
+                    </div>
+                    <div className="block text-[11px]">
                         <span className="mb-1 block font-medium">语言</span>
-                        <select value={cardMetadata.productLanguage || (cardMetadata.productPlatform === WILDBERRIES_PLATFORM ? WILDBERRIES_LANGUAGE : "")} disabled={(cardMetadata.productPlatform || WILDBERRIES_PLATFORM) === WILDBERRIES_PLATFORM} onChange={(event) => updateMetadata({ productLanguage: event.target.value } as CanvasNodeMetadata)} className="h-8 w-full rounded-lg border bg-transparent px-2 text-xs outline-none disabled:cursor-not-allowed disabled:opacity-70" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
-                            <option value="">未指定</option>
-                            <option value={WILDBERRIES_LANGUAGE}>俄文</option>
-                            <option value="中文">中文</option>
-                            <option value="英文">英文</option>
-                        </select>
-                    </label>
+                        <ProductOptionSelect value={language === "俄语" ? WILDBERRIES_LANGUAGE : language} options={PRODUCT_LANGUAGE_OPTIONS} onChange={value => updateMetadata({ productLanguage: value } as CanvasNodeMetadata)} borderColor={theme.node.stroke} textColor={theme.node.text} label="语言" />
+                    </div>
                 </div>
                 {(cardMetadata.productPlatform || WILDBERRIES_PLATFORM) === WILDBERRIES_PLATFORM ? (
                     <div className="whitespace-pre-line rounded-lg bg-black/[.06] px-2.5 py-2 text-[10px] leading-5 opacity-75 dark:bg-white/[.08]">{cardMetadata.productPlatformRules || WILDBERRIES_RULES_TEXT}</div>
                 ) : null}
             </section>
-            <section className="space-y-2 rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke, background: theme.toolbar.itemHover }}>
-                <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-medium">产品主图</span>
-                    <button type="button" className="rounded-md border px-2 py-1 text-[11px] transition hover:opacity-80" style={{ borderColor: theme.node.stroke, color: theme.node.text }} onClick={() => mainImageInputRef.current?.click()} disabled={imageBusy}>
-                        {imageBusy ? "处理中…" : mainImageUrl ? "更换图片" : "上传图片"}
-                    </button>
-                    <input ref={mainImageInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={(event) => { void uploadProductImage(event.target.files?.[0]); event.currentTarget.value = ""; }} />
-                </div>
-                {mainImageUrl ? (
-                    <img src={mainImageUrl} alt="产品主图" className="max-h-40 w-full rounded-lg object-contain" />
-                ) : (
-                    <div className="grid min-h-20 place-items-center rounded-lg border border-dashed text-[11px] opacity-60" style={{ borderColor: theme.node.stroke }}>上传用户产品图片，作为生成参考</div>
-                )}
-                {imageError ? <div className="text-[10px] text-red-600 dark:text-red-400">{imageError}</div> : null}
-            </section>
+            <ProductPlanOverview metadata={cardMetadata} />
+            <ProductMainImageUploader ctx={ctx} productId={productId} />
+            <ProductVariantEditor ctx={ctx} onChange={updateMetadata} tokens={tokens} />
             {!tokens.length ? (
-                <div className="rounded-xl border px-4 py-3 text-center text-xs opacity-65" style={{ borderColor: theme.node.stroke }}>
-                    {context.templates.length ? "当前提示词没有可填写的变量" : "请先上传 Excel 并识别提示词"}
-                </div>
+                <ProductBriefForm values={cardMetadata.productBrief} platform={platform} borderColor={theme.node.stroke} textColor={theme.node.text} shared={productVariants(metadata).length > 0} onChange={updateBrief} />
             ) : (
                 <div className="space-y-2">
+                    {productVariants(metadata).length ? <h3 className="text-xs font-semibold">共用 Excel 变量</h3> : null}
                     {tokens.map((token) => (
                         <label key={token} className="block text-[11px] text-black dark:text-white">
                             <span className="mb-1 block truncate" title={token}>{variableLabel(token)}</span>

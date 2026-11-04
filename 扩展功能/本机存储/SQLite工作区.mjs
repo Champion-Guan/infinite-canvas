@@ -117,8 +117,8 @@ function checkMedia(root, row, verified = new Set()) {
 }
 function checkMediaReference(root, row) {
   requireValue(row && validHash(row.id), 'media_not_found', '媒体不存在。', 404);
-  if (isSQLiteBlob(row.content)) {
-    requireValue(row.content.length === row.size && row.size <= MAX_MEDIA_BYTES, 'media_corrupt', 'SQLite媒体BLOB大小校验失败。', 409);
+  if (row.contentType === 'blob') {
+    requireValue(row.contentLength === row.size && row.size <= MAX_MEDIA_BYTES, 'media_corrupt', 'SQLite媒体BLOB大小校验失败。', 409);
     return;
   }
   safePath(join(root, '媒体'), true);
@@ -305,7 +305,8 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
         requireValue(revision === expectedRevision, 'revision_conflict', '内容已被其他会话修改，请重新读取；没有覆盖。', 409);
         // Media is immutable and content-addressed at upload time. A document save
         // only checks the index and file metadata; full hashing belongs to reads.
-        for (const mediaId of mediaIds) checkMediaReference(root, db.prepare('SELECT * FROM media WHERE id=?').get(mediaId));
+        const mediaReference = db.prepare('SELECT id, size, typeof(content) AS contentType, length(content) AS contentLength FROM media WHERE id=?');
+        for (const mediaId of mediaIds) checkMediaReference(root, mediaReference.get(mediaId));
         const updatedAt = new Date().toISOString();
         db.prepare('INSERT INTO documents VALUES (?,?,?,?,?,?) ON CONFLICT(collection,id) DO UPDATE SET body=excluded.body,revision=excluded.revision,hash=excluded.hash,updated_at=excluded.updated_at').run(collection, id, body, revision + 1, hash, updatedAt);
         db.prepare('DELETE FROM document_media WHERE collection=? AND document_id=?').run(collection, id);

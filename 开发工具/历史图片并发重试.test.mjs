@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import ts from '../.运行/3100源/画布副本/web/node_modules/typescript/lib/typescript.js';
 import { runHistoryRetries } from '../扩展功能/生成历史/历史失败重试.js';
+import { variantModules } from './产品变体生成夹具.mjs';
 
 function compile(source, dependencies = {}, scope = {}) {
     const code = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
@@ -78,7 +79,7 @@ async function callbackFixture() {
     visit(ast); assert.ok(callback);
     const registry = createCanvasGenerationRegistry(), nodesRef = { current: [imageNode('result', ['one', 'two'])] };
     const tasks = [], errors = [], retryingNodeIdsRef = { current: new Set() };
-    const scope = { ...guards, ...registry, nodesRef, retryingNodeIdsRef, generationRequestsRef: { current: registry.requests }, connectionsRef: { current: [] },
+    const scope = { ...guards, ...registry, ...variantModules().load('画布生成/产品变体生成.ts'), nodesRef, retryingNodeIdsRef, generationRequestsRef: { current: registry.requests }, connectionsRef: { current: [] },
         CanvasNodeType: { Image: 'image', Video: 'video', Audio: 'audio', Text: 'text' }, NODE_STATUS_LOADING: 'loading', NODE_STATUS_SUCCESS: 'success', NODE_STATUS_ERROR: 'error',
         hasResumableVideoTask: () => false, findRetrySourceNode: () => undefined, effectiveConfig: {},
         resolveGenerationChannelMetadata: () => ({ channel: '本地mock' }), isAiConfigReady: () => true,

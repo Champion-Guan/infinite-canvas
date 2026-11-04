@@ -1,0 +1,91 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 9f95faa..f531732 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -19,6 +19,8 @@ import { useSinglePromptConfig } from "@/扩展功能/画布生成/单卡配置
+ import { useCanvasImageBatches } from "@/扩展功能/媒体交付/图片批次操作";
+ import { useCanvasMediaDownloads } from "@/扩展功能/媒体交付/画布下载操作";
+ import { useCanvasBatchGeneration } from "@/扩展功能/画布生成/批量生成操作";
++import { useProductVariantGeneration } from "@/扩展功能/画布生成/产品变体执行";
++import { canStartVariantGeneration, productVariantResult, variantScopedNodes, variantInputPrompt, variantGenerationContext } from "@/扩展功能/画布生成/产品变体生成";
+ import { useCanvasNodeRecycle } from "@/扩展功能/画布回收/节点回收操作";
+ import { useCanvasNodeDeletion } from "@/扩展功能/画布回收/节点删除操作";
+ import { useCanvasContentImport } from "@/扩展功能/画布导入/当前画布导入操作";
+@@ -2307,9 +2309,11 @@ function InfiniteCanvasPage() {
+         setContextMenu(null);
+     }, []);
+ 
+-    const handleGenerateNode = useCallback(
++    const executeGenerateNode = useCallback(
+         async (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string, batchPlacement?: BatchResultPlacement) => {
+-            if ([...generationRequestsRef.current.values()].some(request => request.runningNodeId === nodeId && !request.controller.signal.aborted)) return;
++            const variantExecution = batchPlacement?.productVariant;
++            const requestKey = variantExecution ? `${nodeId}:variant:${batchPlacement.batchId}:${variantExecution.snapshot.id}` : nodeId;
++            if (variantExecution ? !canStartVariantGeneration(generationRequestsRef.current, nodeId, batchPlacement) : [...generationRequestsRef.current.values()].some(request => request.runningNodeId === nodeId && !request.controller.signal.aborted)) return;
+             if (!isGenerationModeEnabled(mode)) { message.info("不支持的生成模式。"); return; }
+             const sourceNode = nodesRef.current.find((node) => node.id === nodeId);
+             const generationConfig = buildGenerationConfig(effectiveConfig, generationNodeForExecution(sourceNode, nodeId, nodesRef.current, connectionsRef.current), mode);
+@@ -2353,14 +2357,15 @@ function InfiniteCanvasPage() {
+             }
+ 
+             const overwriteExisting = effectiveConfig.nodeRegenerateBehavior === "overwrite";
+-            const runController = startGenerationRequest(nodeId, nodeId, nodeId);
++            const runController = startGenerationRequest(nodeId, nodeId, nodeId, new AbortController(), requestKey);
+             const sourceTextContent = sourceNode?.type === CanvasNodeType.Text ? sourceNode.metadata?.content?.trim() || "" : "";
+             const editingTextNode = mode === "text" && Boolean(sourceTextContent);
+             const markSourceStatus = sourceNode?.type !== CanvasNodeType.Image && !editingTextNode;
+             let pendingChildIds: string[] = [];
+             try {
+                 const generationContext = await hydrateNodeGenerationContext(
+-                    buildNodeGenerationContext(nodeId, nodesRef.current, connectionsRef.current, editingTextNode ? t("canvas.projectPage.editTextPrompt", { source: sourceTextContent, prompt }) : prompt),
++                    variantGenerationContext(buildNodeGenerationContext(nodeId, variantScopedNodes(nodesRef.current, variantExecution), connectionsRef.current,
++                        variantInputPrompt(editingTextNode ? t("canvas.projectPage.editTextPrompt", { source: sourceTextContent, prompt }) : prompt, variantExecution)), variantExecution),
+                 );
+                 const effectivePrompt = generationContext.prompt.trim();
+                 if (runController.signal.aborted) return;
+@@ -2380,7 +2385,8 @@ function InfiniteCanvasPage() {
+                             : [];
+                     const referenceImages = [...new Map([...sourceReference, ...generationContext.referenceImages].map((image) => [image.id, image])).values()];
+                     const generationType = referenceImages.length ? ("edit" as const) : ("generation" as const);
+-                    const generationMetadata = { ...buildImageGenerationMetadata(generationType, generationConfig, count, referenceImages), ...generationChannel };
++                    const generationMetadata = { ...buildImageGenerationMetadata(generationType, generationConfig, count, referenceImages), ...generationChannel,
++                        ...(variantExecution ? { productVariant: variantExecution.snapshot } : {}) };
+                     const parentConfig = NODE_DEFAULT_SIZE[isConfigNode ? CanvasNodeType.Config : isImageNode ? CanvasNodeType.Image : CanvasNodeType.Text];
+                     const imageConfig = NODE_DEFAULT_SIZE[CanvasNodeType.Image];
+                     const parentPosition = sourceNode?.position || { x: 0, y: 0 };
+@@ -2389,9 +2395,10 @@ function InfiniteCanvasPage() {
+                     const rootId = reuseImageNode ? nodeId : nanoid();
+                     const imageIds = Array.from({ length: count }, () => nanoid());
+                     pendingChildIds = [rootId];
+-                    const generationNameBase = sourceNode?.metadata?.generationNameBase || generatedImageCardTitle(
++                    const sourceNameBase = sourceNode?.metadata?.generationNameBase || generatedImageCardTitle(
+                         sourceNode?.type === CanvasNodeType.Text ? sourceNode : findGeneratedImageSourcePrompt({ id: rootId }, nodesRef.current, [...connectionsRef.current, { id: "naming", fromNodeId: nodeId, toNodeId: rootId }]),
+                     );
++                    const generationNameBase = variantExecution ? `${sourceNameBase} · ${variantExecution.snapshot.name}` : sourceNameBase;
+                     const rootNode: CanvasNodeData = {
+                         id: rootId,
+                         type: CanvasNodeType.Image,
+@@ -2743,11 +2750,13 @@ function InfiniteCanvasPage() {
+                     ),
+                 );
+             } finally {
+-                finishGenerationRequest(nodeId, runController);
++                finishGenerationRequest(nodeId, runController, requestKey);
+             }
+         },
+         [completeVideoNodeTask, generationRequestsRef, nodesRef, effectiveConfig, finishGenerationRequest, isAiConfigReady, isBatchCanvasSaveActive, message, openConfigDialog, projectId, recordImageGatewayTask, requestNodeText, requestNodeAudio, saveCanvasImageResult, setNodes, startGenerationRequest, t],
+     );
++    const handleGenerateNode = useProductVariantGeneration({ projectId, nodesRef, connectionsRef, execute: executeGenerateNode,
++        saveCanvas: saveProductCanvas, message, count: effectiveConfig.canvasImageCount || effectiveConfig.count, generationRequestsRef });
+     useEffect(() => {
+         generateNodeRef.current = handleGenerateNode;
+     }, [handleGenerateNode]);
+@@ -2789,7 +2798,7 @@ function InfiniteCanvasPage() {
+ 
+                 const currentContext = buildNodeGenerationContext(sourceNode.id, nodesRef.current, connectionsRef.current, sourceNode.metadata?.prompt || node.metadata?.prompt || "");
+                 const context = hasSavedImageMetadata ? null : await hydrateNodeGenerationContext(currentContext);
+-                const prompt = readProtectedRetryPrompt(savedImageMetadata?.prompt, currentContext.prompt).trim();
++                const prompt = readProtectedRetryPrompt(savedImageMetadata?.prompt, currentContext.prompt, Boolean(productVariantResult(savedImageMetadata))).trim();
+                 if (!prompt) {
+                     message.warning(t("canvas.projectPage.retryPromptMissing"));
+                     return;

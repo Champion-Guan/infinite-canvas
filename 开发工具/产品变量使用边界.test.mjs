@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
+import { variantModules } from './产品变体生成夹具.mjs';
 
 async function load(file, dependencies = {}) {
     const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file, { loader: file.endsWith('.js') ? 'js' : 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
@@ -16,7 +17,8 @@ const variables = await load('扩展功能/提示词/变量使用规则.ts');
 const { resolvePromptVariables: resolvePrompt } = variables;
 const themes = await load('扩展功能/Excel画布/旧版主题翻译.js');
 const rules = await load('扩展功能/Excel画布/旧版参数规则.ts', { './旧版主题翻译.js': themes, '../提示词/变量使用规则': variables });
-const protectedText = await load('扩展功能/提示词/生成文本读取.ts', { './变量使用规则': variables, '../Excel画布/旧版参数规则': rules });
+const protectedText = await load('扩展功能/提示词/生成文本读取.ts', { './变量使用规则': variables, '../Excel画布/旧版参数规则': rules,
+    '../Excel画布/商品提示词规则': variantModules().load('Excel画布/商品提示词规则.ts') });
 const contexts = await load('扩展功能/Excel画布/Excel卡片上下文.ts', { './旧版参数规则': rules });
 const titles = await load('扩展功能/Excel画布/旧版最终提示词标题.ts');
 const parameterLinks = await load('扩展功能/Excel画布/产品参数联动.ts', { '../提示词/变量使用规则': variables, './旧版最终提示词标题': titles, './旧版参数规则': rules });

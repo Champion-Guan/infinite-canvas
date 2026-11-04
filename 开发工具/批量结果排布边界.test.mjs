@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import ts from '../.运行/3100源/画布副本/web/node_modules/typescript/lib/typescript.js';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
+import { variantModules } from './产品变体生成夹具.mjs';
 
 async function load(file, dependencies = {}) {
     const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file, { loader: 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
@@ -83,14 +85,24 @@ test('空队列不生成位置，坏几何明确拒绝，坏旧障碍不污染�
 
 // 直接执行装配后的真实生成回调；模型端口返回本地样本，禁止网络请求。
 const project = readFileSync('.运行/3100源/画布副本/web/src/pages/canvas/project.tsx', 'utf8');
-const start = project.indexOf('async (', project.indexOf('const handleGenerateNode = useCallback('));
-const end = project.indexOf('\n        },\n        [completeVideoNodeTask', start) + '\n        }'.length;
-assert.ok(start > 0 && end > start, '必须提取当前真实生成回调');
-const { code: generateCode } = await transformWithEsbuild('export const generate = ' + project.slice(start, end), '真实生成回调.ts', { loader: 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
+const ast = ts.createSourceFile('project.tsx', project, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const initializers = new Map();
+function visit(node) {
+    if (ts.isVariableDeclaration(node) && node.initializer) initializers.set(node.name.getText(ast), node.initializer);
+    ts.forEachChild(node, visit);
+}
+visit(ast);
+const execute = initializers.get('executeGenerateNode')?.arguments?.[0];
+const entry = initializers.get('handleGenerateNode');
+assert.ok(execute && entry, '必须提取当前真实生成回调及变体入口');
+const { code: generateCode } = await transformWithEsbuild(
+    'const executeGenerateNode = ' + execute.getText(ast) + ';\nexport const generate = ' + entry.getText(ast),
+    '真实生成回调.tsx', { loader: 'tsx', jsx: 'automatic', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
 const types = { Config: 'config', Image: 'image', Video: 'video', Audio: 'audio', Text: 'text' };
 const sizes = { image: { width: 340, height: 240 }, config: { width: 340, height: 240 }, text: { width: 340, height: 240 }, video: { width: 420, height: 236 }, audio: { width: 340, height: 120 } };
 function generatorFixture() {
     const registry = createCanvasGenerationRegistry();
+    const variants = variantModules();
     const sources = ['image', 'video', 'audio', 'text'].map((mode, i) => box(mode + '-config', 0, i * 600, 340, 240, 'config', { prompt: '验收提示词', generationMode: mode }));
     const nodesRef = { current: [...sources, box('old-result', 388, 0, 340, 240, 'image', { status: 'error' })] }, connectionsRef = { current: [] };
     let counter = 0;
@@ -99,6 +111,10 @@ function generatorFixture() {
         CanvasNodeType: types, NODE_DEFAULT_SIZE: sizes, NODE_STATUS_LOADING: 'loading', NODE_STATUS_SUCCESS: 'success', NODE_STATUS_ERROR: 'error', NODE_STATUS_IDLE: 'idle',
         nodesRef, connectionsRef, effectiveConfig: {}, projectId: 'local-verification',
         ...columns, ...layout, nanoid: () => 'generated-' + ++counter,
+        ...variants.load('画布生成/商品提示词生成.ts'),
+        ...variants.load('画布生成/产品变体生成.ts'),
+        ...variants.load('画布生成/产品变体执行.ts'),
+        saveProductCanvas: async () => {},
         isGenerationModeEnabled: () => true, isAiConfigReady: () => true, getNodeDefinition: () => null,
         generationNodeForExecution: source => source, buildGenerationConfig: () => ({ model: 'local-sample', count: '1', size: '900x1200' }),
         hydrateNodeGenerationContext: async context => context, buildNodeGenerationContext: (_id, _nodes, _edges, prompt) => ({ prompt, referenceImages: [], referenceVideos: [], referenceAudios: [] }),

@@ -148,7 +148,7 @@ test('无文件和不存在的批次槽位不读取；原文件失败不产生�
 const themes = await load('Excel画布/旧版主题翻译.js');
 const variableRules = await load('提示词/变量使用规则.ts');
 const rules = await load('Excel画布/旧版参数规则.ts', { './旧版主题翻译.js': themes, '../提示词/变量使用规则': variableRules });
-test('参数卡移除AI入口和请求依赖后，填写仍同步原卡和关联预览，空变量保留', async () => {
+test('参数卡启用独立AI入口后，填写仍同步原卡和关联预览，空变量保留', async () => {
     const parameter = node('parameter', { promptVariableValues: { '[NAME]': '产品' }, promptVariableTokens: ['[NAME]', '[LENGTH]'], promptVariableSourceNodeId: 'source' }, 'guan:prompt-variables');
     const source = node('source', { content: '[NAME] [LENGTH]', excelPromptBindingNodeId: parameter.id });
     const preview = node('preview', { promptVariablePreviewOf: parameter.id, promptVariableSourceNodeId: source.id });
@@ -169,15 +169,21 @@ test('参数卡移除AI入口和请求依赖后，填写仍同步原卡和关联
         react: { useMemo: compute => compute(), useEffect: () => {}, useRef: current => ({ current }), useState: value => [value, () => {}] }, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': { Braces: 'icon', Sparkles: 'sparkles' },
         '@/lib/canvas-theme': { canvasThemes: { light: { node: {}, toolbar: {} } } }, '@/stores/use-theme-store': { useThemeStore: selector => selector({ theme: 'light' }) },
         './产品参数编辑操作': editing, './旧版参数规则': rules, './Excel画布上下文': { useExcelProductId: () => 'a', useExcelPromptContext: () => ({ templates: [], fileName: '测试.xlsx' }) },
+        './产品资料表单': { ProductBriefForm: 'ProductBriefForm' },
+        './产品主图上传': { ProductMainImageUploader: 'ProductMainImageUploader' },
+        './产品变体编辑': { ProductVariantEditor: 'ProductVariantEditor' },
+        './产品变体规则': { productVariants: metadata => metadata.productVariants || [] },
+        './产品选项下拉': { ProductOptionSelect: 'ProductOptionSelect' },
+        './商品策划按钮': { ProductPlanningButton: 'ProductPlanningButton', ProductPlanOverview: 'ProductPlanOverview' },
         '@/types/canvas': {}, '@/services/image-storage': { uploadImage: async () => { throw Error('测试不应上传主图'); }, resolveImageUrl: async (_key, fallback) => fallback },
         './Excel参数记忆': { readProductParameterValues: () => ({}), saveProductParameterValues: (...args) => remembered.push(args) },
     });
     const result = PromptVariablesContent({ ctx }), elements = [];
     function visit(value) { if (!value || typeof value !== 'object') return; if (Array.isArray(value)) return value.forEach(visit); elements.push(value); visit(value.props?.children); }
     visit(result);
-    const aiButton = elements.find(el => el.type === 'button' && el.props?.title === '功能暂未开放');
+    const aiButton = elements.find(el => el.type === 'ProductPlanningButton');
     assert.equal(Boolean(aiButton), true);
-    assert.equal(aiButton.props.disabled, true);
+    assert.equal(aiButton.props.ctx, ctx);
     const input = elements.find(el => el.type === 'input' && el.props.placeholder === '[NAME]'); input.props.onChange({ target: { value: '真实产品' } });
     assert.deepEqual(remembered, [['a', { '[NAME]': '真实产品' }]]); assert.equal(applied.length, 1);
     assert.match(applied[0].find(op => op.id === 'preview').metadata.content, /^真实产品 （本画面不使用产品尺寸参数）/);

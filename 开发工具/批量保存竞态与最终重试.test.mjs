@@ -7,6 +7,7 @@ import { transformWithEsbuild } from "../.运行/3100源/画布副本/web/node_m
 import { createImageConfirmationRecovery } from "../扩展功能/画布生成/图片任务确认恢复.mjs";
 import { serializeProductResult } from "../扩展功能/画布生成/图片任务衔接.mjs";
 import * as upgradePage from "../扩展功能/软件更新/升级页面状态.mjs";
+import { variantModules } from "./产品变体生成夹具.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -426,6 +427,7 @@ test("批量最终保存失败后释放批量门控，重试入口只恢复保�
   const columns = await load("画布布局/批量结果排布.ts", {
     "./卡片自动避让": layout,
   });
+  const variants = variantModules();
   const module = await load("画布生成/批量生成操作.ts", {
     react: {
       useCallback: value => value,
@@ -461,6 +463,9 @@ test("批量最终保存失败后释放批量门控，重试入口只恢复保�
     "../安全与批量/settle-activity-group": { settleActivityGroup: values => Promise.all(values) },
     "../画布布局/卡片自动避让": { placeCanvasNode: node => node },
     "../画布布局/批量结果排布": columns,
+    "./产品变体生成": variants.load("画布生成/产品变体生成.ts"),
+    "../Excel画布/商品提示词规则": variants.load("Excel画布/商品提示词规则.ts"),
+    "../Excel画布/商品提示词画布": variants.load("Excel画布/商品提示词画布.ts"),
     "./批量保存协调": batchSave,
   });
 
