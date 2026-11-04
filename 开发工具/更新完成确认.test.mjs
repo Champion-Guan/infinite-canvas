@@ -110,6 +110,22 @@ test('探针失败、版本/管理器/工作区不一致、未激活均不误报
   assert.equal(f.reads(), reads);
 });
 
+test('新版已提交但管理器交接失败时显示失败原因，恢复接管后才显示成功', async t => {
+  const f = await fixture(t);
+  f.setReady({ ...f.getReady(), managerVersion: previous.version });
+  const diagnostic = { code: 'web_stop_timeout', stage: 'handoff' };
+  const live = { at: Date.now(), value: { state: 'blocked', diagnostic } };
+  assert.equal((await readDetachedProgress(f.paths, current.version, live)).state, 'blocked');
+  await writeState(f.paths.state, { ...f.state, diagnostic });
+  const result = await readDetachedProgress(f.paths, current.version);
+  assert.equal(result.state, 'blocked');
+  assert.deepEqual(result.diagnostic, diagnostic);
+  assert.equal(result.reason, 'web_stop_timeout');
+  assert.equal(result.origin, f.origin);
+  f.setReady({ ...f.getReady(), managerVersion: current.version });
+  assert.equal((await readDetachedProgress(f.paths, current.version)).state, 'success');
+});
+
 test('探针请求期间再次换版或管理器锁改变时，丢弃过期成功结果', async t => {
   const f = await fixture(t);
   f.beforeRead(() => writeState(f.paths.lock, { ...f.owner, started: 'next-process' }));

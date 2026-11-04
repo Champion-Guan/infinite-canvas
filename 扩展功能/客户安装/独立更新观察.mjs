@@ -32,6 +32,12 @@ export async function readDetachedProgress(paths, target, live) {
       }
     }
   }
+  if (completed && !healthy) {
+    const failure = state.diagnostic?.stage === 'handoff' ? state.diagnostic :
+      live && Date.now() - live.at < 5000 && live.value?.state === 'blocked' ? live.value.diagnostic : null;
+    if (failure) return { target, currentVersion: target, state: 'blocked', origin,
+      reason: failure.code, diagnostic: failure };
+  }
   if (completed) return {
     target, currentVersion: target, state: healthy ? 'success' : 'restarting-manager', origin: healthy ? origin : null,
     reason: healthy ? null : reason, diagnostic: state.diagnostic || null,

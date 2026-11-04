@@ -35,17 +35,43 @@ export async function startCommittedManager(paths, target, { timeout = 65000 } =
 // 只接受可信父进程的IPC；不提供网页命令、路径参数、自动授权码或强杀功能。
 export async function prepareManagerHandoff({ paths = webInstallPaths(), owner, target, legacy = false, openProgress = false }) {
   const proc = spawn(process.execPath, [fileURLToPath(import.meta.url)], { detached: true, stdio: ['ignore', 'ignore', 'ignore', 'ipc'], env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8' } });
+  let committing;
   const ready = await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => { proc.kill('SIGTERM'); reject(startupError('update_manager_handoff_timeout')); }, 10000);
     proc.once('error', error => { clearTimeout(timeout); reject(error); });
     proc.once('exit', () => { clearTimeout(timeout); reject(startupError('update_manager_handoff_failed')); });
     proc.once('message', message => { clearTimeout(timeout); if (message?.type === 'web-handoff-ready') resolve(message); else reject(startupError('update_manager_handoff_failed')); });
     proc.send({ type: 'web-handoff-prepare', paths, owner, target, legacy, openProgress });
-  });
+  }).catch(error => { proc.kill('SIGTERM'); throw error; });
   return {
     url: ready.url,
-    commit() { if (proc.connected) proc.send({ type: 'web-handoff-commit' }); proc.unref(); proc.channel?.unref(); },
-    cancel() { if (proc.connected) proc.send({ type: 'web-handoff-cancel' }); },
+    commit() {
+      if (committing) return committing;
+      committing = new Promise((resolve, reject) => {
+        if (!proc.connected) { reject(startupError('update_manager_handoff_failed')); return; }
+        let settled = false;
+        const timer = setTimeout(() => finish(startupError('update_manager_handoff_timeout')), 10000);
+        const received = message => { if (message?.type === 'web-handoff-committed') finish(); };
+        const exited = () => finish(startupError('update_manager_handoff_failed'));
+        const finish = error => {
+          if (settled) return; settled = true;
+          clearTimeout(timer); proc.off('message', received); proc.off('exit', exited); proc.off('error', exited);
+          if (error) reject(error); else { proc.unref(); proc.channel?.unref(); resolve(); }
+        };
+        proc.on('message', received); proc.once('exit', exited); proc.once('error', exited);
+        proc.send({ type: 'web-handoff-commit' }, error => { if (error) finish(startupError('update_manager_handoff_failed')); });
+      });
+      return committing;
+    },
+    async cancel() {
+      if (proc.exitCode !== null || proc.signalCode !== null) return;
+      await new Promise(resolve => {
+        const timer = setTimeout(() => proc.kill('SIGTERM'), 1000);
+        proc.once('exit', () => { clearTimeout(timer); resolve(); });
+        if (proc.connected) proc.send({ type: 'web-handoff-cancel' }, error => { if (error) proc.kill('SIGTERM'); });
+        else proc.kill('SIGTERM');
+      });
+    },
   };
 }
 
@@ -65,11 +91,14 @@ if (process.argv[1] === fileURLToPath(import.meta.url) && process.connected) {
           monitor = createDetachedProgressObserver(target => ({ target, state: phase, diagnostic, origin: null }), message.paths);
         }
         const result = monitor ? await monitor.open(message.target.version) : {};
+        // 准备完成后的等待由父进程生命周期约束，不能在正常停服期间自行失效。
+        clearTimeout(timer);
         process.send({ type: 'web-handoff-ready', ...result });
         if (result.url) spawn('/usr/bin/open', [result.url], { stdio: 'ignore' }).unref();
       } catch { process.send({ type: 'web-handoff-failed' }); process.exitCode = 1; }
     } else if (message?.type === 'web-handoff-commit' && prepared && !committed) {
       committed = true; clearTimeout(timer);
+      process.send({ type: 'web-handoff-committed' });
       const { paths, owner, target, legacy } = prepared;
       try {
         if (legacy) {

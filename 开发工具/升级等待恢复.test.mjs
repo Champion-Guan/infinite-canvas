@@ -124,3 +124,43 @@ setInterval(()=>{},1000);process.stdout.write('ready');`);
   });
   assert.ok(f.calls.includes('start'));
 });
+
+test('新版已提交且暂存已消费时，验签后正常交接原管理器，不改指针或安装确认', async t => {
+  const f = await fixture(t), initial = { ...f.initial, current: next, previous: current };
+  await writeState(f.paths.state, initial);
+  let checks = 0, starts = 0;
+  const result = await recoverWaitingUpgrade(f.paths, { ...f.options,
+    stage: async () => null,
+    verify: async identity => { assert.deepEqual(identity, next); checks++; },
+    progress: async version => {
+      assert.equal(version, next.version);
+      return { state: starts ? 'success' : 'restarting-manager', origin: starts ? 'http://localhost:3008' : null };
+    },
+    start: async identity => {
+      starts++; assert.deepEqual(identity, next); assert.equal(await readState(f.paths.lock), null);
+      assert.equal(await readState(join(f.paths.root, '本次安装确认.json')), null);
+    },
+  });
+  assert.deepEqual(result, { version: next.version, address: 'http://localhost:3008', recovered: true });
+  assert.equal(starts, 1); assert.equal(checks, 2);
+  assert.deepEqual(await readState(f.paths.state), initial);
+  assert.equal(f.calls.filter(value => value === 'stop').length, 1);
+});
+
+test('已提交版本恢复仍拒绝签名失败、未知管理器和停服不确认，不清锁或启动', async t => {
+  for (const kind of ['signature', 'owner', 'timeout']) {
+    const f = await fixture(t);
+    await writeState(f.paths.state, { ...f.initial, current: next, previous: current });
+    if (kind === 'owner') await writeState(f.paths.lock, { ...f.owner, command: '/other/application supervisor' });
+    let started = false;
+    await assert.rejects(recoverWaitingUpgrade(f.paths, { ...f.options, stage: async () => null,
+      verify: async () => { if (kind === 'signature') throw Object.assign(Error(), { code: 'web_signature_invalid' }); },
+      progress: async () => ({ state: 'restarting-manager' }),
+      channel: async () => {},
+      released: async () => { throw Object.assign(Error(), { code: 'update_manager_handoff_timeout' }); },
+      start: async () => { started = true; },
+    }));
+    assert.equal(started, false); assert.ok(await readState(f.paths.lock));
+    if (kind !== 'timeout') assert.equal(f.calls.includes('stop'), false);
+  }
+});

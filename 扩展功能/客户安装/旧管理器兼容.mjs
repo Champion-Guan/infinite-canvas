@@ -12,7 +12,10 @@ export function continueLegacyManager({ app, manager, inventory, packageRoot, pa
     let watcher;
     try {
       const status = await manager.status();
-      if (status.managerHandoff === true) { done = true; clearInterval(timer); return; }
+      if (status.managerVersion === inventory.version) { done = true; clearInterval(timer); return; }
+      // 已支持接续的旧管理器也可能失败；只在其明确结束交接并报告blocked后接续，
+      // 正常交接期间不创建第二个接续进程。
+      if (status.managerHandoffProtocol === 2 || status.managerHandoff === true && status.state !== 'blocked') return;
       const state = await readState(paths.state), owner = await readState(paths.lock);
       if (state?.phase !== 'committed' || state.current?.version !== inventory.version || versionPath(paths, state.current) !== packageRoot.replace(/\/$/, '')) return;
       const expected = packageRoot.replace(/\/$/, '') + '/扩展功能/客户安装/Web客户命令.mjs supervisor';
@@ -21,9 +24,9 @@ export function continueLegacyManager({ app, manager, inventory, packageRoot, pa
       watcher = await prepareManagerHandoff({ paths, owner, target: state.current, legacy: true, openProgress: !status.progressAvailable });
       // 冻结新页面、任务与保存的检查由新服务自己执行，旧管理器无法代替这道门禁。
       await app.closeForUpdate();
-      done = true; clearInterval(timer); watcher.commit(); await stop(false);
+      await watcher.commit(); done = true; clearInterval(timer); await stop(false);
     } catch (error) {
-      watcher?.cancel();
+      await watcher?.cancel();
       retryAt = Date.now() + 30000;
       console.error('管理器接续暂未完成：' + (error.code || 'update_manager_handoff_failed'));
     } finally { flight = false; }

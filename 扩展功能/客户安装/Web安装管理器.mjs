@@ -29,6 +29,7 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
   await lock.writeFile(JSON.stringify(owner)); await lock.sync(); await lock.close();
   let child = null, childStatus = null, childStopped = true, current = state.current, staged = null, installing = false, approved = false;
   let phase = 'idle', reason = null, targetVersion = null, timer, handingOff = false, diagnostic = state.diagnostic || null;
+  let handoffRetryAt = 0;
   const verify = identity => verifySignedWebDirectory(versionPath(paths, identity), { releaseVersion: identity.version });
   const updateDirectory = join(dailyWorkbenchPaths().dataRoot, 'software-updates');
   const save = async value => {
@@ -49,7 +50,7 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
   };
   const canApprove = () => Boolean(staged && !installing && ['staged', 'deferred', 'blocked'].includes(phase) &&
     ['committed', 'rolled-back'].includes(state.phase));
-  const status = () => ({ allowed: true, state: phase, currentVersion: current.version, targetVersion, reason, canApprove: canApprove(), progressAvailable: true, managerVersion, managerHandoff: true, diagnostic,
+  const status = () => ({ allowed: true, state: phase, currentVersion: current.version, targetVersion, reason, canApprove: canApprove(), progressAvailable: true, managerVersion, managerHandoff: true, managerHandoffProtocol: 2, diagnostic,
     waiting: { pages: childStatus?.authorization?.authorizedPages ?? null, tickets: childStatus?.authorization?.pendingTickets ?? null, requests: childStatus?.authorization?.activeRequests ?? null } });
   const progress = createDetachedProgressObserver(target => webProgressSnapshot(target, status(), {
     transaction: state, service: childStatus, alive: Boolean(child && child.connected && !childStopped),
@@ -139,7 +140,9 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
     await cleanupDownloads({ clearInterrupted: true });
     const ready = await start(current);
     assertWebHealth(ready, current, state.workspaceId);
-    await save({ ...state, workspaceId: ready.workspaceId });
+    await save({ ...state, workspaceId: ready.workspaceId,
+      ...(current.version === managerVersion && state.diagnostic?.stage === 'handoff' ? { diagnostic: null } : {}) });
+    diagnostic = state.diagnostic || null;
     await checkDesktopEntry();
     await cleanupDownloads();
     try {
@@ -156,6 +159,14 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
       phase = 'blocked'; reason = error.code || 'update_stage_invalid';
     }
     timer = setInterval(() => {
+      if (!handingOff && !installing && !stageJob && current.version !== managerVersion &&
+          state.phase === 'committed' && Date.now() >= handoffRetryAt &&
+          (!child || childStatus?.ready && childStatus.authorization?.authorizedPages === 0 &&
+            childStatus.authorization.pendingTickets === 0 && childStatus.authorization.activeRequests === 0)) {
+        installing = true;
+        void handoffManager().catch(handoffFailure).finally(() => { installing = false; });
+        return;
+      }
       if (handingOff || !approved || installing || !staged || !childStatus?.ready || childStatus.authorization?.authorizedPages !== 0) return;
       if (childStatus.authorization.pendingTickets !== 0 || childStatus.authorization.activeRequests !== 0) { reason = 'install_pages_releasing'; return; }
       installing = true; approved = false;
@@ -172,6 +183,7 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
           }
         })
         .catch(async error => {
+          if (current.version !== managerVersion && state.phase === 'committed') { await handoffFailure(error); return; }
           if (error.code === 'update_channel_excluded') await clearInstallConfirmation(paths);
           phase = 'blocked'; reason = error.code || 'update_activation_unconfirmed'; diagnostic = error.diagnostic || safeStartupDiagnostic(error);
           log.write('更新未完成：' + JSON.stringify({ reason, diagnostic }) + '\n');
@@ -179,18 +191,32 @@ export async function runWebSupervisor(paths = webInstallPaths()) {
         .finally(() => { installing = false; });
     }, 1000);
     async function handoffManager() {
-      phase = 'restarting-manager'; handingOff = true;
+      phase = 'restarting-manager'; reason = null; handingOff = true; targetVersion = current.version;
       let watcher;
       try {
         watcher = await prepareManagerHandoff({ paths, owner, target: current });
         await stop(true);
-        clearInterval(timer);
+        // 接续进程确认接管意图后才释放管理锁；禁止向已退出的接续进程静默交接。
+        await watcher.commit();
         await progress.close({ handoff: true });
         await unlink(paths.address).catch(error => { if (error.code !== 'ENOENT') throw error; });
         await unlink(paths.lock);
-        watcher.commit();
+        clearInterval(timer);
         log.end(); process.exit(0);
-      } catch (error) { watcher?.cancel(); handingOff = false; throw error; }
+      } catch (error) { await watcher?.cancel(); handingOff = false; throw error; }
+    }
+    async function handoffFailure(error) {
+      handoffRetryAt = Date.now() + 15000;
+      phase = 'blocked'; reason = error.code || 'update_manager_handoff_failed';
+      diagnostic = safeStartupDiagnostic(error, 'handoff');
+      // 原服务已正常退出、接续未接收时恢复当前已提交版本，仍由唯一管理器持锁。
+      if (!child && childStopped) {
+        try { await start(current); await save({ ...state, diagnostic }); }
+        catch (failure) { diagnostic = safeStartupDiagnostic(failure, 'handoff'); }
+      }
+      try { await writeState(paths.state, { ...state, diagnostic }); }
+      catch { log.write('管理器交接诊断保存未完成；当前管理锁继续保留。\n'); }
+      log.write('管理器交接未完成：' + JSON.stringify({ reason, diagnostic }) + '\n');
     }
     const shutdown = async () => {
       if (installing || stageJob || handingOff) return;

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile, rm, copyFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { pathToFileURL } from 'node:url';
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { keyId } from '../扩展功能/软件更新/stable-manifest.mjs';
 import { WEB_APP, WEB_ORIGIN, WEB_REPOSITORY, packageName, sha256 } from '../扩展功能/客户安装/Web发布协议.mjs';
@@ -100,4 +101,31 @@ test('真实独立观察子进程在父IPC断开后继续提供同一只读状�
   } finally {
     if (spawned && spawned.exitCode === null) await new Promise(resolve => { spawned.once('exit', resolve); spawned.kill('SIGTERM'); });
   }
+});
+
+test('真实接续进程准备后超过引导期限仍存活，提交收到ACK，取消后退出且不改锁', async t => {
+  const paths = await fixture(t), owner = processIdentity(process.pid);
+  await writeState(paths.state, { phase: 'committed', current: next, previous: old, workspaceId: 'workspace' });
+  await writeState(paths.lock, owner);
+  const entry = new URL('../扩展功能/客户安装/管理器版本接续.mjs', import.meta.url);
+  let source = await readFile(entry, 'utf8');
+  // 隔离夹具只替换包验签端口并缩短引导计时；保留真实IPC和进程退出逻辑。
+  source = source.replace(/from '(\.[^']+)'/g, (_match, specifier) => {
+    const url = specifier === './Web安装包核验.mjs'
+      ? 'data:text/javascript,export async function verifySignedWebDirectory(){}'
+      : new URL(specifier, entry).href;
+    return 'from ' + JSON.stringify(url);
+  });
+  assert.ok(source.includes('setTimeout(() => process.exit(1), 15000)'));
+  source = source.replace('setTimeout(() => process.exit(1), 15000)', 'setTimeout(() => process.exit(1), 100)');
+  const modulePath = join(paths.root, '接续夹具.mjs');
+  await writeFile(modulePath, source, { mode: 0o600 });
+  const { prepareManagerHandoff } = await import(pathToFileURL(modulePath));
+  const watcher = await prepareManagerHandoff({ paths, owner, target: next });
+  try {
+    await new Promise(resolve => setTimeout(resolve, 250));
+    await watcher.commit();
+    assert.deepEqual(await readState(paths.lock), owner);
+  } finally { await watcher.cancel(); }
+  assert.deepEqual(await readState(paths.lock), owner);
 });

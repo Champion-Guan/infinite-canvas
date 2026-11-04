@@ -10,6 +10,7 @@ import { readDetachedProgress } from './独立更新观察.mjs';
 import { dailyWorkbenchPaths } from '../本机服务/日常数据根.mjs';
 import { requireSavedUpdateChannel } from '../软件更新/更新发布渠道.mjs';
 import { WEB_APP, fail } from './Web发布协议.mjs';
+import { verifySignedWebDirectory } from './Web安装包核验.mjs';
 
 const exec = promisify(execFile);
 const browserNames = [
@@ -31,6 +32,7 @@ export async function recoverWaitingUpgrade(paths = webInstallPaths(), options =
     processes: async () => (await exec('/bin/ps', ['-axo', 'comm='], { timeout: 5000, maxBuffer: 1024 ** 2 })).stdout,
     owns: ownedProcess,
     stage: (state) => restoreWebStage(paths, state.workspaceId, state.current),
+    verify: current => verifySignedWebDirectory(versionPath(paths, current), { releaseVersion: current.version }),
     channel: version => requireSavedUpdateChannel(join(dailyWorkbenchPaths().dataRoot, 'software-updates'), version),
     signal: owner => process.kill(owner.pid, 'SIGTERM'),
     released: owner => waitManagerRelease(paths, owner, { timeout: 45_000 }),
@@ -48,7 +50,40 @@ export async function recoverWaitingUpgrade(paths = webInstallPaths(), options =
   const initial = await readState(paths.state);
   if (initial?.app !== WEB_APP || !['committed', 'rolled-back'].includes(initial.phase) || !initial.workspaceId) fail('update_recovery_required');
   const staged = await runtime.stage(initial);
-  if (!staged) fail('update_stage_unavailable');
+  if (!staged) {
+    // 版本事务已提交时暂存已被消费，恢复管理器换代不再依赖另一份待安装包。
+    if (initial.phase !== 'committed') fail('update_stage_unavailable');
+    await runtime.verify(initial.current);
+    await runtime.channel(initial.current.version);
+    const before = await runtime.progress(initial.current.version);
+    if (before.state === 'success') return { version: initial.current.version, address: before.origin, recovered: true };
+    const owner = await readState(paths.lock);
+    if (owner) {
+      const candidates = [initial.current, initial.previous].filter(Boolean);
+      if (!runtime.owns(owner) || !candidates.some(identity =>
+        owner.command?.endsWith(versionPath(paths, identity) + '/扩展功能/客户安装/Web客户命令.mjs supervisor'))) fail('web_process_unowned');
+      await noBrowsers();
+      if (JSON.stringify(await readState(paths.state)) !== JSON.stringify(initial) ||
+          JSON.stringify(await readState(paths.lock)) !== JSON.stringify(owner) || !runtime.owns(owner)) fail('update_recovery_required');
+      runtime.report('新版已安装，正在正常停止尚未交接的管理器…');
+      await runtime.signal(owner);
+      await runtime.released(owner);
+    }
+    await noBrowsers();
+    if (await readState(paths.lock) || JSON.stringify(await readState(paths.state)) !== JSON.stringify(initial)) fail('update_recovery_required');
+    await runtime.verify(initial.current);
+    await runtime.channel(initial.current.version);
+    runtime.report('正在启动当前已安装版本的管理器…');
+    await runtime.start(initial.current);
+    const deadline = runtime.now() + runtime.timeout;
+    while (runtime.now() < deadline) {
+      const progress = await runtime.progress(initial.current.version);
+      if (progress.state === 'success') return { version: initial.current.version, address: progress.origin, recovered: true };
+      if (['rolled-back', 'recovery-required', 'blocked', 'deferred'].includes(progress.state)) fail(progress.reason || 'update_activation_unconfirmed');
+      await runtime.pause();
+    }
+    fail('update_resume_timeout');
+  }
   await runtime.channel(staged.next.version);
   const unchanged = async () => {
     if (JSON.stringify(await readState(paths.state)) !== JSON.stringify(initial)) fail('update_recovery_required');
