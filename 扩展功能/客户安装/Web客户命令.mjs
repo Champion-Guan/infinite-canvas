@@ -85,5 +85,7 @@ export async function customerCommand(operation) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (process.argv.length !== 3) fail('invalid_request');
   try { const result = await customerCommand(process.argv[2]); if (result?.address) console.log('工作台已就绪，请打开：' + result.address); if (result) console.log(JSON.stringify(result)); }
-  catch (e) { console.error(e.code === 'update_recovery_browsers_open' ? e.message : '操作未完成：' + (e.code || 'web_operation_failed') + '。现有版本与个人数据保留。'); process.exitCode = 1; }
+  catch (e) { console.error(e.code === 'update_recovery_browsers_open' ? e.message : e.code === 'web_process_unowned'
+    ? '操作未完成：无法确认原安装管理器的身份（web_process_unowned）。未停止未知进程，现有版本与个人数据保留；请保留工作台日志，不要删除运行锁。'
+    : '操作未完成：' + (e.code || 'web_operation_failed') + '。现有版本与个人数据保留。'); process.exitCode = 1; }
 }

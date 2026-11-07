@@ -152,6 +152,12 @@ test('面板只在下载触发或恢复安装时出现，检查更新及发现�
   assert.deepEqual(render({ ...base, download: { state: 'idle', progress: 0 },
     install: { allowed: true, state: 'idle', targetVersion: target } }), []);
   assert.equal(render(base).find(item => item.type === 'progress').props.percent, 37);
+  const previousVersion = '2.0.0-beta.20';
+  const resumed = render({ ...base, currentVersion: previousVersion,
+    download: { state: 'verified', version: target, progress: 100 },
+    install: { allowed: true, state: 'blocked', targetVersion: previousVersion, reason: 'update_manager_handoff_failed' } });
+  assert.ok(resumed.some(item => item.props.children === `目标 ${target}`), '新下载目标不能被当前版本遗留的管理器交接目标覆盖');
+  assert.ok(JSON.stringify(resumed).includes(`当前版本 ${previousVersion}`), '旧管理器问题必须标注所属当前版本');
   const installing = render({ ...base, download: { state: 'verified', progress: 100 }, install: { allowed: true, state: 'starting', targetVersion: target } });
   assert.equal(installing.find(item => item.type === 'progress').props['aria-label'], '安装包下载进度');
   assert.ok(installing.some(item => item.props?.['aria-current'] === 'step' && item.props.children.includes('切换与启动')));
@@ -171,6 +177,7 @@ test('版本弹窗展开真实安装操作和进度组件，下载各状态始�
   const mocks = {
     react: { useEffect() {}, useState: () => [false, () => {}] }, 'react/jsx-runtime': { Fragment, jsx, jsxs },
     antd: { App: { useApp: () => ({ message: { error() {} }, modal: { confirm() {} } }) }, Button: 'button', Modal: 'modal', Progress: 'progress', Tag: 'tag', Timeline: 'timeline' },
+    '@/扩展功能/主题/苹果弹窗': { AppleModal: 'modal' },
     i18next: {}, 'react-i18next': { useTranslation: () => ({ t: value => value }) },
     '@/hooks/use-version-check': { useVersionCheck: () => ({ open: true, setOpen() {}, openReleaseModal() {}, currentVersion: '2.0.0-beta.19', latestVersion: '2.0.0-beta.21', releases: [], checking: false, hasNewVersion: status.hasNewVersion, checkLatestRelease() {}, refresh: async () => {}, unavailable: false, status }) },
     '@/constant/env': { formatDisplayVersion: value => value },
@@ -179,6 +186,7 @@ test('版本弹窗展开真实安装操作和进度组件，下载各状态始�
     './独立进度窗口': { connectUpdateProgressWindow: async () => {} },
     '@/扩展功能/产品/产品界面边界': { useProductActive: () => true },
     '../产品/产品界面边界': { useProductActive: () => true },
+    '../主题/可见页面轮询': { useVisiblePolling() {} },
   };
   function load(path) {
     const source = readFileSync(new URL(path, import.meta.url), 'utf8');

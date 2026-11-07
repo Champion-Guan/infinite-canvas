@@ -7,7 +7,10 @@ export function UpdateProgressPanel({ status }: { status: SoftwareUpdateStatus |
     const percent = Math.max(0, Math.min(100, download && Number.isFinite(download.progress) ? download.progress : 0));
     const error = download?.error || install?.stageError || (install?.allowed ? install.reason : null);
     const coordination = install?.coordination;
-    const target = install?.targetVersion || (status?.hasNewVersion ? status.latest?.version : null);
+    const downloadedTarget = download?.version || (status?.hasNewVersion ? status.latest?.version : null);
+    const oldManager = Boolean(install?.targetVersion && downloadedTarget && install.targetVersion !== downloadedTarget
+        && install.targetVersion === (status?.currentVersion || install.currentVersion));
+    const target = oldManager ? downloadedTarget : install?.targetVersion || downloadedTarget;
     const state = install?.state || "";
     const pending = Boolean(download && !["idle", "trust-not-configured", "not-implemented"].includes(download.state)
         || install?.staging || install?.targetVersion && !["", "idle", "source-development", "disabled", "unavailable"].includes(state));
@@ -27,6 +30,7 @@ export function UpdateProgressPanel({ status }: { status: SoftwareUpdateStatus |
         <Progress aria-label="安装包下载进度" percent={percent} size="small" status={download?.error ? "exception" : download?.state === "verified" ? "success" : "normal"} />
         <div role="status" className="text-xs leading-5 text-stone-500 dark:text-stone-400">
             {`下载：${updateMessages[download?.state || "idle"] || "等待下载"}。`}
+            {oldManager ? `当前版本 ${install?.targetVersion} 的安装状态：` : ""}
             {install?.allowed ? install.staging ? "正在解包并复核全部文件。" : `${installationMessages[state] || "正在读取安装状态"}。` : ""}
             {coordination?.reason ? ` ${updateMessages[coordination.reason] || "正在准备自动安装"}。` : coordination?.state === "preparing" ? "正在保存全部工作台页面。" : ""}
             {error ? ` ${updateMessages[error] || "操作未完成，请重试；原版本保留"}` : ""}

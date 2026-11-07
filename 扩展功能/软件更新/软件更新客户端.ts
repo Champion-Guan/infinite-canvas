@@ -7,7 +7,7 @@ export type SoftwareUpdateStatus = {
     authorization: string; hasNewVersion: boolean; lastCheckedAt: string | null; error: string | null;
     latest: { version: string; publishedAt: string; notes: string; verification: string } | null;
     history: { at: string; state: string; version: string | null; error: string | null }[];
-    download: { state: string; progress: number; error?: string | null };
+    download: { state: string; progress: number; version?: string | null; error?: string | null };
     install: { allowed: boolean; state: string; currentVersion?: string | null; targetVersion?: string | null;
         reason?: string | null; staging?: boolean; stageError?: string | null; canApprove?: boolean; progressAvailable?: boolean; blockers?: UpdateBlocker[];
         coordination?: { mode: "manual" | "automatic" | null; state: string; reason: string | null; targetVersion: string | null };
@@ -61,6 +61,8 @@ export const updateMessages: Record<string, string> = {
     web_health_mismatch: "启动健康检查未通过，请查看具体检查项",
     web_start_timeout: "服务启动超时，请保留日志后重试",
     web_service_exited: "服务在就绪前退出，请查看本机工作台日志",
+    web_start_failed: "工作台启动或管理器恢复未完成，原版本及数据保留",
+    web_process_unowned: "无法核对原管理器的进程身份，未停止进程；请保留安装目录和工作台日志",
     invalid_keychain_helper: "系统钥匙串助手核验失败，未读取凭据",
     keychain_helper_migration_required: "系统助手发生变化，需要兼容迁移，未替换原凭据",
     update_manager_handoff_failed: "新版管理器接续未确认，原数据保留",

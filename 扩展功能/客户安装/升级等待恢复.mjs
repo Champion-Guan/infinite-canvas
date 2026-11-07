@@ -49,7 +49,16 @@ export async function recoverWaitingUpgrade(paths = webInstallPaths(), options =
   await noBrowsers();
   const initial = await readState(paths.state);
   if (initial?.app !== WEB_APP || !['committed', 'rolled-back'].includes(initial.phase) || !initial.workspaceId) fail('update_recovery_required');
+  const verifyOwner = async owner => {
+    if (!runtime.owns(owner)) fail('web_process_unowned');
+    const identity = [initial.current, initial.previous].filter(Boolean).find(identity =>
+      owner.command?.endsWith(versionPath(paths, identity) + '/扩展功能/客户安装/Web客户命令.mjs supervisor'));
+    if (!identity) fail('web_process_unowned');
+    await runtime.verify(identity);
+    if (!runtime.owns(owner) || JSON.stringify(await readState(paths.lock)) !== JSON.stringify(owner)) fail('web_process_unowned');
+  };
   const staged = await runtime.stage(initial);
+  runtime.report(`当前已安装 ${initial.current.version}；待恢复版本 ${staged?.next.version || initial.current.version}。`);
   if (!staged) {
     // 版本事务已提交时暂存已被消费，恢复管理器换代不再依赖另一份待安装包。
     if (initial.phase !== 'committed') fail('update_stage_unavailable');
@@ -59,9 +68,7 @@ export async function recoverWaitingUpgrade(paths = webInstallPaths(), options =
     if (before.state === 'success') return { version: initial.current.version, address: before.origin, recovered: true };
     const owner = await readState(paths.lock);
     if (owner) {
-      const candidates = [initial.current, initial.previous].filter(Boolean);
-      if (!runtime.owns(owner) || !candidates.some(identity =>
-        owner.command?.endsWith(versionPath(paths, identity) + '/扩展功能/客户安装/Web客户命令.mjs supervisor'))) fail('web_process_unowned');
+      await verifyOwner(owner);
       await noBrowsers();
       if (JSON.stringify(await readState(paths.state)) !== JSON.stringify(initial) ||
           JSON.stringify(await readState(paths.lock)) !== JSON.stringify(owner) || !runtime.owns(owner)) fail('update_recovery_required');
@@ -93,8 +100,8 @@ export async function recoverWaitingUpgrade(paths = webInstallPaths(), options =
   };
   const owner = await readState(paths.lock);
   if (owner) {
-    const command = versionPath(paths, initial.current) + '/扩展功能/客户安装/Web客户命令.mjs supervisor';
-    if (!runtime.owns(owner) || !owner.command?.endsWith(command)) fail('web_process_unowned');
+    // 暂存新包不代表上一轮管理器已经完成换代；两条恢复路径使用同一身份与验签规则。
+    await verifyOwner(owner);
     await unchanged(); await noBrowsers();
     if (!runtime.owns(owner) || JSON.stringify(await readState(paths.lock)) !== JSON.stringify(owner)) fail('web_process_unowned');
     runtime.report('正在正常停止旧版服务，等待任务和保存排空…');

@@ -10,8 +10,8 @@ import { readState, writeState, versionPath } from '../扩展功能/客户安装
 import { processIdentity, ownedProcess } from '../扩展功能/客户安装/管理进程身份.mjs';
 import { WEB_APP, WEB_ORIGIN } from '../扩展功能/客户安装/Web发布协议.mjs';
 
-const current = { name: '2.0.0-beta.21-' + 'a'.repeat(40), version: '2.0.0-beta.21', commit: 'a'.repeat(40), origin: WEB_ORIGIN, dataSchema: 1 };
-const next = { ...current, name: '2.0.0-beta.22-' + 'b'.repeat(40), version: '2.0.0-beta.22', commit: 'b'.repeat(40) };
+const current = { name: '2.0.0-beta.24-' + 'a'.repeat(40), version: '2.0.0-beta.24', commit: 'a'.repeat(40), origin: WEB_ORIGIN, dataSchema: 1 };
+const next = { ...current, name: '2.0.0-beta.25-' + 'b'.repeat(40), version: '2.0.0-beta.25', commit: 'b'.repeat(40) };
 const staged = { identity: { repository: 'Champion-Guan/infinite-canvas', version: next.version, downloadId: 'verified-' + 'c'.repeat(36) }, next };
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), '升级等待恢复-'));
@@ -25,6 +25,7 @@ async function fixture(t) {
   const calls = [];
   const options = {
     processes: async () => '', owns: () => true,
+    verify: async identity => { assert.ok([current.version, next.version].includes(identity.version)); },
     stage: async state => { assert.deepEqual(state, initial); calls.push('verify'); return structuredClone(staged); },
     channel: async version => { assert.equal(version, next.version); calls.push('channel'); },
     signal: async actual => { assert.deepEqual(actual, owner); calls.push('stop'); },
@@ -65,11 +66,28 @@ test('原暂存再次验签后正常停服，刷新同包确认，再启动；�
   assert.ok(f.calls.indexOf('released') < f.calls.indexOf('start'));
   assert.deepEqual(await readState(f.paths.state), f.initial, '恢复器不能直接写版本指针');
 });
+test('beta24已运行但更早管理器尚未交接时，恢复已暂存的新版本允许验签后的上一管理器', async t => {
+  const f = await fixture(t);
+  const previous = { ...current, version: '2.0.0-beta.20', name: '2.0.0-beta.20-' + current.commit };
+  const initial = { ...f.initial, previous };
+  const owner = { ...f.owner, command: '/node ' + versionPath(f.paths, previous) + '/扩展功能/客户安装/Web客户命令.mjs supervisor' };
+  await writeState(f.paths.state, initial); await writeState(f.paths.lock, owner);
+  let verified = false;
+  const result = await recoverWaitingUpgrade(f.paths, { ...f.options,
+    stage: async state => { assert.deepEqual(state, initial); return structuredClone(staged); },
+    verify: async identity => { assert.deepEqual(identity, previous); verified = true; },
+    signal: async actual => { assert.equal(verified, true); assert.deepEqual(actual, owner); f.calls.push('stop'); },
+  });
+  assert.equal(result.version, next.version);
+  assert.deepEqual(await readState(f.paths.state), initial);
+  assert.equal(f.calls.filter(value => value === 'stop').length, 1);
+});
 test('未签名暂存或渠道关闭时不停止服务；未持有的PID不发送信号', async t => {
   for (const overrides of [
     { stage: async () => { throw Object.assign(Error(), { code: 'web_signature_invalid' }); } },
     { channel: async () => { throw Object.assign(Error(), { code: 'update_channel_excluded' }); } },
     { owns: () => false },
+    { verify: async () => { throw Object.assign(Error(), { code: 'web_signature_invalid' }); } },
   ]) {
     const f = await fixture(t);
     await assert.rejects(recoverWaitingUpgrade(f.paths, { ...f.options, ...overrides }));
@@ -131,7 +149,7 @@ test('新版已提交且暂存已消费时，验签后正常交接原管理器�
   let checks = 0, starts = 0;
   const result = await recoverWaitingUpgrade(f.paths, { ...f.options,
     stage: async () => null,
-    verify: async identity => { assert.deepEqual(identity, next); checks++; },
+    verify: async identity => { assert.ok([current.version, next.version].includes(identity.version)); checks++; },
     progress: async version => {
       assert.equal(version, next.version);
       return { state: starts ? 'success' : 'restarting-manager', origin: starts ? 'http://localhost:3008' : null };
@@ -142,7 +160,7 @@ test('新版已提交且暂存已消费时，验签后正常交接原管理器�
     },
   });
   assert.deepEqual(result, { version: next.version, address: 'http://localhost:3008', recovered: true });
-  assert.equal(starts, 1); assert.equal(checks, 2);
+  assert.equal(starts, 1); assert.equal(checks, 3);
   assert.deepEqual(await readState(f.paths.state), initial);
   assert.equal(f.calls.filter(value => value === 'stop').length, 1);
 });
