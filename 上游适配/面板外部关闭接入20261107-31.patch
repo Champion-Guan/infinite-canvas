@@ -1,0 +1,12 @@
+diff --git a/web/src/components/layout/version-release-modal.tsx b/web/src/components/layout/version-release-modal.tsx
+index f971ed4..d2593ae 100644
+--- a/web/src/components/layout/version-release-modal.tsx
++++ b/web/src/components/layout/version-release-modal.tsx
+@@ -1,5 +1,6 @@
+ import type { CSSProperties } from "react";
+-import { App, Button, Modal, Tag, Timeline } from "antd";
++import { App, Button, Tag, Timeline } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import type { TFunction } from "i18next";
+ import { useTranslation } from "react-i18next";
+ import { useVersionCheck } from "@/hooks/use-version-check";

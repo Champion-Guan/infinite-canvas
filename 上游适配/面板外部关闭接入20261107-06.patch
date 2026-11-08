@@ -1,0 +1,20 @@
+diff --git a/web/src/components/agent/local-agent-panel.tsx b/web/src/components/agent/local-agent-panel.tsx
+index 2b9da21..4b9732c 100644
+--- a/web/src/components/agent/local-agent-panel.tsx
++++ b/web/src/components/agent/local-agent-panel.tsx
+@@ -897,6 +897,7 @@ export function LocalAgentPanel({ embedded, headless, autoConnect }: { embedded?
+         };
+         if (nextMode !== "full") return apply();
+         modal.confirm({
++            maskClosable: true,
+             title: rt("enableFullAccess"),
+             content: rt("fullAccessDescription"),
+             okText: rt("enableFullAccessAction"),
+@@ -1084,6 +1085,7 @@ export function LocalAgentPanel({ embedded, headless, autoConnect }: { embedded?
+ 
+     const confirmDeleteThreads = (threadIds: string[]) => {
+         modal.confirm({
++            maskClosable: true,
+             title: rt("deleteConversations", { count: threadIds.length }),
+             content: rt("deleteConversationsDescription"),
+             okText: t("common.delete"),

@@ -66,3 +66,20 @@ test('连线缓存入口复用同一个共享网络组件，避免新旧路径�
     });
     assert.equal(CachedConnectionLayer, shared);
 });
+test('有界缓存的非当前画布保留可见卡片子树，切回不重建节点DOM', async () => {
+    const jsx = (type, props) => ({ type, props });
+    for (const active of [true, false]) {
+        const { InfiniteCanvas } = await load('.运行/3100源/画布副本/web/src/components/canvas/infinite-canvas.tsx', {
+            react: { useRef: current => ({ current }), useState: value => [value, () => {}], useEffect() {}, useLayoutEffect() {} },
+            'react/jsx-runtime': { jsx, jsxs: jsx },
+            '@/扩展功能/画布交互/快捷键边界': {},
+            '@/扩展功能/产品/产品界面边界': { useProductActive: () => active },
+            '@/扩展功能/画布布局/画布平移调度': { createCanvasPanScheduler: () => ({}) },
+            '@/lib/canvas-theme': { canvasThemes: { light: { canvas: { background: '#fff' } } } },
+            '@/stores/use-theme-store': { useThemeStore: select => select({ theme: 'light' }) },
+        });
+        const cards = ['已挂载卡片'];
+        const tree = InfiniteCanvas({ viewport: { x: 0, y: 0, k: 1 }, containerRef: { current: null }, children: cards });
+        assert.equal(tree.props.children[1].props.children, cards);
+    }
+});

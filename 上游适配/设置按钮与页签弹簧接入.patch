@@ -1,0 +1,45 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index 625970c..9f35cb6 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -4,7 +4,10 @@ import { businessFeatures, resolveBusinessConfigTab } from "@/扩展功能/产
+ import { productFeatures, resolveConfigTab } from "@/扩展功能/产品配置/功能开关";
+ import { useSettingsViewport } from "@/扩展功能/存储界面/设置视区";
+ import { OriginalFallbackPanel } from "@/扩展功能/故障切换/原版Fallback面板";
+-import { App, Button, Form, Input, Modal, Progress, Radio, Select, Switch, Tabs } from "antd";
++import { App, Form, Input, Modal, Progress, Radio, Select, Switch, Tabs } from "antd";
++import { AppleAntButton as Button } from "@/扩展功能/主题/苹果交互按钮";
++import { APPLE_SURFACE_SPRING, APPLE_FADE } from "@/扩展功能/主题/苹果动效";
++import { motion, useReducedMotion } from "motion/react";
+ import type { TFunction } from "i18next";
+ import { Cloud, Download, Pencil, Plus, RefreshCw, Trash2, Upload, Wifi } from "lucide-react";
+ import { useEffect, useRef, useState } from "react";
+@@ -57,6 +60,7 @@ function createWebdavDomainProgress(): Record<AppSyncDomainKey, WebdavDomainProg
+ }
+ 
+ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels" }: { showDoneButton?: boolean; initialTab?: ConfigTabKey }) {
++    const reducedMotion = useReducedMotion();
+     const { message } = App.useApp();
+     const { i18n, t } = useTranslation();
+     const configInputRef = useRef<HTMLInputElement>(null);
+@@ -179,6 +183,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+             </div>
+             <Tabs
+                 className="guan-settings-tabs guan-apple-transition [&>.ant-tabs-nav_.ant-tabs-nav-list]:gap-1"
++                animated={{ inkBar: !reducedMotion, tabPane: false }}
+                 renderTabBar={renderTabBar}
+                 styles={{ item: { transform: "none" } }}
+                 activeKey={activeTab}
+@@ -366,7 +371,10 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                         label: "软件更新",
+-                        children: <ConfigSoftwareUpdates />,
++                        children: <ConfigSoftwareUpdates active={activeTab === "software-updates"} />,
+                     },
+-                ].filter((item) => (item.key !== "webdav" || productFeatures.webdav) && (item.key !== "local-proxy" || productFeatures.localProxy) && (item.key !== "prompt-sources" || businessFeatures.promptSources))}
++                ].filter((item) => (item.key !== "webdav" || productFeatures.webdav) && (item.key !== "local-proxy" || productFeatures.localProxy) && (item.key !== "prompt-sources" || businessFeatures.promptSources))
++                    .map(item => ({ ...item, children: <motion.div initial={false}
++                        animate={{ opacity: activeTab === item.key ? 1 : 0, y: activeTab === item.key || reducedMotion ? 0 : 4 }}
++                        transition={reducedMotion ? APPLE_FADE : APPLE_SURFACE_SPRING}>{item.children}</motion.div> }))}
+             />
+             {showDoneButton ? (
+                 <div className="mt-4 flex justify-end">

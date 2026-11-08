@@ -1,6 +1,6 @@
 import type { CanvasNodeData } from "@/types/canvas";
 
-const positionIndependentTypes = new Set(["text", "image", "video", "audio", "config", "group", "guan:prompt-variables"]);
+const positionIndependentTypes = new Set(["text", "image", "video", "audio", "config", "group", "guan:prompt-variables", "guan:product-prompt"]);
 
 // 旧版内容快照：只忽略内置卡片的坐标，其余字段及未知插件变化均使内容失效。
 export function canvasContentSnapshot(previous: CanvasNodeData[], nodes: CanvasNodeData[]) {

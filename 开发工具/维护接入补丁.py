@@ -38,6 +38,49 @@ def main():
             directory = Path(temp)
             replay(directory, mapping)
             Path(sys.argv[3]).write_bytes((directory / sys.argv[2]).read_bytes())
+    elif mode == '批量提取':
+        targets = json.loads(Path(sys.argv[2]).read_text())
+        output = Path(sys.argv[3])
+        with tempfile.TemporaryDirectory(prefix='画布批量读取-') as temp:
+            directory = Path(temp)
+            replay(directory, mapping)
+            for target in targets:
+                assert target in {item['目标'] for item in mapping['接入差异']}
+                file = output / target
+                file.parent.mkdir(parents=True, exist_ok=True)
+                file.write_bytes((directory / target).read_bytes())
+    elif mode == '批量导出':
+        plans = json.loads(Path(sys.argv[2]).read_text())
+        created = []
+        try:
+            with tempfile.TemporaryDirectory(prefix='画布批量导出-') as temp:
+                directory = Path(temp)
+                replay(directory, mapping)
+                for plan in plans:
+                    target, source, name = plan['target'], plan['source'], plan['name']
+                    assert target in {item['目标'] for item in mapping['接入差异']}
+                    assert '/' not in name and '\\' not in name and '..' not in name
+                    file = ROOT / '上游适配' / (name + '.patch')
+                    assert not file.exists(), '功能补丁已存在：' + name
+                    before, after = (directory / target).read_bytes(), Path(source).read_bytes()
+                    if before == after:
+                        continue
+                    for side, data in [('a', before), ('b', after)]:
+                        path = directory / side / target
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_bytes(data)
+                    result = subprocess.run(['git', '-c', 'core.quotepath=false', 'diff', '--no-index', '--no-prefix', '--', 'a/' + target, 'b/' + target], cwd=directory, stdout=subprocess.PIPE)
+                    assert result.returncode == 1, '批量生成补丁失败：' + target
+                    file.write_bytes(result.stdout)
+                    created.append(file)
+                    mapping['接入补丁'].append({'文件': file.relative_to(ROOT).as_posix(), '目标': target, '职责': name, 'SHA256': sha(result.stdout), '前态SHA256': sha(before), '后态SHA256': sha(after)})
+                    (directory / target).write_bytes(after)
+            save(mapping)
+            print(json.dumps({'补丁': len(created)}, ensure_ascii=False))
+        except BaseException:
+            for file in created:
+                file.unlink(missing_ok=True)
+            raise
     elif mode == '导出':
         target, source, name = sys.argv[2:5]
         assert Path(target).as_posix() in {item['目标'] for item in mapping['接入差异']}
@@ -61,6 +104,6 @@ def main():
         save(mapping)
         print(file.relative_to(ROOT))
     else:
-        raise ValueError('支持：提取 目标 临时文件；导出 目标 临时文件 中文功能名')
+        raise ValueError('支持：提取/导出，以及批量提取 目标JSON 临时目录、批量导出 计划JSON')
 if __name__ == '__main__':
     main()

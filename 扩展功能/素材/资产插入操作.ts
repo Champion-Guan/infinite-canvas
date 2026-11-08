@@ -9,6 +9,7 @@ import { assetCanvasNode } from "./资产画布节点";
 import type { PlacementBounds } from "../画布布局/卡片自动避让";
 import { placeAssetNode } from "./资产可见落点";
 import type { CanvasNodePlacement, CanvasNodeSetter } from "../画布生成/画布节点事务";
+import { productCanvasResidency } from "../产品/画布驻留保护";
 
 export function useCanvasAssetInsertion({ projectId, setNodes, setSelectedNodeIds, setSelectedConnectionId, getVisibleBounds, onError }: {
     projectId: string; setNodes: CanvasNodeSetter;
@@ -18,6 +19,7 @@ export function useCanvasAssetInsertion({ projectId, setNodes, setSelectedNodeId
     onError: (text: string) => void;
 }) {
     return useCallback(async (assetId: string, center: Position, placement: CanvasNodePlacement = "auto") => {
+        const release = productCanvasResidency.acquire(projectId);
         try {
             let asset = useAssetStore.getState().assets.find(item => item.id === assetId);
             if (!asset) throw new Error("该资产已被移除，请重新选择。");
@@ -31,5 +33,6 @@ export function useCanvasAssetInsertion({ projectId, setNodes, setSelectedNodeId
             setSelectedNodeIds(new Set([node.id]));
             setSelectedConnectionId(null);
         } catch (error) { onError(error instanceof Error ? error.message : "添加资产失败，请重试。"); }
+        finally { release(); }
     }, [projectId, setNodes, setSelectedNodeIds, setSelectedConnectionId, getVisibleBounds, onError]);
 }

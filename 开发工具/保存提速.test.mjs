@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { createValueCodec } from '../扩展功能/本机存储/应用值编码.mjs';
 import { buildFragmentPlan, readFragmentGraph } from '../扩展功能/本机存储/分片值编码.mjs';
 import { createShardedApplicationStorage } from '../扩展功能/本机存储/分片应用存储.mjs';
@@ -264,12 +265,18 @@ test('分片大小精确覆盖中文、代理项、转义、空容器及原内�
 
 const source = readFileSync(new URL('../扩展功能/本机存储/上游浏览器存储桥.ts', import.meta.url), 'utf8');
 const { code } = await transformWithEsbuild(source, '上游浏览器存储桥.ts', { loader: 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
-async function bridge({ verifiedBaseline = false } = {}) {
+async function bridge({ verifiedBaseline = false, autoAck = false, failSynchronously = () => false } = {}) {
   let time = 0, id = 0;
   const timers = new Map(), operations = [];
   const app = { createInstance: options => ({ iterate: async callback => {
     if (verifiedBaseline && options.storeName === 'app_state') callback('{"state":{"projects":[]}}', '画布', 1);
-  }, setItem: (key, value) => new Promise((resolve, reject) => operations.push({ key, value, resolve, reject })) }),
+  }, setItem: (key, value) => {
+    if (failSynchronously()) throw Error('合成提交前同步失败');
+    return new Promise((resolve, reject) => {
+      operations.push({ key, value, resolve, reject });
+      if (autoAck) queueMicrotask(resolve);
+    });
+  } }),
     getStatus: () => ({ state: verifiedBaseline ? 'idle' : 'saved', pending: 0, errors: [] }), subscribe() {}, retryPending: async () => {}, flush: async () => {} };
   const module = { exports: {} }, window = { __guanSQLiteHost: { initialize: async () => app }, dispatchEvent() {}, addEventListener() {} };
   new Function('module', 'exports', 'window', 'setTimeout', 'clearTimeout', 'performance', 'require', code)(module, module.exports, window,
@@ -283,6 +290,40 @@ async function bridge({ verifiedBaseline = false } = {}) {
     time = until;
   }
   return { ...module.exports, operations, advance };
+}
+
+const canvasRequire = createRequire(new URL('../.运行/3100源/画布副本/web/package.json', import.meta.url));
+const canvasStoreSource = readFileSync(new URL('../.运行/3100源/画布副本/web/src/stores/canvas/use-canvas-store.ts', import.meta.url), 'utf8');
+const { code: canvasStoreCode } = await transformWithEsbuild(canvasStoreSource, 'use-canvas-store.ts', { loader: 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
+async function canvasStore(b, initial = { state: { projects: [], deletedProjects: [], guanWorkbooks: null }, version: 0 }) {
+  const stats = { encodings: 0, milliseconds: 0 };
+  const { createStore } = canvasRequire('zustand/vanilla');
+  const dependencies = {
+    zustand: { create: () => initializer => createStore(initializer) },
+    'zustand/middleware': canvasRequire('zustand/middleware'),
+    nanoid: { nanoid: () => 'product' },
+    '@/扩展功能/本机存储/上游浏览器存储桥': b,
+    '@/扩展功能/画布生成/批量保存协调': { shouldDeferCanvasPersist: () => false },
+    '@/扩展功能/图片设置/图片信息偏好': { imageInfoDefaults: {}, withCanvasAppearanceDefaults: value => value },
+    '@/扩展功能/Excel/Excel产品归属': { assertWorkbookSnapshot() {}, currentWorkbookId: () => null, normalizeExcelCanvasTitles: state => state.projects },
+    '@/扩展功能/产品/产品规则': { nextProductTitle: () => '测试产品' },
+    '@/i18n': { default: { t: value => value } },
+    '@/lib/localforage-storage': { localForageStorage: { getItem: async () => JSON.stringify(initial), removeItem: async () => {} } },
+  };
+  const module = { exports: {} };
+  new Function('module', 'exports', 'require', 'JSON', canvasStoreCode)(module, module.exports,
+    id => { assert.ok(Object.hasOwn(dependencies, id), id); return dependencies[id]; },
+    { parse: JSON.parse, stringify(value) {
+      const started = performance.now();
+      stats.encodings++;
+      try { return JSON.stringify(value); } finally { stats.milliseconds += performance.now() - started; }
+    } });
+  const store = module.exports.useCanvasStore;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(store.persist.hasHydrated(), true);
+  await b.flushSQLiteStorage();
+  stats.encodings = 0; stats.milliseconds = 0; b.operations.length = 0;
+  return { store, stats };
 }
 
 test('短编辑80ms提交，真正ACK之前持续显示保存中', async () => {
@@ -316,6 +357,119 @@ test('失败不提前显示已保存，flush拒绝未确认的数据', async () 
   const b = await bridge(), save = b.scheduleStateSave('画布', '未确认稿'); b.advance(80);
   b.operations[0].reject(Error('合成离线')); await assert.rejects(save); await Promise.resolve();
   assert.equal(b.storageStatus().state, 'error'); await assert.rejects(b.flushSQLiteStorage());
+});
+
+test('真实Zustand连续100次编辑只编码最终画布一次，非持久化状态不触发编码', async () => {
+  const b = await bridge({ autoAck: true }), { store, stats } = await canvasStore(b);
+  store.getState().createProject();
+  for (let i = 0; i < 100; i++) store.getState().updateProject('product', { viewport: { x: i, y: -i, k: 1 } });
+  for (let i = 0; i < 100; i++) store.setState({ hydrated: !!(i % 2) });
+  assert.equal(stats.encodings, 0, '编辑和排队阶段不应遍历画布');
+  assert.equal(b.operations.length, 0);
+  b.advance(79); assert.equal(stats.encodings, 0);
+  b.advance(1); await b.flushSQLiteStorage();
+  assert.equal(stats.encodings, 1); assert.equal(b.operations.length, 1);
+  assert.deepEqual(JSON.parse(b.operations[0].value).state.projects[0].viewport, { x: 99, y: -99, k: 1 });
+  for (let i = 0; i < 100; i++) store.setState({ hydrated: !!(i % 2) });
+  await b.flushSQLiteStorage();
+  assert.equal(stats.encodings, 1, '只切换运行状态不应再编码');
+});
+
+test('延迟编码仍遵守250ms最长等待，立即保存不等待防抖', async () => {
+  const b = await bridge({ autoAck: true });
+  let encodings = 0, save;
+  for (let i = 0; i < 5; i++) {
+    save = b.scheduleStateSave('画布', () => { encodings++; return String(i); });
+    b.advance(50);
+  }
+  assert.equal(encodings, 1); assert.equal(b.operations[0].value, '4'); await save;
+  const final = b.scheduleStateSave('画布', () => { encodings++; return '最后一稿'; });
+  const flush = b.flushSQLiteStorage();
+  assert.equal(encodings, 2); await final; await flush;
+  assert.equal(b.operations[1].value, '最后一稿');
+});
+
+test('慢写入期间20份候选不编码，只编码最新一份且旧请求内容不变', async () => {
+  const b = await bridge(); let encodings = 0;
+  const first = b.scheduleStateSave('画布', () => { encodings++; return '在途快照'; });
+  b.advance(80);
+  let latest;
+  for (let i = 0; i < 20; i++) {
+    latest = b.scheduleStateSave('画布', () => { encodings++; return `新稿${i}`; });
+    b.advance(50);
+  }
+  assert.equal(encodings, 1); assert.equal(b.operations.length, 1);
+  assert.equal(b.operations[0].value, '在途快照');
+  const flush = b.flushSQLiteStorage();
+  b.operations[0].resolve(); await first;
+  assert.equal(encodings, 2); assert.equal(b.operations[1].value, '新稿19');
+  b.operations[1].resolve(); await latest; await flush;
+});
+
+test('编码失败保留快照并阻止已保存误报；重试重新编码且等待真正ACK', async () => {
+  const b = await bridge(); let invalid = true, encodings = 0;
+  const save = b.scheduleStateSave('画布', () => {
+    encodings++;
+    if (invalid) throw Error('合成编码失败');
+    return '有效画布';
+  });
+  b.advance(80); await assert.rejects(save, /合成编码失败/);
+  assert.equal(b.operations.length, 0);
+  assert.equal(b.storageStatus().state, 'error'); assert.equal(b.storageStatus().pending, 1);
+  await assert.rejects(b.flushSQLiteStorage());
+  await assert.rejects(b.retrySQLiteStorage(), /编码失败/);
+  assert.equal(b.storageStatus().state, 'error'); assert.equal(encodings, 2);
+  invalid = false;
+  const retry = b.retrySQLiteStorage();
+  assert.equal(b.operations.length, 1); assert.equal(b.storageStatus().state, 'saving');
+  b.operations[0].resolve(); await retry; await b.flushSQLiteStorage();
+  assert.equal(encodings, 3); assert.equal(b.storageStatus().state, 'saved');
+});
+
+test('编码失败后新编辑替代旧候选，重试不恢复过时内容', async () => {
+  const b = await bridge({ autoAck: true });
+  let staleEncodings = 0;
+  const old = b.scheduleStateSave('画布', () => { staleEncodings++; throw Error('旧快照非法'); });
+  b.advance(80); await assert.rejects(old);
+  const latest = b.scheduleStateSave('画布', () => '修正后的最新内容');
+  await b.retrySQLiteStorage(); await latest;
+  assert.equal(staleEncodings, 1); assert.equal(b.operations.length, 1);
+  assert.equal(b.operations[0].value, '修正后的最新内容');
+  assert.equal(b.storageStatus().state, 'saved');
+});
+
+test('提交前同步失败保留已编码候选，重试不因缓存相同而跳过真正提交', async () => {
+  let fail = true, encodings = 0;
+  const b = await bridge({ autoAck: true, failSynchronously: () => fail });
+  const save = b.scheduleStateSave('画布', () => { encodings++; return '尚未提交的画布'; });
+  b.advance(80); await assert.rejects(save, /同步失败/);
+  assert.equal(b.storageStatus().state, 'error'); assert.equal(b.operations.length, 0);
+  await assert.rejects(b.retrySQLiteStorage());
+  assert.equal(b.storageStatus().state, 'error');
+  fail = false; await b.retrySQLiteStorage(); await b.flushSQLiteStorage();
+  assert.equal(encodings, 1); assert.equal(b.operations.length, 1);
+  assert.equal(b.operations[0].value, '尚未提交的画布');
+  assert.equal(b.storageStatus().state, 'saved');
+});
+
+test('5000节点100次连续编辑，编码次数由100次降到1次且最终内容一致', async t => {
+  const initial = JSON.parse(syntheticCanvas({ products: 20, nodes: 250, textLength: 1000 }));
+  initial.state.guanWorkbooks = null;
+  const b = await bridge({ autoAck: true }), { store, stats } = await canvasStore(b, initial);
+  let eagerMilliseconds = 0, expected;
+  for (let i = 0; i < 100; i++) {
+    store.getState().updateProject('p-0', { viewport: { x: i, y: 0, k: 1 } });
+    const { projects, deletedProjects, guanWorkbooks } = store.getState();
+    const started = performance.now();
+    expected = JSON.stringify({ state: { projects, guanWorkbooks, deletedProjects }, version: 0 });
+    eagerMilliseconds += performance.now() - started;
+  }
+  assert.equal(stats.encodings, 0);
+  await b.flushSQLiteStorage();
+  assert.equal(stats.encodings, 1); assert.equal(b.operations.length, 1);
+  assert.equal(b.operations[0].value, expected);
+  t.diagnostic(JSON.stringify({ nodes: 5000, edits: 100, bytes: Buffer.byteLength(expected), eagerEncodings: 100, deferredEncodings: stats.encodings,
+    eagerEncodingMs: +eagerMilliseconds.toFixed(2), deferredEncodingMs: +stats.milliseconds.toFixed(2) }));
 });
 
 test('批量保存期间其他卡片状态更新时，同一产品只写入最新快照', async () => {

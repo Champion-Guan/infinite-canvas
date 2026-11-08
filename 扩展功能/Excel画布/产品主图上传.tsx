@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
-import { Modal } from "antd";
+import { AppleModal as Modal } from "../主题/苹果弹窗";
 import { LoaderCircle, Plus, RotateCcw, Scissors, X } from "lucide-react";
 import type { CanvasNodeContext } from "@/types/canvas-plugin";
 import { useAssetStore } from "@/stores/use-asset-store";

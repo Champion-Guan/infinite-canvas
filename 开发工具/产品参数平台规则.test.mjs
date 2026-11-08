@@ -45,6 +45,12 @@ test('切换其他平台不会继续注入 Wildberries 规则', () => {
     assert.equal(rules.productParameterSupplement({ productPlatform: 'Ozon', promptVariableSupplement: '用户补充' }), '用户补充');
 });
 
+test('平台切换提供俄文或英文默认值，未指定不设置图片文字语言', () => {
+    for (const platform of ['Wildberries', 'Ozon']) assert.equal(rules.defaultProductLanguage(platform), '俄文');
+    for (const platform of ['亚马逊', 'Takealot']) assert.equal(rules.defaultProductLanguage(platform), '英文');
+    assert.equal(rules.defaultProductLanguage('未指定'), '');
+});
+
 test('Wildberries 富内容始终必需，旧资料中的不需要不再注入；其他平台保留原选择', () => {
     const metadata = { productPlatform: 'Wildberries', productBrief: { nameCategory: '收纳包', richContent: '不需要' } };
     const prompt = rules.productParameterSupplement(metadata);
@@ -54,14 +60,16 @@ test('Wildberries 富内容始终必需，旧资料中的不需要不再注入�
     assert.equal(metadata.productBrief.richContent, '不需要', '读取时应用平台要求，不覆盖其他平台的原选择');
 });
 
-test('平台和语言覆盖参考选项，移除自定义和未指定，俄语沿用既有产品存储值', () => {
+test('平台五项和语言四项按指定顺序展示，俄文沿用既有产品存储值', () => {
     const platforms = rules.PRODUCT_PLATFORM_OPTIONS.map(option => option.label);
-    for (const label of ['Wildberries', 'OZON', '亚马逊', '淘宝天猫', '1688', 'Temu', 'TikTok Shop', '拼多多', '抖音电商', '独立站', 'Shopee', '阿里国际站', '速卖通', 'SHEIN', '京东', '美客多']) {
-        assert.ok(platforms.includes(label), label);
-    }
+    assert.deepEqual(platforms, ['Wildberries', 'OZON', '亚马逊', 'Takealot', '未指定']);
+    assert.equal(rules.PRODUCT_PLATFORM_OPTIONS.find(option => option.label === '未指定').value, '未指定');
     assert.ok(!platforms.includes('自定义'));
-    assert.deepEqual(rules.PRODUCT_LANGUAGE_OPTIONS.map(option => option.label), ['英文', '中文', '日文', '韩文', '西班牙文', '俄语', '泰语', '马来语']);
-    assert.equal(rules.PRODUCT_LANGUAGE_OPTIONS.find(option => option.label === '俄语').value, rules.WILDBERRIES_LANGUAGE);
+    assert.deepEqual(rules.PRODUCT_LANGUAGE_OPTIONS.map(option => option.label), ['俄文', '英文', '中文', '未指定']);
+    const metadata = { productPlatform: '未指定', productLanguage: '', productBrief: { nameCategory: '数字蜡烛', dimensions: '3.2 cm / 1.3 in' } };
+    assert.doesNotMatch(rules.productParameterSupplement(metadata), /图片文字语言|俄文|俄语/);
+    assert.match(rules.productParameterSupplement(metadata), /3.2 cm \/ 1.3 in/);
+    assert.equal(rules.PRODUCT_LANGUAGE_OPTIONS.find(option => option.label === '俄文').value, rules.WILDBERRIES_LANGUAGE);
 });
 
 test('产品主图上传保存在参数卡元数据，并接受常见图片与HEIC', () => {

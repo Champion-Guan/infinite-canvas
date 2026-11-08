@@ -8,6 +8,27 @@ export function generatedImageName(node, imageId) {
     return index > 0 ? `${title}-${index + 1}` : title;
 }
 
+export function restoreVariantImageNames(nodes) {
+    let changed = false;
+    const restored = nodes.map(node => {
+        const metadata = node.metadata, base = metadata?.generationNameBase, variant = metadata?.productVariant?.name?.trim();
+        if (node.type !== "image" || !variant || typeof base !== "string" || !/^\s*·\s*/.test(base)
+            || base.replace(/^\s*·\s*/, "").trim() !== variant) return node;
+        const restore = name => {
+            if (typeof name !== "string" || !name.startsWith(base + "-")) return name;
+            const suffix = name.slice(base.length);
+            return /^-\d+$/.test(suffix) ? variant + suffix : name;
+        };
+        const images = metadata.images?.map(image => {
+            const name = restore(image.name);
+            return name === image.name ? image : { ...image, name };
+        });
+        changed = true;
+        return { ...node, title: restore(node.title), metadata: { ...metadata, generationNameBase: variant, ...(images ? { images } : {}) } };
+    });
+    return changed ? restored : nodes;
+}
+
 // Reserve a whole batch before requests complete; retries retain their original slots.
 export function numberGeneratedImages(nodes, sourceBase) {
     const bases = new Map(nodes.filter(node => node.type === "image").map(node => [node.id, sourceBase(node)]));

@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-01T16:45:50.022Z",
+  "date": "2026-11-08T09:43:02.925Z",
   "cpu": "Apple M1",
   "memoryGiB": 8,
   "runtime": "v24.16.0",
@@ -7,20 +7,20 @@
     {
       "nodes": 200,
       "bytes": 369106,
-      "stringifyMs": 0.44,
-      "encodeWriteAckMs": 39.61
+      "stringifyMs": 1.37,
+      "encodeWriteAckMs": 37.16
     },
     {
       "nodes": 1000,
       "bytes": 1846026,
-      "stringifyMs": 2.71,
-      "encodeWriteAckMs": 133.64
+      "stringifyMs": 3.02,
+      "encodeWriteAckMs": 126.56
     },
     {
       "nodes": 5000,
       "bytes": 9237026,
-      "stringifyMs": 11.59,
-      "encodeWriteAckMs": 441.88
+      "stringifyMs": 15.95,
+      "encodeWriteAckMs": 633.99
     },
     {
       "databasePagesBefore": 267,

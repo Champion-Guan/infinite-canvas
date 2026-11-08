@@ -1,7 +1,7 @@
 .root { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 360px); height: min(76vh, 900px); min-height: 240px; overflow: hidden; color: var(--历史文字); background: var(--历史背景); }
-.details { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); align-content: start; align-items: start; gap: 16px; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; scroll-behavior: smooth; padding: 16px 20px; }
-.details > :global(.ant-empty) { grid-column: 1 / -1; }
-.detail { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 12px; margin: 0; border: 1px solid var(--历史边框); border-radius: 10px; animation: guan-detail-row-in 280ms var(--guan-motion-spring, cubic-bezier(.22,1,.36,1)) both; }
+.details { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.details > :global(.ant-empty) { padding: 16px 20px; }
+.detail { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 12px; margin: 0; border: 1px solid var(--历史边框); border-radius: 8px; }
 .detailHeading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
 .detailHeading h3 { margin: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
 .detailHeading button { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border: 1px solid var(--历史边框); border-radius: 6px; }
@@ -20,14 +20,18 @@
 .actionButtons button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 30px; padding: 0 8px; border-radius: 6px; white-space: nowrap; }
 .actionButtons button:hover:not(:disabled) { background: var(--历史底色); }
 .actionButtons button[aria-pressed="true"] { background: var(--历史底色); }
-.tasks { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scroll-behavior: smooth; padding: 12px; }
-.task { margin-bottom: 12px; padding: 10px; border: 1px solid var(--历史边框); border-radius: 8px; transition: transform var(--guan-motion-normal, 220ms) var(--guan-motion-spring, cubic-bezier(.22,1,.36,1)), background-color var(--guan-motion-fast, 140ms) var(--guan-motion-gentle, ease), border-color var(--guan-motion-fast, 140ms) var(--guan-motion-gentle, ease); }
+.actionButtons .sortButton { transition: transform 140ms cubic-bezier(.22,1,.36,1), background-color 140ms ease; }
+.actionButtons .sortButton:active:not(:disabled) { transform: scale(.96); }
+.tasks { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.task { padding: 0 10px 10px; border-inline: 1px solid var(--历史边框); transition: background-color var(--guan-motion-fast, 140ms) var(--guan-motion-gentle, ease), border-color var(--guan-motion-fast, 140ms) var(--guan-motion-gentle, ease); }
+.taskStart { padding-top: 10px; border-top: 1px solid var(--历史边框); border-radius: 8px 8px 0 0; }
+.taskEnd { border-bottom: 1px solid var(--历史边框); border-radius: 0 0 8px 8px; }
+.taskStart.taskEnd { border-radius: 8px; }
 @media (hover: hover) and (pointer: fine) { .task:hover { background: var(--历史底色); } }
 .taskHeading { display: flex; align-items: start; gap: 8px; font-size: 12px; }
 .taskHeading > span { min-width: 0; flex: 1; overflow-wrap: anywhere; }
 .taskHeading small { flex: none; opacity: .6; }
-.file { display: flex; align-items: center; gap: 8px; min-width: 0; margin-top: 10px; }
-.singleFile { margin-top: 0; }
+.file { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .fileStatus { flex: none; font-size: 10px; opacity: .6; }
 .thumbnail { display: grid; place-items: center; width: 48px; height: 48px; flex: none; overflow: hidden; border-radius: 6px; background: var(--历史底色); }
 .thumbnail img { width: 100%; height: 100%; object-fit: cover; }
@@ -38,9 +42,9 @@
 @media (prefers-reduced-motion: reduce) {
   .detail, .task { animation: none; transition: none; }
   .details, .tasks { scroll-behavior: auto; }
+  .actionButtons .sortButton { transition: none; transform: none; }
 }
 @media (max-width: 700px) {
   .root { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr); height: 76vh; }
   .sidebar { border-left: 0; border-top: 1px solid var(--历史边框); }
-  .details { padding: 12px; }
 }

@@ -25,6 +25,16 @@ export function variantModules(overrides = {}) {
         nanoid: { nanoid: () => 'batch-id' },
         ...overrides,
     };
+    const ensureModelConfigured = config => {
+        const state = dependencies['@/stores/use-config-store']?.useConfigStore?.getState?.();
+        if (!state?.isAiConfigReady || state.isAiConfigReady(config, config.model)) return true;
+        state.openConfigDialog?.(false, 'channels');
+        return false;
+    };
+    if (!Object.hasOwn(dependencies, '../产品配置/模型配置门禁'))
+        dependencies['../产品配置/模型配置门禁'] = { ensureModelConfigured, requireModelConfigured(config) {
+            if (!ensureModelConfigured(config)) throw Error('请先配置可用模型');
+        } };
     function load(name, upstream = false) {
         const path = upstream ? resolve(sourceRoot, name) : resolve(root, '扩展功能', name);
         return loadPath(path);

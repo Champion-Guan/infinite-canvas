@@ -4,6 +4,7 @@ import { bindGenerationChannel, type CanvasImageTask, type CanvasImageReceipt } 
 import { runCanvasImageTask } from "./图片任务衔接.mjs";
 import { prepareTextRequest, parseTextResponse } from "./文本生成协议";
 import { publishTextPreview, clearTextPreview } from "./文本临时显示.mjs";
+import { requireModelConfigured } from "../产品配置/模型配置门禁";
 
 export async function requestCanvasText(options: {
     config: AiConfig; messages: AiTextMessage[];
@@ -13,15 +14,19 @@ export async function requestCanvasText(options: {
     applyAndSave(text: string, receipt: CanvasImageReceipt): Promise<unknown>;
     deferConfirm?: () => boolean;
 }) {
+    options.signal?.throwIfAborted();
+    if (!options.previous) requireModelConfigured(options.config, "text", options.config.model || options.config.textModel);
     const host = (window as unknown as { __guanGenerationHost?: Parameters<typeof bindGenerationChannel>[0] }).__guanGenerationHost;
     if (!host) throw Error("本机生成端口尚未接入，请重新打开工作台；未改用浏览器直连。");
     const config = structuredClone(options.config);
-    const channel = resolveModelRequestConfig(config, config.model || config.textModel);
-    const request = prepareTextRequest(channel, structuredClone(options.messages));
     let result = "", observedTaskId = "";
     try { await runCanvasImageTask({
         host, scope: options.scope, previous: options.previous, signal: options.signal, retry: options.retry, deferConfirm: options.deferConfirm,
-        prepare: async () => request,
+        prepare: async () => {
+            requireModelConfigured(config, "text", config.model || config.textModel);
+            const channel = resolveModelRequestConfig(config, config.model || config.textModel);
+            return prepareTextRequest(channel, structuredClone(options.messages));
+        },
         bind: () => bindGenerationChannel(host, config),
         recordTask: options.recordTask,
         onProgress: (text: string, taskId: string) => {

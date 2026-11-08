@@ -1,0 +1,16 @@
+diff --git a/web/src/router.tsx b/web/src/router.tsx
+index 4998582..3539df2 100644
+--- a/web/src/router.tsx
++++ b/web/src/router.tsx
+@@ -5,9 +5,11 @@ import { productFeatures } from "@/扩展功能/产品配置/功能开关";
+ import { AnalyticsTracker } from "@/components/layout/analytics-tracker";
+ import { ProductWorkspace } from "@/扩展功能/产品/产品工作区";
+ import UserLayout from "@/layouts/user-layout";
++import { RouteInterfaceRecovery } from "@/扩展功能/存储界面/界面异常恢复";
+ 
+ export const router = createBrowserRouter([
+     {
++        errorElement: <RouteInterfaceRecovery />,
+         element: (
+             <UserLayout>
+                 {productFeatures.analytics ? <AnalyticsTracker /> : null}

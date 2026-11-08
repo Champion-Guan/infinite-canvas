@@ -1,0 +1,10 @@
+{
+  "用途": "修正 Ant Design 6 Modal styles 语义名称，不改变样式值",
+  "批准": "用户明确批准此最小运行副本适配",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "文件": "web/src/components/layout/model-script-editor.tsx",
+  "原始SHA256": "a89a778d2c06c93271cb4ab12c0d7741fbe10ce6bfb00d86679c70184755ae1a",
+  "适配SHA256": "ae3f96d18ab4a43a45ec32ef8cfd6283fd49b47d3e5c36b3b6f260b42e7a14a2",
+  "替换前": "                content: { height: \"100dvh\", maxHeight: \"100dvh\", margin: 0, padding: 0, borderRadius: 0, overflow: \"hidden\" },",
+  "替换后": "                container: { height: \"100dvh\", maxHeight: \"100dvh\", margin: 0, padding: 0, borderRadius: 0, overflow: \"hidden\" },"
+}

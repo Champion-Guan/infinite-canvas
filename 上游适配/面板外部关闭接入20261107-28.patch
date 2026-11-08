@@ -1,0 +1,12 @@
+diff --git a/web/src/components/agent/agent-chat-message.tsx b/web/src/components/agent/agent-chat-message.tsx
+index 1af3216..ef3810b 100644
+--- a/web/src/components/agent/agent-chat-message.tsx
++++ b/web/src/components/agent/agent-chat-message.tsx
+@@ -1,5 +1,6 @@
+ import { useEffect, useId, useState, type ReactNode } from "react";
+-import { App, Button, Image, Modal } from "antd";
++import { App, Button, Image } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { OutsidePopover as Popover } from "@/扩展功能/主题/原生可关闭浮层";
+ import { Brain, CheckCircle2, ChevronDown, ChevronRight, Circle, CircleAlert, Copy, ExternalLink, FilePenLine, FileText, FolderOpen, ListChecks, LoaderCircle, Search, ShieldAlert, TerminalSquare, Wrench, XCircle } from "lucide-react";
+ import { Streamdown, type LinkSafetyModalProps } from "streamdown";

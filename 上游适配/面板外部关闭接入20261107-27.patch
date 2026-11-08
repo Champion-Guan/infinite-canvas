@@ -1,0 +1,11 @@
+diff --git a/web/src/components/canvas/canvas-delete-projects-dialog.tsx b/web/src/components/canvas/canvas-delete-projects-dialog.tsx
+index d7017ee..6e4e980 100644
+--- a/web/src/components/canvas/canvas-delete-projects-dialog.tsx
++++ b/web/src/components/canvas/canvas-delete-projects-dialog.tsx
+@@ -1,4 +1,5 @@
+-import { Button, Modal } from "antd";
++import { Button } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { useTranslation } from "react-i18next";
+ 
+ import { useAssetStore } from "@/stores/use-asset-store";

@@ -28,6 +28,7 @@ async function loadFile(file, dependencies) {
   new Function("require", "module", "exports", code)(
     id => {
       if (id === "../软件更新/升级页面状态.mjs") return upgradePage;
+      if (id === "./画布驻留保护") return { productCanvasResidency: { changed() {}, register() { return () => {}; } } };
       assert.ok(Object.hasOwn(dependencies, id), `未注入依赖：${id}`);
       return dependencies[id];
     },
@@ -417,6 +418,8 @@ test("最终批量保存只放行当前产品的一次Zustand持久化", async (
   assert.equal(sqliteFlushes, 1, "最终保存应等待一次SQLite确认");
   store.getState().updateProject(projectId, { nodes: [{ id: "late-progress" }] });
   assert.equal(scheduled.length, 1, "最终快照后门控应继续拦截批量期间的普通写入");
+  assert.equal(typeof scheduled[0].value, "function", "最终快照应在防抖后才编码");
+  assert.deepEqual(JSON.parse(scheduled[0].value()).state.projects[0].nodes, [{ id: "final-result" }], "延迟编码必须捕获最终检查点，不能读到之后被门控的内存进度");
   assert.equal(batchSave.finishBatchCanvasSave(projectId), true);
   batchSave.completeBatchCanvasSave(projectId);
 });
@@ -453,15 +456,19 @@ test("批量最终保存失败后释放批量门控，重试入口只恢复保�
         metadata: { status: "idle", ...metadata },
       }),
     },
-    "@/lib/canvas/canvas-generation-helpers": { getGenerationCount: value => value || 1 },
+    "@/lib/canvas/canvas-generation-helpers": { getGenerationCount: value => value || 1, buildGenerationConfig: () => ({ model: 'local-test' }) },
     nanoid: { nanoid: () => "edge" },
     "./生成参数继承": {
+      generationNodeForExecution: node => node,
       promptGenerationPatch: () => ({}),
       generationSettingsFromNode: () => ({}),
     },
     "../安全与批量/prompt-generation-mode": { promptGenerationMode: () => "image" },
     "../安全与批量/settle-activity-group": { settleActivityGroup: values => Promise.all(values) },
     "../画布布局/卡片自动避让": { placeCanvasNode: node => node },
+    "../画布布局/生成配置水平排布": variants.load("画布布局/生成配置水平排布.ts"),
+    "../产品配置/模型配置门禁": { ensureModelConfigured: () => true },
+    "../Excel画布/商品提示词阻止反馈": variants.load("Excel画布/商品提示词阻止反馈.ts"),
     "../画布布局/批量结果排布": columns,
     "./产品变体生成": variants.load("画布生成/产品变体生成.ts"),
     "../Excel画布/商品提示词规则": variants.load("Excel画布/商品提示词规则.ts"),

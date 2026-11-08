@@ -27,11 +27,14 @@ async function load() {
             '@/types/canvas': { CanvasNodeType: { Text: 'text', Config: 'config', Image: 'image', Video: 'video', Audio: 'audio' } },
             '@/constant/canvas': { getNodeSpec: () => ({ width: 340, height: 240 }) },
             '@/lib/canvas/canvas-node-factory': { createCanvasNode: (type, position, metadata) => ({ id: 'created', type, position, width: 340, height: 240, metadata }) },
-            '@/lib/canvas/canvas-generation-helpers': { getGenerationCount: value => value || '1' },
+            '@/lib/canvas/canvas-generation-helpers': { getGenerationCount: value => value || '1', buildGenerationConfig: (config, node, mode) => ({ ...config, model: mode }) },
             nanoid: { nanoid: () => 'batch-id' },
-            './生成参数继承': { promptGenerationPatch: () => ({}), generationSettingsFromNode: () => ({}) },
+            './生成参数继承': { promptGenerationPatch: () => ({}), generationSettingsFromNode: () => ({}), generationNodeForExecution: node => node },
+            '../产品配置/模型配置门禁': { ensureModelConfigured: () => true },
+            '../画布布局/生成配置水平排布': { placeAlignedGenerationConfig: (_source, node) => node },
             './产品变体生成': variants.load('画布生成/产品变体生成.ts'),
             '../Excel画布/商品提示词规则': variants.load('Excel画布/商品提示词规则.ts'),
+            '../Excel画布/商品提示词阻止反馈': variants.load('Excel画布/商品提示词阻止反馈.ts'),
             '../Excel画布/商品提示词画布': variants.load('Excel画布/商品提示词画布.ts'),
             '../安全与批量/prompt-generation-mode': { promptGenerationMode: () => 'image' },
             '../安全与批量/settle-activity-group': { settleActivityGroup },
@@ -75,6 +78,25 @@ async function fixture(nodes, connections = []) {
     return { api, calls, messages, gate, get maxImage() { return maxImage; }, get maxBounded() { return maxBounded; }, get activeImage() { return activeImage; }, get activeBounded() { return activeBounded; } };
 }
 
+test('批量执行中重复点击立即说明正在执行或保存，不重复提交', async () => {
+    const f = await fixture([node('image-a'), node('image-b')]);
+    const running = f.api.generateAllConfigNodes();
+    try {
+        assert.equal(f.calls.length, 2);
+        await f.api.generateAllConfigNodes();
+        assert.equal(f.calls.length, 2);
+        assert.ok(f.messages.some(([, text]) => /仍在执行或保存结果/.test(text)));
+    } finally { f.gate.resolve(); await running; }
+});
+
+test('配置全部运行中时显示实际运行状态，不错误宣称画布没有配置卡片', async () => {
+    const current = node('running'); current.metadata.status = 'loading';
+    const f = await fixture([current]);
+    await f.api.generateAllConfigNodes();
+    assert.equal(f.calls.length, 0);
+    assert.deepEqual(f.messages, [['info', '生成配置正在执行，可在卡片查看状态或停止任务。']]);
+});
+
 test('超过3个生图任务全部立即并行启动，不受视频文本音频的3路限制影响', async () => {
     const f = await fixture(Array.from({ length: 7 }, (_, index) => node(`image-${index}`)));
     const running = f.api.generateAllConfigNodes();
@@ -82,7 +104,7 @@ test('超过3个生图任务全部立即并行启动，不受视频文本音频�
     assert.equal(f.calls.length, 7);
     assert.equal(f.maxImage, 7);
     assert.equal(f.activeImage, 7);
-    assert.match(f.messages[0][1], /生图任务立即并行执行/);
+    assert.match(f.messages[0][1], /全部并行提交/);
     f.gate.resolve();
     await running;
     assert.equal(f.activeImage, 0);

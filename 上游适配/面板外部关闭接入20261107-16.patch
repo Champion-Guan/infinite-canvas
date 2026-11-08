@@ -1,0 +1,14 @@
+diff --git a/web/src/components/canvas/canvas-toolbar.tsx b/web/src/components/canvas/canvas-toolbar.tsx
+index ed9cbb7..2571725 100644
+--- a/web/src/components/canvas/canvas-toolbar.tsx
++++ b/web/src/components/canvas/canvas-toolbar.tsx
+@@ -1,7 +1,8 @@
+ import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from "react";
+ import { useRef, useState } from "react";
+ import { productFeatures } from "@/扩展功能/产品配置/功能开关";
+-import { Dropdown, Popover, Segmented, Switch } from "antd";
++import { Segmented, Switch } from "antd";
++import { OutsideDropdown as Dropdown, OutsidePopover as Popover } from "@/扩展功能/主题/原生可关闭浮层";
+ import { AppleAntButton as Button } from "@/扩展功能/主题/苹果交互按钮";
+ import { Braces, CircleDot, Eraser, Grid2x2, Group, Hand, Image as ImageIcon, Info, Link2, LocateFixed, Moon, MousePointer2, Music2, Palette, Play, Puzzle, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Upload, Video } from "lucide-react";
+ 

@@ -1,0 +1,41 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index 77c73b4..82c3051 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -4,12 +4,12 @@ import { businessFeatures, resolveBusinessConfigTab } from "@/扩展功能/产
+ import { productFeatures, resolveConfigTab } from "@/扩展功能/产品配置/功能开关";
+ import { useSettingsViewport } from "@/扩展功能/存储界面/设置视区";
+ import { OriginalFallbackPanel } from "@/扩展功能/故障切换/原版Fallback面板";
+-import { App, Form, Input, Progress, Radio, Switch, Tabs } from "antd";
++import { App, Form, Input, Progress, Radio, Switch } from "antd";
++import { NativeFadeTabs as Tabs } from "@/扩展功能/主题/页签内容过渡";
+ import { OutsideSelect as Select } from "@/扩展功能/主题/原生可关闭浮层";
+ import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { AppleAntButton as Button } from "@/扩展功能/主题/苹果交互按钮";
+-import { APPLE_SURFACE_SPRING, APPLE_FADE } from "@/扩展功能/主题/苹果动效";
+-import { motion, useReducedMotion } from "motion/react";
++import { useReducedMotion } from "motion/react";
+ import type { TFunction } from "i18next";
+ import { Cloud, Download, Pencil, Plus, RefreshCw, Trash2, Upload, Wifi } from "lucide-react";
+ import { useEffect, useRef, useState } from "react";
+@@ -185,7 +185,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+             </div>
+             <Tabs
+                 className="guan-settings-tabs guan-apple-transition [&>.ant-tabs-nav_.ant-tabs-nav-list]:gap-1"
+-                animated={{ inkBar: !reducedMotion, tabPane: false }}
++                animated={{ inkBar: !reducedMotion, tabPane: true }}
+                 renderTabBar={renderTabBar}
+                 styles={{ item: { transform: "none" } }}
+                 activeKey={activeTab}
+@@ -373,10 +373,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                         label: "软件更新",
+                         children: <ConfigSoftwareUpdates active={activeTab === "software-updates"} />,
+                     },
+-                ].filter((item) => (item.key !== "webdav" || productFeatures.webdav) && (item.key !== "local-proxy" || productFeatures.localProxy) && (item.key !== "prompt-sources" || businessFeatures.promptSources))
+-                    .map(item => ({ ...item, children: <motion.div initial={false}
+-                        animate={{ opacity: activeTab === item.key ? 1 : 0, y: activeTab === item.key || reducedMotion ? 0 : 4 }}
+-                        transition={reducedMotion ? APPLE_FADE : APPLE_SURFACE_SPRING}>{item.children}</motion.div> }))}
++                ].filter((item) => (item.key !== "webdav" || productFeatures.webdav) && (item.key !== "local-proxy" || productFeatures.localProxy) && (item.key !== "prompt-sources" || businessFeatures.promptSources))}
+             />
+             {showDoneButton ? (
+                 <div className="mt-4 flex justify-end">

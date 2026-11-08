@@ -6,60 +6,58 @@ import { createRequire } from 'node:module';
 const require = createRequire(new URL('../.运行/3100源/画布副本/web/package.json', import.meta.url));
 const ts = require('typescript');
 
-function load(t) {
-    t.mock.timers.enable({ apis: ['setTimeout'] });
+function load() {
     const writes = [];
     const values = new Map();
     const preferences = { getItem: key => values.get(key) ?? null, setItem(key, value) { values.set(key, value); writes.push([key, value]); } };
     const source = readFileSync(new URL('../.运行/3100源/画布副本/web/src/stores/use-canvas-side-panel-store.ts', import.meta.url), 'utf8');
     const javascript = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
     const module = { exports: {} };
-    new Function('require', 'module', 'exports', 'window', javascript)(id => id.includes('上游浏览器存储桥') ? { sqlitePreferences: preferences } : require(id), module, module.exports, {});
-    return { store: module.exports.useCanvasSidePanelStore, duration: module.exports.CANVAS_SIDE_PANEL_MOTION_MS, writes };
+    new Function('require', 'module', 'exports', 'window', 'setTimeout', javascript)(id => id.includes('上游浏览器存储桥') ? { sqlitePreferences: preferences } : require(id), module, module.exports, {}, () => assert.fail('侧栏不能用固定时长决定卸载'));
+    return { store: module.exports.useCanvasSidePanelStore, writes };
 }
 
-test('真实侧栏状态库：关开关时旧定时器不能提前卸载最后一次关闭动画', t => {
-    const { store, duration } = load(t);
+test('真实侧栏关开关：旧完成回调不能卸载最后一次关闭，真实完成后才卸载', () => {
+    const { store } = load();
     store.getState().closePanel();
-    t.mock.timers.tick(120);
+    const old = store.getState().panelCloseRevision;
     store.getState().openPanel();
-    t.mock.timers.tick(40);
     store.getState().closePanel();
-    t.mock.timers.tick(duration - 160);
+    const latest = store.getState().panelCloseRevision;
+    store.getState().finishPanelClose(old);
     assert.equal(store.getState().panelMounted, true);
     assert.equal(store.getState().panelClosing, true);
-    t.mock.timers.tick(159);
-    assert.equal(store.getState().panelMounted, true);
-    t.mock.timers.tick(1);
+    store.getState().finishPanelClose(latest);
     assert.equal(store.getState().panelMounted, false);
     assert.equal(store.getState().panelClosing, false);
 });
 
-test('真实侧栏状态库：重开取消卸载，重复打开不保存相同偏好', t => {
-    const { store, duration, writes } = load(t);
+test('真实侧栏状态库：重开取消卸载，重复打开不保存相同偏好', () => {
+    const { store, writes } = load();
     store.getState().openPanel();
     assert.equal(writes.length, 0);
     store.getState().closePanel();
-    t.mock.timers.tick(80);
+    const old = store.getState().panelCloseRevision;
     store.getState().openPanel();
     for (let i = 0; i < 20; i++) store.getState().openPanel();
-    t.mock.timers.tick(duration * 2);
+    store.getState().finishPanelClose(old);
     assert.equal(store.getState().panelOpen, true);
     assert.equal(store.getState().panelMounted, true);
     assert.equal(store.getState().panelClosing, false);
     assert.deepEqual(writes, [['canvas-side-panel-open', '0'], ['canvas-side-panel-open', '1']]);
 });
 
-test('真实侧栏状态库：连续快速切换以最后一次操作为准', t => {
-    const { store, duration } = load(t);
+test('连续快速切换以最后一次操作为准，尺寸非法输入不污染状态', () => {
+    const { store } = load();
     for (let i = 0; i < 21; i++) {
         store.getState().togglePanel();
-        t.mock.timers.tick(8);
     }
     assert.equal(store.getState().panelOpen, false);
-    t.mock.timers.tick(duration);
+    store.getState().finishPanelClose(store.getState().panelCloseRevision);
     assert.equal(store.getState().panelMounted, false);
     store.getState().openPanel();
-    t.mock.timers.tick(duration);
     assert.equal(store.getState().panelMounted, true);
+    store.getState().setWidth(9999); assert.equal(store.getState().width, 480);
+    store.getState().setWidth(0); assert.equal(store.getState().width, 220);
+    store.getState().setWidth(NaN); assert.equal(store.getState().width, 220);
 });

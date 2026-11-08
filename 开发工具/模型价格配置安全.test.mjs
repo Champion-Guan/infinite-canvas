@@ -60,6 +60,22 @@ function fixture({ flush = async () => {}, persist = () => {}, sealConfiguration
   return { api, configStore, promptStore, downloads, payload, events, get writes() { return writes; }, get flushes() { return flushes; } };
 }
 
+test('分类系统提示词与自定义策划角色可导出冷读，旧字段及显式清空保持，拒绝错误类型', () => {
+  const f = fixture(), payload = f.payload();
+  Object.assign(payload.config, { systemPrompt: '旧的公共值', imageSystemPrompt: '', textSystemPrompt: '自定义文本',
+    videoSystemPrompt: '自定义镜头', imagePlanningSystemPrompt: '自定义商品策划背景', audioInstructions: '温暖旁白' });
+  const parsed = f.api.parseConfigFile(payload);
+  const portable = f.api.createPortableAppConfig(parsed.config, parsed.webdav, parsed.promptSources.sources, parsed.promptSources.schedule);
+  const reread = f.api.parseConfigFile(JSON.parse(JSON.stringify(portable)));
+  for (const key of ['systemPrompt', 'imageSystemPrompt', 'textSystemPrompt', 'videoSystemPrompt', 'imagePlanningSystemPrompt', 'audioInstructions'])
+    assert.equal(reread.config[key], payload.config[key]);
+  const legacy = f.payload();
+  for (const key of ['imageSystemPrompt', 'textSystemPrompt', 'videoSystemPrompt', 'imagePlanningSystemPrompt']) delete legacy.config[key];
+  assert.equal(f.api.parseConfigFile(legacy).config.imageSystemPrompt, null);
+  payload.config.imagePlanningSystemPrompt = { wrong: true };
+  assert.throws(() => f.api.parseConfigFile(payload), /invalidFile/);
+});
+
 test('导出剥离三类凭据、模型脚本和未知JSON字段，不改页面原配置', async () => {
   const f = fixture(), cfg = f.configStore.getState().config, dav = f.configStore.getState().webdav;
   cfg.apiKey = 'synthetic-root-secret'; cfg.channels[0].apiKey = 'synthetic-channel-secret'; dav.password = 'synthetic-' + 'webdav-secret';

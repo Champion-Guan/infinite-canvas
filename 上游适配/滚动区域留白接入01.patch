@@ -1,0 +1,13 @@
+diff --git a/web/src/components/agent/agent-canvas-reference-preview.tsx b/web/src/components/agent/agent-canvas-reference-preview.tsx
+index ceebd80..82bb499 100644
+--- a/web/src/components/agent/agent-canvas-reference-preview.tsx
++++ b/web/src/components/agent/agent-canvas-reference-preview.tsx
+@@ -18,7 +18,7 @@ export function AgentCanvasReferencePreview({ reference, previewUrl, previewText
+             {reference.kind === "video" && previewUrl ? <video src={previewUrl} controls preload="metadata" className="max-h-64 w-full rounded-md" /> : null}
+             {reference.kind === "audio" && previewUrl ? <audio src={previewUrl} controls preload="metadata" className="w-full" /> : null}
+             {reference.kind === "text" && previewText ? (
+-                <div className="thin-scrollbar max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-md border px-3 py-2 text-xs leading-5" style={{ borderColor: theme.node.stroke }}>
++                <div className="guan-scroll-region thin-scrollbar max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-md border px-3 py-2 text-xs leading-5" style={{ borderColor: theme.node.stroke }}>
+                     {previewText}
+                 </div>
+             ) : null}

@@ -1,0 +1,17 @@
+diff --git a/web/index.html b/web/index.html
+index 30a655c..c2edccb 100644
+--- a/web/index.html
++++ b/web/index.html
+@@ -8,10 +8,8 @@
+         <title>AI生图工作台</title>
+         <script>
+             try {
+-                // 首屏只跟随系统；正式主题由SQLite预读后恢复，不读取旧浏览器数据。
+-                var t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+-                document.documentElement.classList.toggle("dark", t === "dark");
+-                document.documentElement.style.colorScheme = t;
++                // 读取用户选择前保持启动底色，不能先切系统深色再恢复浅色。
++                document.documentElement.style.colorScheme = "light";
+             } catch (e) {}
+         </script>
+     </head>

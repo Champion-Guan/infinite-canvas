@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 const require = createRequire(new URL('../.运行/3100源/画布副本/web/package.json', import.meta.url));
 const ts = require('typescript');
 function load(name, dependencies = {}) {
+    dependencies = { '../主题/苹果弹窗': { AppleModal: 'Modal' }, ...dependencies };
     const source = readFileSync(new URL('../扩展功能/Excel画布/' + name, import.meta.url), 'utf8');
     const javascript = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
     const module = { exports: {} };
@@ -50,6 +51,7 @@ function backgroundHarness(request) {
     const saves = [], requests = [], uploads = [];
     const ctx = { node, getNode: () => node, updateMetadata(patch) { node = { ...node, metadata: { ...node.metadata, ...patch } }; } };
     const { removeProductMainImageBackground } = load('产品主图去背景.ts', {
+        '../产品配置/模型配置门禁': { requireModelConfigured() {} },
         './产品主图规则': rules,
         '../画布生成/原画布图片调用': { requestCanvasImage: async options => { requests.push(options); await request(options, () => node, value => { node = value; }); } },
         '@/stores/use-config-store': { useConfigStore: { getState: () => ({ config: {}, isAiConfigReady: () => true }) } },

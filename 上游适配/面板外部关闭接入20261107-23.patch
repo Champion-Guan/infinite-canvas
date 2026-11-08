@@ -1,0 +1,12 @@
+diff --git a/web/src/components/canvas/canvas-plugin-manager-modal.tsx b/web/src/components/canvas/canvas-plugin-manager-modal.tsx
+index c185752..0e0328c 100644
+--- a/web/src/components/canvas/canvas-plugin-manager-modal.tsx
++++ b/web/src/components/canvas/canvas-plugin-manager-modal.tsx
+@@ -1,5 +1,6 @@
+ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+-import { App, Button, Input, Modal, Popconfirm, Switch, Tabs } from "antd";
++import { App, Button, Input, Popconfirm, Switch, Tabs } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { AlertTriangle, Download, Puzzle, RefreshCw, Trash2 } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 

@@ -1,0 +1,95 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index c3f007b..8549616 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -10,7 +10,9 @@ import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type
+ import { App, Empty, Input, Popconfirm, Select, Spin, Tag } from "antd";
+ import { useQuery } from "@tanstack/react-query";
+ import { BookOpen, Check, ChevronRight, Download, Eye, FileText, Image as ImageIcon, LayoutGrid, ListChecks, Music2, Plus, RotateCcw, Rows3, Search, Settings2, Square, Trash2, Type, Video } from "lucide-react";
+-import { LayoutGroup, motion, useReducedMotion } from "motion/react";
++import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
++import { SelectionInline, SelectionFooter } from "@/扩展功能/主题/选择模式动效";
++import { APPLE_SURFACE_SPRING } from "@/扩展功能/主题/苹果动效";
+ import { useTranslation } from "react-i18next";
+ 
+ import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
+@@ -211,6 +213,7 @@ function nodePreviewText(node: CanvasNodeData) {
+ 
+ function CanvasNodesTab({ nodes, connections, selectedNodeIds, onFocusNode, onPreviewNode, onHoverNode, theme }: { nodes: CanvasNodeData[]; connections: CanvasConnection[]; selectedNodeIds: Set<string>; onFocusNode: (nodeId: string) => void; onPreviewNode: (nodeId: string) => void; onHoverNode: (nodeId: string | null) => void; theme: CanvasTheme }) {
+     const productActive = useProductActive();
++    const reducedMotion = useReducedMotion();
+     const { message } = App.useApp();
+     const { t } = useTranslation();
+     useSyncExternalStore(subscribeImagePreviews, getImagePreviewRevision);
+@@ -307,7 +310,7 @@ function CanvasNodesTab({ nodes, connections, selectedNodeIds, onFocusNode, onPr
+                     <ListChecks className="size-3.5" />
+                     {selectMode ? t("common.cancel") : t("canvas.sidePanel.select")}
+                 </button>
+-                {selectMode ? null : <Select size="small" variant="borderless" className="w-20" value={typeFilter} onChange={setTypeFilter} options={NODE_FILTER_VALUES.map((value) => ({ value, label: value === "all" ? t("common.all") : t(`canvas.sidePanel.filter.${value}`) }))} />}
++                <AnimatePresence initial={false}>{selectMode ? null : <SelectionInline key="filter" width={80}><Select size="small" variant="borderless" className="w-20" value={typeFilter} onChange={setTypeFilter} options={NODE_FILTER_VALUES.map((value) => ({ value, label: value === "all" ? t("common.all") : t(`canvas.sidePanel.filter.${value}`) }))} /></SelectionInline>}</AnimatePresence>
+                 <button
+                     type="button"
+                     onClick={() => setNodeViewMode(nodeViewMode === "grid" ? "list" : "grid")}
+@@ -347,11 +350,11 @@ function CanvasNodesTab({ nodes, connections, selectedNodeIds, onFocusNode, onPr
+                                     >
+                                         <span className="relative grid aspect-square w-full place-items-center overflow-hidden rounded-md">
+                                             {isImage ? <MediaThumbnail storageKey={node.metadata?.storageKey} fallback={node.metadata?.content} alt={node.title} className="size-full object-cover" /> : <Icon className="size-6 opacity-60" />}
+-                                            {selectMode ? (
+-                                                <span className="absolute left-1 top-1">
++                                            <AnimatePresence initial={false}>{selectMode ? (
++                                                <motion.span key="selection" className="absolute left-1 top-1" initial={{ opacity: 0, scale: .8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .8 }} transition={reducedMotion ? { duration: 0 } : APPLE_SURFACE_SPRING}>
+                                                     <CheckMark checked={isChecked} theme={theme} />
+-                                                </span>
+-                                            ) : null}
++                                                </motion.span>
++                                            ) : null}</AnimatePresence>
+                                             {node.metadata?.status && node.metadata.status !== "idle" ? <span className="absolute right-1 top-1 size-1.5 rounded-full" style={{ background: STATUS_COLOR[node.metadata.status] || "transparent" }} /> : null}
+                                         </span>
+                                         <span className="mt-1 block truncate text-xs font-medium leading-snug">{node.title || getNodeDefinition(node.type)?.title || t("canvas.node.untitled")}</span>
+@@ -388,7 +391,7 @@ function CanvasNodesTab({ nodes, connections, selectedNodeIds, onFocusNode, onPr
+                                         </button>
+                                     ) : null}
+                                     <button type="button" onClick={() => (selectMode ? toggleChecked(node.id) : activateNode(node))} className={cn("flex min-w-0 flex-1 items-center gap-3 py-2 pr-2 text-left", node.type === CanvasNodeType.Group && hasChildren ? "pl-0" : "pl-2")} title={selectMode ? undefined : t("canvas.sidePanel.focusNode")}>
+-                                        {selectMode ? <CheckMark checked={isChecked} theme={theme} /> : null}
++                                        <AnimatePresence initial={false}>{selectMode ? <SelectionInline key="selection" gap={12}><CheckMark checked={isChecked} theme={theme} /></SelectionInline> : null}</AnimatePresence>
+                                         <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-md">
+                                             {isImage ? <MediaThumbnail storageKey={node.metadata?.storageKey} fallback={node.metadata?.content} alt={node.title} className="size-full object-cover" /> : <Icon className="size-5 opacity-60" />}
+                                         </span>
+@@ -413,12 +416,12 @@ function CanvasNodesTab({ nodes, connections, selectedNodeIds, onFocusNode, onPr
+                     <div className="pt-16 text-center text-sm opacity-40">{t("canvas.sidePanel.noNodes")}</div>
+                 )}
+             </div>
+-            {selectMode ? (
+-                <div className="flex items-center gap-2 border-t px-3 py-2.5" style={{ borderColor: theme.toolbar.border }}>
++            <AnimatePresence initial={false}>{selectMode ? (
++                <SelectionFooter key="selection-footer"><div className="flex items-center gap-2 border-t px-3 py-2.5" style={{ borderColor: theme.toolbar.border }}>
+                     <button type="button" onClick={toggleAll} className="rounded-md px-2 py-1 text-xs font-medium opacity-70 transition hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10">
+                         {allChecked ? t("canvas.sidePanel.clearAll") : t("workbench.selectAll")}
+                     </button>
+-                    <span className="text-xs opacity-45">{t("canvas.sidePanel.selected", { count: checked.size })}</span>
++                    <span className="text-xs opacity-45" role="status" aria-live="polite">{t("canvas.sidePanel.selected", { count: checked.size })}</span>
+                     <button
+                         type="button"
+                         onClick={() => void handleExport()}
+@@ -429,16 +432,17 @@ function CanvasNodesTab({ nodes, connections, selectedNodeIds, onFocusNode, onPr
+                         <Download className="size-3.5" />
+                         {t("canvas.exportSelected")}
+                     </button>
+-                </div>
+-            ) : null}
++                </div></SelectionFooter>
++            ) : null}</AnimatePresence>
+         </div>
+     );
+ }
+ 
+ function CheckMark({ checked, theme }: { checked: boolean; theme: CanvasTheme }) {
++    const reduced = useReducedMotion();
+     return (
+-        <span className="grid size-4 shrink-0 place-items-center rounded border transition" style={{ borderColor: checked ? theme.toolbar.activeText : theme.node.stroke, background: checked ? theme.toolbar.activeText : "transparent" }}>
+-            {checked ? <Check className="size-3 text-white" /> : null}
++        <span className="grid size-4 shrink-0 place-items-center rounded border transition-colors" style={{ borderColor: checked ? theme.toolbar.activeText : theme.node.stroke, background: checked ? theme.toolbar.activeText : "transparent" }}>
++            <motion.span initial={false} animate={{ opacity: checked ? 1 : 0, scale: checked || reduced ? 1 : .8 }} transition={reduced ? { duration: 0 } : APPLE_SURFACE_SPRING}><Check className="size-3 text-white" /></motion.span>
+         </span>
+     );
+ }

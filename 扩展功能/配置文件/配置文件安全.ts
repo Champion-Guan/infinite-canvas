@@ -111,6 +111,8 @@ export function parseConfigFile(value: unknown): AppConfigFile {
         const field = input[key], fallback = defaultConfig[key];
         if (Array.isArray(fallback)) {
             if (!Array.isArray(field) || field.some((item) => typeof item !== "string")) invalid();
+        } else if (fallback === null) {
+            if (field !== null && typeof field !== "string") invalid();
         } else if (typeof field !== typeof fallback) invalid();
         Object.assign(config, { [key]: field });
     }

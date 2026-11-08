@@ -1,0 +1,14 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index 8549616..c24b8d8 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -7,7 +7,8 @@ import { panelTransition, useHiddenPanelExit } from "@/扩展功能/主题/侧
+ import { AppleActionButton } from "@/扩展功能/主题/苹果交互按钮";
+ import { sqlitePreferences } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
+-import { App, Empty, Input, Popconfirm, Select, Spin, Tag } from "antd";
++import { App, Empty, Input, Popconfirm, Spin, Tag } from "antd";
++import { OutsideSelect as Select } from "@/扩展功能/主题/原生可关闭浮层";
+ import { useQuery } from "@tanstack/react-query";
+ import { BookOpen, Check, ChevronRight, Download, Eye, FileText, Image as ImageIcon, LayoutGrid, ListChecks, Music2, Plus, RotateCcw, Rows3, Search, Settings2, Square, Trash2, Type, Video } from "lucide-react";
+ import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";

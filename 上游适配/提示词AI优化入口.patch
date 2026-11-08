@@ -1,0 +1,39 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 8126d7f..84a3cae 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -15,6 +15,7 @@ import { CachedConnectionLayer } from "@/扩展功能/画布布局/连线缓存
+ import { ignoreCanvasShortcut } from "@/扩展功能/画布交互/快捷键边界";
+ import { useCanvasImageResults } from "@/扩展功能/媒体交付/图片结果保存操作";
+ import { usePromptTranslation } from "@/扩展功能/画布生成/提示词翻译操作";
++import { usePromptOptimization } from "@/扩展功能/提示词/提示词优化窗口";
+ import { useSinglePromptConfig } from "@/扩展功能/画布生成/单卡配置创建";
+ import { useCanvasImageBatches } from "@/扩展功能/媒体交付/图片批次操作";
+ import { useCanvasMediaDownloads } from "@/扩展功能/媒体交付/画布下载操作";
+@@ -3019,6 +3020,9 @@ function InfiniteCanvasPage() {
+         projectId, nodesRef, connectionsRef, generateNodeRef, effectiveConfig, isAiConfigReady, openConfigDialog,
+         assertImportTarget, setNodes, setConnections, setSelectedNodeIds, message,
+     });
++    const { optimizationTool, optimizationDialog } = usePromptOptimization({
++        productId: projectId, active: productActive, host: pluginHost, assertActive: assertImportTarget,
++    });
+     const handleNodeRetry = useCallback(
+         (node: CanvasNodeData) => {
+             if (node.type === CanvasNodeType.Text && (node.metadata?.textCount || 1) > 1) {
+@@ -3294,7 +3298,7 @@ function InfiniteCanvasPage() {
+                 <CanvasNodeHoverToolbar
+                     node={isNodeDragging || isNodeResizing || nodeImageSettingsOpen || Boolean(referencePickerNodeId) || expandedBatchNodeIds.has(toolbarNode?.id || "") ? null : toolbarNode}
+                     viewport={viewport}
+-                    extraTools={toolbarNode ? buildNodeToolbarItems(toolbarNode) : undefined}
++                    extraTools={toolbarNode ? [...optimizationTool(toolbarNode), ...buildNodeToolbarItems(toolbarNode)] : undefined}
+                     onKeep={keepNodeToolbar}
+                     onLeave={hideNodeToolbar}
+                     onInfo={(node) => setInfoNodeId(node.id)}
+@@ -3400,6 +3404,7 @@ function InfiniteCanvasPage() {
+                 <input ref={imageInputRef} type="file" multiple accept="image/*,.heic,.heif,video/*,audio/mpeg,audio/wav,audio/x-wav,.mp3,.wav" className="hidden" onChange={handleImageInputChange} />
+                 <input ref={contentInputRef} type="file" accept=".zip,application/zip" className="hidden" onChange={event => void importCurrentContents(event.target.files?.[0])} />
+ 
++                {optimizationDialog}
+                 <CanvasNodeInfoModal node={infoNode} open={productActive && Boolean(infoNode)} onClose={() => setInfoNodeId(null)} />
+                 {productFeatures.nodePlugins ? <CanvasPluginManagerModal open={productActive && pluginManagerOpen} onClose={() => setPluginManagerOpen(false)} /> : null}
+ 

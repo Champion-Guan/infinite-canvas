@@ -1,0 +1,11 @@
+diff --git a/web/src/components/layout/prompt-source-content-modal.tsx b/web/src/components/layout/prompt-source-content-modal.tsx
+index 5fc14bd..dc9814e 100644
+--- a/web/src/components/layout/prompt-source-content-modal.tsx
++++ b/web/src/components/layout/prompt-source-content-modal.tsx
+@@ -1,4 +1,5 @@
+-import { App, Button, Empty, Modal, Space, Table, Tag } from "antd";
++import { App, Button, Empty, Space, Table, Tag } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { Copy, FolderPlus, RefreshCw } from "lucide-react";
+ import { useCallback, useEffect, useState } from "react";
+ import { useTranslation } from "react-i18next";

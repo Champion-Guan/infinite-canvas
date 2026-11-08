@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { 根目录 } from './公共.mjs';
 import { 读取SQLite批准, SQLite安全指纹 } from '../上游适配/SQLite全面替换批准.mjs';
+import { 数据服务前态已登记, 数据服务后继SHA256 } from '../上游适配/SQLite数据服务媒体读取后继批准.mjs';
 import { 精确替换, 生成审查差异 } from './检查首批功能适配.mjs';
 
 export const 服务路径 = '扩展功能/本机服务/数据服务.mjs';
@@ -11,6 +12,12 @@ export const 协调路径 = '扩展功能/本机服务/写入协调.mjs';
 const sha = value => createHash('sha256').update(value).digest('hex');
 
 export function 写入协调服务候选(text) {
+  // 当前数据服务后继已经包含写入协调接线；只允许精确登记的源码直接作为内存候选。
+  // 其他“看起来已经接入”的源码必须停止，避免把未知服务当成批准后继。
+  if (text.includes("import { createWriteCoordinator } from './写入协调.mjs';")) {
+    if (sha(text) !== 数据服务后继SHA256) throw Error('已接入写入协调的数据服务不是登记后继，适配锚点不可信，停止预审。');
+    return text;
+  }
   return 精确替换(text, [
     ["import { createServer } from 'node:http';", "import { createServer } from 'node:http';\nimport { createWriteCoordinator } from './写入协调.mjs';"],
     ['rateLimit = 120, now = Date.now } = {})', 'rateLimit = 120, now = Date.now, writeOptions } = {})'],
@@ -47,12 +54,14 @@ export function 写入协调服务候选(text) {
 
 export function 构建写入协调候选() {
   const fingerprint = 读取SQLite批准().自有依赖.find(item => item.文件 === 服务路径)?.SHA256;
-  if (!fingerprint || SQLite安全指纹(根目录, 服务路径) !== fingerprint) throw Error('数据服务前态偏离批准快照，停止预审。');
+  const currentFingerprint = SQLite安全指纹(根目录, 服务路径);
+  if (!fingerprint || !currentFingerprint || !数据服务前态已登记(currentFingerprint)) throw Error('数据服务前态偏离批准快照或未登记后继，停止预审。');
   const before = readFileSync(join(根目录, 服务路径), 'utf8'), gateFingerprint = SQLite安全指纹(根目录, 协调路径);
-  if (sha(before) !== fingerprint || !gateFingerprint) throw Error('候选读取期间源码变化，停止预审。');
+  if (sha(before) !== currentFingerprint || !gateFingerprint) throw Error('候选读取期间源码变化，停止预审。');
   const gateSource = readFileSync(join(根目录, 协调路径), 'utf8');
   if (sha(gateSource) !== gateFingerprint) throw Error('写入协调源码读取期间变化，停止预审。');
-  return new Map([[服务路径, { 原文: before, 产物: 写入协调服务候选(before) }],
+  const candidate = currentFingerprint === 数据服务后继SHA256 ? before : 写入协调服务候选(before);
+  return new Map([[服务路径, { 原文: before, 产物: candidate }],
     [协调路径, { 原文: null, 产物: gateSource }]]);
 }
 

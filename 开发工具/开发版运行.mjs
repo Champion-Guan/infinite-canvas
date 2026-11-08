@@ -1,14 +1,17 @@
 // 开发入口默认3000、占用自动顺延；沿用原数据和后台构建。
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { spawn, execFileSync } from 'node:child_process';
-import { createRequire } from 'node:module';
-import { appendFileSync, closeSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, renameSync, watch, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, watch, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { 核验稳定助手 } from './日常助手部署.mjs';
 import { 装配开发源码 } from './装配开发源码.mjs';
 import { 轮换源码回退 } from './源码回退保留.mjs';
+import { 创建有界运行日志, 创建有界日志流 } from '../扩展功能/本机服务/有界运行日志.mjs';
+import { 检查目录容量 } from '../扩展功能/本机服务/目录容量限制.mjs';
+import { 执行有界构建命令 } from './有界构建进程.mjs';
+import { 读取开发进程身份 } from './开发进程身份.mjs';
 
 const entry = fileURLToPath(import.meta.url), root = dirname(dirname(entry));
 // 根目录业务模块和接入补丁是维护来源；此处仅为可重建的运行输入。
@@ -26,8 +29,7 @@ const readState = () => existsSync(stateFile) ? JSON.parse(readFileSync(stateFil
 function alive(state = readState()) {
   if (!Number.isInteger(state?.pid)) return false;
   try {
-    const command = execFileSync('ps', ['-p', String(state.pid), '-o', 'command='], { encoding: 'utf8' }).trim();
-    const started = execFileSync('ps', ['-p', String(state.pid), '-o', 'lstart='], { encoding: 'utf8' }).trim();
+    const { command, started } = 读取开发进程身份(state.pid);
     return command === state.command && started === state.started;
   } catch { return false; }
 }
@@ -46,27 +48,27 @@ export function 保留开发源码() {
   return output;
 }
 async function createBuild() {
-  const sourceSnapshot = 保留开发源码();
+  // 2026-10-25 用户关闭自动备份；构建不再复制整套源码。显式 snapshot 命令仍可手动使用。
+  const sourceSnapshot = null;
+  检查目录容量(runtime, { maxBytes: 512 * 1024 ** 2, incomingBytes: 64 * 1024 ** 2, reserveBytes: 1024 ** 3 });
   console.log(JSON.stringify({ phase: 'assembled', ...装配开发源码() }));
-  const require = createRequire(join(web, 'package.json'));
-  const { build } = await import(pathToFileURL(require.resolve('vite')).href);
-  const configuration = { root: web, configFile: join(web, 'vite.config.ts'), cacheDir: join(runtime, 'vite-cache'), logLevel: 'warn',
-    // 服务读取并持有上一代内存快照；磁盘仅保留本次可重建产物，避免旧哈希包无限累积。
-    build: { outDir: join(runtime, 'web'), emptyOutDir: true },
-    css: { postcss: { plugins: [require('@tailwindcss/postcss')({ base: join(web, 'src') })] } } };
-  await build(configuration);
+  // 服务保留上一代内存静态包；编译失败或越限后仍能继续提供。
+  try { await 执行有界构建命令(process.execPath, [join(root, '开发工具/构建Web前端.mjs'), '开发', web, join(runtime, 'vite-cache'), join(runtime, 'web')],
+    { budgetDirectory: runtime, maxBytes: 512 * 1024 ** 2, reserveBytes: 1024 ** 3, timeout: 600000 }); }
+  finally { rmSync(join(runtime, 'vite-cache'), { recursive: true, force: true }); }
   return sourceSnapshot;
 }
-function watchBuild(onBuilt, emit) {
+function watchBuild(onBuilt, emit, log) {
   let active = null, pending = false, stopped = false;
   const compile = () => new Promise((done, fail) => {
     // 编译器不持有SQLite、主密钥或端口，编译退出不会带走工作台。
-    const child = spawn(process.execPath, [entry, 'compile'], { cwd: root, stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
-    let snapshot;
-    child.on('message', value => { if (value?.type === 'built') snapshot = value.snapshot; });
+    const child = spawn(process.execPath, [entry, 'compile'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
+    child.stdout.pipe(log, { end: false }); child.stderr.pipe(log, { end: false });
+    let snapshot, built = false;
+    child.on('message', value => { if (value?.type === 'built') { snapshot = value.snapshot; built = true; } });
     child.once('error', fail);
     child.once('exit', (code, signal) => {
-      if (code === 0 && snapshot) done(snapshot);
+      if (code === 0 && built) done(snapshot);
       else fail(Error(`编译器退出：${signal || code}；继续提供上一份成功产物。`));
     });
     active = child;
@@ -105,13 +107,14 @@ function watchBuild(onBuilt, emit) {
 }
 async function host() {
   assert.ok(!alive(), '开发进程已存在');
-  const started = execFileSync('ps', ['-p', String(process.pid), '-o', 'lstart='], { encoding: 'utf8' }).trim();
-  const command = execFileSync('ps', ['-p', String(process.pid), '-o', 'command='], { encoding: 'utf8' }).trim();
+  const { command, started } = 读取开发进程身份(process.pid);
   const state = { pid: process.pid, started, command, origin: null, source: dev, ready: false };
+  const lifecycle = 创建有界运行日志(join(runtime, '生命周期.jsonl'));
+  const log = 创建有界日志流(join(runtime, '开发服务.log'));
   const emit = value => {
     const record = { date: new Date().toISOString(), pid: process.pid, ...value };
-    appendFileSync(join(runtime, '生命周期.jsonl'), JSON.stringify(record) + '\n', { mode: 0o600 });
-    console.log(JSON.stringify(record));
+    lifecycle.write(JSON.stringify(record) + '\n');
+    log.write(JSON.stringify(record) + '\n');
   };
   save(stateFile, state);
   let app, watcher, closing = false;
@@ -131,7 +134,7 @@ async function host() {
       state.builtAt = new Date().toISOString();
       if (app) { app.reloadWebBundle(); state.ready = true; }
       save(stateFile, state); emit({ phase: 'built', snapshot, origin: app?.origin ?? null });
-    }, emit);
+    }, emit, log);
     await watcher.ready();
     const bytes = readFileSync(baselineFile);
     assert.equal(sha(bytes), 'a44877449e31671952933ddd7a1b5e1f3acaa12aa7479a6395d4aa94d104b1ed');
@@ -140,7 +143,9 @@ async function host() {
       import(pathToFileURL(join(dev, '服务包/扩展功能', path)).href)));
     const { startDailyWorkbench } = await import(pathToFileURL(join(dev, '画布副本/扩展功能/本机服务/日常工作台.mjs')).href);
     app = await startDailyWorkbench({ webRoot: join(runtime, 'web'), storage: Object.assign({}, ...storageModules),
-      helperPath: helper.helperPath, helperSHA256: baseline.manifest.helper.sha256, initialize: false });
+      helperPath: helper.helperPath, helperSHA256: baseline.manifest.helper.sha256, initialize: false,
+      // 开发版使用本项目声明的Web版本，不能把上游基线VERSION当作客户安装版本。
+      softwareUpdateOptions: { webPackage: true, currentVersion: JSON.parse(readFileSync(join(root, '开发文档/Web发布版本.json'), 'utf8')).版本 } });
     state.ready = true; state.origin = app.origin; state.workspaceId = app.workspaceId; save(stateFile, state);
     emit({ phase: 'ready', origin: app.origin, workspaceId: app.workspaceId, initialize: false });
   } catch (error) {
@@ -167,9 +172,8 @@ async function stop() {
 }
 async function start() {
   if (alive()) return status();
-  const out = openSync(join(runtime, '开发服务.log'), 'a', 0o600);
-  const child = spawn(process.execPath, [entry, 'host'], { cwd: root, detached: true, stdio: ['ignore', out, out] });
-  child.unref(); closeSync(out);
+  const child = spawn(process.execPath, [entry, 'host'], { cwd: root, detached: true, stdio: 'ignore' });
+  child.unref();
   for (let i = 0; i < 150; i++) {
     await new Promise(done => setTimeout(done, 400));
     const state = readState();

@@ -1,0 +1,51 @@
+diff --git a/web/src/components/canvas/canvas-top-bar.tsx b/web/src/components/canvas/canvas-top-bar.tsx
+index 84ba00c..304400b 100644
+--- a/web/src/components/canvas/canvas-top-bar.tsx
++++ b/web/src/components/canvas/canvas-top-bar.tsx
+@@ -56,11 +56,27 @@ export function CanvasTopBar({
+     const { t } = useTranslation();
+     const theme = canvasThemes[colorTheme];
+     const titleRef = useRef<HTMLDivElement>(null);
++    const menuButtonRef = useRef<HTMLButtonElement>(null);
++    const menuPanelRef = useRef<HTMLDivElement>(null);
+     const productActive = useProductActive();
++    const [menuOpen, setMenuOpen] = useState(false);
+     const [shortcutsOpen, setShortcutsOpen] = useState(false);
+     const sidePanelOpen = useCanvasSidePanelStore((state) => state.panelOpen);
+     const toggleSidePanel = useCanvasSidePanelStore((state) => state.togglePanel);
+ 
++    useEffect(() => {
++        if (!productActive) { setMenuOpen(false); return; }
++        if (!menuOpen) return;
++        const closeOutside = (event: PointerEvent) => {
++            const target = (event.composedPath?.()[0] || event.target) as Node | null;
++            if (target && (menuButtonRef.current?.contains(target) || menuPanelRef.current?.contains(target))) return;
++            setMenuOpen(false);
++        };
++        // 画布的pointerdown会取消兼容鼠标事件，先于拖动接管判断外部点击。
++        window.addEventListener("pointerdown", closeOutside, true);
++        return () => window.removeEventListener("pointerdown", closeOutside, true);
++    }, [menuOpen, productActive]);
++
+     useEffect(() => {
+         if (!isTitleEditing) return;
+         const close = (event: PointerEvent) => {
+@@ -87,6 +103,9 @@ export function CanvasTopBar({
+                     </Tooltip>
+                     <Dropdown
+                         trigger={["click"]}
++                        open={productActive && menuOpen}
++                        onOpenChange={setMenuOpen}
++                        popupRender={menu => <div ref={menuPanelRef} data-canvas-menu>{menu}</div>}
+                         menu={{
+                             items: ([
+                                 { key: "importContents", icon: <Upload className="size-4" />, label: "导入画布内容（ZIP）", onClick: onImportContents },
+@@ -98,7 +117,7 @@ export function CanvasTopBar({
+                             ] satisfies NonNullable<MenuProps["items"]>),
+                         }}
+                     >
+-                        <button type="button" className="guan-apple-glow guan-toolbar-focus grid size-7 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} aria-label={t("canvas.openMenu")}>
++                        <button ref={menuButtonRef} type="button" className="guan-apple-glow guan-toolbar-focus grid size-7 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} aria-label={t("canvas.openMenu")} aria-haspopup="menu" aria-expanded={productActive && menuOpen}>
+                             <Menu className="size-4" />
+                         </button>
+                     </Dropdown>

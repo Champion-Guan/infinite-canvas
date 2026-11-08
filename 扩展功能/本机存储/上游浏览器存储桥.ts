@@ -8,6 +8,7 @@ function shouldSkipStorageRemove(cache: ReadonlyMap<string, string>, failed: Rea
 }
 export interface SQLiteInstance {
     getItem<T>(key: string): Promise<T | null>;
+    keys(): Promise<string[]>;
     setItem<T>(key: string, value: T): Promise<T>;
     removeItem(key: string): Promise<unknown>;
     removeItems(keys: string[]): Promise<unknown>;
@@ -34,7 +35,9 @@ let runtime: SQLiteRuntime | null = null;
 let appState: SQLiteInstance, preferencesStore: SQLiteInstance;
 const stateCache = new Map<string, string>(), preferencesCache = new Map<string, string>(), sessionCache = new Map<string, string>();
 const writes = new Set<Promise<unknown>>(), failed = new Map<string, unknown>();
-const scheduled = new Map<string, { value: string; queuedAt: number; timer: ReturnType<typeof setTimeout>; resolve: () => void; reject: (reason: unknown) => void; promise: Promise<void> }>();
+type StateSaveValue = string | (() => string);
+const scheduled = new Map<string, { value: StateSaveValue; queuedAt: number; timer: ReturnType<typeof setTimeout>; resolve: () => void; reject: (reason: unknown) => void; promise: Promise<void> }>();
+const encodingFailures = new Map<string, StateSaveValue>();
 const activeSaves = new Set<string>();
 let retryFlight: Promise<void> | null = null;
 let reconnecting = false, reconnectError: string | null = null;
@@ -49,7 +52,7 @@ export function storageStatus() {
     const current = runtime?.getStatus();
     const codes = [...(current?.failures?.map(item => item.code) ?? []), ...[...failed.values()].map(error => (error as { code?: string } | null)?.code)];
     return { state: failed.size || current?.state === "error" ? "error" : writes.size || scheduled.size || current?.pending ? "saving" : current?.state === "idle" && stateCache.size > 0 ? "saved" : current?.state ?? "idle",
-        pending: Math.max(writes.size, current?.pending ?? 0) + scheduled.size, retrying: !!retryFlight || !!current?.retrying,
+        pending: Math.max(writes.size, current?.pending ?? 0) + scheduled.size + encodingFailures.size, retrying: !!retryFlight || !!current?.retrying,
         conflict: codes.includes("revision_conflict"), reconnectRequired: codes.some(code => SESSION_RECOVERY_ERRORS.has(code ?? "")), reconnecting,
         failure: current?.failures?.[0] ?? null,
         reconnectError: reconnectError ?? codes.find(code => AUTHORIZATION_END_ERRORS.has(code ?? "")) ?? null };
@@ -145,13 +148,31 @@ export const sqliteForage = { createInstance(options: { name?: string; storeName
 function startScheduled(key: string) {
     const entry = scheduled.get(key); if (!entry || activeSaves.has(key)) return;
     clearTimeout(entry.timer); scheduled.delete(key); activeSaves.add(key);
-    const finish = () => { activeSaves.delete(key); startScheduled(key); };
+    const finish = () => { activeSaves.delete(key); startScheduled(key); statusChanged(); };
+    let value: string;
+    try {
+        // 合并不可变快照后才编码，避免每次编辑遍历整份产品数据。
+        value = typeof entry.value === "function" ? entry.value() : entry.value;
+        entry.value = value;
+        encodingFailures.delete(key); failed.delete("encode:" + key);
+    } catch (error) {
+        encodingFailures.set(key, entry.value); failed.set("encode:" + key, error);
+        finish(); entry.reject(error); return;
+    }
     // 只合并尚未发送的完整快照；在途及失败操作保留原恢复队列和operationId。
-    sqliteStateStorage.setItem(key, entry.value).then(() => { finish(); entry.resolve(); }, error => { finish(); entry.reject(error); });
+    let write: Promise<void>;
+    try { write = sqliteStateStorage.setItem(key, value); }
+    catch (error) {
+        encodingFailures.set(key, value); failed.set("state:" + key, error);
+        finish(); entry.reject(error); return;
+    }
+    write.then(() => { finish(); entry.resolve(); }, error => { finish(); entry.reject(error); });
 }
-export function scheduleStateSave(key: string, value: string) {
+export function scheduleStateSave(key: string, value: StateSaveValue) {
     ready();
-    if (!scheduled.has(key) && shouldSkipStorageWrite(stateCache, failed, key, value, "state:" + key)) return Promise.resolve();
+    if (!scheduled.has(key) && !encodingFailures.has(key) && typeof value === "string" && shouldSkipStorageWrite(stateCache, failed, key, value, "state:" + key)) return Promise.resolve();
+    // 新编辑替代尚未编码成功的旧候选；错误标记等新候选编码成功后再清除。
+    encodingFailures.delete(key);
     const existing = scheduled.get(key);
     // 空闲时短暂停笔80ms提交，持续输入最迟250ms启动；在途期间只保留最新候选。
     if (existing) { existing.value = value; clearTimeout(existing.timer); existing.timer = setTimeout(() => startScheduled(key), Math.max(0, Math.min(80, 250 - (performance.now() - existing.queuedAt)))); return existing.promise; }
@@ -172,8 +193,10 @@ function retryStorage(reconnect: boolean): Promise<void> {
     if (!retryFlight) {
         reconnecting = reconnect; reconnectError = null;
         retryFlight = (async () => {
+            for (const [key, value] of encodingFailures) scheduleStateSave(key, value);
             for (const key of [...scheduled.keys()]) startScheduled(key);
             await Promise.allSettled([...writes]);
+            if (encodingFailures.size) throw new Error("画布内容编码失败，编辑仍保留在当前页面，请重试保存。");
             const reconnectOnce = async () => {
                 if (isConflict(app)) throw new Error("存在版本冲突，不能通过重新连接覆盖。");
                 if (typeof window.__guanSQLiteHost?.reconnect !== "function") throw new Error("保留页面重新连接协议不可用。");
@@ -213,7 +236,7 @@ function retryStorage(reconnect: boolean): Promise<void> {
             // 重试期间用户仍可能编辑；这些新操作也必须收到ACK，不能只清掉旧错误。
             for (const key of [...scheduled.keys()]) startScheduled(key);
             await Promise.allSettled([...writes]); await app.flush();
-            if (writes.size || scheduled.size || app.getStatus().state === "error" || app.getStatus().pending) throw new Error("仍有未确认编辑，请勿关闭或刷新。");
+            if (writes.size || scheduled.size || encodingFailures.size || app.getStatus().state === "error" || app.getStatus().pending) throw new Error("仍有未确认编辑，请勿关闭或刷新。");
             failed.clear(); reconnectError = null;
         })();
         retryFlight.then(() => { retryFlight = null; reconnecting = false; statusChanged(); }, () => { retryFlight = null; reconnecting = false; statusChanged(); });

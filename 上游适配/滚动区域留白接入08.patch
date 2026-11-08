@@ -1,0 +1,31 @@
+diff --git a/web/src/components/agent/agent-log-view.tsx b/web/src/components/agent/agent-log-view.tsx
+index a9ab314..213021b 100644
+--- a/web/src/components/agent/agent-log-view.tsx
++++ b/web/src/components/agent/agent-log-view.tsx
+@@ -160,7 +160,7 @@ export function AgentLogView({
+                             <LogActions logs={logs} lastError={lastError} onClear={onClear} onCopy={(value, tip) => void copy(value, tip)} context={context} />
+                         </div>
+                         <div className="relative min-h-0 flex-1">
+-                            <div ref={listRef} tabIndex={0} aria-label={t("agent.logs.list")} className="thin-scrollbar h-full overflow-y-auto border-y focus-visible:outline-none" style={{ borderColor: theme.node.stroke }} onScroll={updateScrollState}>
++                            <div ref={listRef} tabIndex={0} aria-label={t("agent.logs.list")} className="guan-scroll-region thin-scrollbar h-full overflow-y-auto border-y focus-visible:outline-none" style={{ borderColor: theme.node.stroke }} onScroll={updateScrollState}>
+                                 {visibleLogs.map((item, index) => (
+                                     <LogRow key={item.id} item={item} theme={theme} onToggle={index === visibleLogs.length - 1 ? handleLastLogToggle : undefined} />
+                                 ))}
+@@ -193,7 +193,7 @@ export function AgentLogView({
+                             ref={textareaRef}
+                             readOnly
+                             value={content}
+-                            className="thin-scrollbar min-h-0 flex-1 resize-none rounded-md border bg-transparent p-3 font-mono text-xs leading-5 outline-none"
++                            className="guan-scroll-field thin-scrollbar min-h-0 flex-1 resize-none rounded-md border bg-transparent p-3 font-mono text-xs leading-5 outline-none"
+                             style={{ borderColor: theme.node.stroke, color: theme.node.text }}
+                             onFocus={(event) => event.currentTarget.select()}
+                         />
+@@ -255,7 +255,7 @@ function LogRow({ item, theme, onToggle }: { item: DisplayLog; theme: (typeof ca
+                 <div className="mb-1 text-[10px] font-medium" style={{ color: theme.node.faint }}>
+                     {t("agent.logs.details")}
+                 </div>
+-                <pre className="thin-scrollbar max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md border p-2.5 font-mono text-[11px] leading-5" style={{ borderColor: theme.node.stroke, background: theme.node.panel, color: theme.node.text }}>
++                <pre className="guan-scroll-region thin-scrollbar max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md border p-2.5 font-mono text-[11px] leading-5" style={{ borderColor: theme.node.stroke, background: theme.node.panel, color: theme.node.text }}>
+                     {item.detail}
+                 </pre>
+             </div>

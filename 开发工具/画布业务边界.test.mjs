@@ -19,6 +19,7 @@ async function load(name, dependencies) {
   const module = { exports: {} };
   new Function('require', 'module', 'exports', code)(id => {
     if (id === '../软件更新/升级页面状态.mjs') return upgradePage;
+    if (id === './画布驻留保护') return { productCanvasResidency: { changed() {}, register() { return () => {}; } } };
     assert.ok(Object.hasOwn(dependencies, id), '未注入依赖：' + id);
     return dependencies[id];
   }, module, module.exports);
@@ -143,12 +144,15 @@ async function batchModule(generationParameters = { promptGenerationPatch: () =>
     react: hooks, '@/types/canvas': { CanvasNodeType: { Config: 'config', Text: 'text', Image: 'image', Video: 'video', Audio: 'audio' } },
     '@/constant/canvas': { getNodeSpec: () => ({ width: 100, height: 80 }) },
     '@/lib/canvas/canvas-node-factory': { createCanvasNode: (type, position, metadata) => ({ id: 'new-config', type, position, width: 100, height: 80, metadata: { status: 'idle', ...metadata } }) },
-    '@/lib/canvas/canvas-generation-helpers': { getGenerationCount: value => value || 1 },
+    '@/lib/canvas/canvas-generation-helpers': { getGenerationCount: value => value || 1, buildGenerationConfig: () => ({ model: 'local-test' }) },
     nanoid: { nanoid: () => 'edge' },
-    './生成参数继承': generationParameters,
+    './生成参数继承': { generationNodeForExecution: node => node, ...generationParameters },
+    '../产品配置/模型配置门禁': { ensureModelConfigured: () => true },
+    '../Excel画布/商品提示词阻止反馈': variants.load('Excel画布/商品提示词阻止反馈.ts'),
     '../安全与批量/prompt-generation-mode': { promptGenerationMode: () => 'image' },
     '../安全与批量/settle-activity-group': { settleActivityGroup: values => Promise.all(values) },
     '../画布布局/卡片自动避让': { placeCanvasNode: node => node },
+    '../画布布局/生成配置水平排布': variants.load('画布布局/生成配置水平排布.ts'),
     '../画布布局/批量结果排布': columns,
     './批量保存协调': batchSave,
     './产品变体生成': variants.load('画布生成/产品变体生成.ts'),
@@ -183,17 +187,19 @@ test('只补齐Excel提示词配置与连线不执行生成，也不把产品胶
 });
 test('批量生图全部并行，失败继续，运行中卡片跳过且重复点击不重复排队', async () => {
   const { useCanvasBatchGeneration } = await batchModule();
-  const gates = [], calls = [], warnings = [], placements = [];
+  const gates = [], calls = [], warnings = [], placements = [], notices = [];
   let active = 0, peak = 0;
   const nodesRef = { current: Array.from({ length: 6 }, (_, index) => ({ id: String(index), type: 'config', position: { x: 0, y: index * 400 }, width: 340, height: 240, metadata: { generationMode: 'image' } })) };
   nodesRef.current.push({ id: 'busy', type: 'config', metadata: { status: 'loading' } });
   const api = useCanvasBatchGeneration({ projectId: 'product', nodesRef, connectionsRef: { current: [] }, effectiveConfig: {},
     handleGenerateNode: async (id, _mode, _prompt, placement) => { placements.push(placement); calls.push(id); peak = Math.max(peak, ++active); await new Promise(done => gates.push(done)); active--; if (id === '1') throw Error('单项失败'); },
-    message: { info: () => {}, warning: text => warnings.push(text) },
+    message: { info: text => notices.push(text), warning: text => warnings.push(text) },
   });
   const first = api.generateAllConfigNodes();
   await api.generateAllConfigNodes();
   assert.equal(calls.length, 6);
+  assert.match(notices[0], /6 个生图任务.*全部并行提交/);
+  assert.doesNotMatch(notices[0], /最多同时|视频|音频|文本/);
   while (calls.length < 6) { gates.shift()(); await new Promise(done => setImmediate(done)); }
   while (gates.length) gates.shift()();
   await first;

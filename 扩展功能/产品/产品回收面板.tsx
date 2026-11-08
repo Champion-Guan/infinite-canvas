@@ -1,5 +1,6 @@
 import { useId, useRef, useState, type ReactNode } from "react";
-import { Modal } from "antd";
+import { AnimatePresence } from "motion/react";
+import { AppleModal as Modal } from "../主题/苹果弹窗";
 import { retrySQLiteStorage } from "../本机存储/上游浏览器存储桥";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useProductNavigation } from "./产品操作";
@@ -17,7 +18,7 @@ export function LegacyProductDialog({ title, busy, onClose, children }: {
 }) {
   const dark = useThemeStore((state) => state.theme === "dark");
   return <Modal open title={title} footer={null} closable={false} maskClosable={!busy}
-    keyboard={!busy} onCancel={onClose} width="auto" centered transitionName="" maskTransitionName=""
+    keyboard={!busy} onCancel={onClose} width="auto" centered
     className={styles.legacyModal} styles={{ container: { padding: 0, background: "transparent", boxShadow: "none" }, mask: { background: dark ? "rgba(0,0,0,.48)" : "rgba(9,10,12,.32)", backdropFilter: "blur(8px)" } }}
     modalRender={() => <div className={styles.root}>{children}</div>}
   />;
@@ -42,7 +43,7 @@ export function ProductDeleteDialog({ id, name, onClose }: { id: string; name: s
     finally { submitting.current = false; setRetrying(false); }
   }
   return <LegacyProductDialog title={`删除「${name}」及对应画布？`} busy={busy || retrying} onClose={onClose}>
-    <section className="guan-dc-confirm-card guan-motion-panel" role="document" aria-labelledby={title}>
+    <section className="guan-dc-confirm-card" role="document" aria-labelledby={title}>
       <div className="guan-dc-confirm-icon" aria-hidden="true"><ProductTrashIcon /></div>
       <div className="guan-dc-confirm-copy">
         <h2 id={title}>删除「{name}」及对应画布？</h2>
@@ -77,8 +78,8 @@ export function ProductTrashEntry({ variant = "icon" }: { variant?: "icon" | "te
   }
   return <>
     <button type="button" data-empty-action={variant === "text" ? "trash" : undefined} disabled={busy} title="产品回收站" aria-label="产品回收站" onClick={() => setOpen(true)}>{variant === "text" ? "产品回收站" : <ProductTrashIcon />}</button>
-    {open ? <LegacyProductDialog title="产品回收站" busy={busy || retrying} onClose={() => setOpen(false)}>
-      <section className="guan-dc-confirm-card guan-product-trash-card guan-motion-panel" role="document" aria-labelledby={title}>
+    <AnimatePresence>{open ? <LegacyProductDialog key="product-trash" title="产品回收站" busy={busy || retrying} onClose={() => setOpen(false)}>
+      <section className="guan-dc-confirm-card guan-product-trash-card" role="document" aria-labelledby={title}>
         <h2 id={title}>产品回收站</h2>
         <p>恢复产品会同时恢复对应画布；已生成文件仍保留。</p>
         <div className="guan-product-trash-list">
@@ -93,6 +94,6 @@ export function ProductTrashEntry({ variant = "icon" }: { variant?: "icon" | "te
           <button type="button" disabled={busy || retrying} onClick={() => setOpen(false)}>关闭</button>
         </div>
       </section>
-    </LegacyProductDialog> : null}
+    </LegacyProductDialog> : null}</AnimatePresence>
   </>;
 }

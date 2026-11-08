@@ -4,7 +4,7 @@ import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { CanvasNodeContext } from "@/types/canvas-plugin";
 import type { CanvasNodeMetadata } from "@/types/canvas";
-import { promptVariableTokens, completePromptVariableValues, variableLabel, productVariableTokens, productPlatformRules, PRODUCT_LANGUAGE_OPTIONS, PRODUCT_PLATFORM_OPTIONS, WILDBERRIES_LANGUAGE, WILDBERRIES_PLATFORM, WILDBERRIES_RULES_TEXT } from "./旧版参数规则";
+import { promptVariableTokens, completePromptVariableValues, variableLabel, productVariableTokens, productPlatformRules, defaultProductLanguage, PRODUCT_LANGUAGE_OPTIONS, PRODUCT_PLATFORM_OPTIONS, WILDBERRIES_LANGUAGE, WILDBERRIES_PLATFORM, WILDBERRIES_RULES_TEXT } from "./旧版参数规则";
 import { useExcelProductId, useExcelPromptContext } from "./Excel画布上下文";
 import { restoreProductParameterValues } from "./Excel参数记忆";
 import { useProductParameterEditing } from "./产品参数编辑操作";
@@ -36,7 +36,7 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
 
     const { updateValue, updateSupplement, updateBrief, updateMetadata } = useProductParameterEditing(ctx, productId, tokens);
     const platform = cardMetadata.productPlatform || WILDBERRIES_PLATFORM;
-    const language = cardMetadata.productLanguage ?? (platform === WILDBERRIES_PLATFORM ? WILDBERRIES_LANGUAGE : "");
+    const language = cardMetadata.productLanguage ?? defaultProductLanguage(platform);
 
     useEffect(() => {
         const node = ctx.getNode(ctx.node.id);
@@ -54,7 +54,7 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
 
     useEffect(() => {
         const platform = cardMetadata.productPlatform || WILDBERRIES_PLATFORM;
-        const language = cardMetadata.productLanguage ?? (platform === WILDBERRIES_PLATFORM ? WILDBERRIES_LANGUAGE : "");
+        const language = cardMetadata.productLanguage ?? defaultProductLanguage(platform);
         const rules = productPlatformRules({ productPlatform: platform, productPlatformRules: cardMetadata.productPlatformRules } as CanvasNodeMetadata);
         const patch: ProductCardMetadata = {};
         if (cardMetadata.productPlatform !== platform) patch.productPlatform = platform;
@@ -64,7 +64,7 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
     }, [cardMetadata.productLanguage, cardMetadata.productPlatform, cardMetadata.productPlatformRules, updateMetadata]);
 
     const selectPlatform = (platform: string) => {
-        const language = platform === WILDBERRIES_PLATFORM ? WILDBERRIES_LANGUAGE : (cardMetadata.productLanguage || "");
+        const language = defaultProductLanguage(platform);
         updateMetadata({
             productPlatform: platform,
             productLanguage: language,
@@ -92,7 +92,7 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
                 <ProductPlanningButton ctx={ctx} productId={productId} />
             </div>
 
-            <div className="thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+            <div className="guan-scroll-region thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
             <section className="space-y-2 rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
                 <div className="grid grid-cols-2 gap-2">
                     <div className="block text-[11px]">
@@ -127,13 +127,13 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
             <label className="block text-[11px]">
                 <span className="mb-1 block font-medium">提示词补充</span>
                 <textarea aria-label="提示词补充" value={metadata.promptVariableSupplement || ""} onChange={(event) => updateSupplement(event.target.value)} rows={4}
-                    className="min-h-24 w-full resize-y rounded-lg border bg-transparent px-2 py-2 text-xs outline-none focus:ring-2 focus:ring-stone-300/70 dark:focus:ring-stone-500/50"
+                    className="guan-scroll-field min-h-24 w-full resize-y rounded-lg border bg-transparent px-2 py-2 text-xs outline-none focus:ring-2 focus:ring-stone-300/70 dark:focus:ring-stone-500/50"
                     style={{ borderColor: theme.node.stroke, color: theme.node.text }} placeholder="输入任意补充内容，将追加到所有连线提示词的末尾" />
                 <span className="mt-1 block text-[10px] opacity-55">仅应用于本参数卡连接的提示词；清空即可取消补充。</span>
             </label>
 
             </div>
-            <div className="mt-2 truncate text-[10px] opacity-55">{context.fileName || "未识别 Excel"} · {tokens.length} 个变量 · 连接提示词卡片后生成最终提示词</div>
+            <div className="mt-2 truncate text-[10px] opacity-55">{context.fileName || "未识别 Excel"} · {tokens.length} 个变量{tokens.length ? " · 连接提示词卡片后生成最终提示词" : ""}</div>
         </div>
     );
 }

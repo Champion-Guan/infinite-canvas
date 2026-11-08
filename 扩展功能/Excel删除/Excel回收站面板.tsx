@@ -1,4 +1,5 @@
 import { useId, useRef, useState } from "react";
+import { AnimatePresence } from "motion/react";
 import { retrySQLiteStorage } from "../本机存储/上游浏览器存储桥";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useProductNavigation } from "../产品/产品操作";
@@ -41,7 +42,7 @@ export function ExcelRecycleBinEntry({ disabled = false, onOpen }: { disabled?: 
       aria-label={`Excel回收站${entries.length ? `，${entries.length}项` : ""}`} onClick={() => { setError(""); onOpen?.(); setOpen(true); }}>
       <span className="guan-dc-file-option-label"><ProductTrashIcon /> Excel回收站{entries.length ? `（${entries.length}）` : ""}</span>
     </button>
-    {open ? <LegacyProductDialog title="Excel回收站" busy={locked} onClose={() => setOpen(false)}>
+    <AnimatePresence>{open ? <LegacyProductDialog key="workbook-trash" title="Excel回收站" busy={locked} onClose={() => setOpen(false)}>
       <section className="guan-dc-confirm-card guan-product-trash-card guan-excel-recycle-card" role="document" aria-labelledby={title}>
         <div className="guan-excel-recycle-heading"><ProductTrashIcon /><div><h2 id={title}>Excel回收站</h2><p>删除的 Excel 工作簿会保留在这里，恢复后产品、画布和任务记录会一起回来。</p></div></div>
         <div className="guan-product-trash-list">
@@ -64,6 +65,6 @@ export function ExcelRecycleBinEntry({ disabled = false, onOpen }: { disabled?: 
           <button type="button" disabled={locked} onClick={() => setOpen(false)}>关闭</button>
         </div>
       </section>
-    </LegacyProductDialog> : null}
+    </LegacyProductDialog> : null}</AnimatePresence>
   </>;
 }

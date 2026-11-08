@@ -1,0 +1,25 @@
+diff --git a/web/src/services/api/video.ts b/web/src/services/api/video.ts
+index de1f9bf..fad6b10 100644
+--- a/web/src/services/api/video.ts
++++ b/web/src/services/api/video.ts
+@@ -1,3 +1,4 @@
++import { requireModelConfigured } from "@/扩展功能/产品配置/模型配置门禁";
+ import { requireGenerationMode } from "@/扩展功能/产品配置/精简与离线策略";
+ import { 本地转发Axios as axios, 本地转发请求 as fetch } from "@/扩展功能/网络代理/本地转发请求";
+ import { nanoid } from "nanoid";
+@@ -71,6 +72,7 @@ function videoTaskFailed(message: string) {
+ }
+ 
+ export async function createVideoGenerationTask(config: AiConfig, prompt: string, references: ReferenceImage[] = [], options?: VideoMediaOptions): Promise<VideoGenerationTask> {
++    requireModelConfigured(config, "video", config.model || config.videoModel);
+     requireGenerationMode("video");
+     const selectedModel = (config.model || config.videoModel).trim();
+     const requestConfig = resolveModelRequestConfig(config, selectedModel);
+@@ -82,6 +84,7 @@ export async function createVideoGenerationTask(config: AiConfig, prompt: string
+ }
+ 
+ export async function pollVideoGenerationTask(config: AiConfig, task: VideoGenerationTask, options?: RequestOptions): Promise<VideoGenerationTaskState> {
++    requireModelConfigured(config, "video", task.model);
+     if (task.provider === "plugin") {
+         const result = pluginVideoResults.get(task.id);
+         return result ? { status: "completed", result } : { status: "failed", error: apiText("pluginVideoExpired") };

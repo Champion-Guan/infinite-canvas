@@ -13,8 +13,19 @@ function progress(p: Point, route: readonly Point[]) {
     return result;
 }
 
+export const MAX_FLOW_PARTICLES = 96;
+export function connectionFlowBudget(total: number, segmentCount: number) {
+    const distance = Number.isFinite(total) ? Math.max(180, total) : 180;
+    // 每个圆点包含两个SMIL动画。复杂网络保留完整高亮，降低粒子密度，
+    // 超过预算时暂停装饰粒子，不改变路线、分叉时序或鼠标命中。
+    const count = segmentCount > 0 && segmentCount <= MAX_FLOW_PARTICLES
+        ? Math.min(12, Math.max(1, Math.floor(distance / 180)), Math.floor(MAX_FLOW_PARTICLES / segmentCount)) : 0;
+    return { count, duration: Math.max(1.2, distance / 100) };
+}
+
 // 唯一线段组成有向网络。汇合取最长到达时间；短分支延后发车，所有分支保持相同速度。
 export function sharedNetworkFlow(geometry: readonly ConnectionGeometry[], topology: readonly ConnectionGeometry[] = geometry) {
+    if (!geometry.length) return { total: 180, segments: [] };
     const byId=new Map(geometry.map(item=>[item.connection.id,item]));
     const edges=mergeSharedConnectionSegments(geometry, topology).map(segment=>{
         const values=segment.d.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi)?.map(Number)??[];

@@ -1,0 +1,12 @@
+diff --git a/web/src/components/agent/agent-skills-view.tsx b/web/src/components/agent/agent-skills-view.tsx
+index ad59bdf..35f8406 100644
+--- a/web/src/components/agent/agent-skills-view.tsx
++++ b/web/src/components/agent/agent-skills-view.tsx
+@@ -1,5 +1,6 @@
+ import { useEffect, useMemo, useRef, useState } from "react";
+-import { App, Button, Collapse, Form, Input, Modal, Switch, Tooltip } from "antd";
++import { App, Button, Collapse, Form, Input, Switch, Tooltip } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { OutsideDropdown as Dropdown, OutsideSelect as Select } from "@/扩展功能/主题/原生可关闭浮层";
+ import type { MenuProps } from "antd";
+ import { Check, ChevronDown, CircleAlert, FilePenLine, LoaderCircle, LockKeyhole, MessageSquareText, Plus, RefreshCw, Search, Sparkles, Trash2, Workflow } from "lucide-react";

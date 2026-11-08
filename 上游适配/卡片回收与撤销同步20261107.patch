@@ -1,0 +1,113 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 89f5793..597c0d7 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -27,6 +27,7 @@ import { canStartVariantGeneration, productVariantResult } from "@/扩展功能/
+ import { buildProductGenerationContext, productPromptInputSummary } from "@/扩展功能/画布生成/商品提示词生成";
+ import { pulseProductPromptWarning } from "@/扩展功能/Excel画布/商品提示词阻止反馈";
+ import { useCanvasNodeRecycle } from "@/扩展功能/画布回收/节点回收操作";
++import type { CanvasHistorySnapshot } from "@/扩展功能/扩展边界/画布历史接口";
+ import { useCanvasNodeDeletion } from "@/扩展功能/画布回收/节点删除操作";
+ import { useCanvasContentImport } from "@/扩展功能/画布导入/当前画布导入操作";
+ import { useCanvasTaskReceipts } from "@/扩展功能/画布生成/生成任务回执操作";
+@@ -168,9 +169,7 @@ type ConnectionDropTarget = {
+     isNearNode: boolean;
+ };
+ 
+-type CanvasHistoryEntry = {
+-    nodes: CanvasNodeData[];
+-    connections: CanvasConnection[];
++type CanvasHistoryEntry = CanvasHistorySnapshot & {
+     chatSessions: CanvasAssistantSession[];
+     activeChatId: string | null;
+     backgroundMode: CanvasBackgroundMode;
+@@ -181,6 +180,7 @@ const VIDEO_NODE_MAX_WIDTH = 420;
+ const VIDEO_NODE_MAX_HEIGHT = 420;
+ // Stable empty reference array prevents `... || []` from invalidating CanvasNode's React.memo on every render.
+ const EMPTY_REFERENCES: CanvasResourceReference[] = [];
++const EMPTY_DELETED_NODE_BATCHES: NonNullable<CanvasHistorySnapshot["deletedNodeBatches"]> = [];
+ const CONNECTION_HANDLE_HIT_RADIUS = 40;
+ const CONNECTION_NODE_HIT_PADDING = 32;
+ const NODE_STATUS_IDLE = "idle" as const;
+@@ -280,6 +280,7 @@ function InfiniteCanvasPage() {
+     const updateProject = useCanvasStore((state) => state.updateProject);
+     const renameProject = useCanvasStore((state) => state.renameProject);
+     const currentProject = useCanvasStore((state) => state.projects.find((project) => project.id === projectId)) || retiringSnapshot || undefined;
++    const deletedNodeBatches = currentProject?.deletedNodeBatches ?? EMPTY_DELETED_NODE_BATCHES;
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+     const { nodes, nodesRef, nodeTransactionRef, getCurrentNode, setRawNodes, setNodes } = useCanvasNodeTransactions();
+     const [connections, setConnections] = useState<CanvasConnection[]>([]);
+@@ -376,12 +377,13 @@ function InfiniteCanvasPage() {
+         (): CanvasHistoryEntry => ({
+             nodes: nodesRef.current,
+             connections: connectionsRef.current,
++            deletedNodeBatches: useCanvasStore.getState().openProject(projectId)?.deletedNodeBatches ?? EMPTY_DELETED_NODE_BATCHES,
+             chatSessions,
+             activeChatId,
+             backgroundMode,
+             showImageInfo,
+         }),
+-        [activeChatId, backgroundMode, chatSessions, showImageInfo],
++        [activeChatId, backgroundMode, chatSessions, projectId, showImageInfo],
+     );
+     const beforeCanvasRelease = useCallback(async () => {
+         if (titleEditing || cropNodeId || maskEditNodeId || splitNodeId || upscaleNodeId || angleNodeId || pluginManagerOpen || assetPickerOpen || applyingHistoryRef.current)
+@@ -545,6 +547,7 @@ function InfiniteCanvasPage() {
+         if (!project) throw Error("原产品已移除，未恢复过期画布。");
+         const dormant = matchingDormantProduct(savedDormant, {
+             nodes: project.nodes, connections: project.connections, chatSessions: project.chatSessions || [],
++            deletedNodeBatches: project.deletedNodeBatches ?? EMPTY_DELETED_NODE_BATCHES,
+             activeChatId: project.activeChatId || null, backgroundMode: project.backgroundMode, showImageInfo: project.showImageInfo ?? true,
+         }, project.updatedAt);
+         if (cancelled) return;
+@@ -565,6 +568,7 @@ function InfiniteCanvasPage() {
+             lastHistoryRef.current = {
+                 nodes: restoredNodes,
+                 connections: project.connections,
++                deletedNodeBatches: project.deletedNodeBatches ?? EMPTY_DELETED_NODE_BATCHES,
+                 chatSessions: restoredSessions,
+                 activeChatId: project.activeChatId || null,
+                 backgroundMode: project.backgroundMode,
+@@ -623,6 +627,7 @@ function InfiniteCanvasPage() {
+         if (
+             previous?.nodes === next.nodes &&
+             previous.connections === next.connections &&
++            previous.deletedNodeBatches === next.deletedNodeBatches &&
+             previous.chatSessions === next.chatSessions &&
+             previous.activeChatId === next.activeChatId &&
+             previous.backgroundMode === next.backgroundMode &&
+@@ -648,7 +653,7 @@ function InfiniteCanvasPage() {
+                 historyCommitTimerRef.current = null;
+             }
+         };
+-    }, [activeChatId, backgroundMode, chatSessions, connections, createHistoryEntry, nodes, projectLoaded, showImageInfo]);
++    }, [activeChatId, backgroundMode, chatSessions, connections, createHistoryEntry, deletedNodeBatches, nodes, projectLoaded, showImageInfo]);
+ 
+     useCanvasPersistence({
+         projectId, nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport,
+@@ -1202,6 +1207,9 @@ function InfiniteCanvasPage() {
+             historyCommitTimerRef.current = null;
+         }
+         applyingHistoryRef.current = true;
++        const snapshot = { ...entry, deletedNodeBatches: entry.deletedNodeBatches ?? EMPTY_DELETED_NODE_BATCHES };
++        // 画布与回收站同步发布，撤销恢复后节点仍可从原批次找回。
++        updateProject(projectId, snapshot);
+         setRawNodes(entry.nodes);
+         connectionsRef.current = entry.connections;
+         setConnections(entry.connections);
+@@ -1212,12 +1220,12 @@ function InfiniteCanvasPage() {
+         setSelectedNodeIds(new Set());
+         setSelectedConnectionId(null);
+         setContextMenu(null);
++        lastHistoryRef.current = snapshot;
++        setHistoryState({ canUndo: historyRef.current.past.length > 0, canRedo: historyRef.current.future.length > 0 });
+         setTimeout(() => {
+-            lastHistoryRef.current = entry;
+             applyingHistoryRef.current = false;
+-            setHistoryState({ canUndo: historyRef.current.past.length > 0, canRedo: historyRef.current.future.length > 0 });
+         });
+-    }, [setRawNodes, stopFocusMotion]);
++    }, [projectId, setRawNodes, stopFocusMotion, updateProject]);
+ 
+     const undoCanvas = useCallback(() => {
+         const previous = historyRef.current.past.pop();

@@ -1,0 +1,12 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 597c0d7..75362a0 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -659,6 +659,7 @@ function InfiniteCanvasPage() {
+         projectId, nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport,
+         projectLoaded, restoredProjectIdRef, nodeTransactionRef, historyPausedRef, dragRef, isNodeDragging,
+         beforeRelease: beforeCanvasRelease,
++        pendingEditor: titleEditing || Boolean(cropNodeId || maskEditNodeId || splitNodeId || upscaleNodeId || angleNodeId) || pluginManagerOpen || assetPickerOpen,
+         retiring: Boolean(retiringSnapshot),
+         isNodeResizing, nodeResizingRef, isCanvasPanning, canvasPanningRef, focusAnimRef, viewportRef, viewportSaveTimerRef, generationRequestsRef, runningNodeId: runningNodeIds.values().next().value ?? null, updateProject,
+     });

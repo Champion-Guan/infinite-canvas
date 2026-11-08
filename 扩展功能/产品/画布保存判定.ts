@@ -27,8 +27,9 @@ export function canvasHasPendingChanges(current: SavedFields | undefined, patch:
     return !current || Object.entries(patch).some(([key, value]) => !sameCanvasValue(current[key as keyof SavedFields], value));
 }
 
-// 手势预览期间视区或节点只存在于内存中；顶部状态栏不应把这段预览误报成“保存中”。
-// 松手后由真实快照比较重新放行，仍会显示待保存直到SQLite确认完成。
+// 视角按偏好合并记录；等待防抖不代表卡片内容未保存。
+// 实际写入与失败仍由SQLite状态报告，内容修改继续显示待保存。
 export function canvasSavePending(current: SavedFields | undefined, patch: Partial<SavedFields>, interactionActive = false): boolean {
-    return !interactionActive && canvasHasPendingChanges(current, patch);
+    return !interactionActive && (!current || Object.entries(patch).some(([key, value]) => key !== "viewport"
+        && !sameCanvasValue(current[key as keyof SavedFields], value)));
 }

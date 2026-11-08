@@ -15,7 +15,8 @@ const sorted = (a: CanvasNodeData, b: CanvasNodeData) => center(a) - center(b)
 const isParameter = (node: CanvasNodeData) => node.type === "guan:prompt-variables";
 const isPreview = (node: CanvasNodeData) => node.type === "text" && Boolean(node.metadata?.promptVariablePreviewOf);
 const isMedia = (node: CanvasNodeData) => node.type === "image" || node.type === "video" || node.type === "audio";
-const isPromptSource = (node: CanvasNodeData) => node.type === "text"
+const isPromptText = (node: CanvasNodeData) => node.type === "text" || node.type === "guan:product-prompt";
+const isPromptSource = (node: CanvasNodeData) => node.type === "guan:product-prompt" || node.type === "text"
     && Boolean(node.metadata?.excelPromptLabel || node.metadata?.excelPromptKey || /(?:主图|详情页|富内容|视频)提示词/.test(node.title || ""));
 const isTranslationCandidate = (node: CanvasNodeData) => node.type === "text"
     && (Boolean(node.metadata?.promptVariableTranslationOf) || /^(英文|中文|翻译).*提示词/.test(node.title || ""));
@@ -75,7 +76,7 @@ function collectRows(nodes: CanvasNodeData[], index: ReturnType<typeof connectio
         if (node.type !== "config" || !valid(node)) return false;
         const inputs = [...(index.incoming.get(node.id) || [])].map(id => index.byId.get(id)!);
         const hasMedia = inputs.some(isMedia);
-        const hasPromptInput = inputs.some(input => input.type === "text"
+        const hasPromptInput = inputs.some(input => isPromptText(input)
             && (isPromptSource(input) || isPreview(input) || isTranslationCandidate(input)));
         const referenceOnly = inputs.length > 0 && inputs.every(input => isMedia(input)
             && !index.incoming.get(input.id)?.size
@@ -84,7 +85,7 @@ function collectRows(nodes: CanvasNodeData[], index: ReturnType<typeof connectio
         const generatedReferenceConfig = referenceOnly && nodes.some(isTranslationCandidate);
         return !hasMedia || hasPromptInput || generatedReferenceConfig;
     }).sort(sorted)) {
-        const inputs = [...(index.incoming.get(config.id) || [])].map(id => index.byId.get(id)!).filter(node => node.type === "text" && valid(node));
+        const inputs = [...(index.incoming.get(config.id) || [])].map(id => index.byId.get(id)!).filter(node => isPromptText(node) && valid(node));
         const translatedInput = inputs.find(node => {
             const sourceId = node.metadata?.promptVariableTranslationOf;
             return sourceId && index.incoming.get(node.id)?.has(sourceId)

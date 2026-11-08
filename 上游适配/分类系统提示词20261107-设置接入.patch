@@ -1,0 +1,24 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index 009a786..efe3a8c 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -1,4 +1,5 @@
+ import { SettingsDoneButton } from "@/扩展功能/存储界面/设置完成按钮";
++import { SystemPromptSettings } from "@/扩展功能/系统提示词/系统提示词设置";
+ import { businessFeatures, resolveBusinessConfigTab } from "@/扩展功能/产品配置/脚本与提示词来源";
+ import { productFeatures, resolveConfigTab } from "@/扩展功能/产品配置/功能开关";
+ import { useSettingsViewport } from "@/扩展功能/存储界面/设置视区";
+@@ -302,12 +303,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                                         <Switch checked={config.autoFocusOnSelect} onChange={(checked) => updateConfig("autoFocusOnSelect", checked)} />
+                                     </div>
+                                 </Form.Item>
+-                                <Form.Item label={t("config.preferences.audioInstructions")} className="mb-4">
+-                                    <Input.TextArea rows={2} value={config.audioInstructions} placeholder={t("config.preferences.audioInstructionsPlaceholder")} onChange={(event) => updateConfig("audioInstructions", event.target.value)} className="guan-scroll-field" />
+-                                </Form.Item>
+-                                <Form.Item label={t("config.preferences.systemPrompt")} className="mb-0">
+-                                    <Input.TextArea rows={4} value={config.systemPrompt} placeholder={t("config.preferences.systemPromptPlaceholder")} onChange={(event) => updateConfig("systemPrompt", event.target.value)} className="guan-scroll-field" />
+-                                </Form.Item>
++                                <SystemPromptSettings config={config} onChange={updateConfig} />
+                             </Form>
+                         ),
+                     },

@@ -1,0 +1,28 @@
+diff --git a/web/src/components/agent/agent-chat-prompt-input.tsx b/web/src/components/agent/agent-chat-prompt-input.tsx
+index 9f7ea87..5f352d0 100644
+--- a/web/src/components/agent/agent-chat-prompt-input.tsx
++++ b/web/src/components/agent/agent-chat-prompt-input.tsx
+@@ -1,5 +1,5 @@
+ import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
+-import { OutsidePopover as Popover } from "@/扩展功能/主题/原生可关闭浮层";
++import { OutsidePopover as Popover, OutsidePanelBoundary } from "@/扩展功能/主题/原生可关闭浮层";
+ import { Sparkles } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 
+@@ -227,6 +227,7 @@ export function AgentChatPromptInput({ value, disabled, placeholder, theme, onCh
+             {referenceHover ? (
+                 <Popover
+                     open
++                    onOpenChange={open => { if (!open) setReferenceHover(null); }}
+                     placement="top"
+                     content={<AgentCanvasReferencePreview reference={referenceHover.reference} previewUrl={referenceHover.reference.previewUrl} previewText={referenceHover.reference.text} theme={theme} />}
+                 >
+@@ -237,7 +238,7 @@ export function AgentChatPromptInput({ value, disabled, placeholder, theme, onCh
+                     />
+                 </Popover>
+             ) : null}
+-            {command ? <AgentCommandMenu command={command} candidates={candidates} activeIndex={Math.min(activeIndex, Math.max(candidates.length - 1, 0))} loading={command.type === "skill" && skillsLoading} theme={theme} onSelect={insertCandidate} /> : null}
++            {command ? <OutsidePanelBoundary onClose={closeCommand} anchor={() => editorRef.current}><AgentCommandMenu command={command} candidates={candidates} activeIndex={Math.min(activeIndex, Math.max(candidates.length - 1, 0))} loading={command.type === "skill" && skillsLoading} theme={theme} onSelect={insertCandidate} /></OutsidePanelBoundary> : null}
+         </div>
+     );
+ }

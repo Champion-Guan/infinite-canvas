@@ -1,0 +1,28 @@
+diff --git a/web/src/components/canvas/canvas-create-menus.tsx b/web/src/components/canvas/canvas-create-menus.tsx
+index 3373ef0..e7af1ba 100644
+--- a/web/src/components/canvas/canvas-create-menus.tsx
++++ b/web/src/components/canvas/canvas-create-menus.tsx
+@@ -1,4 +1,5 @@
+ import { useEffect, useRef } from "react";
++import { OutsidePanelBoundary } from "@/扩展功能/主题/原生可关闭浮层";
+ import { ImageIcon, List, Music2, Settings2, Video, X } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 
+@@ -27,7 +28,7 @@ export function ConnectionCreateMenu({
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+     const { t } = useTranslation();
+     return (
+-        <div
++        <OutsidePanelBoundary onClose={onClose}><div
+             className="absolute z-[120] w-[240px] rounded-2xl border p-2 shadow-2xl backdrop-blur"
+             data-connection-create-menu
+             style={{ left: pending.position.x, top: pending.position.y, transform: `scale(${1 / scale})`, transformOrigin: "top left", background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
+@@ -49,7 +50,7 @@ export function ConnectionCreateMenu({
+                 <ConnectionCreateOption theme={theme} icon={<Music2 className="size-4" />} title={t("canvas.createMenu.audio")} onClick={() => onCreate(CanvasNodeType.Audio)} />
+                 <ConnectionCreateOption theme={theme} icon={<Settings2 className="size-4" />} title={t("canvas.createMenu.config")} description={t("canvas.createMenu.configDescription")} onClick={() => onCreate(CanvasNodeType.Config)} />
+             </div>
+-        </div>
++        </div></OutsidePanelBoundary>
+     );
+ }
+ 

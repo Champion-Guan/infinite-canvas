@@ -29,8 +29,8 @@ export function ProductBriefForm({ values, platform, borderColor, textColor, sha
                 styles={{ root: { maxWidth: 300 }, container: { fontSize: 13, lineHeight: 1.6, padding: "8px 12px" } }}>
                 {field.kind === "multiline" ? (
                     <textarea aria-label={field.label} value={values?.[field.key] || ""} onChange={event => onChange(field.key, event.target.value)}
-                        rows={2} className={`${controlClass} min-h-16 resize-y py-2`} style={style}
-                        placeholder={field.key === "styleReference" ? "可选" : ""} />
+                        rows={2} className={"guan-scroll-field " + (`${controlClass} min-h-16 resize-y py-2` || "")} style={style}
+                        placeholder={["imageKeywords", "styleReference"].includes(field.key) ? "可选" : ""} />
                 ) : field.kind === "choice" ? (
                     <div>
                         <ProductOptionSelect label={field.label} value={values?.[field.key] || ""} onChange={value => onChange(field.key, value)}

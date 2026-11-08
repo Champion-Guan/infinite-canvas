@@ -5,21 +5,111 @@
   position: relative;
   flex: 1 1 0;
   min-width: 0;
+  container-type: inline-size;
 }
 :global(.dark) .root {
   --dc-bg: #1d1e20;
   --dc-text: #f4f4f5;
 }
 .root :global(.guan-dc-product-nav) {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  position: relative;
+  isolation: isolate;
   flex: 1 1 0;
   min-width: 0;
   max-width: none;
   overflow-x: auto;
-  padding: 2px 1px;
+  padding: 12px 1px;
   scrollbar-width: none;
+  view-transition-name: none;
+}
+.track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: max-content;
+  min-width: 100%;
+  grid-area: 1 / 1;
+}
+.scrollContent {
+  display: grid;
+  width: max-content;
+  min-width: 100%;
+}
+.edgeLayer {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  grid-area: 1 / 1;
+  width: calc(100cqw - 2px);
+  height: 36px;
+  pointer-events: none;
+}
+.indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: left center;
+  z-index: 0;
+  background: #111214;
+  box-shadow: 0 5px 16px rgb(0 0 0 / 12%);
+  pointer-events: none;
+  view-transition-name: none;
+}
+:global(.dark) .indicator { background: #f4f4f5; }
+.indicator[data-status="loading"] { background: #facc15; }
+.indicator[data-status="success"] { background: #16a34a; }
+.indicator[data-status="error"] { background: #dc2626; }
+:global(.dark) .indicator[data-status="loading"] { background: #facc15; }
+:global(.dark) .indicator[data-status="success"] { background: #16a34a; }
+:global(.dark) .indicator[data-status="error"] { background: #dc2626; }
+.edgeHint {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  width: max-content;
+  max-width: min(176px, 60%);
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--dc-bg);
+  box-shadow: 0 0 10px 4px var(--dc-bg);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%) translateX(var(--edge-offset));
+  transition: opacity var(--guan-motion-fast) var(--guan-motion-gentle), transform var(--guan-motion-normal) var(--guan-motion-gentle);
+}
+.left { left: 0; --edge-offset: -6px; }
+.right { right: 0; --edge-offset: 6px; }
+.edgeHint[data-visible="true"] {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(-50%) translateX(0);
+}
+.edgeButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: #111214;
+  color: #fff;
+  cursor: pointer;
+  font: 12px/1.2 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.edgeButton svg { flex-shrink: 0; }
+.edgeButton:focus-visible { outline: 2px solid var(--dc-text); outline-offset: 2px; }
+.edgePrefix { flex-shrink: 0; opacity: .7; font-size: 11px; }
+.edgeName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:global(.dark) .edgeButton { background: #f4f4f5; color: #17181a; }
+.edgeButton[data-status="loading"] { background: #facc15; color: #111214; }
+.edgeButton[data-status="success"] { background: #16a34a; color: #fff; }
+.edgeButton[data-status="error"] { background: #dc2626; color: #fff; }
+.root :global(.guan-dc-product-nav *) {
+  view-transition-name: none;
 }
 .root :global(.guan-dc-product-nav::-webkit-scrollbar) {
   display: none;
@@ -29,6 +119,8 @@
   flex: 0 0 auto;
 }
 .root :global(.guan-dc-product-capsule) {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -41,7 +133,7 @@
   padding: 0 10px;
   border: 0 !important;
   border-radius: 999px;
-  background: var(--dc-bg);
+  background: transparent;
   color: var(--dc-text);
   cursor: pointer;
   font:
@@ -56,20 +148,19 @@
     color 0.18s ease,
     box-shadow 0.18s ease;
 }
-.root :global(.guan-dc-product-capsule:hover) {
+.root :global(.guan-product-capsule-wrap:hover .guan-dc-product-capsule) {
   border-color: transparent;
   box-shadow: 0 7px 18px rgb(0 0 0 / 12%);
 }
 .root :global(.guan-dc-product-capsule.is-active) {
   border-color: transparent;
-  background: #111214;
+  background: transparent;
   color: #fff;
-  box-shadow: 0 5px 16px rgb(0 0 0 / 12%);
-  view-transition-name: guan-active-product-capsule;
+  box-shadow: none;
 }
 :global(.dark) .root :global(.guan-dc-product-capsule.is-active) {
   border-color: #f4f4f5;
-  background: #f4f4f5;
+  background: transparent;
   color: #17181a;
 }
 .root :global(.guan-dc-product-capsule.guan-dc-product-capsule-loading) {
@@ -129,10 +220,13 @@
 .root :global(.guan-dc-product-capsule:disabled) {
   cursor: wait;
 }
-:global(::view-transition-old(guan-active-product-capsule)),
-:global(::view-transition-new(guan-active-product-capsule)) {
-  animation-duration: 0.28s;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+.root :global(.guan-dc-product-capsule.is-active.guan-dc-product-capsule-loading),
+.root :global(.guan-dc-product-capsule.is-active.guan-dc-product-capsule-success),
+.root :global(.guan-dc-product-capsule.is-active.guan-dc-product-capsule-error),
+:global(.dark) .root :global(.guan-dc-product-capsule.is-active.guan-dc-product-capsule-loading),
+:global(.dark) .root :global(.guan-dc-product-capsule.is-active.guan-dc-product-capsule-success),
+:global(.dark) .root :global(.guan-dc-product-capsule.is-active.guan-dc-product-capsule-error) {
+  background: transparent;
 }
 .error {
   position: absolute;
@@ -154,7 +248,9 @@
   }
 }
 @media (max-width: 640px) {
-  .root :global(.guan-dc-product-nav) {
+  .edgeLayer { height: 34px; }
+  .edgeButton { height: 34px; }
+  .track {
     gap: 4px;
   }
   .root :global(.guan-dc-product-capsule) {
@@ -170,6 +266,7 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .edgeHint { transition: none; }
   .root :global(.guan-dc-product-capsule) {
     animation: none !important;
     transition: none !important;
@@ -178,12 +275,12 @@
 }
 
 /* 下列实际样式来自锁定旧项目；仅局部化选择器及现有.dark主题。 */
-.root :global(.guan-product-delete) { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 4px; border: 0; border-radius: 50%; background: var(--dc-bg, #fff); color: #dc2626; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .22s cubic-bezier(.22,1,.36,1), background-color .18s ease; }
+.root :global(.guan-product-delete) { position: absolute; z-index: 2; right: 5px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 4px; border: 0; border-radius: 50%; background: var(--dc-bg, #fff); color: #dc2626; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .22s cubic-bezier(.22,1,.36,1), background-color .18s ease; }
 .root :global(.guan-product-delete:hover) { transform: translateY(-50%) scale(1.08); background: color-mix(in srgb, #dc2626 10%, var(--dc-bg, #fff)); }
 .root :global(.guan-product-delete:active) { transform: translateY(-50%) scale(.92); }
 .root :global(.guan-product-delete svg) { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; }
-.root :global(.guan-product-capsule-wrap:hover .guan-product-delete), .root :global(.guan-product-capsule-wrap:focus-within .guan-product-delete) { opacity: 1; pointer-events: auto; }
-.root :global(.guan-product-capsule-wrap:hover .guan-dc-product-capsule), .root :global(.guan-product-capsule-wrap:focus-within .guan-dc-product-capsule) { padding-right: 32px; }
+.root :global(.guan-product-capsule-wrap:hover .guan-product-delete), .root :global(.guan-product-capsule-wrap:has(:focus-visible) .guan-product-delete) { opacity: 1; pointer-events: auto; }
+.root :global(.guan-product-capsule-wrap:hover .guan-dc-product-capsule), .root :global(.guan-product-capsule-wrap:has(:focus-visible) .guan-dc-product-capsule) { padding-right: 32px; }
 .root :global(.guan-product-delete:disabled) { color: var(--dc-muted, #888); cursor: not-allowed; }
 .root :global(.guan-product-delete:focus-visible) { outline: 2px solid #dc2626; outline-offset: 2px; }
 :global(.dark) .root :global(.guan-product-delete) { background: #27282b; color: #f87171; }
@@ -216,10 +313,6 @@
   border-radius: 20px;
   background: var(--dc-bg);
   box-shadow: 0 28px 80px rgba(0, 0, 0, .28);
-  animation: guan-dc-confirm-in .18s cubic-bezier(.16, 1, .3, 1) both;
-}
-.root :global(.guan-dc-confirm[data-state="closing"] .guan-dc-confirm-card) {
-  animation: guan-dc-confirm-out .15s cubic-bezier(.4, 0, .2, 1) both;
 }
 .root :global(.guan-dc-confirm-icon) {
   display: grid;
@@ -295,14 +388,6 @@
 :global(.dark) .root :global(.guan-dc-confirm-icon) {
   background: rgba(248, 113, 113, .14);
   color: #f87171;
-}
-@keyframes guan-dc-confirm-in {
-  from { opacity: 0; transform: translateY(8px) scale(.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes guan-dc-confirm-out {
-  from { opacity: 1; transform: translateY(0) scale(1); }
-  to { opacity: 0; transform: translateY(5px) scale(.98); }
 }
 .root { --dc-muted: #72757a; --dc-border: rgba(20, 24, 32, .12); --dc-soft: #f5f5f5; }
 :global(.dark) .root { --dc-muted: #a1a1aa; --dc-border: rgba(255, 255, 255, .14); --dc-soft: #27282b; }

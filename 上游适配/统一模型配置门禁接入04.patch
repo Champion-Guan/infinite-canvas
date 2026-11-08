@@ -1,0 +1,22 @@
+diff --git a/web/src/pages/video/index.tsx b/web/src/pages/video/index.tsx
+index ac3d142..2d2507a 100644
+--- a/web/src/pages/video/index.tsx
++++ b/web/src/pages/video/index.tsx
+@@ -1,3 +1,4 @@
++import { ensureModelConfigured } from "@/扩展功能/产品配置/模型配置门禁";
+ import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, LoaderCircle, Plus, SlidersHorizontal, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
+ import { useEffect, useRef, useState, useSyncExternalStore, type DragEvent } from "react";
+ import { App, Button, Checkbox, Drawer, Empty, Input, Modal, Tag, Typography } from "antd";
+@@ -239,9 +240,9 @@ export default function VideoPage() {
+             message.error(t("videoWorkbench.promptRequired"));
+             return null;
+         }
+-        if (!isAiConfigReady(effectiveConfig, model)) {
+-            message.warning(t("workbench.configFirst"));
+-            openConfigDialog(true);
++        if (!ensureModelConfigured(effectiveConfig, "video", model)) {
++            
++            
+             return null;
+         }
+         return { text, config: buildVideoConfig(effectiveConfig, model), references: [...references] };

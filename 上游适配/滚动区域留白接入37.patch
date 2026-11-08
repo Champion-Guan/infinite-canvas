@@ -1,0 +1,51 @@
+diff --git a/web/src/pages/image/index.tsx b/web/src/pages/image/index.tsx
+index ee53bba..c3d0080 100644
+--- a/web/src/pages/image/index.tsx
++++ b/web/src/pages/image/index.tsx
+@@ -375,8 +375,8 @@ export default function ImagePage() {
+ 
+     return (
+         <div className="flex h-full flex-col overflow-hidden bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
+-            <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 lg:grid-cols-[300px_minmax(0,1fr)] lg:overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)]">
+-                <aside className="thin-scrollbar hidden min-h-0 overflow-y-auto rounded-lg border border-stone-200 bg-card p-4 shadow-sm dark:border-stone-800 lg:block">
++            <main className="guan-scroll-region grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 lg:grid-cols-[300px_minmax(0,1fr)] lg:overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)]">
++                <aside className="guan-scroll-region thin-scrollbar hidden min-h-0 overflow-y-auto rounded-lg border border-stone-200 bg-card p-4 shadow-sm dark:border-stone-800 lg:block">
+                     <LogPanel
+                         logs={logs}
+                         selectedLogIds={selectedLogIds}
+@@ -389,7 +389,7 @@ export default function ImagePage() {
+                 </aside>
+ 
+                 <section className="grid gap-3 lg:min-h-0 lg:overflow-hidden xl:grid-cols-[420px_minmax(0,1fr)]">
+-                    <div className="thin-scrollbar flex flex-col rounded-lg border border-stone-200 bg-card p-4 shadow-sm dark:border-stone-800 lg:min-h-0 lg:overflow-y-auto">
++                    <div className="guan-scroll-region thin-scrollbar flex flex-col rounded-lg border border-stone-200 bg-card p-4 shadow-sm dark:border-stone-800 lg:min-h-0 lg:overflow-y-auto">
+                         <div>
+                             <div className="flex items-start justify-between gap-3">
+                                 <div className="min-w-0">
+@@ -419,7 +419,7 @@ export default function ImagePage() {
+                                         </Button>
+                                     </div>
+                                 </div>
+-                                <Input.TextArea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={7} placeholder={t("imageWorkbench.promptPlaceholder")} />
++                                <Input.TextArea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={7} placeholder={t("imageWorkbench.promptPlaceholder")} className="guan-scroll-field" />
+                             </div>
+ 
+                             <div className="min-w-0">
+@@ -435,7 +435,7 @@ export default function ImagePage() {
+                                     </div>
+                                 </div>
+                                 <div
+-                                    className={`hover-scrollbar hover-scrollbar-hint relative flex min-h-24 w-full min-w-0 max-w-full gap-2 overflow-x-scroll overflow-y-hidden rounded-lg border border-dashed p-2 pb-3 overscroll-x-contain transition-colors ${isReferenceDragActive ? "border-stone-900 bg-stone-100/80 dark:border-stone-100 dark:bg-stone-900/80" : "border-stone-300 dark:border-stone-700"}`}
++                                    className={"guan-scroll-horizontal " + (`hover-scrollbar hover-scrollbar-hint relative flex min-h-24 w-full min-w-0 max-w-full gap-2 overflow-x-scroll overflow-y-hidden rounded-lg border border-dashed p-2 pb-3 overscroll-x-contain transition-colors ${isReferenceDragActive ? "border-stone-900 bg-stone-100/80 dark:border-stone-100 dark:bg-stone-900/80" : "border-stone-300 dark:border-stone-700"}` || "")}
+                                     onDragEnter={(event) => {
+                                         event.preventDefault();
+                                         dragDepthRef.current += 1;
+@@ -504,7 +504,7 @@ export default function ImagePage() {
+                         </div>
+                     </div>
+ 
+-                    <div className="thin-scrollbar rounded-lg border border-stone-200 bg-card p-4 shadow-sm dark:border-stone-800 lg:min-h-0 lg:overflow-y-auto lg:p-5">
++                    <div className="guan-scroll-region thin-scrollbar rounded-lg border border-stone-200 bg-card p-4 shadow-sm dark:border-stone-800 lg:min-h-0 lg:overflow-y-auto lg:p-5">
+                         <div className="mb-4 flex items-center justify-between gap-3">
+                             <div>
+                                 <h2 className="text-xl font-semibold">{t("workbench.results")}</h2>

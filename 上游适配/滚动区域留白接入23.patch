@@ -1,0 +1,40 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index 26a409f..d752327 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -321,7 +321,7 @@ function CanvasNodesTab({ nodes, connections, selectedNodeIds, onFocusNode, onPr
+             <div className="px-3 pb-2.5">
+                 <Input size="small" allowClear prefix={<Search className="size-3.5 text-stone-400" />} placeholder={t("canvas.sidePanel.searchNodes")} value={keyword} onChange={(e) => setKeyword(e.target.value)} />
+             </div>
+-            <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
++            <div className="guan-scroll-region min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+                 {nodeViewMode === "grid" ? (
+                     filtered.length ? (
+                         <div className="grid gap-2 px-1 [grid-template-columns:repeat(auto-fill,minmax(88px,1fr))]">
+@@ -537,7 +537,7 @@ const CanvasAssetsTab = memo(function CanvasAssetsTab({ projectId, onInsert, the
+                     ))}
+                 </div>
+             ) : null}
+-            <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
++            <div className="guan-scroll-region min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+                 {groups.length ? (
+                     <div className="space-y-1">
+                         {groups.map((group) => {
+@@ -606,7 +606,7 @@ const CanvasRecycleBinTab = memo(function CanvasRecycleBinTab({ batches, activeN
+ 
+     if (!productActive) return null;
+     return (
+-        <div className="h-full overflow-y-auto px-2 pb-3 pt-1">
++        <div className="guan-scroll-region h-full overflow-y-auto px-2 pb-3 pt-1">
+             {visibleBatches.length ? (
+                 <div className="space-y-1.5 px-1">
+                     {visibleBatches.map((batch) => {
+@@ -729,7 +729,7 @@ const CanvasPromptsTab = memo(function CanvasPromptsTab({ onInsert, theme }: { o
+             <div className="px-3 pb-2.5 pt-1">
+                 <Input size="small" allowClear prefix={<Search className="size-3.5 text-stone-400" />} placeholder={t("canvas.sidePanel.searchPrompts")} value={keyword} onChange={(e) => setKeyword(e.target.value)} />
+             </div>
+-            <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
++            <div className="guan-scroll-region min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+                 <div className="space-y-1">
+                     <ExcelPromptGroup keyword={keyword} theme={theme} onInsert={onInsert} onView={setDetail} renderRow={(item, insert, view) => <PromptRow item={item} displayTitle={[item.excelPrompt.label, item.excelPrompt.theme].filter(Boolean).join(" · ")} theme={theme} onInsert={insert} onView={view} />} />
+                     {enabledSources.length ? enabledSources.map((source) => (

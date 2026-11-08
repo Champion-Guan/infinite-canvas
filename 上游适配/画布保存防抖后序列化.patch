@@ -1,0 +1,13 @@
+diff --git a/web/src/stores/canvas/use-canvas-store.ts b/web/src/stores/canvas/use-canvas-store.ts
+index 4d7abe5..5e63cfd 100644
+--- a/web/src/stores/canvas/use-canvas-store.ts
++++ b/web/src/stores/canvas/use-canvas-store.ts
+@@ -78,7 +78,7 @@ const canvasStorage: PersistStorage<CanvasStore> = {
+         if (shouldDeferCanvasPersist(nextState.projects)) return Promise.resolve();
+         if (queuedPersistState && queuedPersistState.projects === nextState.projects && queuedPersistState.deletedProjects === nextState.deletedProjects && queuedPersistState.guanWorkbooks === nextState.guanWorkbooks) return;
+         queuedPersistState = nextState;
+-        return scheduleStateSave(name, JSON.stringify(value));
++        return scheduleStateSave(name, () => JSON.stringify(value));
+     },
+     removeItem: (name) => localForageStorage.removeItem(name),
+ };

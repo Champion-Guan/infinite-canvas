@@ -22,6 +22,7 @@ import { ensureProductParameterNode } from "../Excel画布/产品参数卡片默
 import { productRestoreMountGate } from "./产品恢复挂载门禁";
 import { isBatchCanvasSaveActive, markBatchCanvasDirty, withBatchCanvasCheckpoint } from "../画布生成/批量保存协调";
 import { registerUpgradeParticipant } from "../软件更新/升级页面状态.mjs";
+import { productCanvasResidency } from "./画布驻留保护";
 
 export const ACTIVE_PRODUCT_KEY = "guan-products:active:v1";
 const operations = new ProductOperationGate();
@@ -84,6 +85,9 @@ export function useProductCanvasSave<T>(
   ready: () => boolean,
   persist: (snapshot: T, options?: { deferSQLiteFlush?: boolean }) => Promise<void>,
   canDelete: () => boolean = () => true,
+  beforeRelease?: () => Promise<void>,
+  retiring = false,
+  canRelease: () => boolean = () => true,
 ) {
   const [ticket, requestRender] = useState(0);
   const checkpointRef = useRef<ProductCommitCheckpoint<T> | null>(null);
@@ -92,11 +96,14 @@ export function useProductCanvasSave<T>(
   const checkpoint = checkpointRef.current;
   const persistRef = useRef(persist);
   const canDeleteRef = useRef(canDelete);
+  const beforeReleaseRef = useRef(beforeRelease);
+  const canReleaseRef = useRef(canRelease);
   useLayoutEffect(() => {
+    if (retiring) return;
     checkpoint.mount();
     deletionGuards.set(projectId, () => canDeleteRef.current());
-    const unregister = saves.register(projectId, (options) =>
-      checkpoint.flush((value) => {
+    const unregister = saves.register(projectId, async (options) => {
+      try { await checkpoint.flush((value) => {
         // 批量生成期间，检查点可能在批量开始前已经排队。
         // 到达真正持久化边界时再次检查门控，避免这类在途检查点绕过批量保存策略。
         if (isBatchCanvasSaveActive(projectId) && !options?.forceBatch) {
@@ -106,19 +113,36 @@ export function useProductCanvasSave<T>(
         if (options?.forceBatch)
           return withBatchCanvasCheckpoint(projectId, () => persistRef.current(value, options));
         return persistRef.current(value, options);
-      }, options),
-      () => checkpoint.acknowledgeDeferredSave(),
+      }, options); } finally { productCanvasResidency.changed(); }
+    },
+      () => { checkpoint.acknowledgeDeferredSave(); productCanvasResidency.changed(); },
     );
+    const idle = () => canDeleteRef.current() && canReleaseRef.current() && !isBatchCanvasSaveActive(projectId)
+      && checkpoint.releaseProof()() && storageStatus().state !== "error";
+    const unregisterResidency = productCanvasResidency.register(projectId, { idle, async prepare() {
+      if (!idle() || storageStatus().state === "error" || !beforeReleaseRef.current) return null;
+      await saves.flush(projectId);
+      await flushSQLiteStorage();
+      const proof = checkpoint.releaseProof();
+      if (!idle() || !proof()) return null;
+      await beforeReleaseRef.current();
+      await flushSQLiteStorage();
+      return () => idle() && proof() && storageStatus().state !== "error";
+    } });
     return () => {
+      unregisterResidency();
       unregister();
       deletionGuards.delete(projectId);
       checkpoint.unmount();
     };
-  }, [checkpoint, projectId]);
+  }, [checkpoint, projectId, retiring]);
   useLayoutEffect(() => {
     persistRef.current = persist;
     canDeleteRef.current = canDelete;
-    checkpoint.commit(ticket, snapshot, ready());
+    beforeReleaseRef.current = beforeRelease;
+    canReleaseRef.current = canRelease;
+    if (!retiring) checkpoint.commit(ticket, snapshot, ready());
+    productCanvasResidency.changed();
   });
 }
 
@@ -143,42 +167,71 @@ export function useProductNavigation() {
     if (!options.deferSQLiteFlush) await flushSQLiteStorage();
   }, [activeId]);
   const enter = useCallback(
-    async (id: string) => {
+    async (id: string, options: { deferSQLiteFlush?: boolean } = {}) => {
       if (!useCanvasStore.getState().openProject(id))
         throw new Error("目标产品不存在，未切换画布。");
       const remembered = rememberWorkbookProduct(useCanvasStore.getState(), id);
       const previous = sqlitePreferences.getItem(ACTIVE_PRODUCT_KEY);
-      try {
+      const remember = () => {
         if (remembered) useCanvasStore.setState({ guanWorkbooks: remembered });
         sqlitePreferences.setItem(ACTIVE_PRODUCT_KEY, id);
-        // 两个独立命名空间同时提交，仍等两者真实ACK后才导航。
-        await flushSQLiteStorage();
-        if (!useCanvasStore.getState().openProject(id))
-          throw new Error("保存期间目标产品已删除，未切换画布。");
-      } catch (error) {
-        // 只撤回失败的导航偏好，不删除已经创建的产品或覆盖业务数据。
-        if (previous === null) sqlitePreferences.removeItem(ACTIVE_PRODUCT_KEY);
-        else sqlitePreferences.setItem(ACTIVE_PRODUCT_KEY, previous);
-        throw error;
+      };
+      if (!options.deferSQLiteFlush) remember();
+      if (!options.deferSQLiteFlush) {
+        try {
+          // 新建、导入、恢复等首次入场仍须先等业务根和导航偏好真实ACK。
+          await flushSQLiteStorage();
+          if (!useCanvasStore.getState().openProject(id))
+            throw new Error("保存期间目标产品已删除，未切换画布。");
+        } catch (error) {
+          // 只撤回失败的导航偏好，不删除已经创建的产品或覆盖业务数据。
+          if (previous === null) sqlitePreferences.removeItem(ACTIVE_PRODUCT_KEY);
+          else sqlitePreferences.setItem(ACTIVE_PRODUCT_KEY, previous);
+          throw error;
+        }
       }
       navigate(`/canvas/${encodeURIComponent(id)}`, {
         replace: true,
-        viewTransition: !window.matchMedia("(prefers-reduced-motion: reduce)")
-          .matches,
+        // 产品导航由局部弹簧呈现，整页快照会逃离滚动裁剪并盖住回收站遮罩。
+        flushSync: options.deferSQLiteFlush === true,
+        viewTransition: false,
       });
-      // 只有业务根与导航偏好均已确认，且导航已发起，才允许恢复画布挂载。
+      // 恢复中的产品由调用方走确认路径，普通缓存产品无需等待后台导航偏好ACK。
       productRestoreMountGate.release(id);
+      // 普通切换先同步呈现目标，再发布导航偏好，避免旧画布多做一次同步渲染。
+      if (options.deferSQLiteFlush) remember();
     },
     [navigate],
   );
   const selectProduct = useCallback(
     (id: string) =>
       operations.run(async () => {
-        if (id === activeId) return;
+        if (id === activeId) return false;
+        if (workbookDeletionGate.getSnapshot()) throw new Error("工作簿删除保存尚未确认，请在原确认框重试保存后继续。");
         const state = useCanvasStore.getState();
+        if (!state.hydrated) throw new Error("产品数据尚未加载完成。");
         if (!workbookProjects(state.projects, visibleWorkbookId(state, activeId)).some(project => project.id === id)) throw new Error("该产品不属于当前工作表。");
-        await commitCurrent();
-        await enter(id);
+        // 未确认的恢复产品仍保留原持久化门禁，不能借普通切换提前挂载。
+        if (productRestoreMountGate.getSnapshot().includes(id)) {
+          await commitCurrent();
+          await enter(id);
+          return false;
+        }
+        // 普通产品切换先完成可见导航，不等待旧画布的React提交票据或SQLite/会话ACK。
+        // 最近访问的画布保留热实例；旧画布在后台提交最新检查点。
+        const release = productCanvasResidency.acquire(activeId);
+        try { await enter(id, { deferSQLiteFlush: true }); } catch (error) { release(); throw error; }
+        return release;
+      }).then(async (switched) => {
+        if (!switched) return;
+        // 操作锁已释放，后台检查点/落盘不禁用胶囊；下一次点击可以立即切换。
+        // 保留拒绝结果供胶囊显示错误；SQLite失败继续由原保存状态条提供重试。
+        try {
+          try { await commitCurrent({ deferSQLiteFlush: true }); }
+          catch (error) { throw new Error(`已切换产品，但原画布保存尚未确认，内容仍保留，请切回原产品后重试。${error instanceof Error ? error.message : String(error)}`); }
+          await flushSQLiteStorage();
+          if (activeId) saves.acknowledge(activeId);
+        } finally { switched(); }
       }),
     [activeId, commitCurrent, enter],
   );
@@ -238,8 +291,10 @@ export function useProductNavigation() {
       productRestoreMountGate.release(id);
       if (activeId === id) {
         const current = useCanvasStore.getState();
-        const next = recycledProducts(current).find(entry => entry.id === id)?.nextProductId;
-        const scoped = workbookProjects(current.projects, before.projects.find(project => project.id === id)?.productSetId ?? null);
+        const archived = recycledProducts(current).find(entry => entry.id === id);
+        const next = archived?.nextProductId;
+        const source = before.projects.find(project => project.id === id) || archived?.project;
+        const scoped = workbookProjects(current.projects, source?.productSetId ?? null);
         const target = scoped.find(item => item.id === next)?.id || orderedProducts(scoped)[0]?.id;
         if (target) await enter(target);
         else {
@@ -280,7 +335,7 @@ export function useProductNavigation() {
       if (!useCanvasStore.getState().openProject(id)) throw new Error("目标产品不存在，未切换画布。");
       navigate(`/canvas/${encodeURIComponent(id)}`, {
         replace: true,
-        viewTransition: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+        viewTransition: false,
       });
       productRestoreMountGate.release(id);
     } else navigate("/", { replace: true });

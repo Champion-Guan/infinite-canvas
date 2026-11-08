@@ -1,8 +1,10 @@
 import {
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
+  type KeyboardEvent,
 } from "react";
 import {
   useCanvasStore,
@@ -17,7 +19,11 @@ import { productDisplayName } from "./旧版产品显示名.js";
 import { readCanvasCapsuleStatus } from "./旧版产品胶囊状态.js";
 import styles from "./产品胶囊.module.css";
 import { ProductDeleteDialog, ProductTrashIcon } from "./产品回收面板";
-import { motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { APPLE_CONTROL_SPRING } from "../主题/苹果动效";
+import { useCapsuleSlide } from "./胶囊滑动动效";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { AppleActionButton } from "../主题/苹果交互按钮";
 
 type Summary = {
   id: string;
@@ -99,6 +105,7 @@ export function ProductCapsules() {
   const selector = useMemo(createSummarySelector, []);
   const { activeId, busy, selectProduct } = useProductNavigation();
   const allProducts = useCanvasStore(selector);
+  const owner = useCanvasStore(state => visibleWorkbookId(state, activeId));
   const ownership = useCanvasStore(state => orderedWorkbookProjects(state.projects, visibleWorkbookId(state, activeId), state.guanWorkbooks?.contract.products).map(project => project.id).join("\n"));
   const byId = new Map(allProducts.map(product => [product.id, product]));
   const products = ownership.split("\n").flatMap(id => byId.get(id) ? [byId.get(id)!] : []);
@@ -109,9 +116,31 @@ export function ProductCapsules() {
     getVisibility,
   );
   const [error, setError] = useState("");
+  const pressedProduct = useRef<string | null>(null);
   const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
   const current = products.find((item) => item.id === activeId);
   const entering = lastSelectedId !== activeId;
+  const { navigation, track, indicator, offscreen, revealSelected } = useCapsuleSlide(activeId, owner, ownership, reducedMotion);
+  const currentStatus = current ? readCanvasCapsuleStatus(current.id, true, { ...capsuleStorage(current), setItem() {} },
+    visibility !== "hidden", entering) : "idle";
+  const select = (id: string) => {
+    if (busy || id === activeId) return;
+    setError("");
+    void selectProduct(id).catch(reason => setError(reason instanceof Error ? reason.message : String(reason)));
+  };
+  const navigateTabs = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (busy || event.altKey || event.ctrlKey || event.metaKey || !(event.target instanceof HTMLElement)
+        || event.target.getAttribute("role") !== "tab") return;
+    const tabs = Array.from(navigation.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? []);
+    const index = tabs.indexOf(event.target as HTMLButtonElement);
+    const target = event.key === "Home" ? tabs[0] : event.key === "End" ? tabs.at(-1)
+      : event.key === "ArrowRight" ? tabs[(index + 1) % tabs.length]
+      : event.key === "ArrowLeft" ? tabs[(index - 1 + tabs.length) % tabs.length] : null;
+    if (!target) return;
+    event.preventDefault();
+    target.focus({ preventScroll: true });
+    select(target.dataset.productId!);
+  };
   useLayoutEffect(() => {
     if (lastSelectedId === activeId) return;
     if (!current) {
@@ -132,16 +161,29 @@ export function ProductCapsules() {
   return (
     <div className={styles.root}>
       <div
-        className="guan-dc-product-nav guan-apple-scroll"
+        ref={navigation}
+        className="guan-dc-product-nav"
         role="tablist"
         aria-label="当前工作表产品"
         aria-busy={busy}
+        onKeyDown={navigateTabs}
       >
+        <div className={styles.scrollContent}>
+        <div ref={track} className={styles.track}>
+          <span
+            ref={indicator}
+            aria-hidden="true"
+            hidden={!current}
+            data-product-indicator={current ? activeId : undefined}
+            data-status={currentStatus}
+            className={styles.indicator}
+            style={{ borderRadius: 999 }}
+          />
         {products.map((product, index) => {
           const active = product.id === activeId;
           const storage = capsuleStorage(product);
           // 渲染只读。旧函数的写入只在上面的真实提交阶段执行，不在render修改SQLite。
-          const status = readCanvasCapsuleStatus(
+          const status = active ? currentStatus : readCanvasCapsuleStatus(
             product.id,
             active,
             { ...storage, setItem() {} },
@@ -155,20 +197,26 @@ export function ProductCapsules() {
                 type="button"
                 whileHover={reducedMotion || busy ? undefined : { y: -1, scale: 1.015 }}
                 whileTap={reducedMotion || busy ? undefined : { y: 0, scale: .97 }}
-                transition={reducedMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 34, mass: .7 }}
-                className={`guan-dc-product-capsule guan-apple-action guan-apple-press guan-dc-product-capsule-${status} ${active ? "guan-shared-product-capsule is-active" : ""}`}
+                transition={reducedMotion ? { duration: 0 } : APPLE_CONTROL_SPRING}
+                className={`guan-dc-product-capsule guan-dc-product-capsule-${status} ${active ? "is-active" : ""}`}
                 role="tab"
                 aria-selected={active}
+                tabIndex={active || !current && index === 0 ? 0 : -1}
                 data-product-id={product.id}
                 title={label}
                 disabled={busy}
-                onClick={() => {
-                  setError("");
-                  void selectProduct(product.id).catch((reason) =>
-                    setError(
-                      reason instanceof Error ? reason.message : String(reason),
-                    ),
-                  );
+                onPointerDown={event => {
+                  pressedProduct.current = null;
+                  if (!event.isPrimary || event.button !== 0 || event.pointerType === "touch"
+                    || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || busy) return;
+                  pressedProduct.current = product.id;
+                  select(product.id);
+                }}
+                onPointerCancel={() => { pressedProduct.current = null; }}
+                onClick={event => {
+                  const handled = event.detail !== 0 && pressedProduct.current === product.id;
+                  pressedProduct.current = null;
+                  if (!handled) select(product.id);
                 }}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -188,8 +236,28 @@ export function ProductCapsules() {
             </div>
           );
         })}
+        </div>
+        <div className={styles.edgeLayer}>
+      {(["left", "right"] as const).map(side => {
+        const shown = Boolean(current && offscreen === side);
+        const direction = side === "left" ? "左" : "右";
+        return <div key={side} className={`${styles.edgeHint} ${styles[side]}`}
+          data-capsule-location={side} data-visible={shown} aria-hidden={!shown} inert={!shown}>
+          <AppleActionButton className={styles.edgeButton} data-status={currentStatus}
+            disabled={!shown} tabIndex={shown ? 0 : -1}
+            aria-label={`当前产品在${direction}侧：${current?.title ?? ""}，点击定位`}
+            title={`定位当前产品：${current?.title ?? ""}`} onClick={revealSelected}>
+            {side === "left" ? <ChevronLeft size={16} aria-hidden="true" /> : null}
+            <span className={styles.edgePrefix}>当前</span>
+            <span className={styles.edgeName}>{current?.title}</span>
+            {side === "right" ? <ChevronRight size={16} aria-hidden="true" /> : null}
+          </AppleActionButton>
+        </div>;
+      })}
+        </div>
+        </div>
       </div>
-      {deleting ? <ProductDeleteDialog id={deleting.id} name={deleting.name} onClose={() => setDeleting(null)} /> : null}
+      <AnimatePresence>{deleting ? <ProductDeleteDialog key={deleting.id} id={deleting.id} name={deleting.name} onClose={() => setDeleting(null)} /> : null}</AnimatePresence>
       {error ? (
         <span role="alert" className={styles.error}>
           {error}

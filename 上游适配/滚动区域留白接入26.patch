@@ -1,0 +1,26 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index 7730626..ef90b2d 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -299,10 +299,10 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                                     </div>
+                                 </Form.Item>
+                                 <Form.Item label={t("config.preferences.audioInstructions")} className="mb-4">
+-                                    <Input.TextArea rows={2} value={config.audioInstructions} placeholder={t("config.preferences.audioInstructionsPlaceholder")} onChange={(event) => updateConfig("audioInstructions", event.target.value)} />
++                                    <Input.TextArea rows={2} value={config.audioInstructions} placeholder={t("config.preferences.audioInstructionsPlaceholder")} onChange={(event) => updateConfig("audioInstructions", event.target.value)} className="guan-scroll-field" />
+                                 </Form.Item>
+                                 <Form.Item label={t("config.preferences.systemPrompt")} className="mb-0">
+-                                    <Input.TextArea rows={4} value={config.systemPrompt} placeholder={t("config.preferences.systemPromptPlaceholder")} onChange={(event) => updateConfig("systemPrompt", event.target.value)} />
++                                    <Input.TextArea rows={4} value={config.systemPrompt} placeholder={t("config.preferences.systemPromptPlaceholder")} onChange={(event) => updateConfig("systemPrompt", event.target.value)} className="guan-scroll-field" />
+                                 </Form.Item>
+                             </Form>
+                         ),
+@@ -402,7 +402,7 @@ export function AppConfigModal() {
+                 ...(viewport ? { wrapper: { position: "absolute" }, mask: { position: "absolute" } } : {}),
+                 container: { display: "flex", flexDirection: "column", maxHeight: viewport ? "calc(100cqh - 24px)" : "calc(100dvh - 24px)" },
+                 header: { flexShrink: 0 },
+-                body: { height: viewport ? "72cqh" : "72dvh", minHeight: 0, overflowY: "auto", paddingRight: 12 },
++                body: { scrollbarGutter: "stable", height: viewport ? "72cqh" : "72dvh", minHeight: 0, overflowY: "auto", paddingRight: 12, paddingInlineEnd: 18 },
+                 footer: { flexShrink: 0 },
+             }}
+             className="guan-config-modal"

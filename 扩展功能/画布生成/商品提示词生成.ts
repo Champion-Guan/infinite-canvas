@@ -1,10 +1,30 @@
 import type { CanvasConnection, CanvasNodeData } from "@/types/canvas";
 import { buildNodeGenerationContext, buildNodeGenerationInputs, type NodeGenerationInput, type NodeGenerationContext } from "@/components/canvas/canvas-node-generation";
 import { productMainImages } from "../Excel画布/产品主图规则";
-import { validateProductPromptInputs } from "../Excel画布/商品提示词输入";
+import { productPromptInputs, validateProductPromptInputs } from "../Excel画布/商品提示词输入";
 import { promptDocument, promptPair, type ProductPromptMetadata } from "../Excel画布/商品提示词规则";
 import type { ProductVariantMetadata } from "../Excel画布/产品变体规则";
-import { variantGenerationContext, variantInputPrompt, variantScopedNodes, type ProductVariantExecution } from "./产品变体生成";
+import { generationProductParameters, variantGenerationContext, variantInputPrompt, variantScopedNodes, type ProductVariantExecution } from "./产品变体生成";
+import { productVariants, variantImages } from "../Excel画布/产品变体规则";
+import { productImageLanguageRequirement } from "../Excel画布/商品图片语言";
+
+export function productPromptInputSummary(nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[],
+    fallback: { textCount: number; imageCount: number; videoCount: number; audioCount: number }) {
+    const prompts = productPromptInputs(nodeId, nodes, connections);
+    if (!prompts.length) return fallback;
+    const ids = new Set<string>();
+    const parameters = generationProductParameters(nodeId, nodes, connections);
+    for (const source of prompts) {
+        const doc = promptDocument(source)!;
+        const parameter = parameters.find(item => item.id === doc.parameterId);
+        if (!parameter) continue;
+        const metadata = parameter.metadata as ProductVariantMetadata;
+        const variant = productVariants(metadata).find(item => item.id === doc.variantId);
+        const photos = variant ? variantImages(metadata, variant) : productMainImages(metadata);
+        for (const image of photos) ids.add(image.id);
+    }
+    return { ...fallback, imageCount: Math.max(ids.size, fallback.imageCount) };
+}
 
 export function buildProductGenerationContext(nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[],
     prompt: string, execution?: ProductVariantExecution): NodeGenerationContext {
@@ -37,7 +57,8 @@ export function buildProductGenerationContext(nodeId: string, nodes: CanvasNodeD
     const referenceVideos = resources.flatMap(input => input.video ? [input.video] : []);
     const referenceAudios = resources.flatMap(input => input.audio ? [input.audio] : []);
     const references = referenceImages.map((image, index) => `Image ${index + 1}: reference ID "${image.id}", filename "${image.name}".`).join("\n");
-    return { prompt: [expanded, references && `Attached product references in order:\n${references}`].filter(Boolean).join("\n\n"), referenceImages, referenceVideos, referenceAudios,
+    const language = productImageLanguageRequirement((parameter.metadata as ProductVariantMetadata).productLanguage);
+    return { prompt: [expanded, references && `Attached product references in order:\n${references}`, language].filter(Boolean).join("\n\n"), referenceImages, referenceVideos, referenceAudios,
         textCount: resources.filter(input => input.type === "text").length, imageCount: referenceImages.length,
         videoCount: referenceVideos.length, audioCount: referenceAudios.length };
 }

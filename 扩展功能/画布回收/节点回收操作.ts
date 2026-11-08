@@ -39,10 +39,10 @@ export function useCanvasNodeRecycle<T extends CanvasHistorySnapshot>({ projectI
                 if (stored.deletedNodeBatches?.find(item => item.id === batchId) !== batch) throw new Error("回收批次已变化，请重试恢复。");
                 const before = createHistoryEntry();
                 const result = restoreCanvasNodes(before.nodes, before.connections, { ...batch, nodes: hydrated });
+                const remaining = (stored.deletedNodeBatches || []).filter(item => item.id !== batchId);
                 historyRef.current.past = [...historyRef.current.past.slice(-49), before];
                 historyRef.current.future = [];
-                applyHistory({ ...before, nodes: result.nodes, connections: result.connections });
-                updateProject(projectId, { nodes: result.nodes, connections: result.connections, deletedNodeBatches: (stored.deletedNodeBatches || []).filter(item => item.id !== batchId) });
+                applyHistory({ ...before, nodes: result.nodes, connections: result.connections, deletedNodeBatches: remaining });
                 applied = true;
                 setSelectedNodeIds(new Set(result.restoredIds));
                 await saveProductCanvas(projectId);
@@ -52,7 +52,7 @@ export function useCanvasNodeRecycle<T extends CanvasHistorySnapshot>({ projectI
         } catch (error) {
             message.error(`${applied ? "节点已恢复，但保存未确认：" : "恢复失败："}${error instanceof Error ? error.message : String(error)}`);
         } finally { recycleBusyRef.current.delete(batchId); }
-    }, [applyHistory, assertImportTarget, createHistoryEntry, message, pollVideoNodeTask, projectId, updateProject, historyRef, nodesRef, setSelectedNodeIds]);
+    }, [applyHistory, assertImportTarget, createHistoryEntry, message, pollVideoNodeTask, projectId, historyRef, nodesRef, setSelectedNodeIds]);
 
     const permanentlyDeleteNodeBatch = useCallback(async (batchId: string) => {
         if (recycleBusyRef.current.has(batchId)) return;
@@ -67,8 +67,8 @@ export function useCanvasNodeRecycle<T extends CanvasHistorySnapshot>({ projectI
             const removed = new Set(batch.nodes.filter(node => !active.has(node.id)).map(node => node.id));
             historyRef.current.past = historyRef.current.past.map(entry => withoutDeletedNodes(entry, removed));
             historyRef.current.future = historyRef.current.future.map(entry => withoutDeletedNodes(entry, removed));
-            if (lastHistoryRef.current) lastHistoryRef.current = withoutDeletedNodes(lastHistoryRef.current, removed);
             const remaining = stored.deletedNodeBatches!.filter(item => item.id !== batchId).map(item => ({ ...withoutDeletedNodes(item, removed), relatedNodes: withoutDeletedNodes({ nodes: item.relatedNodes || [], connections: [] }, removed).nodes }));
+            if (lastHistoryRef.current) lastHistoryRef.current = { ...withoutDeletedNodes(lastHistoryRef.current, removed), deletedNodeBatches: remaining };
             updateProject(projectId, { deletedNodeBatches: remaining });
             applied = true;
             await saveProductCanvas(projectId);

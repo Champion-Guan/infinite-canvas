@@ -108,6 +108,7 @@ function generatorFixture() {
     let counter = 0;
     const errors = [], requests = [];
     const port = {
+        protectProductCanvasWork: (_id, operation) => operation,
         CanvasNodeType: types, NODE_DEFAULT_SIZE: sizes, NODE_STATUS_LOADING: 'loading', NODE_STATUS_SUCCESS: 'success', NODE_STATUS_ERROR: 'error', NODE_STATUS_IDLE: 'idle',
         nodesRef, connectionsRef, effectiveConfig: {}, projectId: 'local-verification',
         ...columns, ...layout, nanoid: () => 'generated-' + ++counter,
@@ -115,7 +116,7 @@ function generatorFixture() {
         ...variants.load('画布生成/产品变体生成.ts'),
         ...variants.load('画布生成/产品变体执行.ts'),
         saveProductCanvas: async () => {},
-        isGenerationModeEnabled: () => true, isAiConfigReady: () => true, getNodeDefinition: () => null,
+        isGenerationModeEnabled: () => true, isAiConfigReady: () => true, ensureModelConfigured: () => true, getNodeDefinition: () => null,
         generationNodeForExecution: source => source, buildGenerationConfig: () => ({ model: 'local-sample', count: '1', size: '900x1200' }),
         hydrateNodeGenerationContext: async context => context, buildNodeGenerationContext: (_id, _nodes, _edges, prompt) => ({ prompt, referenceImages: [], referenceVideos: [], referenceAudios: [] }),
         generationRequestsRef: { current: registry.requests },

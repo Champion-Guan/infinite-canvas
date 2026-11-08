@@ -1,0 +1,20 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index f2103f5..da6db5d 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -28,6 +28,7 @@ import { useCanvasContentImport } from "@/扩展功能/画布导入/当前画布
+ import { useCanvasTaskReceipts } from "@/扩展功能/画布生成/生成任务回执操作";
+ import { applyConnectedPromptConfig, detectedPromptConfig, generationNodeForExecution } from "@/扩展功能/画布生成/生成参数继承";
+ import { ExcelCanvasScope, useExcelPromptContext } from "@/扩展功能/Excel画布/Excel画布上下文";
++import { ProductPromptWarnings } from "@/扩展功能/Excel画布/商品提示词失效提示";
+ import { registerExcelParameterNode } from "@/扩展功能/Excel画布/Excel参数节点注册";
+ import { PROMPT_VARIABLES_NODE_TYPE } from "@/扩展功能/Excel画布/旧版参数规则";
+ import { useExcelParameterOperations } from "@/扩展功能/Excel画布/Excel参数操作";
+@@ -3116,6 +3117,7 @@ function InfiniteCanvasPage() {
+ 
+     return (
+         <ExcelCanvasScope productId={projectId}><main className="flex h-full min-h-0 overflow-hidden" style={{ background: theme.canvas.background, color: theme.node.text }}>
++            <ProductPromptWarnings projectId={projectId} active={productActive} nodes={contentNodes} connections={connections} getNodes={pluginHost.getNodes} applyOps={applyAgentOps} />
+             <CanvasSidePanel projectId={projectId} connections={connections} getCurrentNode={getCurrentNode} onRetryNode={handleRetryNode} nodes={nodes} selectedNodeIds={selectedNodeIds} onFocusNode={focusNode} onPreviewNode={setPreviewNodeId} onHoverNode={setHoverPreviewNodeId} onInsertAsset={handleAssetInsert} deletedNodeBatches={currentProject?.deletedNodeBatches || []} onRestoreDeletedNodes={restoreDeletedNodeBatch} onPermanentlyDeleteNodes={permanentlyDeleteNodeBatch} />
+             <section className="relative min-w-0 flex-1 overflow-hidden">
+                 <CanvasTopBar

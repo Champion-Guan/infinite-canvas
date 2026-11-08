@@ -1,0 +1,31 @@
+diff --git a/web/src/styles/globals.css b/web/src/styles/globals.css
+index 50bb274..c4bb5a8 100644
+--- a/web/src/styles/globals.css
++++ b/web/src/styles/globals.css
+@@ -670,7 +670,6 @@
+         -webkit-background-clip: text;
+         background-clip: text;
+         color: transparent;
+-        animation: ai-title-aurora 7s ease-in-out infinite;
+     }
+ 
+     .dark .ai-title-aurora {
+@@ -680,18 +679,6 @@
+         background-clip: text;
+     }
+ 
+-    @keyframes ai-title-aurora {
+-        0%,
+-        100% {
+-            background-position: 0% 50%;
+-            filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0));
+-        }
+-        50% {
+-            background-position: 100% 50%;
+-            filter: drop-shadow(0 12px 28px rgba(28, 25, 23, 0.08));
+-        }
+-    }
+-
+     .hide-scrollbar {
+         -ms-overflow-style: none;
+         scrollbar-width: none;

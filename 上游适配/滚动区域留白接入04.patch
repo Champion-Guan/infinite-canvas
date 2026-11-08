@@ -1,0 +1,22 @@
+diff --git a/web/src/components/agent/agent-chat-prompt-input.tsx b/web/src/components/agent/agent-chat-prompt-input.tsx
+index 9c9f513..4edd433 100644
+--- a/web/src/components/agent/agent-chat-prompt-input.tsx
++++ b/web/src/components/agent/agent-chat-prompt-input.tsx
+@@ -177,7 +177,7 @@ export function AgentChatPromptInput({ value, disabled, placeholder, theme, onCh
+                 role="textbox"
+                 aria-multiline="true"
+                 aria-label={placeholder}
+-                className="thin-scrollbar max-h-32 min-h-20 w-full overflow-y-auto whitespace-pre-wrap break-words bg-transparent px-1 py-1 text-sm leading-6 outline-none"
++                className="guan-scroll-region thin-scrollbar max-h-32 min-h-20 w-full overflow-y-auto whitespace-pre-wrap break-words bg-transparent px-1 py-1 text-sm leading-6 outline-none"
+                 style={{ color: theme.node.text, cursor: disabled ? "default" : "text" }}
+                 onInput={() => {
+                     if (!composingRef.current) syncFromEditor();
+@@ -251,7 +251,7 @@ function AgentCommandMenu({ command, candidates, activeIndex, loading, theme, on
+             <div className="border-b px-3 py-2 text-xs" style={{ borderColor: theme.toolbar.border, color: theme.node.muted }}>
+                 {t(command.type === "skill" ? "agent.composer.mentions.selectSkill" : "agent.composer.mentions.selectResource")}{command.query ? ` · ${command.query}` : ""}
+             </div>
+-            <div className="thin-scrollbar max-h-[min(21rem,52vh)] overflow-y-auto p-1">
++            <div className="guan-scroll-region thin-scrollbar max-h-[min(21rem,52vh)] overflow-y-auto p-1">
+                 {candidates.length ? candidates.map((candidate, index) => {
+                     const skill = candidate.type === "skill" ? candidate.skill : null;
+                     const reference = candidate.type === "resource" ? candidate.reference : null;

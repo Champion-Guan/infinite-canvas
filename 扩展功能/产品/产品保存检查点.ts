@@ -28,6 +28,7 @@ export class ProductCommitCheckpoint<T> {
     for (const pending of this.pending.values())
       pending.reject(new Error("产品保存提交已失效。"));
     this.pending.clear();
+    this.flushFlight = null;
     this.latest = undefined;
     this.ready = false;
     this.persistedRevision = 0;
@@ -120,5 +121,11 @@ export class ProductCommitCheckpoint<T> {
     if (!this.active || !this.deferredRevision || this.deferredRevision !== this.revision) return;
     this.persistedRevision = this.deferredRevision;
     this.deferredRevision = 0;
+  }
+  idle() { return this.active && this.ready && !this.flushFlight && !this.pending.size; }
+  releaseProof() {
+    const generation = this.generation, revision = this.revision;
+    return () => this.idle() && generation === this.generation && revision === this.revision
+      && this.hasReadyBaseline && this.persistedRevision === revision;
   }
 }

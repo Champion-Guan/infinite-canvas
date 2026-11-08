@@ -28,6 +28,7 @@ async function audioFixture() {
         async cancel() {},
     };
     const { requestCanvasAudio, prepareAudioRequest, parseAudioResponse } = await load('扩展功能/画布生成/原画布音频调用.ts', {
+        '../产品配置/模型配置门禁': { requireModelConfigured() {} },
         '@/stores/use-config-store': { resolveModelRequestConfig: value => ({ ...value, model: 'tts' }) },
         '@/lib/audio-generation': audioFormat,
         '../产品配置/精简与离线策略': { requireGenerationMode: mode => assert.equal(mode, 'audio') },

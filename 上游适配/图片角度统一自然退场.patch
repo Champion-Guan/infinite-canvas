@@ -1,0 +1,12 @@
+diff --git a/web/src/components/canvas/canvas-node-angle-dialog.tsx b/web/src/components/canvas/canvas-node-angle-dialog.tsx
+index 17d07e3..10ec27d 100644
+--- a/web/src/components/canvas/canvas-node-angle-dialog.tsx
++++ b/web/src/components/canvas/canvas-node-angle-dialog.tsx
+@@ -1,5 +1,6 @@
+ import { useEffect, useState } from "react";
+-import { Button, Modal, Segmented, Slider } from "antd";
++import { Button, Segmented, Slider } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { RotateCcw, WandSparkles } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 

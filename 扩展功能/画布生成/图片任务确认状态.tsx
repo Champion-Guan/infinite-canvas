@@ -6,6 +6,7 @@ import { storageStatus } from "../本机存储/上游浏览器存储桥";
 import { serializeProductResult } from "./图片任务衔接.mjs";
 import { createImageConfirmationRecovery, imageConfirmationTargets, imageConfirmationErrorKey } from "./图片任务确认恢复.mjs";
 import { waitForBatchCanvasSave } from "./批量保存协调";
+import { productCanvasResidency } from "../产品/画布驻留保护";
 
 export type ConfirmedImageTarget = { id: string; productId: string; nodeId: string; responseHash: string };
 
@@ -52,7 +53,7 @@ export function ImageTaskConfirmation({ productId, nodes, ready, afterConfirmed 
       if (!active) return;
       setStatus(previous => ({ key: targetsKey, pending: previous.key === targetsKey ? previous.pending : 0,
         busy: true, progress: "正在重新检查任务…", error: "" }));
-      void recovery.run().then((result: { pending: string[]; failures?: { phase: string; code: string }[] }) => {
+      void productCanvasResidency.run(productId, () => recovery.run()).then((result: { pending: string[]; failures?: { phase: string; code: string }[] }) => {
         if (active) setStatus({ key: targetsKey, pending: result.pending.length, busy: false, progress: "",
           error: result.pending.length ? confirmationFailureText(result.failures || []) : "" });
       }).catch(() => {

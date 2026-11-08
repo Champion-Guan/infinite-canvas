@@ -4,6 +4,7 @@ import { prepareRoutedImageRequest, parseRoutedImageResponse, type PreparedImage
 import { type GeneratedImage } from "./原版图片协议";
 import { runCanvasImageTask } from "./图片任务衔接.mjs";
 import { bindConfiguredChannel } from "../生成网关/渠道绑定客户端";
+import { requireModelConfigured } from "../产品配置/模型配置门禁";
 
 export type CanvasImageTask = { taskId: string; slotId: string; binding: string; requestHash: string };
 export type CanvasImageReceipt = { taskId: string; responseHash: string };
@@ -28,6 +29,8 @@ export async function requestCanvasImage(options: {
   applyAndSave(image: GeneratedImage, receipt: CanvasImageReceipt): Promise<unknown>;
   deferConfirm?: () => boolean;
 }) {
+    options.signal?.throwIfAborted();
+    if (!options.previous) requireModelConfigured(options.config, "image", options.config.model || options.config.imageModel);
   const host = (window as unknown as { __guanGenerationHost?: GenerationHost }).__guanGenerationHost;
   if (!host) throw new Error("本机生成端口尚未接入，请重新打开工作台；未改用浏览器直连。");
   const config = structuredClone({ ...options.config, count: "1" });
@@ -36,7 +39,11 @@ export async function requestCanvasImage(options: {
   await runCanvasImageTask({
     host, scope: options.scope, previous: options.previous, signal: options.signal, retry: options.retry,
     deferConfirm: options.deferConfirm,
-    prepare: async () => { prepared = await prepareRoutedImageRequest(config, prompt, references, candidate => bindImageChannel(host, candidate)); return prepared.request; },
+        prepare: async () => {
+            requireModelConfigured(config, "image", config.model || config.imageModel);
+            prepared = await prepareRoutedImageRequest(config, prompt, references, candidate => bindImageChannel(host, candidate));
+            return prepared.request;
+        },
     bind: async () => (await host.createPlan(prepared.plan)).binding, recordTask: options.recordTask,
     applyAndSave: async (job: { bytes: string; routing?: ImageRoute }, receipt: CanvasImageReceipt) => {
       const image = parseRoutedImageResponse(config, job.bytes, job.routing)[0];

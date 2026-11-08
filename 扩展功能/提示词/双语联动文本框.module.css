@@ -1,0 +1,35 @@
+.field {
+  position: relative;
+  min-width: 0;
+}
+.field textarea {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  resize: vertical;
+}
+.overlay {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  color: transparent;
+  z-index: 1;
+}
+.mirror {
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  color: transparent;
+}
+.mirror mark {
+  color: transparent;
+  background: rgb(250 204 21 / 38%);
+  border-radius: 2px;
+}
+:global(.dark) .mirror mark {
+  background: rgb(250 204 21 / 28%);
+}
+@media (forced-colors: active) {
+  .mirror mark { background: Highlight; opacity: .4; forced-color-adjust: none; }
+}

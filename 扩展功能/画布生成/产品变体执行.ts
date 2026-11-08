@@ -5,6 +5,8 @@ import type { BatchResultPlacement } from "../画布布局/批量结果排布";
 import { planProductGenerationJobs, productVariantExecutions, productGenerationImageCount } from "./产品变体生成";
 import { beginBatchCanvasSave, finishBatchCanvasSave, completeBatchCanvasSave } from "./批量保存协调";
 import type { CanvasGenerationRequest } from "./并发生成状态";
+import { validateProductPromptInputs } from "../Excel画布/商品提示词输入";
+import { pulseProductPromptWarning } from "../Excel画布/商品提示词阻止反馈";
 
 type Port = {
     projectId: string;
@@ -28,10 +30,14 @@ export function useProductVariantGeneration({ projectId, nodesRef, connectionsRe
         if (!node) return;
         let jobs;
         try {
+            validateProductPromptInputs(id, nodesRef.current, connectionsRef.current);
             if (!productVariantExecutions(id, nodesRef.current, connectionsRef.current).length) return execute(id, mode, prompt);
             jobs = planProductGenerationJobs([{ ...node, metadata: { ...node.metadata, prompt, composerContent: node.metadata?.composerContent ? prompt : undefined } }],
                 nodesRef.current, connectionsRef.current, crypto.randomUUID());
-        } catch (error) { message.error(error instanceof Error ? error.message : "变体生成检查未通过"); return; }
+        } catch (error) {
+            if (!pulseProductPromptWarning(error)) message.error(error instanceof Error ? error.message : "变体生成检查未通过");
+            return;
+        }
         running.current.add(id);
         beginBatchCanvasSave(projectId);
         message.info(`开始生成 ${jobs.length} 个变体，共 ${productGenerationImageCount(jobs, count)} 张图片`);

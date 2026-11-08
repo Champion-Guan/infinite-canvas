@@ -1,0 +1,90 @@
+diff --git a/web/src/components/canvas/canvas-video-settings-popover.tsx b/web/src/components/canvas/canvas-video-settings-popover.tsx
+index d2fa9eb..7bd8dd6 100644
+--- a/web/src/components/canvas/canvas-video-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-video-settings-popover.tsx
+@@ -1,10 +1,6 @@
+-import { type RefObject } from "react";
+-import { useSettingsPopover } from "@/扩展功能/画布交互/设置浮层生命周期";
+-import { settingsPopoverPosition } from "@/扩展功能/画布交互/设置浮层位置";
+-import { createProductPortal } from "@/扩展功能/产品/产品界面边界";
++import { NativeSettingsPopover } from "@/扩展功能/主题/原生设置浮层";
+ import { Settings2 } from "lucide-react";
+ import { Button } from "antd";
+-
+ import { VideoSettingsPanel, videoModeLabel, videoResolutionLabel, videoSecondsLabel, videoSizeLabel } from "@/components/video-settings-panel";
+ import { canvasThemes } from "@/lib/canvas-theme";
+ import { useThemeStore } from "@/stores/use-theme-store";
+@@ -16,66 +12,13 @@ type CanvasVideoSettingsPopoverProps = {
+     buttonClassName?: string;
+     placement?: "topLeft" | "top" | "topRight" | "bottomLeft" | "bottom" | "bottomRight";
+ };
+-
+ export function CanvasVideoSettingsPopover({ config, onConfigChange, buttonClassName, placement = "topLeft" }: CanvasVideoSettingsPopoverProps) {
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+-    const { buttonRef, panelRef, open, buttonRect, updateOpen } = useSettingsPopover();
+-
+-    const panel = open && buttonRect ? <VideoSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} /> : null;
+-
+-    return (
+-        <>
+-            <span ref={buttonRef} className="inline-flex min-w-0">
+-                <Button size="small" type="text" className={buttonClassName || "!h-8 !max-w-[220px] !justify-start !rounded-full !px-2.5"} style={{ background: theme.node.fill, color: theme.node.text }} aria-label="视频生成设置" aria-haspopup="dialog" aria-expanded={open} icon={<Settings2 className="size-3.5" />} onClick={() => updateOpen(!open)}>
+-                    <span className="truncate">
+-                        {videoResolutionLabel(config.vquality)} · {videoSizeLabel(config.size)} · {videoSecondsLabel(config.videoSeconds)} · {videoModeLabel(config.videoMode)}
+-                    </span>
+-                </Button>
+-            </span>
+-            {panel}
+-        </>
+-    );
+-}
+-
+-function VideoSettingsPortal({
+-    buttonRect,
+-    panelRef,
+-    placement,
+-    theme,
+-    config,
+-    onConfigChange,
+-}: {
+-    buttonRect: DOMRect;
+-    panelRef: RefObject<HTMLDivElement | null>;
+-    placement: CanvasVideoSettingsPopoverProps["placement"];
+-    theme: (typeof canvasThemes)[keyof typeof canvasThemes];
+-    config: AiConfig;
+-    onConfigChange: (key: keyof AiConfig, value: string) => void;
+-}) {
+-    const style = { scrollbarGutter: "stable both-edges",
+-        position: "fixed",
+-        zIndex: 1200,
+-        ...settingsPopoverPosition(buttonRect, placement, { width: window.innerWidth, height: window.innerHeight }),
+-        background: theme.toolbar.panel,
+-        borderRadius: 18,
+-        boxShadow: "0 18px 54px rgba(28, 25, 23, 0.16)",
+-        padding: 18,
+-        overflowY: "auto",
+-        color: theme.node.text, paddingInline: 18
+-    } as const;
+-
+-    return createProductPortal(
+-        <div
+-            data-canvas-settings-popover role="dialog" aria-label="视频生成设置"
+-            ref={panelRef}
+-            className="canvas-image-settings-popover"
+-            style={style}
+-            onPointerDown={(event) => event.stopPropagation()}
+-            onMouseDown={(event) => event.stopPropagation()}
+-            onClick={(event) => event.stopPropagation()}
+-        >
+-            <VideoSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} className="space-y-4" />
+-        </div>,
+-        document.body,
+-    );
++    return <NativeSettingsPopover label="视频生成设置" placement={placement} theme={theme}
++        content={<VideoSettingsPanel config={config} onConfigChange={onConfigChange} theme={theme} className="space-y-4" />}>
++        <Button size="small" type="text" className={buttonClassName || "!h-8 !max-w-[220px] !justify-start !rounded-full !px-2.5"}
++            style={{ background: theme.node.fill, color: theme.node.text }} aria-label="视频生成设置" aria-haspopup="dialog" icon={<Settings2 className="size-3.5" />}>
++            <span className="truncate">{videoResolutionLabel(config.vquality)} · {videoSizeLabel(config.size)} · {videoSecondsLabel(config.videoSeconds)} · {videoModeLabel(config.videoMode)}</span>
++        </Button>
++    </NativeSettingsPopover>;
+ }

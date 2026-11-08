@@ -59,7 +59,7 @@ test('服务重连后的新端口不共享旧连接的状态请求', async () =>
 });
 
 test('隐藏产品和后台标签不轮询，重新可见立即刷新，卸载清理定时器和监听', async t => {
-    t.mock.timers.enable({ apis: ['setInterval'] });
+    t.mock.timers.enable({ apis: ['setTimeout'] });
     let active = true, calls = 0;
     const listeners = new Set(), cleanups = [];
     const document = { visibilityState: 'hidden', addEventListener: (_name, callback) => listeners.add(callback), removeEventListener: (_name, callback) => listeners.delete(callback) };
@@ -70,6 +70,11 @@ test('隐藏产品和后台标签不轮询，重新可见立即刷新，卸载�
         '@/扩展功能/软件更新/软件更新客户端': { updateRequest: async () => { calls++; return {}; }, updateMessages: {} },
         '@/lib/release': releaseModule.exports,
     };
+    const pollingModule = { exports: {} };
+    const pollingCode = ts.transpileModule(readFileSync(new URL('../扩展功能/主题/可见页面轮询.ts', import.meta.url), 'utf8'),
+        { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+    new Function('require', 'module', 'exports', 'document', pollingCode)(() => dependencies.react, pollingModule, pollingModule.exports, document);
+    dependencies['@/扩展功能/主题/可见页面轮询'] = pollingModule.exports;
     const source = readFileSync(new URL('../.运行/3100源/画布副本/web/src/hooks/use-version-check.ts', import.meta.url), 'utf8');
     const javascript = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
     const module = { exports: {} };
@@ -78,7 +83,8 @@ test('隐藏产品和后台标签不轮询，重新可见立即刷新，卸载�
     const unmount = () => { while (cleanups.length) cleanups.pop()(); };
     render(); t.mock.timers.tick(60000); assert.equal(calls, 0);
     document.visibilityState = 'visible'; for (const listener of listeners) listener();
-    assert.equal(calls, 1); t.mock.timers.tick(30000); assert.equal(calls, 2);
+    assert.equal(calls, 1); await new Promise(resolve => setImmediate(resolve));
+    t.mock.timers.tick(30000); assert.equal(calls, 2);
     unmount(); active = false; render(); t.mock.timers.tick(60000);
     assert.equal(calls, 2); assert.equal(listeners.size, 0);
     unmount(); active = true; render(); assert.equal(calls, 3);
@@ -95,6 +101,7 @@ test('在线更新日志沿用逐条分类标签，发布身份采用服务端�
         antd: { App: { useApp: () => ({ message: {} }) } }, '@/constant/env': { APP_VERSION: 'test' },
         '@/扩展功能/软件更新/软件更新客户端': { updateRequest: async () => ({}), updateMessages: {} },
         '@/lib/release': releaseModule.exports,
+        '@/扩展功能/主题/可见页面轮询': { useVisiblePolling() {} },
     };
     const source = readFileSync(new URL('../.运行/3100源/画布副本/web/src/hooks/use-version-check.ts', import.meta.url), 'utf8');
     const javascript = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;

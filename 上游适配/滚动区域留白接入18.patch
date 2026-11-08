@@ -1,0 +1,20 @@
+diff --git a/web/src/components/canvas/canvas-node-reference-bar.tsx b/web/src/components/canvas/canvas-node-reference-bar.tsx
+index d90ae9c..c2aea82 100644
+--- a/web/src/components/canvas/canvas-node-reference-bar.tsx
++++ b/web/src/components/canvas/canvas-node-reference-bar.tsx
+@@ -17,7 +17,7 @@ export function CanvasNodeReferenceBar({ nodeId, nodes, connectedNodes, onDiscon
+     return (
+         <div className="mb-2">
+             <div className="mb-1.5 text-[11px] font-medium" style={{ color: theme.node.muted }}>{t("canvas.references.title")}</div>
+-            <div className="thin-scrollbar flex min-h-12 gap-2 overflow-x-auto pb-1">
++            <div className="guan-scroll-horizontal thin-scrollbar flex min-h-12 gap-2 overflow-x-auto pb-1">
+                 {references.map(({ node, sourceNodeId }) => <ReferenceItem key={`${sourceNodeId}:${node.id}`} node={node} onRemove={() => onDisconnect?.(sourceNodeId, nodeId)} />)}
+                 <button type="button" className="grid size-12 shrink-0 place-items-center rounded-xl border bg-transparent transition hover:opacity-70" style={{ borderColor: theme.toolbar.border, color: theme.node.muted }} title={t("canvas.references.select")} onClick={() => onStartSelection?.(nodeId)}>
+                     <Plus className="size-4" />
+@@ -53,5 +53,5 @@ function ReferencePreview({ node, content }: { node: CanvasNodeData; content?: s
+     if ((resource?.kind === "image" || node.type === CanvasNodeType.Image) && content) return <img src={content} alt={node.title} className="max-h-52 w-72 rounded-lg object-contain" />;
+     if ((resource?.kind === "video" || node.type === CanvasNodeType.Video) && content) return <video src={content} className="max-h-52 w-72 rounded-lg" muted controls />;
+     if ((resource?.kind === "audio" || node.type === CanvasNodeType.Audio) && content) return <audio src={content} className="w-72" controls />;
+-    return <div className="max-h-52 w-72 overflow-auto whitespace-pre-wrap text-sm">{resource?.text || node.metadata?.content || node.metadata?.prompt || node.title || t("canvas.references.empty")}</div>;
++    return <div className="guan-scroll-region max-h-52 w-72 overflow-auto whitespace-pre-wrap text-sm">{resource?.text || node.metadata?.content || node.metadata?.prompt || node.title || t("canvas.references.empty")}</div>;
+ }

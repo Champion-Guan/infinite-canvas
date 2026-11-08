@@ -1,0 +1,13 @@
+diff --git a/web/src/components/agent/agent-chat.tsx b/web/src/components/agent/agent-chat.tsx
+index 4e22864..ae3fc25 100644
+--- a/web/src/components/agent/agent-chat.tsx
++++ b/web/src/components/agent/agent-chat.tsx
+@@ -77,7 +77,7 @@ export function AgentChatTimeline({
+     }, [scrollToBottom, updateScrollState]);
+     return (
+         <div className="relative min-h-0 flex-1">
+-            <div ref={listRef} className="thin-scrollbar h-full select-text overflow-y-auto" onScroll={updateScrollState}>
++            <div ref={listRef} className="guan-scroll-region thin-scrollbar h-full select-text overflow-y-auto" onScroll={updateScrollState}>
+                 <div ref={contentRef} className="space-y-4 px-4 pt-4">
+                     {timeline.map((entry) => entry.type === "commands"
+                         ? <AgentCommandGroupRow key={entry.id} items={entry.items} theme={theme} />

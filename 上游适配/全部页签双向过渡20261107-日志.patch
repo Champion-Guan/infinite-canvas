@@ -1,0 +1,43 @@
+diff --git a/web/src/components/agent/agent-log-view.tsx b/web/src/components/agent/agent-log-view.tsx
+index 213021b..0376986 100644
+--- a/web/src/components/agent/agent-log-view.tsx
++++ b/web/src/components/agent/agent-log-view.tsx
+@@ -1,5 +1,6 @@
+ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+ import { Button, Segmented, Tooltip } from "antd";
++import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+ import copyToClipboard from "copy-to-clipboard";
+ import { CheckCircle2, ChevronDown, CircleAlert, CircleDot, Copy, Trash2, TriangleAlert } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+@@ -143,6 +144,7 @@ export function AgentLogView({
+                     </div>
+                 </div>
+ 
++                <TabContentTransition transitionKey={mode} className="min-h-0 flex-1">
+                 {mode === "text" ? (
+                     <>
+                         <div className="flex items-center justify-between gap-2">
+@@ -161,6 +163,7 @@ export function AgentLogView({
+                         </div>
+                         <div className="relative min-h-0 flex-1">
+                             <div ref={listRef} tabIndex={0} aria-label={t("agent.logs.list")} className="guan-scroll-region thin-scrollbar h-full overflow-y-auto border-y focus-visible:outline-none" style={{ borderColor: theme.node.stroke }} onScroll={updateScrollState}>
++                                <TabContentTransition transitionKey={filter}>
+                                 {visibleLogs.map((item, index) => (
+                                     <LogRow key={item.id} item={item} theme={theme} onToggle={index === visibleLogs.length - 1 ? handleLastLogToggle : undefined} />
+                                 ))}
+@@ -169,6 +172,7 @@ export function AgentLogView({
+                                         {t(logs.length ? "agent.logs.noFiltered" : "agent.logs.empty")}
+                                     </div>
+                                 ) : null}
++                                </TabContentTransition>
+                             </div>
+                             {showScrollToBottom ? (
+                                 <AgentScrollToBottom
+@@ -199,6 +203,7 @@ export function AgentLogView({
+                         />
+                     </>
+                 )}
++                </TabContentTransition>
+             </div>
+         </div>
+     );

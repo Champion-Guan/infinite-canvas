@@ -16,6 +16,7 @@ function load(source, imports = {}) {
 }
 
 const ownership = load(readFileSync(join(根目录, '扩展功能/Excel/Excel产品归属.ts'), 'utf8'), {
+  '../产品/产品规则': load(readFileSync(join(根目录, '扩展功能/产品/产品规则.ts'), 'utf8')),
   './旧版Excel合同.js': { createEmptyWorkbook: () => ({ schema: 'guan-workbench.v1', version: 1, workspace: { activeProductSetId: null, activeProductId: null }, productSets: [], products: [], importRecords: [], slots: [], prompts: [], tasks: [], runs: [], providerAttempts: [], assets: [] }), importPromptProducts: () => { throw Error('不应在回收站测试中调用导入'); } },
   '../产品/旧版产品显示名.js': { productDisplayName: product => product.identity?.titleZh || product.title || '未命名产品' },
   '../图片设置/图片信息偏好': { imageInfoDefaults: { showImageInfo: false } },

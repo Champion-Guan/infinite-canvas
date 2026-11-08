@@ -6,7 +6,7 @@ import { ts } from './检查首批功能适配.mjs';
 
 const source = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 function load(text, imports = {}, globals = {}) {
-    const context = vm.createContext({ exports: {}, File, Blob, setTimeout, clearTimeout, console, ...globals, require(name) {
+    const context = vm.createContext({ exports: {}, File, Blob, setTimeout, clearTimeout, console, protectProductCanvasWork: (_id, operation) => operation, ...globals, require(name) {
         assert.ok(name in imports, '未知导入：' + name); return imports[name];
     } });
     vm.runInContext(ts.transpileModule(text, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText, context);
@@ -117,6 +117,7 @@ test('资产插入使用已存媒体且进入原有节点事务；拒绝其他�
     await api.registerUploadedAsset({ projectId: 'A', name: '图片' }, 'image', image);
     let nodes = [], selected, connection = 'old', errors = [], resolves = 0, placements = [];
     const hook = load(source('扩展功能/素材/资产插入操作.ts'), {
+        '../产品/画布驻留保护': { productCanvasResidency: { acquire: () => () => {} } },
         react: { useCallback: fn => fn }, '@/stores/use-asset-store': { useAssetStore: store },
         '@/stores/canvas/use-canvas-store': { useCanvasStore: { getState: () => ({ projects: [{ id: 'A' }, { id: 'B' }] }) } },
         '@/services/image-storage': { async resolveImageUrl() { resolves++; return 'blob:resolved'; } },

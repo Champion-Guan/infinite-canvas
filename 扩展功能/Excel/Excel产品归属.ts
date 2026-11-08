@@ -1,6 +1,7 @@
 import type { CanvasProject, CanvasDeletedProject } from "@/stores/canvas/use-canvas-store";
 import { createEmptyWorkbook, importPromptProducts } from "./旧版Excel合同.js";
 import { productDisplayName } from "../产品/旧版产品显示名.js";
+import { productDateKey } from "../产品/产品规则";
 import { imageInfoDefaults } from "../图片设置/图片信息偏好";
 import { ensureProductParameterNode } from "../Excel画布/产品参数卡片默认";
 
@@ -32,13 +33,26 @@ export type ExcelImportInput = { fileName: string; kind: string; fileSha256?: st
 export const workbookSelectionKey = (id: string | null) => id ?? "__unbound__";
 export const currentWorkbookId = (value: ExcelWorkbooks | null) => value?.contract.workspace.activeProductSetId ?? null;
 export const workbookProjects = (projects: readonly CanvasProject[], owner: string | null) => projects.filter(project => (project.productSetId ?? null) === owner);
+export function workbookChoiceDetails(books: ExcelWorkbooks | null, projects: readonly CanvasProject[]) {
+  const sets = books?.contract.productSets || [];
+  const names = new Map<string, number>(), counts = new Map<string, number>(), byId = new Map(projects.map(project => [project.id, project]));
+  for (const book of sets) names.set(book.source.fileName, (names.get(book.source.fileName) || 0) + 1);
+  for (const project of projects) if (project.productSetId) counts.set(project.productSetId, (counts.get(project.productSetId) || 0) + 1);
+  return new Map(sets.map(book => {
+    if ((names.get(book.source.fileName) || 0) < 2) return [book.id, ""];
+    const date = productDateKey(book.source.importedAt || book.createdAt);
+    const imported = date && Number.isFinite(Date.parse(date)) ? new Date(date).toLocaleString("zh-CN", { hour12: false }) : "时间未知";
+    const recent = byId.get(books?.activeByWorkbook[book.id] || "");
+    return [book.id, `${recent ? `最近：${recent.title} · ` : ""}${counts.get(book.id) || 0} 个产品 · 导入 ${imported}`];
+  }));
+}
 export function orderedWorkbookProjects(projects: readonly CanvasProject[], owner: string | null, products: readonly ImportedProduct[] = []) {
   const imported = new Map(products.filter(product => product.productSetId === owner).map(product => [product.id, product]));
   return [...workbookProjects(projects, owner)].reverse().sort((a, b) => {
     const left = imported.get(a.id), right = imported.get(b.id);
     if (left && !right) return -1;
     if (!left && right) return 1;
-    return (left && right ? left.order - right.order : 0) || a.createdAt.localeCompare(b.createdAt);
+    return (left && right ? left.order - right.order : 0) || productDateKey(a.createdAt).localeCompare(productDateKey(b.createdAt));
   });
 }
 export function visibleWorkbookId(snapshot: WorkbookSnapshot, activeId: string) {
@@ -51,7 +65,7 @@ export function workbookEntry(snapshot: WorkbookSnapshot, owner = currentWorkboo
   const order = snapshot.guanWorkbooks?.contract.productSets.find(book => book.id === owner)?.productIds ?? [];
   return projects.find(project => project.id === remembered)?.id
     ?? order.find(id => projects.some(project => project.id === id))
-    ?? [...projects].reverse().sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0]?.id ?? null;
+    ?? [...projects].reverse().sort((a, b) => productDateKey(a.createdAt).localeCompare(productDateKey(b.createdAt)))[0]?.id ?? null;
 }
 export function prepareWorkbookEntry(snapshot: WorkbookSnapshot): WorkbookSnapshot {
   const id = workbookEntry(snapshot);

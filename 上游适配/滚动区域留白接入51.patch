@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/canvas-video-settings-popover.tsx b/web/src/components/canvas/canvas-video-settings-popover.tsx
+index 25c4f8b..9575b71 100644
+--- a/web/src/components/canvas/canvas-video-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-video-settings-popover.tsx
+@@ -61,7 +61,7 @@ function VideoSettingsPortal({
+         boxShadow: "0 18px 54px rgba(28, 25, 23, 0.16)",
+         padding: 18,
+         overflowY: "auto",
+-        color: theme.node.text, paddingInline: 6
++        color: theme.node.text, paddingInline: 16
+     } as const;
+ 
+     return createProductPortal(

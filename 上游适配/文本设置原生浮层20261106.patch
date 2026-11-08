@@ -1,0 +1,87 @@
+diff --git a/web/src/components/canvas/canvas-text-settings-popover.tsx b/web/src/components/canvas/canvas-text-settings-popover.tsx
+index ac0d8ce..45cf833 100644
+--- a/web/src/components/canvas/canvas-text-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-text-settings-popover.tsx
+@@ -1,11 +1,7 @@
+-import { type RefObject } from "react";
+-import { useSettingsPopover } from "@/扩展功能/画布交互/设置浮层生命周期";
+-import { settingsPopoverPosition } from "@/扩展功能/画布交互/设置浮层位置";
+-import { createProductPortal } from "@/扩展功能/产品/产品界面边界";
++import { NativeSettingsPopover } from "@/扩展功能/主题/原生设置浮层";
+ import { Settings2 } from "lucide-react";
+ import { Button, InputNumber } from "antd";
+ import { useTranslation } from "react-i18next";
+-
+ import { reasoningEffortLabel, TextSettingsPanel } from "@/components/text-settings-panel";
+ import { canvasThemes } from "@/lib/canvas-theme";
+ import { useThemeStore } from "@/stores/use-theme-store";
+@@ -19,58 +15,18 @@ type CanvasTextSettingsPopoverProps = {
+     buttonClassName?: string;
+     placement?: "topLeft" | "top" | "topRight" | "bottomLeft" | "bottom" | "bottomRight";
+ };
+-
+ export function CanvasTextSettingsPopover({ config, onConfigChange, count, onCountChange, buttonClassName, placement = "topLeft" }: CanvasTextSettingsPopoverProps) {
+     const { t } = useTranslation();
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+-    const { buttonRef, panelRef, open, buttonRect, updateOpen } = useSettingsPopover();
+-
+-    const panel = open && buttonRect ? <TextSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} count={count} onConfigChange={onConfigChange} onCountChange={onCountChange} /> : null;
+-
+-    return (
+-        <>
+-            <span ref={buttonRef} className="inline-flex min-w-0">
+-                <Button size="small" type="text" className={buttonClassName || "!h-8 !max-w-[170px] !justify-start !rounded-full !px-2.5"} style={{ background: theme.node.fill, color: theme.node.text }} aria-label="文本生成设置" aria-haspopup="dialog" aria-expanded={open} icon={<Settings2 className="size-3.5" />} onClick={() => updateOpen(!open)}>
+-                    <span className="truncate">{t("canvas.controls.reasoning")} · {reasoningEffortLabel(config.reasoningEffort)}{onCountChange ? ` · ${t("canvas.controls.generations", { count })}` : ""}</span>
+-                </Button>
+-            </span>
+-            {panel}
+-        </>
+-    );
+-}
+-
+-function TextSettingsPortal({ buttonRect, panelRef, placement, theme, config, count, onConfigChange, onCountChange }: {
+-    buttonRect: DOMRect;
+-    panelRef: RefObject<HTMLDivElement | null>;
+-    placement: CanvasTextSettingsPopoverProps["placement"];
+-    theme: (typeof canvasThemes)[keyof typeof canvasThemes];
+-    config: AiConfig;
+-    count?: number;
+-    onConfigChange: CanvasTextSettingsPopoverProps["onConfigChange"];
+-    onCountChange?: (count: number) => void;
+-}) {
+-    const { t } = useTranslation();
+-    const style = {
+-        position: "fixed",
+-        zIndex: 1200,
+-        ...settingsPopoverPosition(buttonRect, placement, { width: window.innerWidth, height: window.innerHeight }),
+-        background: theme.toolbar.panel,
+-        borderRadius: 18,
+-        boxShadow: "0 18px 54px rgba(28, 25, 23, 0.16)",
+-        padding: 18,
+-        color: theme.node.text,
+-    } as const;
+-
+-    return createProductPortal(
+-        <div data-canvas-settings-popover role="dialog" aria-label="文本生成设置" ref={panelRef} style={style} onPointerDown={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
+-            <TextSettingsPanel config={config} onConfigChange={onConfigChange} theme={theme} />
+-            {onCountChange ? (
+-                <div className="mt-4 space-y-2.5">
+-                    <div className="text-sm font-medium" style={{ color: theme.node.muted }}>{t("settingsPanels.text.count")}</div>
+-                    <InputNumber className="w-full" min={1} max={15} precision={0} value={count} onChange={(value) => onCountChange(value || 1)} />
+-                </div>
+-            ) : null}
+-        </div>,
+-        document.body,
+-    );
++    return <NativeSettingsPopover label="文本生成设置" placement={placement} theme={theme}
++        content={<><TextSettingsPanel config={config} onConfigChange={onConfigChange} theme={theme} />
++            {onCountChange ? <div className="mt-4 space-y-2.5">
++                <div className="text-sm font-medium" style={{ color: theme.node.muted }}>{t("settingsPanels.text.count")}</div>
++                <InputNumber className="w-full" min={1} max={15} precision={0} value={count} onChange={value => onCountChange(value || 1)} />
++            </div> : null}</>}>
++        <Button size="small" type="text" className={buttonClassName || "!h-8 !max-w-[170px] !justify-start !rounded-full !px-2.5"}
++            style={{ background: theme.node.fill, color: theme.node.text }} aria-label="文本生成设置" aria-haspopup="dialog" icon={<Settings2 className="size-3.5" />}>
++            <span className="truncate">{t("canvas.controls.reasoning")} · {reasoningEffortLabel(config.reasoningEffort)}{onCountChange ? ` · ${t("canvas.controls.generations", { count })}` : ""}</span>
++        </Button>
++    </NativeSettingsPopover>;
+ }

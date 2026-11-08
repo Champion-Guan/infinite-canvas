@@ -1,14 +1,15 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { useVisiblePolling } from "../主题/可见页面轮询";
 import { App, Button } from "antd";
 import { updateMessages, updateRequest, type SoftwareUpdateStatus } from "./软件更新客户端";
 import { useProductActive } from "../产品/产品界面边界";
 import { connectUpdateProgressWindow } from "./独立进度窗口";
 import { UpdateProgressPanel } from "./更新进度面板";
 
-type Props = { status: SoftwareUpdateStatus | null; refresh: () => Promise<void>; leadingActions?: ReactNode };
+type Props = { status: SoftwareUpdateStatus | null; refresh: () => Promise<void>; leadingActions?: ReactNode; active?: boolean };
 
 // 设置与版本弹窗共用入口；版本切换始终由独立管理器在页面退出后执行。
-export function OnlineInstallActions({ status, refresh, leadingActions }: Props) {
+export function OnlineInstallActions({ status, refresh, leadingActions, active = true }: Props) {
     const productActive = useProductActive();
     const { message } = App.useApp();
     const [operating, setOperating] = useState(false);
@@ -21,13 +22,7 @@ export function OnlineInstallActions({ status, refresh, leadingActions }: Props)
     const coordination = install?.coordination;
     const queued = Boolean(coordination?.mode && coordination.state !== "blocked");
     const downloading = ["verifying-manifest", "downloading"].includes(status?.download.state || "");
-    useEffect(() => {
-        if (!productActive || (!downloading && !staging && !waiting && !switching && !queued)) return;
-        const visibleRefresh = () => { if (document.visibilityState === "visible") void refresh(); };
-        const timer = setInterval(visibleRefresh, 2000);
-        document.addEventListener("visibilitychange", visibleRefresh);
-        return () => { clearInterval(timer); document.removeEventListener("visibilitychange", visibleRefresh); };
-    }, [productActive, downloading, staging, waiting, switching, queued, refresh]);
+    useVisiblePolling(productActive && active && (downloading || staging || waiting || switching || queued), refresh, 2000, false);
     const operate = async (operation: "install" | "defer") => {
         setOperating(true);
         try {

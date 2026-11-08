@@ -1,0 +1,22 @@
+diff --git a/web/src/components/canvas/canvas-node-hover-toolbar.tsx b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+index 97929aa..37fc82b 100644
+--- a/web/src/components/canvas/canvas-node-hover-toolbar.tsx
++++ b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+@@ -293,7 +293,7 @@ export function CanvasNodeInfoModal({ node, open, onClose }: { node: CanvasNodeD
+             {node ? (
+                 <div className="h-[56vh] min-h-[360px] select-text text-sm" data-canvas-shortcuts-ignore>
+                     {view === "info" ? (
+-                        <div className="thin-scrollbar h-full space-y-3 overflow-auto pr-1">
++                        <div className="guan-scroll-region thin-scrollbar h-full space-y-3 overflow-auto pr-1">
+                             <InfoRow label="ID" value={node.id} />
+                             <InfoRow label={t("canvas.nodeToolbar.name")} value={node.title || t("canvas.node.untitled")} />
+                             <InfoRow label={t("canvas.nodeToolbar.type")} value={node.type === CanvasNodeType.Group ? t("canvas.node.group") : node.type === CanvasNodeType.Config ? t("canvas.configNode.title") : [CanvasNodeType.Image, CanvasNodeType.Video, CanvasNodeType.Audio, CanvasNodeType.Text].includes(node.type as CanvasNodeType) ? t(`assets.kinds.${node.type}`) : getNodeDefinition(node.type)?.title || node.type} />
+@@ -330,7 +330,7 @@ export function CanvasNodeInfoModal({ node, open, onClose }: { node: CanvasNodeD
+                             ) : null}
+                         </div>
+                     ) : (
+-                        <pre className="thin-scrollbar h-full overflow-auto rounded-lg border p-3 text-xs leading-5" style={{ background: theme.node.fill, borderColor: theme.node.stroke, color: theme.node.text }}>
++                        <pre className="guan-scroll-region thin-scrollbar h-full overflow-auto rounded-lg border p-3 text-xs leading-5" style={{ background: theme.node.fill, borderColor: theme.node.stroke, color: theme.node.text }}>
+                             {json}
+                         </pre>
+                     )}

@@ -89,11 +89,13 @@ async function executionFixture({ failPreparation = false, blank = false } = {})
   const connectionsRef = { current: [] }; let sequence = 0, generated = 0;
   const variants = variantModules();
   const scope = {
+    protectProductCanvasWork: (_id, operation) => operation,
     ...registry, ...variants.load('画布生成/产品变体生成.ts'), ...variants.load('画布生成/商品提示词生成.ts'),
+    ...variants.load('Excel画布/商品提示词阻止反馈.ts'),
     generationRequestsRef: { current: registry.requests }, nodesRef, connectionsRef,
     resolveGenerationChannelMetadata: () => ({ channel: '测试渠道', channelId: 'test-channel' }),
     isGenerationModeEnabled: () => true, generationNodeForExecution: node => node,
-    effectiveConfig: {}, buildGenerationConfig: () => ({ count: '1' }), isAiConfigReady: () => true, getNodeDefinition: () => undefined,
+    effectiveConfig: {}, buildGenerationConfig: () => ({ count: '1' }), isAiConfigReady: () => true, ensureModelConfigured: () => true, getNodeDefinition: () => undefined,
     openConfigDialog: () => assert.fail('不应打开配置'),
     buildNodeGenerationContext: () => ({}), hydrateNodeGenerationContext: async () => {
       if (failPreparation) throw Error('参考图读取失败');

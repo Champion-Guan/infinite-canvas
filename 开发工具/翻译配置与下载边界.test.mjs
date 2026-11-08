@@ -32,7 +32,7 @@ async function fixture(kind, initial = []) {
     const port = {
         projectId: 'a', nodesRef: { current: initial }, connectionsRef: { current: [] }, effectiveConfig: { imageModel: '图片', videoModel: '视频', textModel: '文本', size: '默认尺寸', count: 2 },
         generateNodeRef: { current: async (...args) => { requests.push(args); } },
-        isAiConfigReady: () => ready, openConfigDialog: value => { api.dialog = value; },
+        isAiConfigReady: () => ready, openConfigDialog: (value, tab) => { api.dialog = true; api.continueRequest = value; api.tab = tab; },
         assertImportTarget: () => { if (!valid) throw Error('原画布已切换'); },
         setNodes: value => { port.nodesRef.current = placement.placeNewCanvasNodes(port.nodesRef.current, typeof value === 'function' ? value(port.nodesRef.current) : value); order.push('nodes'); },
         setConnections: value => { assert.equal(port.connectionsRef.current, value); order.push('connections'); },
@@ -40,6 +40,7 @@ async function fixture(kind, initial = []) {
         message: { warning: value => warnings.push(value), error: value => errors.push(value) }, emptyPromptMessage: '提示词为空',
     };
     const dependencies = { react: { ...hooks, useEffect: callback => effects.push(callback) }, '@/types/canvas': types,
+        '../产品配置/模型配置门禁': { ensureModelConfigured: () => { if (!ready) port.openConfigDialog(false, 'channels'); return ready; } },
         '@/lib/canvas/canvas-node-factory': { createCanvasNode: (type, center, metadata) => ({ ...node('new-' + ++sequence, metadata, type), position: center }) },
         '@/lib/canvas/canvas-generation-helpers': { buildGenerationConfig: (_config, _node, mode) => ({ model: mode === 'text' ? '文本' : '图片' }) },
         '@/constant/canvas': { getNodeSpec: () => ({ width: 340, height: 240 }) }, './生成参数继承': detected, nanoid: { nanoid: () => 'edge-' + ++sequence } };
@@ -71,6 +72,7 @@ test('翻译源卡缺失或空白不建卡，模型未配置只打开原设置',
     const api = await fixture('translation', [node('empty', { content: ' ' }), node('source', { content: '正文' })]);
     api.run(node('deleted'), 'en'); api.run(api.port.nodesRef.current[0], 'en'); api.setReady(false); api.run(api.port.nodesRef.current[1], 'en');
     assert.equal(api.warnings.length, 1); assert.equal(api.dialog, true); assert.deepEqual(api.order, []); assert.equal(api.requests.length, 0);
+    assert.equal(api.continueRequest, false); assert.equal(api.tab, 'channels');
 });
 test('延迟翻译前切画布、删除源/目标或修改原文时不发请求', async () => {
     for (const change of ['switch', 'source', 'target', 'edit', 'started']) {

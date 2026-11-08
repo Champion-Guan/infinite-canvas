@@ -215,6 +215,7 @@ const coordinate = (value: number) => Math.round(value * 1000) / 1000;
 // 把每条圆角路线拆成直段和拐角，再对共线重叠部分按覆盖关系求并集。
 // 最终灰色网络中的每一小段只绘制一次；透明命中区仍保留原关系ID。
 export function mergeSharedConnectionSegments(geometry: readonly ConnectionGeometry[], topology: readonly ConnectionGeometry[] = geometry): SharedConnectionSegment[] {
+    if (!geometry.length) return [];
     const junctions = connectionJunctions(topology.map(item => item.route.points));
     type Line = { start: number; end: number; id: string };
     const lines = new Map<string, { horizontal: boolean; fixed: number; spans: Line[] }>();

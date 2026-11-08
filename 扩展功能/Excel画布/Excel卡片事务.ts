@@ -24,8 +24,16 @@ export function bindExcelParameters(nodes: CanvasNodeData[], connections: Canvas
   if (source.metadata?.excelPromptBindingNodeId && source.metadata.excelPromptBindingNodeId !== parameter.id) throw new Error("该提示词已连接另一张参数卡，请先断开原连线。");
   const raw = (source.metadata?.content || source.metadata?.prompt || "").trim();
   const tokens = promptVariableTokens(raw);
+  const needsPreview = Boolean(tokens.length || parameter.metadata?.promptVariableTokens?.length
+      || Object.keys(parameter.metadata?.promptVariableValues || {}).length || source.metadata?.excelPromptKey);
   const values = completePromptVariableValues(tokens, parameter.metadata?.promptVariableValues);
   const text = resolvePromptVariables(raw, values, productParameterSupplement(parameter.metadata));
+  if (!needsPreview) return {
+    nodes: nodes.map(node => node.id === source.id ? { ...node, metadata: { ...node.metadata,
+      excelPromptRaw: node.metadata?.excelPromptRaw || raw, excelPromptResolved: text, excelPromptBindingNodeId: parameter.id } } : node),
+    connections: connections.some(edge => edge.fromNodeId === fromNodeId && edge.toNodeId === toNodeId)
+      ? connections : [...connections, { id: factory.edgeId(), fromNodeId, toNodeId }],
+  };
   const existing = nodes.find(node => node.metadata?.promptVariablePreviewOf === parameter.id && node.metadata?.promptVariableSourceNodeId === source.id);
   let preview = existing;
   if (!preview) {

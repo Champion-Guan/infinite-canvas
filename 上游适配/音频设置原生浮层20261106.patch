@@ -1,0 +1,97 @@
+diff --git a/web/src/components/canvas/canvas-audio-settings-popover.tsx b/web/src/components/canvas/canvas-audio-settings-popover.tsx
+index e68cd9f..c94d00c 100644
+--- a/web/src/components/canvas/canvas-audio-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-audio-settings-popover.tsx
+@@ -1,10 +1,6 @@
+-import { type RefObject } from "react";
+-import { useSettingsPopover } from "@/扩展功能/画布交互/设置浮层生命周期";
+-import { settingsPopoverPosition } from "@/扩展功能/画布交互/设置浮层位置";
+-import { createProductPortal } from "@/扩展功能/产品/产品界面边界";
++import { NativeSettingsPopover } from "@/扩展功能/主题/原生设置浮层";
+ import { Settings2 } from "lucide-react";
+ import { Button } from "antd";
+-
+ import { AudioSettingsPanel } from "@/components/audio-settings-panel";
+ import { audioFormatLabel, audioSpeedLabel, audioVoiceLabel } from "@/lib/audio-generation";
+ import { canvasThemes } from "@/lib/canvas-theme";
+@@ -12,73 +8,19 @@ import { useThemeStore } from "@/stores/use-theme-store";
+ import type { AiConfig } from "@/stores/use-config-store";
+ 
+ export type CanvasAudioSettingKey = "audioVoice" | "audioFormat" | "audioSpeed" | "audioInstructions";
+-
+ type CanvasAudioSettingsPopoverProps = {
+     config: AiConfig;
+     onConfigChange: (key: CanvasAudioSettingKey, value: string) => void;
+     buttonClassName?: string;
+     placement?: "topLeft" | "top" | "topRight" | "bottomLeft" | "bottom" | "bottomRight";
+ };
+-
+ export function CanvasAudioSettingsPopover({ config, onConfigChange, buttonClassName, placement = "topLeft" }: CanvasAudioSettingsPopoverProps) {
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+-    const { buttonRef, panelRef, open, buttonRect, updateOpen } = useSettingsPopover();
+-
+-    const panel = open && buttonRect ? <AudioSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} /> : null;
+-
+-    return (
+-        <>
+-            <span ref={buttonRef} className="inline-flex min-w-0">
+-                <Button size="small" type="text" className={buttonClassName || "!h-8 !max-w-[170px] !justify-start !rounded-full !px-2.5"} style={{ background: theme.node.fill, color: theme.node.text }} aria-label="音频生成设置" aria-haspopup="dialog" aria-expanded={open} icon={<Settings2 className="size-3.5" />} onClick={() => updateOpen(!open)}>
+-                    <span className="truncate">
+-                        {audioVoiceLabel(config.audioVoice)} · {audioFormatLabel(config.audioFormat)} · {audioSpeedLabel(config.audioSpeed)}
+-                    </span>
+-                </Button>
+-            </span>
+-            {panel}
+-        </>
+-    );
+-}
+-
+-function AudioSettingsPortal({
+-    buttonRect,
+-    panelRef,
+-    placement,
+-    theme,
+-    config,
+-    onConfigChange,
+-}: {
+-    buttonRect: DOMRect;
+-    panelRef: RefObject<HTMLDivElement | null>;
+-    placement: CanvasAudioSettingsPopoverProps["placement"];
+-    theme: (typeof canvasThemes)[keyof typeof canvasThemes];
+-    config: AiConfig;
+-    onConfigChange: (key: CanvasAudioSettingKey, value: string) => void;
+-}) {
+-    const style = { scrollbarGutter: "stable both-edges",
+-        position: "fixed",
+-        zIndex: 1200,
+-        ...settingsPopoverPosition(buttonRect, placement, { width: window.innerWidth, height: window.innerHeight }),
+-        background: theme.toolbar.panel,
+-        borderRadius: 18,
+-        boxShadow: "0 18px 54px rgba(28, 25, 23, 0.16)",
+-        padding: 18,
+-        overflowY: "auto",
+-        color: theme.node.text, paddingInline: 18
+-    } as const;
+-
+-    return createProductPortal(
+-        <div
+-            data-canvas-settings-popover role="dialog" aria-label="音频生成设置"
+-            ref={panelRef}
+-            className="canvas-image-settings-popover"
+-            style={style}
+-            onPointerDown={(event) => event.stopPropagation()}
+-            onMouseDown={(event) => event.stopPropagation()}
+-            onClick={(event) => event.stopPropagation()}
+-        >
+-            <AudioSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} className="space-y-4" />
+-        </div>,
+-        document.body,
+-    );
++    return <NativeSettingsPopover label="音频生成设置" placement={placement} theme={theme}
++        content={<AudioSettingsPanel config={config} onConfigChange={onConfigChange} theme={theme} className="space-y-4" />}>
++        <Button size="small" type="text" className={buttonClassName || "!h-8 !max-w-[170px] !justify-start !rounded-full !px-2.5"}
++            style={{ background: theme.node.fill, color: theme.node.text }} aria-label="音频生成设置" aria-haspopup="dialog" icon={<Settings2 className="size-3.5" />}>
++            <span className="truncate">{audioVoiceLabel(config.audioVoice)} · {audioFormatLabel(config.audioFormat)} · {audioSpeedLabel(config.audioSpeed)}</span>
++        </Button>
++    </NativeSettingsPopover>;
+ }

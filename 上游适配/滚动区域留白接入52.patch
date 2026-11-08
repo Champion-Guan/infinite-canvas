@@ -1,0 +1,13 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index 7fdb152..1399666 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -402,7 +402,7 @@ export function AppConfigModal() {
+                 ...(viewport ? { wrapper: { position: "absolute" }, mask: { position: "absolute" } } : {}),
+                 container: { display: "flex", flexDirection: "column", maxHeight: viewport ? "calc(100cqh - 24px)" : "calc(100dvh - 24px)" },
+                 header: { flexShrink: 0 },
+-                body: { scrollbarGutter: "stable both-edges", height: viewport ? "72cqh" : "72dvh", minHeight: 0, overflowY: "auto", paddingRight: 12, paddingInline: 6 },
++                body: { scrollbarGutter: "stable both-edges", height: viewport ? "72cqh" : "72dvh", minHeight: 0, overflowY: "auto", paddingRight: 12, paddingInline: 16 },
+                 footer: { flexShrink: 0 },
+             }}
+             className="guan-config-modal"

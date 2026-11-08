@@ -1,0 +1,11 @@
+diff --git a/web/src/components/canvas/canvas-node-reference-bar.tsx b/web/src/components/canvas/canvas-node-reference-bar.tsx
+index c2aea82..f3b6eb9 100644
+--- a/web/src/components/canvas/canvas-node-reference-bar.tsx
++++ b/web/src/components/canvas/canvas-node-reference-bar.tsx
+@@ -1,5 +1,5 @@
+ import { FileText, Image as ImageIcon, Music2, Plus, Puzzle, Video, X } from "lucide-react";
+-import { Popover } from "antd";
++import { OutsidePopover as Popover } from "@/扩展功能/主题/原生可关闭浮层";
+ import { useSyncExternalStore } from "react";
+ import { useTranslation } from "react-i18next";
+ 

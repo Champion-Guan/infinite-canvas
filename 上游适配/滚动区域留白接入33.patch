@@ -1,0 +1,22 @@
+diff --git a/web/src/pages/assets/index.tsx b/web/src/pages/assets/index.tsx
+index de59400..8f9548d 100644
+--- a/web/src/pages/assets/index.tsx
++++ b/web/src/pages/assets/index.tsx
+@@ -208,7 +208,7 @@ export default function AssetsPage() {
+ 
+     return (
+         <div className="flex h-full flex-col overflow-hidden bg-background text-stone-900 dark:text-stone-100">
+-            <main className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] px-6 py-8 [background-size:16px_16px] dark:bg-[radial-gradient(rgba(245,245,244,.14)_1px,transparent_1px)]">
++            <main className="guan-scroll-region min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] px-6 py-8 [background-size:16px_16px] dark:bg-[radial-gradient(rgba(245,245,244,.14)_1px,transparent_1px)]">
+                 <div className="pb-8">
+                     <div className="mx-auto max-w-5xl text-center">
+                         <h1 className="text-4xl font-semibold tracking-tight text-stone-950 dark:text-stone-100">{t("assets.title")}</h1>
+@@ -342,7 +342,7 @@ export default function AssetsPage() {
+                         </div>
+                         {formKind === "text" ? (
+                             <Form.Item name="content" label={t("assets.fields.textContent")} rules={[{ required: true, message: t("assets.fields.textRequired") }]}>
+-                                <Input.TextArea rows={8} placeholder={t("assets.fields.textPlaceholder")} />
++                                <Input.TextArea rows={8} placeholder={t("assets.fields.textPlaceholder")} className="guan-scroll-field" />
+                             </Form.Item>
+                         ) : (
+                             <Form.Item label={t("assets.fields.imageContent")} required>

@@ -1,0 +1,19 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index a210b33..89f5793 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -200,14 +200,6 @@ function applyGeneratedVideo(item: CanvasNodeData, video: UploadedFile, extra: C
+ }
+ 
+ export default function CanvasPage() {
+-    const [mounted, setMounted] = useState(false);
+-
+-    useEffect(() => {
+-        setMounted(true);
+-    }, []);
+-
+-    if (!mounted) return <CanvasRefreshShell />;
+-
+     return <InfiniteCanvasPage />;
+ }
+ 

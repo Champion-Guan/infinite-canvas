@@ -1,0 +1,22 @@
+diff --git a/web/src/components/canvas/canvas-video-settings-popover.tsx b/web/src/components/canvas/canvas-video-settings-popover.tsx
+index 95e27e8..25c4f8b 100644
+--- a/web/src/components/canvas/canvas-video-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-video-settings-popover.tsx
+@@ -52,7 +52,7 @@ function VideoSettingsPortal({
+     config: AiConfig;
+     onConfigChange: (key: keyof AiConfig, value: string) => void;
+ }) {
+-    const style = { scrollbarGutter: "stable",
++    const style = { scrollbarGutter: "stable both-edges",
+         position: "fixed",
+         zIndex: 1200,
+         ...settingsPopoverPosition(buttonRect, placement, { width: window.innerWidth, height: window.innerHeight }),
+@@ -61,7 +61,7 @@ function VideoSettingsPortal({
+         boxShadow: "0 18px 54px rgba(28, 25, 23, 0.16)",
+         padding: 18,
+         overflowY: "auto",
+-        color: theme.node.text, paddingInlineEnd: 18
++        color: theme.node.text, paddingInline: 6
+     } as const;
+ 
+     return createProductPortal(

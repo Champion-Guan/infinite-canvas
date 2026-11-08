@@ -9,7 +9,7 @@ import { resolvePromptVariables } from "../提示词/变量使用规则";
 import { planBatchResultColumn, type BatchResultPlacement } from "../画布布局/批量结果排布";
 import type { CanvasGenerationRequest } from "./并发生成状态";
 import { promptDocument } from "../Excel画布/商品提示词规则";
-import { validateProductPromptInputs } from "../Excel画布/商品提示词输入";
+import { productPromptInputs, validateProductPromptInputs } from "../Excel画布/商品提示词输入";
 
 export type ProductVariantSnapshot = { parameterId: string; id: string; name: string; attributes: Record<string, string> };
 export type ProductVariantExecution = {
@@ -58,7 +58,10 @@ export function productVariantExecutions(nodeId: string, nodes: CanvasNodeData[]
     if (!variantParameters.length) return [];
     if (parameters.length !== 1) throw Error("一个生成配置只能使用一张产品参数卡，请先分开不同产品的连线。");
     const parameter = variantParameters[0], metadata = parameter.metadata as ProductVariantMetadata;
-    const selected = productVariants(metadata).filter(variant => variant.enabled);
+    const boundId = generationPromptVariantId(nodeId, nodes, connections);
+    if (boundId && !productVariants(metadata).some(variant => variant.id === boundId))
+        throw Error("提示词对应的变体已移除，请重新策划。");
+    const selected = productVariants(metadata).filter(variant => variant.enabled && (!boundId || variant.id === boundId));
     if (!selected.length) throw Error("请在产品参数卡中至少勾选一个变体。");
     const pool = new Map(productMainImages(metadata).map(image => [image.id, image]));
     const names = new Set<string>(), ids = new Set<string>();
@@ -80,6 +83,12 @@ export function productVariantExecutions(nodeId: string, nodes: CanvasNodeData[]
             parameterMetadata: structuredClone(variantParameterMetadata(metadata, variant)),
         };
     });
+}
+
+export function generationPromptVariantId(nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[]) {
+    const ids = new Set(productPromptInputs(nodeId, nodes, connections).map(node => promptDocument(node)?.variantId).filter(Boolean));
+    if (ids.size > 1) throw Error("一个生成配置只能使用一个变体的提示词，请分开连接。");
+    return [...ids][0];
 }
 
 export function variantScopedNodes(nodes: CanvasNodeData[], execution?: ProductVariantExecution) {
@@ -124,7 +133,10 @@ export function planProductGenerationJobs(sources: CanvasNodeData[], nodes: Canv
         const mode = source.metadata?.generationMode || "image";
         let executions: ProductVariantExecution[] = [];
         if (mode === "image") {
-            const key = generationProductParameters(source.id, nodes, connections).map(node => node.id).sort().join("|");
+            const parameters = generationProductParameters(source.id, nodes, connections);
+            const boundId = generationPromptVariantId(source.id, nodes, connections);
+            if (boundId && parameters.some(parameter => productVariants(parameter.metadata).some(variant => variant.id === boundId && !variant.enabled))) continue;
+            const key = `${parameters.map(node => node.id).sort().join("|")}:${boundId || "*"}`;
             if (!cache.has(key)) cache.set(key, productVariantExecutions(source.id, nodes, connections));
             executions = cache.get(key)!;
         }

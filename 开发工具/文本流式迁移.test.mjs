@@ -210,6 +210,7 @@ test('原画布文本调用仅临时展示进度，最终保存一次，观察�
     const configPort = { resolveModelRequestConfig: value => value };
     const protocol = await load('扩展功能/画布生成/文本生成协议.ts');
     const { requestCanvasText } = await load('扩展功能/画布生成/原画布文本调用.ts', {
+      '../产品配置/模型配置门禁': { requireModelConfigured() {} },
       '@/stores/use-config-store': configPort, './原画布图片调用': { bindGenerationChannel: async () => 'provider:' + 'a'.repeat(64) },
       './图片任务衔接.mjs': { runCanvasImageTask }, './文本生成协议': protocol, './文本临时显示.mjs': preview,
     });

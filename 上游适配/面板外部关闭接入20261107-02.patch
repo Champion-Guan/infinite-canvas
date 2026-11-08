@@ -1,0 +1,12 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 75362a0..69073b7 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -517,6 +517,7 @@ function InfiniteCanvasPage() {
+     const confirmStopGeneration = useCallback(
+         (nodeId: string) => {
+             stopConfirmationRef.current = modal.confirm({
++                maskClosable: true,
+                 title: t("canvas.projectPage.stopTitle"),
+                 content: t("canvas.projectPage.stopDescription"),
+                 okText: t("canvas.projectPage.stop"),

@@ -1,0 +1,1241 @@
+{
+  "来源": "图片结果拆分前原3100画布首次生成和重试回调",
+  "来源SHA256": "3ec0d6f6d3e2b31e360a710f3956691578b0a0c94000e803d0614f0caac13564",
+  "样例": [
+    {
+      "名称": "首次成功主图",
+      "模式": "batch",
+      "原节点": {
+        "id": "result",
+        "type": "image",
+        "title": "主图-4",
+        "position": {
+          "x": 20,
+          "y": 40
+        },
+        "width": 340,
+        "height": 240,
+        "metadata": {
+          "status": "loading",
+          "generationNameBase": "主图",
+          "images": [
+            {
+              "id": "one",
+              "name": "主图-4",
+              "status": "loading"
+            },
+            {
+              "id": "two",
+              "name": "主图-5",
+              "status": "error"
+            }
+          ],
+          "gatewayGenerationReceipts": [
+            {
+              "taskId": "other",
+              "responseHash": "keep"
+            },
+            {
+              "taskId": "task",
+              "responseHash": "old"
+            }
+          ]
+        }
+      },
+      "上传结果": {
+        "url": "blob:交付",
+        "storageKey": "image:交付",
+        "deliveryStorageKey": "image:交付",
+        "originalStorageKey": "image:原图",
+        "width": 1200,
+        "height": 600,
+        "bytes": 88,
+        "mimeType": "image/webp",
+        "originalWidth": 2400,
+        "originalHeight": 1200,
+        "originalBytes": 200,
+        "originalMimeType": "image/png",
+        "deliveryWidth": 1200,
+        "deliveryHeight": 600,
+        "deliveryBytes": 88,
+        "deliveryMimeType": "image/webp"
+      },
+      "图片": {
+        "dataUrl": "data:image/png;base64,c2FtcGxl",
+        "deliverySize": "1152x1536",
+        "upstreamSize": "1024x1536"
+      },
+      "回执": {
+        "taskId": "task",
+        "responseHash": "new"
+      },
+      "槽位": "one",
+      "提示词": "用户提示词",
+      "生成快照": {
+        "generationType": "edit",
+        "model": "模型",
+        "size": "900x1200",
+        "quality": "high",
+        "background": "opaque",
+        "count": 2,
+        "references": [
+          "image:参考"
+        ]
+      },
+      "原回调结果": {
+        "id": "result",
+        "type": "image",
+        "title": "主图-4",
+        "position": {
+          "x": 20,
+          "y": 75
+        },
+        "width": 340,
+        "height": 170,
+        "metadata": {
+          "status": "success",
+          "generationNameBase": "主图",
+          "images": [
+            {
+              "id": "one",
+              "name": "主图-4",
+              "status": "success",
+              "content": "blob:交付",
+              "storageKey": "image:交付",
+              "deliveryStorageKey": "image:交付",
+              "originalStorageKey": "image:原图",
+              "naturalWidth": 1200,
+              "naturalHeight": 600,
+              "bytes": 88,
+              "mimeType": "image/webp",
+              "originalWidth": 2400,
+              "originalHeight": 1200,
+              "originalBytes": 200,
+              "originalMimeType": "image/png",
+              "deliveryWidth": 1200,
+              "deliveryHeight": 600,
+              "deliveryBytes": 88,
+              "deliveryMimeType": "image/webp"
+            },
+            {
+              "id": "two",
+              "name": "主图-5",
+              "status": "error"
+            }
+          ],
+          "gatewayGenerationReceipts": [
+            {
+              "taskId": "other",
+              "responseHash": "keep"
+            },
+            {
+              "taskId": "task",
+              "responseHash": "new"
+            }
+          ],
+          "content": "blob:交付",
+          "storageKey": "image:交付",
+          "naturalWidth": 1200,
+          "naturalHeight": 600,
+          "bytes": 88,
+          "mimeType": "image/webp",
+          "deliveryStorageKey": "image:交付",
+          "originalStorageKey": "image:原图",
+          "originalWidth": 2400,
+          "originalHeight": 1200,
+          "originalBytes": 200,
+          "originalMimeType": "image/png",
+          "deliveryWidth": 1200,
+          "deliveryHeight": 600,
+          "deliveryBytes": 88,
+          "deliveryMimeType": "image/webp",
+          "requestedSize": "1152x1536",
+          "upstreamSize": "1024x1536",
+          "deliverySize": "1200x600",
+          "primaryImageId": "one"
+        }
+      }
+    },
+    {
+      "名称": "后续批次图片",
+      "模式": "batch",
+      "原节点": {
+        "id": "result",
+        "type": "image",
+        "title": "主图-4",
+        "position": {
+          "x": 20,
+          "y": 40
+        },
+        "width": 340,
+        "height": 240,
+        "metadata": {
+          "status": "loading",
+          "generationNameBase": "主图",
+          "images": [
+            {
+              "id": "one",
+              "name": "主图-4",
+              "status": "loading"
+            },
+            {
+              "id": "two",
+              "name": "主图-5",
+              "status": "error"
+            }
+          ],
+          "gatewayGenerationReceipts": [
+            {
+              "taskId": "other",
+              "responseHash": "keep"
+            },
+            {
+              "taskId": "task",
+              "responseHash": "old"
+            }
+          ],
+          "primaryImageId": "one",
+          "content": "blob:已成功",
+          "storageKey": "image:已成功"
+        }
+      },
+      "上传结果": {
+        "url": "blob:交付",
+        "storageKey": "image:交付",
+        "deliveryStorageKey": "image:交付",
+        "originalStorageKey": "image:原图",
+        "width": 1200,
+        "height": 600,
+        "bytes": 88,
+        "mimeType": "image/webp",
+        "originalWidth": 2400,
+        "originalHeight": 1200,
+        "originalBytes": 200,
+        "originalMimeType": "image/png",
+        "deliveryWidth": 1200,
+        "deliveryHeight": 600,
+        "deliveryBytes": 88,
+        "deliveryMimeType": "image/webp"
+      },
+      "图片": {
+        "dataUrl": "data:image/png;base64,c2FtcGxl",
+        "deliverySize": "1152x1536",
+        "upstreamSize": "1024x1536"
+      },
+      "回执": {
+        "taskId": "task",
+        "responseHash": "new"
+      },
+      "槽位": "two",
+      "提示词": "用户提示词",
+      "生成快照": {
+        "generationType": "edit",
+        "model": "模型",
+        "size": "900x1200",
+        "quality": "high",
+        "background": "opaque",
+        "count": 2,
+        "references": [
+          "image:参考"
+        ]
+      },
+      "原回调结果": {
+        "id": "result",
+        "type": "image",
+        "title": "主图-4",
+        "position": {
+          "x": 20,
+          "y": 40
+        },
+        "width": 340,
+        "height": 240,
+        "metadata": {
+          "status": "success",
+          "generationNameBase": "主图",
+          "images": [
+            {
+              "id": "one",
+              "name": "主图-4",
+              "status": "loading"
+            },
+            {
+              "id": "two",
+              "name": "主图-5",
+              "status": "success",
+              "content": "blob:交付",
+              "storageKey": "image:交付",
+              "deliveryStorageKey": "image:交付",
+              "originalStorageKey": "image:原图",
+              "naturalWidth": 1200,
+              "naturalHeight": 600,
+              "bytes": 88,
+              "mimeType": "image/webp",
+              "originalWidth": 2400,
+              "originalHeight": 1200,
+              "originalBytes": 200,
+              "originalMimeType": "image/png",
+              "deliveryWidth": 1200,
+              "deliveryHeight": 600,
+              "deliveryBytes": 88,
+              "deliveryMimeType": "image/webp"
+            }
+          ],
+          "gatewayGenerationReceipts": [
+            {
+              "taskId": "other",
+              "responseHash": "keep"
+            },
+            {
+              "taskId": "task",
+              "responseHash": "new"
+            }
+          ],
+          "primaryImageId": "one",
+          "content": "blob:已成功",
+          "storageKey": "image:已成功"
+        }
+      }
+    },
+    {
+      "名称": "重试非主图保留主图",
+      "模式": "retry",
+      "原节点": {
+        "id": "result",
+        "type": "image",
+        "title": "主图-4",
+        "position": {
+          "x": 20,
+          "y": 40
+        },
+        "width": 340,
+        "height": 240,
+        "metadata": {
+          "status": "loading",
+          "generationNameBase": "主图",
+          "images": [
+            {
+              "id": "one",
+              "name": "主图-4",
+              "status": "loading"
+            },
+            {
+              "id": "two",
+              "name": "主图-5",
+              "status": "error"
+            }
+          ],
+          "gatewayGenerationReceipts": [
+            {
+              "taskId": "other",
+              "responseHash": "keep"
+            },
+            {
+              "taskId": "task",
+              "responseHash": "old"
+            }
+          ],
+          "primaryImageId": "one",
+          "content": "blob:已成功",
+          "storageKey": "image:已成功"
+        }
+      },
+      "上传结果": {
+        "url": "blob:交付",
+        "storageKey": "image:交付",
+        "deliveryStorageKey": "image:交付",
+        "originalStorageKey": "image:原图",
+        "width": 1200,
+        "height": 600,
+        "bytes": 88,
+        "mimeType": "image/webp",
+        "originalWidth": 2400,
+        "originalHeight": 1200,
+        "originalBytes": 200,
+        "originalMimeType": "image/png",
+        "deliveryWidth": 1200,
+        "deliveryHeight": 600,
+        "deliveryBytes": 88,
+        "deliveryMimeType": "image/webp"
+      },
+      "图片": {
+        "dataUrl": "data:image/png;base64,c2FtcGxl",
+        "deliverySize": "1152x1536",
+        "upstreamSize": "1024x1536"
+      },
+      "回执": {
+        "taskId": "task",
+        "responseHash": "new"
+      },
+      "槽位": "two",
+      "重试槽位": "two",
+      "提示词": "用户提示词",
+      "生成快照": {
+        "generationType": "edit",
+        "model": "模型",
+        "size": "900x1200",
+        "quality": "high",
+        "background": "opaque",
+        "count": 2,
+        "references": [
+          "image:参考"
+        ]
+      },
+      "原回调结果": {
+        "id": "result",
+        "type": "image",
+        "title": "主图-4",
+        "position": {
+          "x": 20,
+          "y": 40
+        },
+        "width": 340,
+        "height": 240,
+        "metadata": {
+          "status": "success",
+          "generationNameBase": "主图",
+          "images": [
+            {
+              "id": "one",
+              "name": "主图-4",
+              "status": "loading"
+            },
+            {
+              "id": "two",
+              "name": "主图-5",
+              "status": "success",
+              "content": "blob:交付",
+              "storageKey": "image:交付",
+              "naturalWidth": 1200,
+              "naturalHeight": 600,
+              "bytes": 88,
+              "mimeType": "image/webp",
+              "deliveryStorageKey": "image:交付",
+              "originalStorageKey": "image:原图",
+              "originalWidth": 2400,
+              "originalHeight": 1200,
+              "originalBytes": 200,
+              "originalMimeType": "image/png",
+              "deliveryWidth": 1200,
+              "deliveryHeight": 600,
+              "deliveryBytes": 88,
+              "deliveryMimeType": "image/webp"
+            }
+          ],
+          "gatewayGenerationReceipts": [
+            {
+              "taskId": "other",
+              "responseHash": "keep"
+            },
+            {
+              "taskId": "task",
+              "responseHash": "new"
+            }
+          ],
+          "primaryImageId": "one",
+          "content": "blob:已成功",
+          "storageKey": "image:已成功",
+          "prompt": "用户提示词",
+          "generationType": "edit",
+          "model": "模型",
+          "size": "900x1200",
+          "quality": "high",
+          "background": "opaque",
+          "count": 2,
+          "references": [
+            "image:参考"
+          ]
+        }
+      }
+    },
+    {
+      "名称": "重试无主图选定槽位",
+      "模式": "retry",
+      "原节点": {
+        "id": "result",
+        "type": "image",
+        "title": "主图-4",
+        "position": {
+          "x": 20,
+          "y": 40
+        },
+        "width": 340,
+        "height": 240,
+        "metadata": {
+          "status": "loading",
+          "generationNameBase": "主图",
+          "images": [
+            {
+              "id": "one",
+              "name": "主图-4",
+              "status": "loading"
+            },
+            {
+              "id": "two",
+              "name": "主图-5",
+              "status": "error"
+            }
+          ],
+          "gatewayGenerationReceipts": [
+            {
+              "taskId": "other",
+              "responseHash": "keep"
+            },
+            {
+              "taskId": "task",
+              "responseHash": "old"
+            }
+          ]
+        }
+      },
+      "上传结果": {
+        "url": "blob:交付",
+        "storageKey": "image:交付",
+        "deliveryStorageKey": "image:交付",
+        "originalStorageKey": "image:原图",
+        "width": 1200,
+        "height": 600,
+        "bytes": 88,
+        "mimeType": "image/webp",
+        "originalWidth": 2400,
+        "originalHeight": 1200,
+        "originalBytes": 200,
+        "originalMimeType": "image/png",
+        "deliveryWidth": 1200,
+        "deliveryHeight": 600,
+        "deliveryBytes": 88,
+        "deliveryMimeType": "image/webp"
+      },
+      "图片": {
+        "dataUrl": "data:image/png;base64,c2FtcGxl",
+        "deliverySize": "1152x1536",
+        "upstreamSize": "1024x1536"
+      },
+      "回执": {
+        "taskId": "task",
+        "responseHash": "new"
+      },
+      "槽位": "two",
+      "重试槽位": "two",
+      "提示词": "用户提示词",
+      "生成快照": {
+        "generationType": "edit",
+        "model": "模型",
+        "size": "900x1200",
+        "quality": "high",
+        "background": "opaque",
+        "count": 2,
+        "references": [
+          "image:参考"
+        ]
+      },
+      "原回调结果": {
+        "id": "result",
+        "type": "image",
+        "title": "主图-4",
+        "position": {
+          "x": 20,
+          "y": 75
+        },
+        "width": 340,
+        "height": 170,
+        "metadata": {
+          "status": "success",
+          "generationNameBase": "主图",
+          "images": [
+            {
+              "id": "one",
+              "name": "主图-4",
+              "status": "loading"
+            },
+            {
+              "id": "two",
+              "name": "主图-5",
+              "status": "success",
+              "content": "blob:交付",
+              "storageKey": "image:交付",
+              "naturalWidth": 1200,
+              "naturalHeight": 600,
+              "bytes": 88,
+              "mimeType": "image/webp",
+              "deliveryStorageKey": "image:交付",
+              "originalStorageKey": "image:原图",
+              "originalWidth": 2400,
+              "originalHeight": 1200,
+              "originalBytes": 200,
+              "originalMimeType": "image/png",
+              "deliveryWidth": 1200,
+              "deliveryHeight": 600,
+              "deliveryBytes": 88,
+              "deliveryMimeType": "image/webp"
+            }
+          ],
+          "gatewayGenerationReceipts": [
+            {
+              "taskId": "other",
+              "responseHash": "keep"
+            },
+            {
+              "taskId": "task",
+              "responseHash": "new"
+            }
+          ],
+          "content": "blob:交付",
+          "storageKey": "image:交付",
+          "deliveryStorageKey": "image:交付",
+          "originalStorageKey": "image:原图",
+          "naturalWidth": 1200,
+          "naturalHeight": 600,
+          "bytes": 88,
+          "mimeType": "image/webp",
+          "originalWidth": 2400,
+          "originalHeight": 1200,
+          "originalBytes": 200,
+          "originalMimeType": "image/png",
+          "deliveryWidth": 1200,
+          "deliveryHeight": 600,
+          "deliveryBytes": 88,
+          "deliveryMimeType": "image/webp",
+          "requestedSize": "1152x1536",
+          "upstreamSize": "1024x1536",
+          "deliverySize": "1200x600",
+          "primaryImageId": "two",
+          "prompt": "用户提示词",
+          "generationType": "edit",
+          "model": "模型",
+          "size": "900x1200",
+          "quality": "high",
+          "background": "opaque",
+          "count": 2,
+          "references": [
+            "image:参考"
+          ]
+        }
+      }
+    },
+    {
+      "名称": "重试自由尺寸",
+      "模式": "retry",
+      "原节点": {
+        "id": "result",
+        "type": "image",
+        "title": "主图-4",
+        "position": {
+          "x": 20,
+          "y": 40
+        },
+        "width": 340,
+        "height": 240,
+        "metadata": {
+          "status": "loading",
+          "generationNameBase": "主图",
+          "images": [
+            {
+              "id": "one",
+              "name": "主图-4",
+              "status": "loading"
+            },
+            {
+              "id": "two",
+              "name": "主图-5",
+              "status": "error"
+            }
+          ],
+          "gatewayGenerationReceipts": [
+            {
+              "taskId": "other",
+              "responseHash": "keep"
+            },
+            {
+              "taskId": "task",
+              "responseHash": "old"
+            }
+          ],
+          "freeResize": true
+        }
+      },
+      "上传结果": {
+        "url": "blob:交付",
+        "storageKey": "image:交付",
+        "deliveryStorageKey": "image:交付",
+        "originalStorageKey": "image:原图",
+        "width": 1200,
+        "height": 600,
+        "bytes": 88,
+        "mimeType": "image/webp",
+        "originalWidth": 2400,
+        "originalHeight": 1200,
+        "originalBytes": 200,
+        "originalMimeType": "image/png",
+        "deliveryWidth": 1200,
+        "deliveryHeight": 600,
+        "deliveryBytes": 88,
+        "deliveryMimeType": "image/webp"
+      },
+      "图片": {
+        "dataUrl": "data:image/png;base64,c2FtcGxl",
+        "deliverySize": "1152x1536",
+        "upstreamSize": "1024x1536"
+      },
+      "回执": {
+        "taskId": "task",
+        "responseHash": "new"
+      },
+      "槽位": "one",
+      "重试槽位": "one",
+      "提示词": "用户提示词",
+      "生成快照": {
+        "generationType": "edit",
+        "model": "模型",
+        "size": "900x1200",
+        "quality": "high",
+        "background": "opaque",
+        "count": 2,
+        "references": [
+          "image:参考"
+        ]
+      },
+      "原回调结果": {
+        "id": "result",
+        "type": "image",
+        "title": "主图-4",
+        "position": {
+          "x": 20,
+          "y": 40
+        },
+        "width": 340,
+        "height": 240,
+        "metadata": {
+          "status": "success",
+          "generationNameBase": "主图",
+          "images": [
+            {
+              "id": "one",
+              "name": "主图-4",
+              "status": "success",
+              "content": "blob:交付",
+              "storageKey": "image:交付",
+              "naturalWidth": 1200,
+              "naturalHeight": 600,
+              "bytes": 88,
+              "mimeType": "image/webp",
+              "deliveryStorageKey": "image:交付",
+              "originalStorageKey": "image:原图",
+              "originalWidth": 2400,
+              "originalHeight": 1200,
+              "originalBytes": 200,
+              "originalMimeType": "image/png",
+              "deliveryWidth": 1200,
+              "deliveryHeight": 600,
+              "deliveryBytes": 88,
+              "deliveryMimeType": "image/webp"
+            },
+            {
+              "id": "two",
+              "name": "主图-5",
+              "status": "error"
+            }
+          ],
+          "gatewayGenerationReceipts": [
+            {
+              "taskId": "other",
+              "responseHash": "keep"
+            },
+            {
+              "taskId": "task",
+              "responseHash": "new"
+            }
+          ],
+          "freeResize": true,
+          "content": "blob:交付",
+          "storageKey": "image:交付",
+          "deliveryStorageKey": "image:交付",
+          "originalStorageKey": "image:原图",
+          "naturalWidth": 1200,
+          "naturalHeight": 600,
+          "bytes": 88,
+          "mimeType": "image/webp",
+          "originalWidth": 2400,
+          "originalHeight": 1200,
+          "originalBytes": 200,
+          "originalMimeType": "image/png",
+          "deliveryWidth": 1200,
+          "deliveryHeight": 600,
+          "deliveryBytes": 88,
+          "deliveryMimeType": "image/webp",
+          "requestedSize": "1152x1536",
+          "upstreamSize": "1024x1536",
+          "deliverySize": "1200x600",
+          "primaryImageId": "one",
+          "prompt": "用户提示词",
+          "generationType": "edit",
+          "model": "模型",
+          "size": "900x1200",
+          "quality": "high",
+          "background": "opaque",
+          "count": 2,
+          "references": [
+            "image:参考"
+          ]
+        }
+      }
+    },
+    {
+      "名称": "整卡重试保留左上角",
+      "模式": "retry",
+      "原节点": {
+        "id": "result",
+        "type": "image",
+        "title": "主图-4",
+        "position": {
+          "x": 20,
+          "y": 40
+        },
+        "width": 340,
+        "height": 240,
+        "metadata": {
+          "status": "loading",
+          "generationNameBase": "主图",
+          "images": [
+            {
+              "id": "one",
+              "name": "主图-4",
+              "status": "loading"
+            },
+            {
+              "id": "two",
+              "name": "主图-5",
+              "status": "error"
+            }
+          ],
+          "gatewayGenerationReceipts": [
+            {
+              "taskId": "other",
+              "responseHash": "keep"
+            },
+            {
+              "taskId": "task",
+              "responseHash": "old"
+            }
+          ]
+        }
+      },
+      "上传结果": {
+        "url": "blob:交付",
+        "storageKey": "image:交付",
+        "deliveryStorageKey": "image:交付",
+        "originalStorageKey": "image:原图",
+        "width": 1200,
+        "height": 600,
+        "bytes": 88,
+        "mimeType": "image/webp",
+        "originalWidth": 2400,
+        "originalHeight": 1200,
+        "originalBytes": 200,
+        "originalMimeType": "image/png",
+        "deliveryWidth": 1200,
+        "deliveryHeight": 600,
+        "deliveryBytes": 88,
+        "deliveryMimeType": "image/webp"
+      },
+      "图片": {
+        "dataUrl": "data:image/png;base64,c2FtcGxl",
+        "deliverySize": "1152x1536",
+        "upstreamSize": "1024x1536"
+      },
+      "回执": {
+        "taskId": "task",
+        "responseHash": "new"
+      },
+      "槽位": "one",
+      "提示词": "用户提示词",
+      "生成快照": {
+        "generationType": "edit",
+        "model": "模型",
+        "size": "900x1200",
+        "quality": "high",
+        "background": "opaque",
+        "count": 2,
+        "references": [
+          "image:参考"
+        ]
+      },
+      "原回调结果": {
+        "id": "result",
+        "type": "image",
+        "title": "主图-4",
+        "position": {
+          "x": 20,
+          "y": 40
+        },
+        "width": 340,
+        "height": 170,
+        "metadata": {
+          "status": "success",
+          "generationNameBase": "主图",
+          "images": [
+            {
+              "id": "one",
+              "name": "主图-4",
+              "status": "success",
+              "content": "blob:交付",
+              "storageKey": "image:交付",
+              "naturalWidth": 1200,
+              "naturalHeight": 600,
+              "bytes": 88,
+              "mimeType": "image/webp",
+              "deliveryStorageKey": "image:交付",
+              "originalStorageKey": "image:原图",
+              "originalWidth": 2400,
+              "originalHeight": 1200,
+              "originalBytes": 200,
+              "originalMimeType": "image/png",
+              "deliveryWidth": 1200,
+              "deliveryHeight": 600,
+              "deliveryBytes": 88,
+              "deliveryMimeType": "image/webp"
+            },
+            {
+              "id": "two",
+              "name": "主图-5",
+              "status": "error"
+            }
+          ],
+          "gatewayGenerationReceipts": [
+            {
+              "taskId": "other",
+              "responseHash": "keep"
+            },
+            {
+              "taskId": "task",
+              "responseHash": "new"
+            }
+          ],
+          "content": "blob:交付",
+          "storageKey": "image:交付",
+          "deliveryStorageKey": "image:交付",
+          "originalStorageKey": "image:原图",
+          "naturalWidth": 1200,
+          "naturalHeight": 600,
+          "bytes": 88,
+          "mimeType": "image/webp",
+          "originalWidth": 2400,
+          "originalHeight": 1200,
+          "originalBytes": 200,
+          "originalMimeType": "image/png",
+          "deliveryWidth": 1200,
+          "deliveryHeight": 600,
+          "deliveryBytes": 88,
+          "deliveryMimeType": "image/webp",
+          "requestedSize": "1152x1536",
+          "upstreamSize": "1024x1536",
+          "deliverySize": "1200x600",
+          "primaryImageId": "one",
+          "prompt": "用户提示词",
+          "generationType": "edit",
+          "model": "模型",
+          "size": "900x1200",
+          "quality": "high",
+          "background": "opaque",
+          "count": 2,
+          "references": [
+            "image:参考"
+          ]
+        }
+      }
+    },
+    {
+      "名称": "旧图片缺少原图字段",
+      "模式": "retry",
+      "原节点": {
+        "id": "result",
+        "type": "image",
+        "title": "主图-4",
+        "position": {
+          "x": 20,
+          "y": 40
+        },
+        "width": 340,
+        "height": 240,
+        "metadata": {
+          "status": "loading",
+          "generationNameBase": "主图",
+          "images": [
+            {
+              "id": "one",
+              "name": "主图-4",
+              "status": "loading"
+            },
+            {
+              "id": "two",
+              "name": "主图-5",
+              "status": "error"
+            }
+          ],
+          "gatewayGenerationReceipts": [
+            {
+              "taskId": "other",
+              "responseHash": "keep"
+            },
+            {
+              "taskId": "task",
+              "responseHash": "old"
+            }
+          ]
+        }
+      },
+      "上传结果": {
+        "url": "blob:旧图",
+        "storageKey": "image:旧图",
+        "width": 100,
+        "height": 300,
+        "bytes": 20,
+        "mimeType": "image/jpeg"
+      },
+      "图片": {
+        "dataUrl": "data:image/png;base64,c2FtcGxl",
+        "deliverySize": "1152x1536",
+        "upstreamSize": "1024x1536"
+      },
+      "回执": {
+        "taskId": "task",
+        "responseHash": "new"
+      },
+      "槽位": "one",
+      "提示词": "用户提示词",
+      "生成快照": {
+        "generationType": "edit",
+        "model": "模型",
+        "size": "900x1200",
+        "quality": "high",
+        "background": "opaque",
+        "count": 2,
+        "references": [
+          "image:参考"
+        ]
+      },
+      "原回调结果": {
+        "id": "result",
+        "type": "image",
+        "title": "主图-4",
+        "position": {
+          "x": 20,
+          "y": 40
+        },
+        "width": 80,
+        "height": 240,
+        "metadata": {
+          "status": "success",
+          "generationNameBase": "主图",
+          "images": [
+            {
+              "id": "one",
+              "name": "主图-4",
+              "status": "success",
+              "content": "blob:旧图",
+              "storageKey": "image:旧图",
+              "naturalWidth": 100,
+              "naturalHeight": 300,
+              "bytes": 20,
+              "mimeType": "image/jpeg"
+            },
+            {
+              "id": "two",
+              "name": "主图-5",
+              "status": "error"
+            }
+          ],
+          "gatewayGenerationReceipts": [
+            {
+              "taskId": "other",
+              "responseHash": "keep"
+            },
+            {
+              "taskId": "task",
+              "responseHash": "new"
+            }
+          ],
+          "content": "blob:旧图",
+          "storageKey": "image:旧图",
+          "deliveryStorageKey": "image:旧图",
+          "naturalWidth": 100,
+          "naturalHeight": 300,
+          "bytes": 20,
+          "mimeType": "image/jpeg",
+          "originalWidth": 100,
+          "originalHeight": 300,
+          "originalBytes": 20,
+          "originalMimeType": "image/jpeg",
+          "deliveryWidth": 100,
+          "deliveryHeight": 300,
+          "deliveryBytes": 20,
+          "deliveryMimeType": "image/jpeg",
+          "requestedSize": "1152x1536",
+          "upstreamSize": "1024x1536",
+          "deliverySize": "100x300",
+          "primaryImageId": "one",
+          "prompt": "用户提示词",
+          "generationType": "edit",
+          "model": "模型",
+          "size": "900x1200",
+          "quality": "high",
+          "background": "opaque",
+          "count": 2,
+          "references": [
+            "image:参考"
+          ]
+        }
+      }
+    },
+    {
+      "名称": "非主图自由尺寸重试",
+      "模式": "retry",
+      "原节点": {
+        "id": "result",
+        "type": "image",
+        "title": "主图-4",
+        "position": {
+          "x": 20,
+          "y": 40
+        },
+        "width": 340,
+        "height": 240,
+        "metadata": {
+          "status": "loading",
+          "generationNameBase": "主图",
+          "images": [
+            {
+              "id": "one",
+              "name": "主图-4",
+              "status": "loading"
+            },
+            {
+              "id": "two",
+              "name": "主图-5",
+              "status": "error"
+            }
+          ],
+          "gatewayGenerationReceipts": [
+            {
+              "taskId": "other",
+              "responseHash": "keep"
+            },
+            {
+              "taskId": "task",
+              "responseHash": "old"
+            }
+          ],
+          "primaryImageId": "one",
+          "content": "blob:已成功",
+          "freeResize": true
+        }
+      },
+      "上传结果": {
+        "url": "blob:交付",
+        "storageKey": "image:交付",
+        "deliveryStorageKey": "image:交付",
+        "originalStorageKey": "image:原图",
+        "width": 1200,
+        "height": 600,
+        "bytes": 88,
+        "mimeType": "image/webp",
+        "originalWidth": 2400,
+        "originalHeight": 1200,
+        "originalBytes": 200,
+        "originalMimeType": "image/png",
+        "deliveryWidth": 1200,
+        "deliveryHeight": 600,
+        "deliveryBytes": 88,
+        "deliveryMimeType": "image/webp"
+      },
+      "图片": {
+        "dataUrl": "data:image/png;base64,c2FtcGxl",
+        "deliverySize": "1152x1536",
+        "upstreamSize": "1024x1536"
+      },
+      "回执": {
+        "taskId": "task",
+        "responseHash": "new"
+      },
+      "槽位": "two",
+      "重试槽位": "two",
+      "提示词": "用户提示词",
+      "生成快照": {
+        "generationType": "edit",
+        "model": "模型",
+        "size": "900x1200",
+        "quality": "high",
+        "background": "opaque",
+        "count": 2,
+        "references": [
+          "image:参考"
+        ]
+      },
+      "原回调结果": {
+        "id": "result",
+        "type": "image",
+        "title": "主图-4",
+        "position": {
+          "x": 20,
+          "y": 40
+        },
+        "width": 340,
+        "height": 240,
+        "metadata": {
+          "status": "success",
+          "generationNameBase": "主图",
+          "images": [
+            {
+              "id": "one",
+              "name": "主图-4",
+              "status": "loading"
+            },
+            {
+              "id": "two",
+              "name": "主图-5",
+              "status": "success",
+              "content": "blob:交付",
+              "storageKey": "image:交付",
+              "naturalWidth": 1200,
+              "naturalHeight": 600,
+              "bytes": 88,
+              "mimeType": "image/webp",
+              "deliveryStorageKey": "image:交付",
+              "originalStorageKey": "image:原图",
+              "originalWidth": 2400,
+              "originalHeight": 1200,
+              "originalBytes": 200,
+              "originalMimeType": "image/png",
+              "deliveryWidth": 1200,
+              "deliveryHeight": 600,
+              "deliveryBytes": 88,
+              "deliveryMimeType": "image/webp"
+            }
+          ],
+          "gatewayGenerationReceipts": [
+            {
+              "taskId": "other",
+              "responseHash": "keep"
+            },
+            {
+              "taskId": "task",
+              "responseHash": "new"
+            }
+          ],
+          "primaryImageId": "one",
+          "content": "blob:已成功",
+          "freeResize": true,
+          "prompt": "用户提示词",
+          "generationType": "edit",
+          "model": "模型",
+          "size": "900x1200",
+          "quality": "high",
+          "background": "opaque",
+          "count": 2,
+          "references": [
+            "image:参考"
+          ]
+        }
+      }
+    }
+  ]
+}

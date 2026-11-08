@@ -9,7 +9,7 @@ const jsx = (type, props) => ({ type, props: props || {} });
 const elements = value => Array.isArray(value) ? value.flatMap(elements) : value && typeof value === 'object' ? [value, ...elements(value.props?.children)] : [];
 
 function fixture() {
-    const cells = [], listeners = new Set(), events = new Map(), actions = [];
+    const cells = [], listeners = new Set(), events = new Map(), actions = [], visibilityListeners = new Set();
     let cursor = 0;
     const same = (one, two) => one?.length === two.length && two.every((value, i) => value === one[i]);
     const hooks = {
@@ -27,6 +27,7 @@ function fixture() {
         scrollTo: (index, jump) => actions.push(['scrollTo', index, jump]), scrollPrev: jump => actions.push(['prev', jump]), scrollNext: jump => actions.push(['next', jump]),
     };
     const media = { matches: false, addEventListener: (_event, callback) => listeners.add(callback), removeEventListener: (_event, callback) => listeners.delete(callback) };
+    const document = { visibilityState: 'visible', addEventListener: (_event, callback) => visibilityListeners.add(callback), removeEventListener: (_event, callback) => visibilityListeners.delete(callback) };
     const dependencies = {
         react: hooks, 'react/jsx-runtime': { jsx, jsxs: jsx }, './轮播依赖.js': { Autoplay: () => autoplay, useEmblaCarousel: () => [() => {}, api] },
         './首页.module.css': { __esModule: true, default: {} }, '../产品/产品回收面板': { ProductTrashEntry: 'Trash' },
@@ -34,13 +35,14 @@ function fixture() {
     const source = readFileSync(new URL('../扩展功能/首页/工作台首页.tsx', import.meta.url), 'utf8');
     const javascript = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
     const module = { exports: {} };
-    new Function('require', 'module', 'exports', 'window', javascript)(id => { assert.ok(Object.hasOwn(dependencies, id), id); return dependencies[id]; }, module, module.exports, { matchMedia: () => media });
+    new Function('require', 'module', 'exports', 'window', 'document', javascript)(id => { assert.ok(Object.hasOwn(dependencies, id), id); return dependencies[id]; }, module, module.exports, { matchMedia: () => media }, document);
     return {
         actions,
         render() { cursor = 0; return module.exports.WorkbenchHome({ theme: 'light', onCreate() {}, onImportProduct() {} }); },
         reinit() { for (const callback of events.get('reInit') || []) callback(); },
         reduce(value) { media.matches = value; for (const callback of listeners) callback(); },
-        unmount() { for (const cell of cells) cell.cleanup?.(); assert.equal(listeners.size, 0); assert.equal(events.get('reInit').size, 0); },
+        visibility(value) { document.visibilityState = value; for (const callback of visibilityListeners) callback(); },
+        unmount() { for (const cell of cells) cell.cleanup?.(); assert.equal(listeners.size, 0); assert.equal(visibilityListeners.size, 0); assert.equal(events.get('reInit').size, 0); },
     };
 }
 
@@ -67,4 +69,14 @@ test('系统减少动态效果即时停止播放并跳切，关闭偏好后恢�
     f.render(); f.reduce(false); f.render();
     assert.equal(f.actions.at(-1), 'stop', '用户已选择手动切换，不因系统偏好改变而自行播放');
     f.unmount();
+});
+
+test('页面隐藏即时暂停轮播，返回只恢复原先自动播放，不覆盖用户暂停选择', () => {
+    const f = fixture(); let tree = f.render();
+    f.visibility('hidden'); tree = f.render(); assert.equal(f.actions.at(-1), 'stop');
+    f.reinit(); assert.equal(f.actions.at(-1), 'stop');
+    f.visibility('visible'); tree = f.render(); assert.equal(f.actions.at(-1), 'play');
+    elements(tree).find(item => item.props['aria-label'] === '暂停轮播').props.onClick();
+    f.render(); f.visibility('hidden'); f.render(); f.visibility('visible'); f.render();
+    assert.equal(f.actions.at(-1), 'stop'); f.unmount();
 });

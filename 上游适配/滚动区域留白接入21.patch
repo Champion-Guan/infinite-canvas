@@ -1,0 +1,22 @@
+diff --git a/web/src/components/canvas/canvas-prompt-chip-input.tsx b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+index 024d17d..782b571 100644
+--- a/web/src/components/canvas/canvas-prompt-chip-input.tsx
++++ b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+@@ -141,7 +141,7 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
+                 suppressContentEditableWarning
+                 role="textbox"
+                 aria-multiline="true"
+-                className={`${className || ""} overflow-y-auto whitespace-pre-wrap break-words outline-none`}
++                className={"guan-scroll-region " + (`${className || ""} overflow-y-auto whitespace-pre-wrap break-words outline-none` || "")}
+                 style={{ ...style, cursor: "text" }}
+                 onInput={() => {
+                     if (!composingRef.current) syncFromEditor();
+@@ -227,7 +227,7 @@ function MentionMenu({ rect, references, activeIndex, theme, onSelect }: { rect:
+     return createProductPortal(
+         <div
+             data-canvas-resource-mention-menu="true"
+-            className="fixed z-[1100] max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md"
++            className="guan-scroll-region fixed z-[1100] max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md"
+             style={{ left, top, background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
+             onPointerDown={stopCanvasInteraction}
+             onMouseDown={stopCanvasInteraction}

@@ -1,0 +1,13 @@
+diff --git a/web/src/components/layout/prompt-source-editor-drawer.tsx b/web/src/components/layout/prompt-source-editor-drawer.tsx
+index 9146b8e..bfadda6 100644
+--- a/web/src/components/layout/prompt-source-editor-drawer.tsx
++++ b/web/src/components/layout/prompt-source-editor-drawer.tsx
+@@ -63,7 +63,7 @@ export function PromptSourceEditorDrawer({ open, source, managed = false, onSave
+                 </div>
+                 <div>
+                     <div className="mb-2 text-sm font-medium">{t("config.promptSources.editor.jsonFormat")}</div>
+-                    <pre className="overflow-x-auto rounded-md bg-stone-100 p-3 text-xs leading-5 text-stone-600 dark:bg-stone-900 dark:text-stone-300">{`[
++                    <pre className="guan-scroll-horizontal overflow-x-auto rounded-md bg-stone-100 p-3 text-xs leading-5 text-stone-600 dark:bg-stone-900 dark:text-stone-300">{`[
+   {
+     "id": "product-photo-1",
+     "title": "Product photo",

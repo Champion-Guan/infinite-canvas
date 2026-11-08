@@ -1,0 +1,22 @@
+diff --git a/web/src/components/layout/model-script-editor.tsx b/web/src/components/layout/model-script-editor.tsx
+index 9047701..bf7ce2e 100644
+--- a/web/src/components/layout/model-script-editor.tsx
++++ b/web/src/components/layout/model-script-editor.tsx
+@@ -77,7 +77,7 @@ export function ModelScriptEditor({ open, capability, modelName, value, onSave,
+                             <span>→</span>
+                             <span>3. {t("config.scriptEditor.stepEdit")}</span>
+                         </div>
+-                        <div className="min-h-0 flex-1 overflow-y-scroll overscroll-contain p-0">
++                        <div className="guan-scroll-region min-h-0 flex-1 overflow-y-scroll overscroll-contain p-0">
+                             <StepBlock index={1} title={t("config.scriptEditor.stepRule")}>
+                                 <p className="text-xs leading-5 text-stone-600 dark:text-stone-300">{t("config.scriptEditor.stepRuleHint")}</p>
+                                 <div className="mt-3">
+@@ -148,7 +148,7 @@ export function ModelScriptEditor({ open, capability, modelName, value, onSave,
+                                 extensions={[javascript()]}
+                                 placeholder={t("config.scriptEditor.placeholder")}
+                                 style={{ height: "100%", fontSize: 13 }}
+-                                className="h-full [&_.cm-editor]:h-full [&_.cm-gutters]:border-none [&_.cm-scroller]:overflow-auto"
++                                className="guan-scroll-region h-full [&_.cm-editor]:h-full [&_.cm-gutters]:border-none [&_.cm-scroller]:overflow-auto"
+                             />
+                         </div>
+                     </div>

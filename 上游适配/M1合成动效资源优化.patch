@@ -1,0 +1,46 @@
+diff --git a/web/src/styles/globals.css b/web/src/styles/globals.css
+index 590f993..1fd93bb 100644
+--- a/web/src/styles/globals.css
++++ b/web/src/styles/globals.css
+@@ -295,7 +295,6 @@
+     .guan-node-settle {
+         animation: guan-node-settle 420ms var(--guan-motion-spring) both;
+         transform-origin: center;
+-        will-change: transform, filter;
+     }
+ 
+     .guan-layout-transition {
+@@ -340,6 +339,7 @@
+     }
+ 
+     .guan-history-list-card:active { transform: scale(.992); }
++    .guan-history-list-card { content-visibility: auto; contain-intrinsic-size: auto 68px; }
+ 
+     .guan-download-action .guan-download-icon { transition: transform var(--guan-motion-normal) var(--guan-motion-spring), opacity var(--guan-motion-fast) var(--guan-motion-gentle); }
+     .guan-download-action.is-loading .guan-download-icon { animation: guan-download-spin 780ms linear infinite; }
+@@ -514,19 +514,18 @@
+     .ant-select-focused .ant-select-selector { box-shadow: 0 0 0 3px rgb(47 128 255 / 12%) !important; }
+ 
+     @keyframes guan-node-settle {
+-        0% { filter: saturate(.82) brightness(.98); opacity: .78; }
+-        58% { filter: saturate(1.08) brightness(1.02); opacity: 1; }
+-        100% { filter: saturate(1) brightness(1); opacity: 1; }
++        from { opacity: .78; }
++        to { opacity: 1; }
+     }
+ 
+     @keyframes guan-layout-transition {
+-        from { opacity: .72; filter: saturate(.85); }
+-        to { opacity: 1; filter: saturate(1); }
++        from { opacity: .72; }
++        to { opacity: 1; }
+     }
+ 
+     @keyframes guan-history-replay {
+-        from { opacity: .56; filter: blur(1px); transform: scale(.985); }
+-        to { opacity: 1; filter: blur(0); transform: scale(1); }
++        from { opacity: .56; transform: scale(.985); }
++        to { opacity: 1; transform: scale(1); }
+     }
+ 
+     @keyframes guan-connection-flow {

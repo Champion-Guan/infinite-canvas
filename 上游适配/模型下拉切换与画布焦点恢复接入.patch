@@ -1,0 +1,70 @@
+diff --git a/web/src/components/model-picker.tsx b/web/src/components/model-picker.tsx
+index 5fc9c88..8d5c178 100644
+--- a/web/src/components/model-picker.tsx
++++ b/web/src/components/model-picker.tsx
+@@ -1,4 +1,4 @@
+-import { useEffect, useId, useState } from "react";
++import { useEffect, useId, useRef, useState } from "react";
+ import { useFallbackRevision } from "@/扩展功能/故障切换/浏览器状态";
+ import { Cpu, Repeat2 } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+@@ -23,6 +23,9 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
+     const { t } = useTranslation();
+     const pickerId = useId();
+     const [open, setOpen] = useState(false);
++    const trigger = useRef<HTMLButtonElement | null>(null);
++    const pointerInteraction = useRef(false);
++    const suppressClick = useRef(false);
+     useFallbackRevision();
+     const options = Array.from(new Set([...(capability === "image" && hasEnabledFallback(capability, config) ? [FALLBACK_MODEL_OPTION] : []), ...(config.channelMode === "local" && !capability ? [value] : []), ...selectableModelsByCapability(config, capability)].filter((model): model is string => Boolean(model))));
+     const current = value || "";
+@@ -48,6 +51,8 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
+             onValueChange={onChange}
+         >
+             <SelectTrigger
++                ref={trigger}
++                style={open ? { pointerEvents: "auto" } : undefined}
+                 className={cn(
+                     "canvas-composer-model-picker h-8 w-fit max-w-full gap-2 rounded-full border border-input bg-transparent px-3 text-sm font-normal shadow-sm transition-colors",
+                     fullWidth ? "w-full min-w-0 justify-start" : "min-w-[9rem] justify-start",
+@@ -55,7 +60,21 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
+                     className,
+                 )}
+                 onMouseDown={(event) => event.stopPropagation()}
+-                onPointerDown={(event) => event.stopPropagation()}
++                onPointerDown={(event) => {
++                    event.stopPropagation();
++                    if (event.button !== 0 || event.ctrlKey) return;
++                    pointerInteraction.current = true;
++                    if (open) {
++                        event.preventDefault();
++                        suppressClick.current = true;
++                        setOpen(false);
++                    }
++                }}
++                onClick={(event) => {
++                    event.stopPropagation();
++                    if (suppressClick.current) { event.preventDefault(); suppressClick.current = false; }
++                }}
++                onKeyDown={() => { pointerInteraction.current = false; suppressClick.current = false; }}
+                 title={current ? modelOptionLabel(config, current) : pickerPlaceholder}
+             >
+                 <ModelIcon model={current} />
+@@ -68,8 +87,16 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
+                 align="start"
+                 side="bottom"
+                 sideOffset={6}
+-                onPointerDown={(event) => event.stopPropagation()}
++                onPointerDown={(event) => { pointerInteraction.current = true; event.stopPropagation(); }}
++                onKeyDown={(event) => { if (event.key !== "Escape") pointerInteraction.current = false; }}
+                 onMouseDown={(event) => event.stopPropagation()}
++                onCloseAutoFocus={(event) => {
++                    // 鼠标操作画布模型后不把焦点留在按钮上，空格继续用于临时移动。
++                    if (pointerInteraction.current && trigger.current?.closest("[data-node-id]")) {
++                        event.preventDefault();
++                        trigger.current.blur();
++                    }
++                }}
+             >
+                 {options.length ? (
+                     options.map((model) => (

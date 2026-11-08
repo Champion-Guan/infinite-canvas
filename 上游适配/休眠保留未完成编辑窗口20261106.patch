@@ -1,0 +1,22 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 7eff168..9f219fd 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -390,6 +390,8 @@ function InfiniteCanvasPage() {
+         [activeChatId, backgroundMode, chatSessions, showImageInfo],
+     );
+     const beforeCanvasRelease = useCallback(async () => {
++        if (titleEditing || cropNodeId || maskEditNodeId || splitNodeId || upscaleNodeId || angleNodeId || pluginManagerOpen || assetPickerOpen || applyingHistoryRef.current)
++            throw Error("画布仍有未完成的编辑窗口，暂不休眠。");
+         const current = createHistoryEntry();
+         if (historyCommitTimerRef.current) {
+             clearTimeout(historyCommitTimerRef.current); historyCommitTimerRef.current = null;
+@@ -403,7 +405,7 @@ function InfiniteCanvasPage() {
+         if (!revision) throw Error("原画布不存在，未释放缓存。");
+         await saveDormantProduct(projectId, { version: 1, projectRevision: revision, current, history: historyRef.current,
+             selectedNodeIds: [...selectedNodeIdsRef.current], selectedConnectionId, canvasTool });
+-    }, [projectId, createHistoryEntry, selectedConnectionId, canvasTool]);
++    }, [projectId, createHistoryEntry, selectedConnectionId, canvasTool, titleEditing, cropNodeId, maskEditNodeId, splitNodeId, upscaleNodeId, angleNodeId, pluginManagerOpen, assetPickerOpen]);
+ 
+     const cleanupCanvasFiles = useCallback(
+         (extra?: unknown) => {

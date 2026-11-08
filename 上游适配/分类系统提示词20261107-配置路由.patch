@@ -1,0 +1,41 @@
+diff --git a/web/src/stores/use-config-store.ts b/web/src/stores/use-config-store.ts
+index aad51ec..e57ca24 100644
+--- a/web/src/stores/use-config-store.ts
++++ b/web/src/stores/use-config-store.ts
+@@ -1,4 +1,5 @@
+ import { isSealedCredential } from "@/扩展功能/本机凭据/页面凭据引用.mjs";
++import { withCapabilitySystemPrompt, type SystemPromptPreferences } from "@/扩展功能/系统提示词/分类提示词规则";
+ import { createConfigPersistence } from "@/扩展功能/本机存储/配置持久化筛选";
+ import { 本地转发地址, 本地转发前缀 } from "@/扩展功能/网络代理/本地转发请求";
+ import { sqliteStateStorage, scheduleStateSave, flushSQLiteStorage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+@@ -34,7 +35,7 @@ export type ModelChannel = {
+     models: ChannelModel[];
+ };
+ 
+-export type AiConfig = {
++export type AiConfig = SystemPromptPreferences & {
+     fallbackRequested?: boolean;
+     fallbackCapability?: ModelCapability;
+     channelMode: "remote" | "local";
+@@ -127,6 +128,10 @@ export const defaultConfig: AiConfig = {
+     videoWatermark: "false",
+     videoMode: "frames",
+     systemPrompt: "",
++    imageSystemPrompt: null,
++    textSystemPrompt: null,
++    videoSystemPrompt: null,
++    imagePlanningSystemPrompt: null,
+     reasoningEffort: "auto",
+     models: ["default::gpt-image-2", "default::grok-imagine-video", "default::gpt-5.5", "default::gpt-4o-mini-tts"],
+     quality: "auto",
+@@ -485,8 +490,9 @@ export function resolveModelChannel(config: AiConfig, value: string) {
+ 
+ export function resolveModelRequestConfig(config: AiConfig, value: string) {
+     const channel = resolveModelChannel(config, value);
++    const capability = modelCapabilityOf(config, value) ?? config.fallbackCapability ?? guessCapability(modelOptionName(value || config.model));
+     return {
+-        ...config,
++        ...withCapabilitySystemPrompt(config, capability),
+         model: modelOptionName(value || config.model),
+         baseUrl: channel.baseUrl,
+         apiKey: channel.apiKey,

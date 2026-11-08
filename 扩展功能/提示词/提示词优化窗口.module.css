@@ -1,0 +1,111 @@
+.field.field {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid #aeb4bc;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #fff;
+  color: #242529;
+  line-height: 1.65;
+}
+.field.field:read-only {
+  background: #f8f9fa;
+}
+.field.field:hover {
+  border-color: #737b86;
+}
+.field.field:focus {
+  border-color: #4d667d;
+  outline: 2px solid rgb(77 102 125 / 18%);
+  outline-offset: -3px;
+  box-shadow: none;
+}
+.stack {
+  display: grid;
+  gap: 14px;
+}
+.language {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.directionBox {
+  margin-bottom: 16px;
+  border-top: 1px solid #d7dbe0;
+  border-bottom: 1px solid #d7dbe0;
+}
+.directionSummary {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+}
+.directionSummary::-webkit-details-marker {
+  display: none;
+}
+.directionSummary svg {
+  transition: transform 150ms ease;
+}
+.directionBox[open] .directionSummary svg {
+  transform: rotate(180deg);
+}
+.directions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 16px;
+  padding: 0 0 10px;
+}
+.choice {
+  display: flex;
+  min-width: 0;
+  min-height: 28px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.choice input {
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: #23272d;
+}
+.choice input:focus-visible {
+  outline: 2px solid #4d667d;
+  outline-offset: 2px;
+}
+:global(.dark) .directionBox {
+  border-color: #515760;
+}
+:global(.dark) .choice input {
+  accent-color: #d6e6f4;
+}
+@media (max-width: 640px) {
+  .directions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .directionSummary svg {
+    transition: none;
+  }
+}
+:global(.dark) .field.field {
+  border-color: #69717c;
+  background: #24262a;
+  color: #f3f4f6;
+}
+:global(.dark) .field.field:read-only {
+  background: #2b2e33;
+}
+:global(.dark) .field.field:focus {
+  border-color: #afc8de;
+  outline-color: rgb(175 200 222 / 22%);
+}

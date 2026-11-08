@@ -1,0 +1,61 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index 27eed6b..7a405db 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -4,6 +4,7 @@ import { ASSET_DRAG_TYPE, assetDragData } from "@/扩展功能/素材/上传资
+ import { hasHeicNameOrType } from "@/扩展功能/媒体交付/HEIC格式识别.mjs";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { panelTransition, useHiddenPanelExit } from "@/扩展功能/主题/侧栏动效";
++import { TAB_INDICATOR_BASE_STYLE, useUnifiedTabIndicator } from "@/扩展功能/主题/统一页签横条";
+ import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+ import { AppleActionButton } from "@/扩展功能/主题/苹果交互按钮";
+ import { sqlitePreferences } from "@/扩展功能/本机存储/上游浏览器存储桥";
+@@ -12,7 +13,7 @@ import { App, Empty, Input, Popconfirm, Spin, Tag } from "antd";
+ import { OutsideSelect as Select } from "@/扩展功能/主题/原生可关闭浮层";
+ import { useQuery } from "@tanstack/react-query";
+ import { BookOpen, Check, ChevronRight, Download, Eye, FileText, Image as ImageIcon, LayoutGrid, ListChecks, Music2, Plus, RotateCcw, Rows3, Search, Settings2, Square, Trash2, Type, Video } from "lucide-react";
+-import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
++import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+ import { SelectionInline, SelectionFooter } from "@/扩展功能/主题/选择模式动效";
+ import { APPLE_SURFACE_SPRING } from "@/扩展功能/主题/苹果动效";
+ import { useTranslation } from "react-i18next";
+@@ -89,6 +90,8 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+     const setWidth = useCanvasSidePanelStore((state) => state.setWidth);
+     const [resizing, setResizing] = useState(false);
+     const reducedMotion = useReducedMotion();
++    const tabsRef = useRef<HTMLDivElement>(null);
++    useUnifiedTabIndicator(tabsRef, `${projectId}:${tab}`, { enabled: productActive && panelOpen, reduced: reducedMotion });
+     const resizeCleanup = useRef<(() => void) | null>(null);
+     useEffect(() => () => { resizeCleanup.current?.(); }, []);
+     const transition = panelTransition(resizing, reducedMotion);
+@@ -153,15 +156,14 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+                 style={{ width, background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
+                 data-canvas-no-zoom
+             >
+-                <LayoutGroup id={`canvas-panel-tabs:${projectId}`}>
+-                <div className="flex items-center gap-5 px-4 pt-3.5">
++                <div ref={tabsRef} className="relative flex items-center gap-5 px-4 pt-3.5">
+                     <TabButton label={t("canvas.sidePanel.canvas")} active={tab === "canvas"} theme={theme} onClick={() => setTab("canvas")} />
+                     <TabButton label={t("canvas.sidePanel.assets")} active={tab === "assets"} theme={theme} onClick={() => setTab("assets")} />
+                     <TabButton label={t("canvas.sidePanel.prompts")} active={tab === "prompts"} theme={theme} onClick={() => setTab("prompts")} />
+                     <TabButton label="生成历史" active={tab === "history"} theme={theme} onClick={() => setTab("history")} />
+                     <TabButton label="回收站" active={tab === "trash"} theme={theme} onClick={() => setTab("trash")} />
++                    <span data-unified-tab-indicator aria-hidden="true" className="pointer-events-none absolute -bottom-px rounded-full" style={{ ...TAB_INDICATOR_BASE_STYLE, background: theme.toolbar.activeText }} />
+                 </div>
+-                </LayoutGroup>
+                 <TabContentTransition transitionKey={`${projectId}:${tab}`} enabled={productActive && panelOpen} className="mt-2 min-h-0 flex-1 overflow-hidden">
+                     {tab === "canvas" ? (
+                         <CanvasNodesTab nodes={nodes} connections={connections} selectedNodeIds={selectedNodeIds} onFocusNode={onFocusNode} onPreviewNode={onPreviewNode} onHoverNode={onHoverNode} theme={theme} />
+@@ -193,11 +195,9 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+ }
+ 
+ function TabButton({ label, active, theme, onClick }: { label: string; active: boolean; theme: CanvasTheme; onClick: () => void }) {
+-    const reduced = useReducedMotion();
+     return (
+-        <AppleActionButton onClick={onClick} aria-pressed={active} className="relative pb-1.5 text-sm font-semibold transition-opacity" style={{ color: theme.node.text, opacity: active ? 1 : 0.45 }}>
++        <AppleActionButton onClick={onClick} aria-pressed={active} data-tab-indicator-active={active ? "true" : "false"} className="relative pb-1.5 text-sm font-semibold transition-opacity" style={{ color: theme.node.text, opacity: active ? 1 : 0.45 }}>
+             {label}
+-            {active ? <motion.span layoutId="sidePanelTabIndicator" className="absolute inset-x-0 -bottom-px h-0.5 rounded-full" style={{ background: theme.toolbar.activeText }} transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 34 }} /> : null}
+         </AppleActionButton>
+     );
+ }

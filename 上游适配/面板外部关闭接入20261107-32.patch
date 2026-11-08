@@ -1,0 +1,13 @@
+diff --git a/web/src/components/layout/model-script-editor.tsx b/web/src/components/layout/model-script-editor.tsx
+index bf7ce2e..7e9c9de 100644
+--- a/web/src/components/layout/model-script-editor.tsx
++++ b/web/src/components/layout/model-script-editor.tsx
+@@ -1,6 +1,7 @@
+ import { javascript } from "@codemirror/lang-javascript";
+ import CodeMirror from "@uiw/react-codemirror";
+-import { Button, Modal } from "antd";
++import { Button } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { Copy } from "lucide-react";
+ import { useEffect, useState, type ReactNode } from "react";
+ import { useTranslation } from "react-i18next";

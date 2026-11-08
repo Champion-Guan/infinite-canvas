@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Checkbox, Modal, Tooltip } from "antd";
+import { Checkbox, Tooltip } from "antd";
+import { AppleModal as Modal } from "../主题/苹果弹窗";
 import { Check, ChevronDown, Copy, Images, Plus, Trash2, X } from "lucide-react";
 import type { CanvasNodeContext } from "@/types/canvas-plugin";
 import type { CanvasNodeMetadata } from "@/types/canvas";
@@ -7,7 +8,8 @@ import { MediaThumbnail } from "../媒体交付/媒体缩略图";
 import { productMainImages } from "./产品主图规则";
 import { PRODUCT_BRIEF_FIELDS, variableLabel } from "./旧版参数规则";
 import { DEFAULT_VARIANT_ATTRIBUTES, groupVariantImagesByFilename, newProductVariant, productVariants, variantLabel, type ProductVariant, type ProductVariantMetadata } from "./产品变体规则";
-import { generationProductParameters } from "../画布生成/产品变体生成";
+import { generationProductParameters, generationPromptVariantId } from "../画布生成/产品变体生成";
+import type { ProductPromptMetadata } from "./商品提示词规则";
 import { getGenerationCount } from "@/lib/canvas/canvas-generation-helpers";
 
 export function ProductVariantEditor({ ctx, onChange, tokens }: {
@@ -34,8 +36,18 @@ export function ProductVariantEditor({ ctx, onChange, tokens }: {
     const selectedIds = picking === "shared" ? metadata.productSharedImageIds || [] : target?.imageIds || [];
     const nodes = ctx.getNodes(), connections = ctx.getConnections();
     const linkedConfigs = variants.length ? nodes.filter(node => node.type === "config" && (node.metadata?.generationMode || "image") === "image"
+        && !(node.metadata as ProductPromptMetadata)?.productPromptRetired
         && generationProductParameters(node.id, nodes, connections).some(parameter => parameter.id === ctx.node.id)) : [];
-    const imageCount = selected * linkedConfigs.reduce((count, node) => count + getGenerationCount(String(node.metadata?.count || 1)), 0);
+    const imageCount = linkedConfigs.reduce((count, node) => {
+        try {
+            const variantId = generationPromptVariantId(node.id, nodes, connections);
+            const copies = variantId ? Number(variants.some(variant => variant.id === variantId && variant.enabled)) : selected;
+            return count + copies * getGenerationCount(String(node.metadata?.count || 1));
+        } catch {
+            // 连线尚在编辑时不让预估使画布崩溃；执行入口会说明具体的变体冲突。
+            return count;
+        }
+    }, 0);
     const choose = (id: string, checked: boolean) => {
         const update = (ids: string[]) => checked ? [...new Set([...ids, id])] : ids.filter(item => item !== id);
         if (picking === "shared") onChange({ productSharedImageIds: update(current()?.productSharedImageIds || []) } as ProductVariantMetadata);
@@ -112,7 +124,7 @@ export function ProductVariantEditor({ ctx, onChange, tokens }: {
                                                 <div className="space-y-2 pt-2">
                                                     {PRODUCT_BRIEF_FIELDS.filter(field => !["colorModel", "carouselCount", "richContent"].includes(field.key)).map(field => <label key={field.key} className="block">
                                                         <span className="mb-1 block">{field.label}</span><Tooltip title={field.help} trigger={["hover", "focus"]}>
-                                                            <textarea aria-label={`变体${field.label}`} rows={2} className={`${inputClass} h-auto resize-y py-1.5`} style={style}
+                                                            <textarea aria-label={`变体${field.label}`} rows={2} className={"guan-scroll-field " + (`${inputClass} h-auto resize-y py-1.5` || "")} style={style}
                                                                 placeholder={metadata.productBrief?.[field.key] || "继承共用资料"} value={variant.brief?.[field.key] || ""}
                                                                 onChange={event => edit(variant.id, item => ({ ...item, brief: { ...item.brief, [field.key]: event.target.value } }))} />
                                                         </Tooltip>
@@ -140,7 +152,7 @@ export function ProductVariantEditor({ ctx, onChange, tokens }: {
             {notice ? <p role="status" className="text-[10px] leading-4 opacity-60">{notice}</p> : null}
             <Modal title={picking === "shared" ? "共用图片" : `${target ? variantLabel(target) : ""} · 分配图片`} open={Boolean(picking)} onCancel={() => setPicking(null)}
                 footer={null} destroyOnHidden width={640}>
-                <div className="max-h-[60vh] space-y-3 overflow-y-auto">
+                <div className="guan-scroll-region max-h-[60vh] space-y-3 overflow-y-auto">
                     {!images.length ? <p>请先上传产品主图。</p> : <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">{images.map(image => {
                         const checked = selectedIds.includes(image.id);
                         return <div key={image.id} className="min-w-0 space-y-1">

@@ -102,6 +102,7 @@ test('真实详情组件展示全部信息及下载按钮；关闭入口回调�
     let previewReads = 0, closed = 0;
     const { CanvasImageDetails } = await load('图片详情面板.tsx', {
         'react/jsx-runtime': { jsx, jsxs: jsx }, antd: { App: { useApp: () => ({ message: {} }) }, Modal: 'Modal', Spin: 'Spin', Tooltip: 'Tooltip' },
+        'motion/react': { AnimatePresence: 'Presence' }, '../主题/苹果弹窗': { AppleModal: 'Modal' },
         '@/lib/image-utils': { formatBytes: () => '2.8 MB', getDataUrlByteSize: () => 1 },
         '@/stores/use-config-store': { decodeChannelModel: value => ({ model: value }), useEffectiveConfig: () => ({ channels: [{ id: 'saved-id', name: '已保存渠道' }] }) },
         '../生成历史/历史下载操作': { useHistoryDownloads: () => ({ downloading: false, downloadFile: file => downloads.push(file) }) },
@@ -109,19 +110,19 @@ test('真实详情组件展示全部信息及下载按钮；关闭入口回调�
         './图片详情数据': data, './图片详情面板.module.css': { default: {} },
     });
     const props = { node, open: true, theme, onClose: () => { closed++; } };
-    const shell = CanvasImageDetails(props), tree = shell.type(shell.props);
+    const shell = CanvasImageDetails(props).props.children, tree = shell.type(shell.props);
     const rendered = JSON.stringify(tree);
     for (const text of ['生成来源', '使用渠道', '使用模型', '生图类型', '尺寸', '图片格式', '文件大小', '审核', '质量', '生成数量', '背景设置', '下载图片', '真实渠道', '1086x1448', '2.8 MB']) assert.ok(rendered.includes(text), text);
     elements(tree.props.title).find(item => item.type === 'button').props.onClick();
     assert.equal(downloads[0].storageKey, 'delivery');
     tree.props.onCancel(); assert.equal(closed, 1);
-    assert.equal(CanvasImageDetails({ ...props, open: false }), null); assert.equal(previewReads, 1);
-    const originalShell = CanvasImageDetails({ ...props, node: { ...node, metadata: { ...node.metadata, originalStorageKey: 'original' } } });
+    assert.equal(CanvasImageDetails({ ...props, open: false }).props.children, null); assert.equal(previewReads, 1);
+    const originalShell = CanvasImageDetails({ ...props, node: { ...node, metadata: { ...node.metadata, originalStorageKey: 'original' } } }).props.children;
     const originalTree = originalShell.type(originalShell.props);
     elements(originalTree).find(item => item.type === 'button' && item.props.children === '下载原生图片').props.onClick();
     assert.equal(downloads[1].storageKey, 'original'); assert.equal(downloads[1].content, '');
     const deliveryShell = CanvasImageDetails({ ...props, node: { ...node, metadata: { ...node.metadata,
-        size: '800x500', naturalWidth: 780, naturalHeight: 488, originalWidth: 1586, originalHeight: 992, originalStorageKey: 'original' } } });
+        size: '800x500', naturalWidth: 780, naturalHeight: 488, originalWidth: 1586, originalHeight: 992, originalStorageKey: 'original' } } }).props.children;
     const deliveryTree = deliveryShell.type(deliveryShell.props);
     const sizeRow = elements(deliveryTree).find(item => item.type === 'div' && Array.isArray(item.props.children) && item.props.children.some(child => child?.type === 'dt' && child.props.children === '尺寸'));
     const displayedSize = JSON.stringify(sizeRow);

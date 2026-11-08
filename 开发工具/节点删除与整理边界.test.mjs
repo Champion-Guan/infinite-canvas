@@ -7,6 +7,7 @@ import { Linter } from 'eslint';
 import ts from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
+import typescript from '../.运行/3100源/画布副本/web/node_modules/typescript/lib/typescript.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 async function load(name, dependencies = {}) {
@@ -46,7 +47,7 @@ async function deletion(nodes, options = {}) {
         setConnections: value => { connectionsRef.current = value; }, nodeIdSetters: ids.map(item => item.set.bind(item)),
         setSelectedNodeIds: ui.selected.set.bind(ui.selected), setSelectedConnectionId: ui.selectedEdge.set.bind(ui.selectedEdge),
         setPreviewImageId: ui.image.set.bind(ui.image), setExpandedBatchNodeIds: ui.expanded.set.bind(ui.expanded),
-        setContextMenu: ui.menu.set.bind(ui.menu), cleanupCanvasFiles: value => cleanups.push(value) };
+        setContextMenu: ui.menu.set.bind(ui.menu), cleanupCanvasFiles: value => cleanups.push(value), ...options.port };
     const { useCanvasNodeDeletion } = await load('画布回收/节点删除操作.ts', {
         react: hooks, './画布节点回收': recycle,
         '@/stores/canvas/use-canvas-store': { useCanvasStore: { getState: () => ({ openProject: id => {
@@ -127,12 +128,54 @@ const helpers = await load(resolve(serviceRoot, 'lib/canvas/canvas-generation-he
     '@/services/image-storage': { resolveImageUrl: async key => 'local:' + key, ensureImagePreview: () => {} },
     '@/services/file-storage': { resolveMediaUrl: async key => 'local:' + key }, '@/lib/canvas/canvas-node-factory': {},
 });
-async function restore(nodes, missing = null) {
-    const batch = { id: 'batch', nodes, connections: [] }, writes = [], applied = [], errors = [], reads = [], resumed = [];
+const historySource = typescript.createSourceFile('project.tsx', readFileSync(resolve(serviceRoot, 'pages/canvas/project.tsx'), 'utf8'), typescript.ScriptTarget.Latest, true, typescript.ScriptKind.TSX);
+function actualHistoryCallback(name, context) {
+    let callback;
+    const visit = item => {
+        if (typescript.isVariableDeclaration(item) && item.name.getText(historySource) === name) callback = item.initializer.arguments[0];
+        if (name === 'recordHistory' && typescript.isCallExpression(item) && item.expression.getText(historySource) === 'useEffect'
+            && item.arguments[0].getText(historySource).includes('previous?.nodes === next.nodes')) callback = item.arguments[0];
+        typescript.forEachChild(item, visit);
+    };
+    visit(historySource); assert.ok(callback, '缺少真实画布历史入口：' + name);
+    const code = typescript.transpileModule('return (' + callback.getText(historySource) + ');', {
+        compilerOptions: { target: typescript.ScriptTarget.ES2022, module: typescript.ModuleKind.CommonJS },
+    }).outputText;
+    return new Function(...Object.keys(context), code)(...Object.values(context));
+}
+function historyFixture(project, writes, applied) {
+    const timers = new Set();
+    const context = {
+        projectId: 'product', EMPTY_DELETED_NODE_BATCHES: [],
+        nodesRef: { current: project.nodes }, connectionsRef: { current: project.connections },
+        chatSessions: [], activeChatId: null, backgroundMode: 'lines', showImageInfo: true,
+        historyRef: { current: { past: [], future: [] } }, lastHistoryRef: { current: null },
+        applyingHistoryRef: { current: false }, historyCommitTimerRef: { current: null },
+        projectLoaded: true, historyPausedRef: { current: false },
+        useCanvasStore: { getState: () => ({ openProject: () => project }) },
+        updateProject: (_id, patch) => { writes.push(patch); project = { ...project, ...patch }; },
+        setRawNodes: value => { context.nodesRef.current = value; },
+        setConnections: value => { context.connectionsRef.current = value; },
+        stopFocusMotion() {}, setChatSessions() {}, setActiveChatId() {}, setBackgroundMode() {}, setShowImageInfo() {},
+        setSelectedNodeIds() {}, setSelectedConnectionId() {}, setContextMenu() {}, setHistoryState() {},
+        setTimeout: callback => { timers.add(callback); return callback; }, clearTimeout: callback => timers.delete(callback),
+    };
+    context.createHistoryEntry = actualHistoryCallback('createHistoryEntry', context);
+    const apply = actualHistoryCallback('applyHistory', context);
+    context.applyHistory = value => { applied.push(value); apply(value); };
+    context.undo = actualHistoryCallback('undoCanvas', context);
+    context.redo = actualHistoryCallback('redoCanvas', context);
+    context.recordHistory = actualHistoryCallback('recordHistory', context);
+    context.lastHistoryRef.current = context.createHistoryEntry();
+    return { ...context, get project() { return project; }, settle() { for (const callback of timers) callback(); timers.clear(); } };
+}
+async function restore(nodes, missing = null, options = {}) {
+    const batch = options.batch || { id: 'batch', nodes, connections: [] }, writes = [], applied = [], errors = [], reads = [], resumed = [];
+    const history = historyFixture({ nodes: options.active || [], connections: [], deletedNodeBatches: options.batches || [batch] }, writes, applied);
     let saves = 0;
     const { useCanvasNodeRecycle } = await load('画布回收/节点回收操作.ts', {
         react: { ...hooks, useRef: value => ({ current: value }) },
-        '@/stores/canvas/use-canvas-store': { useCanvasStore: { getState: () => ({ openProject: () => ({ deletedNodeBatches: [batch] }) }) } },
+        '@/stores/canvas/use-canvas-store': { useCanvasStore: history.useCanvasStore },
         '@/services/image-storage': { collectImageStorageKeys: imageService.collectImageStorageKeys,
             getImageBlob: async key => { reads.push(['image', key]); return key === missing ? null : new Blob(['image']); } },
         '@/services/file-storage': { collectMediaStorageKeys: mediaService.collectMediaStorageKeys,
@@ -140,14 +183,13 @@ async function restore(nodes, missing = null) {
         '@/lib/canvas/canvas-generation-helpers': helpers, './画布节点回收': recycle,
         '../安全与批量/update-activity': { observeActivity: async (_kind, action) => action() },
         '../安全与批量/settle-activity-group': { settleActivityGroup: values => Promise.all(values) },
-        '../产品/产品操作': { saveProductCanvas: async () => { saves++; } },
+        '../产品/产品操作': { saveProductCanvas: async () => { saves++; if (options.saveError) throw Error(options.saveError); } },
     });
-    const api = useCanvasNodeRecycle({ projectId: 'product', nodesRef: { current: [] }, historyRef: { current: { past: [], future: [] } },
-        lastHistoryRef: { current: null }, createHistoryEntry: () => ({ nodes: [], connections: [] }), applyHistory: value => applied.push(value),
-        assertImportTarget: () => {}, updateProject: (_id, patch) => writes.push(patch), setSelectedNodeIds: () => {},
+    const api = useCanvasNodeRecycle({ ...history,
+        assertImportTarget: () => {}, cleanupCanvasFiles: () => {},
         pollVideoNodeTask: value => resumed.push(value.id), message: { error: value => errors.push(value), success: () => {} } });
-    await api.restoreDeletedNodeBatch('batch');
-    return { batch, writes, applied, errors, reads, resumed, saves };
+    await api.restoreDeletedNodeBatch(batch.id);
+    return { ...api, history, batch, writes, applied, errors, reads, resumed, get saves() { return saves; } };
 }
 test('真实Set收集器和真实水合规则可恢复纯文本批次，不访问素材或模型', async () => {
     const item = node('text'), result = await restore([item]);
@@ -171,6 +213,77 @@ test('真实音视频素材缺失时保留回收批次，有素材时恢复URL�
     assert.deepEqual(result.applied[0].nodes.map(item => item.metadata.content), ['local:audio:one', 'local:video:one']);
     const missing = await restore([audio, video], 'video:one');
     assert.match(missing.errors[0], /音视频素材缺失/); assert.deepEqual(missing.writes, []); assert.equal(missing.batch.nodes.length, 2);
+});
+test('真实恢复和撤销重做入口同步画布、原批次和连线，连续操作不依赖下一帧', async () => {
+    const kept = node('kept'), restored = node('restored');
+    const edge = { id: 'edge', fromNodeId: 'kept', toNodeId: 'restored' };
+    const batch = { id: 'batch', nodes: [restored], connections: [edge], deletedAt: '2026-11-07T00:00:00Z' };
+    const f = await restore(batch.nodes, null, { active: [kept], batch });
+    assert.deepEqual(f.errors, []); assert.deepEqual(f.history.project.deletedNodeBatches, []);
+    assert.deepEqual(f.history.project.nodes, [kept, restored]); assert.deepEqual(f.history.project.connections, [edge]);
+    assert.equal(f.writes.length, 1, '恢复只发布一次完整状态');
+    f.history.undo();
+    assert.deepEqual(f.history.project.nodes, [kept]); assert.deepEqual(f.history.project.connections, []);
+    assert.equal(f.history.project.deletedNodeBatches[0], batch);
+    f.history.redo();
+    assert.deepEqual(f.history.project.nodes, [kept, restored]); assert.deepEqual(f.history.project.connections, [edge]);
+    assert.deepEqual(f.history.project.deletedNodeBatches, []);
+    f.history.undo(); f.history.settle();
+    assert.equal(f.history.lastHistoryRef.current.deletedNodeBatches[0], batch);
+    assert.deepEqual(f.history.project.nodes, [kept]);
+    assert.deepEqual(f.history.project.deletedNodeBatches[0].nodes, [restored]);
+});
+test('恢复多个批次后逐次撤销，各批次回到回收站，其他节点和原关系不丢失', async () => {
+    const a = node('a'), b = node('b'), kept = node('kept');
+    const first = { id: 'first', nodes: [a], connections: [] }, second = { id: 'second', nodes: [b], connections: [] };
+    const f = await restore(first.nodes, null, { active: [kept], batch: first, batches: [first, second] });
+    await f.restoreDeletedNodeBatch('second');
+    assert.deepEqual(f.history.project.deletedNodeBatches, []);
+    f.history.undo(); assert.deepEqual(f.history.project.deletedNodeBatches, [second]);
+    f.history.undo(); assert.deepEqual(f.history.project.deletedNodeBatches, [first, second]);
+    assert.deepEqual(f.history.project.nodes, [kept]);
+    f.history.redo(); f.history.redo();
+    assert.deepEqual(f.history.project.nodes, [kept, a, b]); assert.deepEqual(f.history.project.deletedNodeBatches, []);
+});
+test('撤销恢复后再次恢复会清空旧重做分支，不留下重复节点或重复批次', async () => {
+    const item = node('one'), f = await restore([item]);
+    f.history.undo(); await f.restoreDeletedNodeBatch('batch');
+    assert.deepEqual(f.history.historyRef.current.future, []); f.history.redo();
+    assert.deepEqual(f.history.project.nodes, [item]); assert.deepEqual(f.history.project.deletedNodeBatches, []);
+    f.history.undo(); assert.deepEqual(f.history.project.nodes, []);
+    assert.deepEqual(f.history.project.deletedNodeBatches, [f.batch]);
+});
+test('永久移除会清除过去、未来和当前快照中的回收节点，旧撤销不能复活它', async () => {
+    const item = node('purged'), kept = node('kept');
+    const f = await restore([item], null, { active: [kept] });
+    f.history.undo(); f.history.settle();
+    const pastLength = f.history.historyRef.current.past.length, futureLength = f.history.historyRef.current.future.length;
+    await f.permanentlyDeleteNodeBatch('batch');
+    f.history.recordHistory(); f.history.settle();
+    assert.equal(f.history.historyRef.current.past.length, pastLength, '永久删除不能制造一次无内容变化的撤销');
+    assert.equal(f.history.historyRef.current.future.length, futureLength);
+    assert.deepEqual(f.history.project.deletedNodeBatches, []);
+    for (const entry of [...f.history.historyRef.current.past, ...f.history.historyRef.current.future, f.history.lastHistoryRef.current]) {
+        assert.ok(entry.nodes.every(value => value.id !== item.id));
+        assert.ok(entry.deletedNodeBatches.every(batch => batch.nodes.every(value => value.id !== item.id)));
+    }
+    f.history.redo(); f.history.undo();
+    assert.deepEqual(f.history.project.nodes, [kept]); assert.deepEqual(f.history.project.deletedNodeBatches, []);
+});
+test('恢复保存失败仍保留可撤销状态，撤销后原回收批次可再次恢复', async () => {
+    const item = node('unsaved'), f = await restore([item], null, { saveError: '模拟保存失败' });
+    assert.match(f.errors[0], /节点已恢复，但保存未确认/);
+    f.history.undo(); assert.deepEqual(f.history.project.deletedNodeBatches, [f.batch]);
+    assert.deepEqual(f.history.project.nodes, []);
+});
+test('普通删除仍由真实历史防抖记录，撤销删除清除对应回收批次，重做删除还原批次', async () => {
+    const removed = node('removed'), kept = node('kept'), nodes = [removed, kept];
+    const f = historyFixture({ nodes, connections: [], deletedNodeBatches: [] }, [], []);
+    const api = await deletion(nodes, { port: { ...f, setNodes: f.setRawNodes } });
+    api.run(new Set([removed.id])); f.recordHistory(); f.settle();
+    const batch = f.project.deletedNodeBatches[0]; assert.deepEqual(batch.nodes, [removed]);
+    f.undo(); assert.deepEqual(f.project.nodes, nodes); assert.deepEqual(f.project.deletedNodeBatches, []);
+    f.redo(); assert.deepEqual(f.project.nodes, [kept]); assert.deepEqual(f.project.deletedNodeBatches, [batch]);
 });
 
 async function arrangement(nodes, size = { width: 1200, height: 720 }, connections = [{ id: 'edge' }]) {

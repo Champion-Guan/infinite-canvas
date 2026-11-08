@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx b/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx
+index b79da32..e02ad33 100644
+--- a/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx
++++ b/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx
+@@ -318,7 +318,7 @@ export function CanvasNodeMaskEditDialog({ dataUrl, open, onClose, onConfirm }:
+                             onChange={(event) => {
+                                 setPrompt(event.target.value);
+                                 setError("");
+-                            }}
++                            }} className="guan-scroll-field"
+                         />
+                         {error ? <div className="text-xs font-medium text-[#ef4444]">{error}</div> : null}
+                     </div>

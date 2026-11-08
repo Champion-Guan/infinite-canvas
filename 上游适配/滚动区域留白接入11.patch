@@ -1,0 +1,22 @@
+diff --git a/web/src/components/canvas/canvas-audio-settings-popover.tsx b/web/src/components/canvas/canvas-audio-settings-popover.tsx
+index 8006728..1cf9e9b 100644
+--- a/web/src/components/canvas/canvas-audio-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-audio-settings-popover.tsx
+@@ -55,7 +55,7 @@ function AudioSettingsPortal({
+     config: AiConfig;
+     onConfigChange: (key: CanvasAudioSettingKey, value: string) => void;
+ }) {
+-    const style = {
++    const style = { scrollbarGutter: "stable",
+         position: "fixed",
+         zIndex: 1200,
+         ...settingsPopoverPosition(buttonRect, placement, { width: window.innerWidth, height: window.innerHeight }),
+@@ -64,7 +64,7 @@ function AudioSettingsPortal({
+         boxShadow: "0 18px 54px rgba(28, 25, 23, 0.16)",
+         padding: 18,
+         overflowY: "auto",
+-        color: theme.node.text,
++        color: theme.node.text, paddingInlineEnd: 18
+     } as const;
+ 
+     return createProductPortal(

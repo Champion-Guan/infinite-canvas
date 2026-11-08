@@ -1,0 +1,13 @@
+diff --git a/web/src/components/prompts/prompt-select-dialog.tsx b/web/src/components/prompts/prompt-select-dialog.tsx
+index cd9e77e..123f2d4 100644
+--- a/web/src/components/prompts/prompt-select-dialog.tsx
++++ b/web/src/components/prompts/prompt-select-dialog.tsx
+@@ -1,6 +1,7 @@
+ import { Search } from "lucide-react";
+ import { type UIEvent, useEffect, useState } from "react";
+-import { App, Empty, Input, Modal, Spin, Tag } from "antd";
++import { App, Empty, Input, Spin, Tag } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { useTranslation } from "react-i18next";
+ 
+ import { ALL_PROMPTS_OPTION } from "@/services/api/prompts";

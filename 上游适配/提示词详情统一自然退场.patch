@@ -1,0 +1,12 @@
+diff --git a/web/src/pages/prompts/components/prompt-detail-dialog.tsx b/web/src/pages/prompts/components/prompt-detail-dialog.tsx
+index 04ebc8e..c8c705a 100644
+--- a/web/src/pages/prompts/components/prompt-detail-dialog.tsx
++++ b/web/src/pages/prompts/components/prompt-detail-dialog.tsx
+@@ -1,5 +1,6 @@
+ import { Copy, FileText, FolderPlus } from "lucide-react";
+-import { Button, Modal, Space, Tag } from "antd";
++import { Button, Space, Tag } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { useTranslation } from "react-i18next";
+ 
+ import { formatPromptDate, type Prompt } from "@/services/api/prompts";

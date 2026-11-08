@@ -1,0 +1,31 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 7e73c05..111d424 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -619,7 +619,7 @@ function TextContent({ node, theme, promptHighlightSource: source, promptHighlig
+                 {isEditingContent ? (
+                     <CanvasResourceMentionTextarea
+                         ref={textareaRef}
+-                        className={`thin-scrollbar block h-full w-full resize-none overflow-y-auto whitespace-pre-wrap break-words border-none bg-transparent m-0 font-mono outline-none select-text appearance-none ${paddingClass}`}
++                        className={"guan-scroll-region " + (`thin-scrollbar block h-full w-full resize-none overflow-y-auto whitespace-pre-wrap break-words border-none bg-transparent m-0 font-mono outline-none select-text appearance-none ${paddingClass}` || "")}
+                         style={textStyle}
+                         value={content}
+                         references={mentionReferences}
+@@ -649,7 +649,7 @@ function TextContent({ node, theme, promptHighlightSource: source, promptHighlig
+                                 </div>
+                             </div>
+                         ) : null}
+-                        <div className={`thin-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain whitespace-pre-wrap break-words bg-transparent font-mono ${isExcelPrompt || isTranslationPrompt ? "px-4 pb-4 pt-3" : paddingClass}`} onWheelCapture={(event) => event.stopPropagation()}>
++                        <div className={"guan-scroll-region " + (`thin-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain whitespace-pre-wrap break-words bg-transparent font-mono ${isExcelPrompt || isTranslationPrompt ? "px-4 pb-4 pt-3" : paddingClass}` || "")} onWheelCapture={(event) => event.stopPropagation()}>
+                             {highlighted.map((part, index) => part.kind ? (
+                                 <mark key={index} className={`guan-prompt-highlight guan-prompt-highlight-${part.kind}`} title={part.kind === "variable" ? `变量 ${part.token}` : part.kind === "theme" ? "主题/角度" : part.kind === "pixels" ? "生成像素" : "图片比例"} style={{ color: "inherit", background: part.kind === "variable" ? "rgba(47,128,255,.18)" : part.kind === "theme" ? "rgba(245,158,11,.18)" : part.kind === "pixels" ? "rgba(16,185,129,.17)" : "rgba(20,184,166,.17)", borderRadius: 3, boxShadow: part.kind === "variable" ? "inset 0 -1px rgba(47,128,255,.5)" : part.kind === "theme" ? "inset 0 -1px rgba(245,158,11,.55)" : part.kind === "pixels" ? "inset 0 -1px rgba(16,185,129,.55)" : "inset 0 -1px rgba(20,184,166,.55)", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>{part.text}</mark>
+                             ) : <React.Fragment key={index}>{part.text}</React.Fragment>)}
+@@ -717,7 +717,7 @@ function ExpandedTextCard({ node, text, index, onSetPrimary }: { node: CanvasNod
+         >
+             {text.content ? (
+                 <>
+-                    <div className="thin-scrollbar h-full overflow-y-auto whitespace-pre-wrap break-words px-4 pb-4 pt-14 font-mono text-sm leading-6" style={{ color: theme.node.text }} onWheel={(event) => event.stopPropagation()}>
++                    <div className="guan-scroll-region thin-scrollbar h-full overflow-y-auto whitespace-pre-wrap break-words px-4 pb-4 pt-14 font-mono text-sm leading-6" style={{ color: theme.node.text }} onWheel={(event) => event.stopPropagation()}>
+                         {text.content}
+                     </div>
+                     <button type="button" className="pointer-events-none absolute right-2.5 top-2.5 flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium opacity-0 transition duration-150 hover:bg-black/5 group-hover/node:pointer-events-auto group-hover/node:opacity-100 dark:hover:bg-white/10" style={{ color: theme.node.text }} onClick={(event) => (event.stopPropagation(), onSetPrimary())}>

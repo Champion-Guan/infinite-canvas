@@ -1,0 +1,22 @@
+diff --git a/web/src/components/agent/agent-chat-message.tsx b/web/src/components/agent/agent-chat-message.tsx
+index a024145..4905adc 100644
+--- a/web/src/components/agent/agent-chat-message.tsx
++++ b/web/src/components/agent/agent-chat-message.tsx
+@@ -48,7 +48,7 @@ function AgentLinkModal({ isOpen, onClose, onConfirm, url }: LinkSafetyModalProp
+             <div className="text-sm text-black/55 dark:text-white/55">
+                 {t(localPath ? "agent.message.localDescription" : "agent.message.externalDescription")}
+             </div>
+-            <div className="mt-4 max-h-32 overflow-auto break-all rounded-lg bg-black/[.035] px-3 py-2.5 font-mono text-xs leading-5 dark:bg-white/[.06]">{localPath || url}</div>
++            <div className="guan-scroll-region mt-4 max-h-32 overflow-auto break-all rounded-lg bg-black/[.035] px-3 py-2.5 font-mono text-xs leading-5 dark:bg-white/[.06]">{localPath || url}</div>
+             <div className="mt-5 flex justify-end gap-2">
+                 <Button type="text" icon={<Copy className="size-4" />} onClick={() => copyText(localPath || url, t(localPath ? "agent.message.pathCopied" : "agent.message.linkCopied"))}>
+                     {t(localPath ? "agent.message.copyPath" : "agent.message.copyLink")}
+@@ -485,7 +485,7 @@ function AgentDetailBlock({ detail, theme }: { detail: UserDetail; theme: (typeo
+             {detail.output ? (
+                 <div className="space-y-1.5">
+                     <div className="opacity-60">{t(detail.status === "failed" || detail.status === "error" ? "agent.message.errorInfo" : "agent.message.output")}</div>
+-                    <pre className="thin-scrollbar max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-lg px-3 py-2 font-mono text-[11px] leading-4" style={{ background: theme.toolbar.panel, color: theme.node.text }}>{detail.output}</pre>
++                    <pre className="guan-scroll-region thin-scrollbar max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-lg px-3 py-2 font-mono text-[11px] leading-4" style={{ background: theme.toolbar.panel, color: theme.node.text }}>{detail.output}</pre>
+                 </div>
+             ) : null}
+         </div>

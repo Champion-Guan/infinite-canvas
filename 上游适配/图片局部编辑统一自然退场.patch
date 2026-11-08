@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx b/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx
+index e02ad33..3281d3a 100644
+--- a/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx
++++ b/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx
+@@ -1,6 +1,7 @@
+ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+ import { createProductPortal } from "@/扩展功能/产品/产品界面边界";
+-import { Button, Input, Modal, Slider, Tooltip } from "antd";
++import { Button, Input, Slider, Tooltip } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { Brush, Eraser, ImagePlus, Redo2, RotateCcw, Undo2, WandSparkles, ZoomIn, ZoomOut } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 

@@ -1,0 +1,13 @@
+diff --git a/web/src/components/layout/model-select-modal.tsx b/web/src/components/layout/model-select-modal.tsx
+index 1d18620..6ba5f62 100644
+--- a/web/src/components/layout/model-select-modal.tsx
++++ b/web/src/components/layout/model-select-modal.tsx
+@@ -107,7 +107,7 @@ export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onCl
+             getContainer={viewport ?? undefined}
+             styles={{
+                 ...(viewport ? { wrapper: { position: "absolute" }, mask: { position: "absolute" } } : {}),
+-                body: { scrollbarGutter: "stable both-edges", maxHeight: viewport ? "62cqh" : "62vh", overflowY: "auto", paddingInline: 18 },
++                body: { maxHeight: viewport ? "62cqh" : "62vh", overflowY: "auto" },
+             }}
+             footer={[
+                 <Button key="cancel" onClick={onClose}>

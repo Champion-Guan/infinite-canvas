@@ -31,6 +31,7 @@ const parameterCard = {
     : [...nodes, { id: 'parameter-card', type: 'guan:prompt-variables', metadata: { status: 'success' } }],
 };
 const model = load(readFileSync(join(根目录, '扩展功能/Excel/Excel产品归属.ts'), 'utf8'), {
+  '../产品/产品规则': load(readFileSync(join(根目录, '扩展功能/产品/产品规则.ts'), 'utf8')),
   './旧版Excel合同.js': engine,
   '../产品/旧版产品显示名.js': displayNames,
   '../图片设置/图片信息偏好': imageInfo,

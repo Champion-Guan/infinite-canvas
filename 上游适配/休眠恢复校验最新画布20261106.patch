@@ -1,0 +1,17 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 9f219fd..08a004c 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -545,7 +545,11 @@ function InfiniteCanvasPage() {
+         }
+ 
+         void (async () => {
+-        const dormant = matchingDormantProduct(await readDormantProduct(projectId), {
++        const savedDormant = await readDormantProduct(projectId);
++        if (cancelled) return;
++        const project = openProject(projectId);
++        if (!project) throw Error("原产品已移除，未恢复过期画布。");
++        const dormant = matchingDormantProduct(savedDormant, {
+             nodes: project.nodes, connections: project.connections, chatSessions: project.chatSessions || [],
+             activeChatId: project.activeChatId || null, backgroundMode: project.backgroundMode, showImageInfo: project.showImageInfo ?? true,
+         }, project.updatedAt);

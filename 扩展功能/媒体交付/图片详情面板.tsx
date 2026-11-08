@@ -1,5 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
-import { App, Modal, Spin, Tooltip } from "antd";
+import { App, Spin, Tooltip } from "antd";
+import { AnimatePresence } from "motion/react";
+import { AppleModal as Modal } from "../主题/苹果弹窗";
 import type { CanvasNodeData } from "@/types/canvas";
 import type { CanvasTheme } from "@/lib/canvas-theme";
 import { formatBytes, getDataUrlByteSize } from "@/lib/image-utils";
@@ -14,7 +16,7 @@ type Props = { node: CanvasNodeData | null; imageId?: string | null; open: boole
 export function CanvasImageDetails({ node, imageId, open, theme, onClose }: Props) {
     const config = useEffectiveConfig();
     const detail = node ? imageDetailData(node, imageId, config.channels) : null;
-    return open && node && detail ? <ImageDetails key={detail.file.id} node={node} detail={detail} theme={theme} onClose={onClose} /> : null;
+    return <AnimatePresence>{open && node && detail ? <ImageDetails key={detail.file.id} node={node} detail={detail} theme={theme} onClose={onClose} /> : null}</AnimatePresence>;
 }
 
 function ImageDetails({ node, detail, theme, onClose }: { node: CanvasNodeData; detail: NonNullable<ReturnType<typeof imageDetailData>>; theme: CanvasTheme; onClose: () => void }) {

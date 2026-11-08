@@ -1,0 +1,22 @@
+diff --git a/web/src/components/canvas/canvas-config-composer.tsx b/web/src/components/canvas/canvas-config-composer.tsx
+index 41d39fd..da0a029 100644
+--- a/web/src/components/canvas/canvas-config-composer.tsx
++++ b/web/src/components/canvas/canvas-config-composer.tsx
+@@ -139,7 +139,7 @@ export function CanvasConfigComposer({ nodeId, nodes, value, inputs, connectedNo
+                     ref={editorRef}
+                     contentEditable
+                     suppressContentEditableWarning
+-                    className="thin-scrollbar min-h-28 max-h-72 w-full overflow-y-auto overscroll-contain whitespace-pre-wrap break-words px-3 py-2 text-sm leading-7 outline-none"
++                    className="guan-scroll-region thin-scrollbar min-h-28 max-h-72 w-full overflow-y-auto overscroll-contain whitespace-pre-wrap break-words px-3 py-2 text-sm leading-7 outline-none"
+                     style={{ color: theme.node.text }}
+                     onInput={() => {
+                         if (!composingRef.current) syncFromEditor();
+@@ -207,7 +207,7 @@ function MentionMenu({ inputs, allInputs, activeIndex, theme, onSelect }: { inpu
+     };
+ 
+     return (
+-        <div className="absolute left-2 top-[calc(100%+6px)] z-[90] max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border }}>
++        <div className="guan-scroll-region absolute left-2 top-[calc(100%+6px)] z-[90] max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border }}>
+             {inputs.map((input, index) => (
+                 <button
+                     key={input.nodeId}

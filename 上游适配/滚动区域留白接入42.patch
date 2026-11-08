@@ -1,0 +1,13 @@
+diff --git a/web/src/components/agent/agent-skills-view.tsx b/web/src/components/agent/agent-skills-view.tsx
+index 23d704f..378dc7b 100644
+--- a/web/src/components/agent/agent-skills-view.tsx
++++ b/web/src/components/agent/agent-skills-view.tsx
+@@ -370,7 +370,7 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
+                 width={680}
+                 centered
+                 destroyOnHidden
+-                styles={{ body: { scrollbarGutter: "stable", maxHeight: "calc(100vh - 220px)", overflowY: "auto", paddingInlineEnd: 18 } }}
++                styles={{ body: { scrollbarGutter: "stable both-edges", maxHeight: "calc(100vh - 220px)", overflowY: "auto", paddingInline: 6 } }}
+                 onCancel={() => {
+                     if (saving) return;
+                     setDraft(null);

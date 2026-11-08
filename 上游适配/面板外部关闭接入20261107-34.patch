@@ -1,0 +1,15 @@
+diff --git a/web/src/components/layout/channel-editor-drawer.tsx b/web/src/components/layout/channel-editor-drawer.tsx
+index bb92e48..094fda4 100644
+--- a/web/src/components/layout/channel-editor-drawer.tsx
++++ b/web/src/components/layout/channel-editor-drawer.tsx
+@@ -1,7 +1,9 @@
+ import { ChannelCredentialInput, useChannelCredentialEditor } from "@/扩展功能/本机凭据/渠道凭据编辑";
+ import { useSettingsViewport } from "@/扩展功能/存储界面/设置视区";
+ import { businessFeatures } from "@/扩展功能/产品配置/脚本与提示词来源";
+-import { Button, Drawer, Input, InputNumber, Segmented, Space } from "antd";
++import { Button, Input, InputNumber, Segmented, Space } from "antd";
++import { OutsideDrawer as Drawer } from "@/扩展功能/主题/原生可关闭浮层";
++
+ import { OutsideSelect as Select } from "@/扩展功能/主题/原生可关闭浮层";
+ import { ListPlus, Trash2 } from "lucide-react";
+ import { useState } from "react";

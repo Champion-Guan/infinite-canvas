@@ -51,18 +51,42 @@ const sharedFlow = await load('扩展功能/画布连线/共享网络数据流.t
 const junction = await load('扩展功能/画布连线/连线交点整理.ts');
 const design = await load('扩展功能/画布连线/连线视觉设计.ts');
 const picker = await load('扩展功能/画布连线/共享主干关系选择.ts');
-let hookState = [], hookIndex = 0;
+let hookState = [], hookIndex = 0, reducedFlow = false, pageVisible = true, productActive = true;
 const { SharedConnectionLayer: renderLayer } = moduleWith('扩展功能/画布连线/连线渲染层.tsx', {
     react: { memo: fn => fn, useMemo: fn => fn(), useState: value => { const index = hookIndex++; return [hookState[index] === undefined ? value : hookState[index], next => { hookState[index] = next; }]; }, useEffect: fn => fn(), useCallback: fn => fn },
     'react/jsx-runtime': { jsx, jsxs: jsx }, 'react-dom': { createPortal: (children, target) => jsx('portal', { target, children }) },
+    'motion/react': { useReducedMotion: () => reducedFlow },
+    '../主题/可见页面轮询': { usePageVisible: () => pageVisible },
+    '../产品/产品界面边界': { useProductActive: () => productActive },
     './连线数据流动画.css': {}, './共享主干关系面板': { SharedConnectionPicker: 'picker' },
     './共享网络数据流': sharedFlow, './连线交点整理': junction, './连线视觉设计': design, './圆角连线路由': routing, './共享主干关系选择': picker,
     '@/lib/canvas-theme': { canvasThemes: { light: { canvas: { background: '#fff' }, node: {} } } },
     '@/stores/use-theme-store': { useThemeStore: select => select({ theme: 'light' }) },
 });
+test('缓存热画布保留原连线，但非当前产品卸下流动粒子，切回再恢复', () => {
+    try {
+        productActive = false;
+        const tree = elements(render(props));
+        assert.equal(tree.filter(element => element.props?.['data-flow-particle']).length, 0);
+        assert.ok(tree.some(element => element.props?.['data-shared-connection-ids']));
+        productActive = true;
+        assert.ok(elements(render(props)).some(element => element.props?.['data-flow-particle']));
+    } finally { productActive = true; }
+});
 const render = (props, state = []) => { hookState = state; hookIndex = 0; return renderLayer(props); };
 const g = route([{ id: 'ab', fromNodeId: 'a', toNodeId: 'b' }], new Map([node('a', 0, 0), node('b', 700, 300)].map(n => [n.id, n])));
 const props = { geometry: g, scale: 1, focusedIds: new Set(['ab']), dragging: false, onSelect() {} };
+test('减少动态效果或浏览器后台时卸下粒子动画，原高亮路径与鼠标命中仍保留', () => {
+    try {
+        for (const [reduced, visible] of [[true, true], [false, false]]) {
+            reducedFlow = reduced; pageVisible = visible;
+            const tree = elements(render(props));
+            assert.equal(tree.filter(element => element.props?.['data-flow-particle']).length, 0);
+            assert.ok(tree.some(element => element.props?.['data-focus-ink']));
+            assert.ok(tree.some(element => element.props?.['data-shared-connection-ids']));
+        }
+    } finally { reducedFlow = false; pageVisible = true; }
+});
 test('仅焦点关系绘制 7 画布单位数据点，拖动或平移中清空，线宽同比缩放', () => {
     const tree = elements(render(props));
     const points = tree.filter(e => e.props?.['data-flow-particle']);

@@ -1,0 +1,14 @@
+diff --git a/web/src/pages/assets/index.tsx b/web/src/pages/assets/index.tsx
+index 5a2c70c..32053eb 100644
+--- a/web/src/pages/assets/index.tsx
++++ b/web/src/pages/assets/index.tsx
+@@ -1,6 +1,8 @@
+ import { Copy, Download, PencilLine, Search, Trash2, Upload } from "lucide-react";
+ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+-import { App, Button, Card, Drawer, Empty, Form, Image, Input, Modal, Pagination, Space, Tag, Typography } from "antd";
++import { App, Button, Card, Empty, Form, Image, Input, Pagination, Space, Tag, Typography } from "antd";
++import { OutsideDrawer as Drawer } from "@/扩展功能/主题/原生可关闭浮层";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { OutsideSelect as Select } from "@/扩展功能/主题/原生可关闭浮层";
+ import { saveAs } from "file-saver";
+ import { useTranslation } from "react-i18next";

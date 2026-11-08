@@ -1,0 +1,13 @@
+diff --git a/web/src/components/audio-settings-panel.tsx b/web/src/components/audio-settings-panel.tsx
+index 407513f..8bcc4e5 100644
+--- a/web/src/components/audio-settings-panel.tsx
++++ b/web/src/components/audio-settings-panel.tsx
+@@ -71,7 +71,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle =
+                     <textarea
+                         value={config.audioInstructions || ""}
+                         placeholder={t("settingsPanels.audio.instructionsPlaceholder")}
+-                        className="thin-scrollbar h-20 w-full resize-none rounded-xl border bg-transparent px-3 py-2 text-sm leading-5 outline-none"
++                        className="guan-scroll-field thin-scrollbar h-20 w-full resize-none rounded-xl border bg-transparent px-3 py-2 text-sm leading-5 outline-none"
+                         style={{ borderColor: theme.node.stroke, color: theme.node.text }}
+                         onChange={(event) => onConfigChange("audioInstructions", event.target.value)}
+                         onMouseDown={(event) => event.stopPropagation()}

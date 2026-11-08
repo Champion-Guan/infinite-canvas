@@ -1,0 +1,41 @@
+export type OutsidePanelLayer = {
+    parent: OutsidePanelLayer | null;
+    trigger(): HTMLElement | null;
+    panel(): HTMLElement | null;
+    dismiss(event: Event): void;
+    modal?: boolean;
+};
+
+const nestedOptions = ".ant-select-dropdown,.ant-picker-dropdown,.ant-cascader-menus,.ant-color-picker,.ant-popover,.ant-dropdown,.ant-modal-wrap,.ant-modal-mask,.ant-drawer-mask,.ant-drawer-content-wrapper,.ant-image-preview-wrap,[data-radix-popper-content-wrapper]";
+
+// 捕获阶段早于画布拖动；同一事件只判断一次，Portal子层与其父层一起保留。
+export function createOutsidePanelRegistry(host: EventTarget | null) {
+    const layers = new Set<OutsidePanelLayer>();
+    const outside = (event: Event) => {
+        const target = event.composedPath?.()[0] || event.target;
+        if (!(target instanceof Node)) return;
+        const keep = new Set<OutsidePanelLayer>();
+        for (const layer of layers) {
+            if (!layer.trigger()?.contains(target) && !layer.panel()?.contains(target)) continue;
+            let current: OutsidePanelLayer | null = layer;
+            while (current && !keep.has(current)) { keep.add(current); current = current.parent; }
+        }
+        const element = target instanceof Element ? target : target.parentElement;
+        // 未接入的原生/Radix选项仍由各自组件处理，不能在选择前关掉父面板。
+        if (!keep.size && element?.closest(nestedOptions)) return;
+        for (const layer of [...layers].reverse()) if (!keep.has(layer)) {
+            layer.dismiss(event);
+            if (layer.modal) break;
+        }
+    };
+    return {
+        register(layer: OutsidePanelLayer) {
+            if (!layers.size) host?.addEventListener("pointerdown", outside, true);
+            layers.add(layer);
+            return () => {
+                layers.delete(layer);
+                if (!layers.size) host?.removeEventListener("pointerdown", outside, true);
+            };
+        },
+    };
+}

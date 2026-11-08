@@ -1,9 +1,12 @@
 import { createPortal } from "react-dom";
-import { sharedNetworkFlow } from "./共享网络数据流";
+import { sharedNetworkFlow, connectionFlowBudget } from "./共享网络数据流";
 import { connectionJunctionDots, softJunctionContours } from "./连线交点整理";
 import "./连线数据流动画.css";
 import type { MouseEvent as ReactMouseEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { memo, useMemo, useState, useCallback, useEffect } from "react";
+import { useReducedMotion } from "motion/react";
+import { usePageVisible } from "../主题/可见页面轮询";
+import { useProductActive } from "../产品/产品界面边界";
 
 import { SharedConnectionPicker } from "./共享主干关系面板";
 import { sharedConnectionAction, sharedConnectionChoices } from "./共享主干关系选择";
@@ -28,6 +31,8 @@ type SharedConnectionLayerProps = {
 };
 
 export const SharedConnectionLayer = memo(function SharedConnectionLayer({ geometry, flowGeometry, focusedIds, scale, dragging, onSelect, onContextMenu, onPreviewNodes, focusTarget, onFocusConnections, keepFocusBehindCards = false }: SharedConnectionLayerProps) {
+    const pageVisible = usePageVisible(), reducedMotion = useReducedMotion(), productActive = useProductActive();
+    const animateFlow = productActive && pageVisible && !reducedMotion && !dragging;
     const themeName = useThemeStore(state => state.theme);
     const theme = canvasThemes[themeName];
     const palette = connectionDesign[themeName];
@@ -53,13 +58,16 @@ export const SharedConnectionLayer = memo(function SharedConnectionLayer({ geome
     useEffect(() => { onFocusConnections?.(perspectiveIds); }, [perspectiveIds, onFocusConnections]);
     const focused = useMemo(() => geometry.filter(item => displayIds.has(item.connection.id)), [geometry, displayIds]);
     const closePicker = useCallback(() => { setRequest(null); setPreviewId(null); setHoverIds(null); onPreviewNodes?.(new Set()); }, [onPreviewNodes]);
-    useEffect(() => { if (request && (dragging || !choices.length)) closePicker(); }, [request, dragging, choices.length, closePicker]);
+    useEffect(() => { if (request && (!productActive || dragging || !choices.length)) closePicker(); }, [request, productActive, dragging, choices.length, closePicker]);
     const focusSegments = useMemo(() => mergeSharedConnectionSegments(focused, geometry), [focused, geometry]);
     const junctionContour = useMemo(() => softJunctionContours(geometry.map(item => item.route.points), geometry.map(item => item.route.points), 1, connectionDesign.lineWidth), [geometry]);
     const focusContour = useMemo(() => softJunctionContours(focused.map(item => item.route.points), geometry.map(item => item.route.points), 1, connectionDesign.focusWidth), [focused, geometry]);
     const junctionDots = useMemo(() => connectionJunctionDots(geometry.map(item => item.route.points)), [geometry]);
     const focusDots = useMemo(() => connectionJunctionDots(focused.map(item => item.route.points), geometry.map(item => item.route.points)), [focused, geometry]);
-    const flowNetwork = useMemo(() => sharedNetworkFlow((flowGeometry ?? geometry).filter(item => displayIds.has(item.connection.id)), flowGeometry ?? geometry), [flowGeometry, geometry, displayIds]);
+    const flowNetwork = useMemo(() => animateFlow && displayIds.size
+        ? sharedNetworkFlow((flowGeometry ?? geometry).filter(item => displayIds.has(item.connection.id)), flowGeometry ?? geometry)
+        : { total: 180, segments: [] }, [flowGeometry, geometry, displayIds, animateFlow]);
+    const flowBudget = connectionFlowBudget(flowNetwork.total, flowNetwork.segments.length);
     const byId = useMemo(() => new Map(geometry.map(item => [item.connection.id, item])), [geometry]);
     const preview = useCallback((id: string | null) => {
         setPreviewId(id);
@@ -93,9 +101,8 @@ export const SharedConnectionLayer = memo(function SharedConnectionLayer({ geome
                 <path data-focus-junction-contour="true" d={focusContour} fill={connectionDesign.focusColor} stroke="none" />
                 {focusDots.map(point => <circle key={point.key} data-focus-junction-dot="true" cx={point.x} cy={point.y} r={3.5} fill={connectionDesign.focusColor} />)}
 
-                {!dragging ? flowNetwork.segments.map(segment => {
-                    const count = Math.max(1, Math.floor(flowNetwork.total / 180));
-                    const duration = Math.max(1.2, flowNetwork.total / 100);
+                {flowBudget.count ? flowNetwork.segments.map(segment => {
+                    const { count, duration } = flowBudget;
                     const times = `0;${segment.start};${segment.end};1`;
                     return <g key={segment.id} className="connection-flow-particles" data-flow-segment={segment.id}>
                         {Array.from({ length: count }, (_, index) => <circle key={index} data-flow-particle="true" r={3.5} fill="#ffffff" stroke={connectionDesign.focusColor} strokeWidth={1.3}>

@@ -1,0 +1,30 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index c24b8d8..27eed6b 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -4,6 +4,7 @@ import { ASSET_DRAG_TYPE, assetDragData } from "@/扩展功能/素材/上传资
+ import { hasHeicNameOrType } from "@/扩展功能/媒体交付/HEIC格式识别.mjs";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { panelTransition, useHiddenPanelExit } from "@/扩展功能/主题/侧栏动效";
++import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+ import { AppleActionButton } from "@/扩展功能/主题/苹果交互按钮";
+ import { sqlitePreferences } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
+@@ -161,7 +162,7 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+                     <TabButton label="回收站" active={tab === "trash"} theme={theme} onClick={() => setTab("trash")} />
+                 </div>
+                 </LayoutGroup>
+-                <div className="mt-2 min-h-0 flex-1 overflow-hidden">
++                <TabContentTransition transitionKey={`${projectId}:${tab}`} enabled={productActive && panelOpen} className="mt-2 min-h-0 flex-1 overflow-hidden">
+                     {tab === "canvas" ? (
+                         <CanvasNodesTab nodes={nodes} connections={connections} selectedNodeIds={selectedNodeIds} onFocusNode={onFocusNode} onPreviewNode={onPreviewNode} onHoverNode={onHoverNode} theme={theme} />
+                     ) : tab === "assets" ? (
+@@ -173,7 +174,7 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+                     ) : (
+                         <CanvasPromptsTab onInsert={onInsertAsset} theme={theme} />
+                     )}
+-                </div>
++                </TabContentTransition>
+                 <button type="button" className="absolute inset-y-0 right-0 z-40 w-4 translate-x-1/2 cursor-col-resize touch-none"
+                     role="separator" aria-orientation="vertical" aria-valuemin={CANVAS_SIDE_PANEL_MIN_WIDTH} aria-valuemax={CANVAS_SIDE_PANEL_MAX_WIDTH} aria-valuenow={width}
+                     onPointerDown={startResize} onKeyDown={event => {

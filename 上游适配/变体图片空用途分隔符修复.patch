@@ -1,0 +1,13 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 64d12f7..d6241fb 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -2406,7 +2406,7 @@ function InfiniteCanvasPage() {
+                     const sourceNameBase = sourceNode?.metadata?.generationNameBase || generatedImageCardTitle(
+                         sourceNode?.type === CanvasNodeType.Text ? sourceNode : findGeneratedImageSourcePrompt({ id: rootId }, nodesRef.current, [...connectionsRef.current, { id: "naming", fromNodeId: nodeId, toNodeId: rootId }]),
+                     );
+-                    const generationNameBase = variantExecution ? `${sourceNameBase} · ${variantExecution.snapshot.name}` : sourceNameBase;
++                    const generationNameBase = variantExecution ? [sourceNameBase, variantExecution.snapshot.name].filter(value => value.trim()).join(" · ") : sourceNameBase;
+                     const rootNode: CanvasNodeData = {
+                         id: rootId,
+                         type: CanvasNodeType.Image,

@@ -1,0 +1,20 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index d6241fb..30a6776 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -24,6 +24,7 @@ import { useCanvasBatchGeneration } from "@/扩展功能/画布生成/批量生
+ import { useProductVariantGeneration } from "@/扩展功能/画布生成/产品变体执行";
+ import { canStartVariantGeneration, productVariantResult } from "@/扩展功能/画布生成/产品变体生成";
+ import { buildProductGenerationContext, productPromptInputSummary } from "@/扩展功能/画布生成/商品提示词生成";
++import { pulseProductPromptWarning } from "@/扩展功能/Excel画布/商品提示词阻止反馈";
+ import { useCanvasNodeRecycle } from "@/扩展功能/画布回收/节点回收操作";
+ import { useCanvasNodeDeletion } from "@/扩展功能/画布回收/节点删除操作";
+ import { useCanvasContentImport } from "@/扩展功能/画布导入/当前画布导入操作";
+@@ -2738,6 +2739,7 @@ function InfiniteCanvasPage() {
+             } catch (error) {
+                 if (isGenerationCanceled(error)) return;
++                if (pulseProductPromptWarning(error)) return;
+                 const errorDetails = error instanceof Error ? error.message : t("canvas.projectPage.generationFailed");
+                 message.error(errorDetails);
+                 setNodes((prev) =>
+                     prev.map((node) =>

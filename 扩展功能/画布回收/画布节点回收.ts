@@ -6,14 +6,22 @@ import type { CanvasConnection, CanvasNodeData } from "@/types/canvas";
 const relationKeys = ["groupId", "promptVariableSourceNodeId", "promptVariablePreviewNodeId", "excelPromptBindingNodeId"] as const;
 const promptKeys = ["promptVariableRawPrompt", "promptVariableResolvedPrompt", "excelPromptResolved"] as const;
 
-export function withoutDeletedNodes<T extends { nodes: CanvasNodeData[]; connections: CanvasConnection[] }>(entry: T, ids: Set<string>): T {
+export function withoutDeletedNodes<T extends { nodes: CanvasNodeData[]; connections: CanvasConnection[]; deletedNodeBatches?: CanvasDeletedNodeBatch[] }>(entry: T, ids: Set<string>): T {
+    const nodes = entry.nodes.filter(node => !ids.has(node.id)).map(node => {
+        const next = clearDeletedExcelRelations(node, ids);
+        return next.metadata?.groupId && ids.has(next.metadata.groupId) ? { ...next, metadata: { ...next.metadata, groupId: undefined } } : next;
+    });
+    const connections = entry.connections.filter(edge => !ids.has(edge.fromNodeId) && !ids.has(edge.toNodeId));
     return {
         ...entry,
-        nodes: entry.nodes.filter(node => !ids.has(node.id)).map(node => {
-            const next = clearDeletedExcelRelations(node, ids);
-            return next.metadata?.groupId && ids.has(next.metadata.groupId) ? { ...next, metadata: { ...next.metadata, groupId: undefined } } : next;
-        }),
-        connections: entry.connections.filter(edge => !ids.has(edge.fromNodeId) && !ids.has(edge.toNodeId)),
+        ...(entry.deletedNodeBatches ? {
+            deletedNodeBatches: entry.deletedNodeBatches.map(batch => ({
+                ...withoutDeletedNodes(batch, ids),
+                relatedNodes: withoutDeletedNodes({ nodes: batch.relatedNodes || [], connections: [] }, ids).nodes,
+            })).filter(batch => batch.nodes.length),
+        } : {}),
+        nodes: nodes.length === entry.nodes.length && nodes.every((node, index) => node === entry.nodes[index]) ? entry.nodes : nodes,
+        connections: connections.length === entry.connections.length ? entry.connections : connections,
     };
 }
 

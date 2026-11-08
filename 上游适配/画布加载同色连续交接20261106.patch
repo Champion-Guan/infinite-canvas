@@ -1,0 +1,38 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 5701cb0..a210b33 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -135,6 +135,7 @@ import { getNodeDefinition, isBuiltinNodeType as isBuiltinType, useNodeRegistryV
+ import { registerBuiltinNodes } from "@/components/canvas/nodes/builtin-nodes";
+ import { CanvasPluginManagerModal } from "@/components/canvas/canvas-plugin-manager-modal";
+ import { CanvasRefreshShell } from "@/components/canvas/canvas-refresh-shell";
++import { CanvasArrival } from "@/扩展功能/产品/画布进入过渡";
+ import { CanvasTopBar } from "@/components/canvas/canvas-top-bar";
+ import { ConnectionCreateMenu, NodeCreateMenu, type PendingConnectionCreate } from "@/components/canvas/canvas-create-menus";
+ import {
+@@ -3155,14 +3156,15 @@ function InfiniteCanvasPage() {
+     }
+     const retainedPreview = retainedPreviewRef.current;
+ 
+-    if (!projectLoaded) return <div className="relative h-full"><CanvasRefreshShell />
++    const loadingCanvas = <div className="relative h-full"><CanvasRefreshShell />
+         <div className="absolute inset-0 grid place-content-center gap-3 p-6 text-center" role={restoreError ? "alert" : "status"}>
+             <p>{restoreError || "正在恢复画布、视区和撤销记录…"}</p>
+             {restoreError ? <Button onClick={() => setRestoreAttempt(value => value + 1)}>重试恢复</Button> : null}
+         </div></div>;
+ 
+     return (
+-        <ExcelCanvasScope productId={projectId}><main className="flex h-full min-h-0 overflow-hidden" style={{ background: theme.canvas.background, color: theme.node.text }}>
++        <CanvasArrival ready={projectLoaded} failed={Boolean(restoreError)} background={theme.canvas.background} loading={loadingCanvas}>
++        {projectLoaded ? <ExcelCanvasScope productId={projectId}><main className="flex h-full min-h-0 overflow-hidden" style={{ background: theme.canvas.background, color: theme.node.text }}>
+             <ProductPromptWarnings projectId={projectId} active={productActive} nodes={contentNodes} connections={connections} getNodes={pluginHost.getNodes} applyOps={applyAgentOps} />
+             <CanvasSidePanel projectId={projectId} connections={connections} getCurrentNode={getCurrentNode} onRetryNode={handleRetryNode} nodes={nodes} selectedNodeIds={selectedNodeIds} onFocusNode={focusNode} onPreviewNode={setPreviewNodeId} onHoverNode={setHoverPreviewNodeId} onInsertAsset={handleAssetInsert} deletedNodeBatches={currentProject?.deletedNodeBatches || []} onRestoreDeletedNodes={restoreDeletedNodeBatch} onPermanentlyDeleteNodes={permanentlyDeleteNodeBatch} />
+             <section className="relative min-w-0 flex-1 overflow-hidden">
+@@ -3489,6 +3491,6 @@ function InfiniteCanvasPage() {
+                 <AssetPickerModal key={projectId} projectId={projectId} open={productActive && assetPickerOpen} onInsert={handleAssetInsert} onClose={() => setAssetPickerOpen(false)} />
+             </section>
+             <ImageTaskConfirmation productId={projectId} nodes={nodes} ready={projectLoaded} afterConfirmed={clearConfirmedImageError} />
+-        </main></ExcelCanvasScope>
++        </main></ExcelCanvasScope> : null}</CanvasArrival>
+     );
+ }

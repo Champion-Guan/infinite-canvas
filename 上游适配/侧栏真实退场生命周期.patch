@@ -1,0 +1,75 @@
+diff --git a/web/src/stores/use-canvas-side-panel-store.ts b/web/src/stores/use-canvas-side-panel-store.ts
+index 7b5ebc3..fc8b5bc 100644
+--- a/web/src/stores/use-canvas-side-panel-store.ts
++++ b/web/src/stores/use-canvas-side-panel-store.ts
+@@ -1,8 +1,6 @@
+ import { sqlitePreferences } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { create } from "zustand";
+ 
+-export const CANVAS_SIDE_PANEL_MOTION_MS = 360;
+-let closeTimer: ReturnType<typeof setTimeout> | undefined;
+ export const CANVAS_SIDE_PANEL_MIN_WIDTH = 220;
+ export const CANVAS_SIDE_PANEL_MAX_WIDTH = 480;
+ export const CANVAS_SIDE_PANEL_DEFAULT_WIDTH = 280;
+@@ -36,6 +34,7 @@ type CanvasSidePanelStore = {
+     panelOpen: boolean;
+     panelMounted: boolean;
+     panelClosing: boolean;
++    panelCloseRevision: number;
+     nodeViewMode: CanvasNodeViewMode;
+     historySorted: boolean;
+     toggleHistorySorted: () => void;
+@@ -43,6 +42,7 @@ type CanvasSidePanelStore = {
+     setNodeViewMode: (mode: CanvasNodeViewMode) => void;
+     openPanel: () => void;
+     closePanel: () => void;
++    finishPanelClose: (revision: number) => void;
+     togglePanel: () => void;
+ };
+ 
+@@ -51,6 +51,7 @@ export const useCanvasSidePanelStore = create<CanvasSidePanelStore>((set, get) =
+     panelOpen: initialOpen(),
+     panelMounted: initialOpen(),
+     panelClosing: false,
++    panelCloseRevision: 0,
+     nodeViewMode: initialNodeView(),
+     historySorted: sqlitePreferences.getItem(HISTORY_SORTED_KEY) === "1",
+     toggleHistorySorted: () => {
+@@ -58,27 +59,27 @@ export const useCanvasSidePanelStore = create<CanvasSidePanelStore>((set, get) =
+         sqlitePreferences.setItem(HISTORY_SORTED_KEY, historySorted ? "1" : "0");
+         set({ historySorted });
+     },
+-    setWidth: (width) => set({ width }),
++    setWidth: (width) => {
++        if (Number.isFinite(width)) set({ width: Math.min(CANVAS_SIDE_PANEL_MAX_WIDTH, Math.max(CANVAS_SIDE_PANEL_MIN_WIDTH, width)) });
++    },
+     setNodeViewMode: (mode) => {
+         if (typeof window !== "undefined") sqlitePreferences.setItem(NODE_VIEW_KEY, mode);
+         set({ nodeViewMode: mode });
+     },
+     openPanel: () => {
+-        clearTimeout(closeTimer);
+-        closeTimer = undefined;
+         if (get().panelOpen && !get().panelClosing) return;
+         if (typeof window !== "undefined") sqlitePreferences.setItem(OPEN_KEY, "1");
+-        set({ panelOpen: true, panelMounted: true, panelClosing: false });
++        set({ panelOpen: true, panelMounted: true, panelClosing: false, panelCloseRevision: get().panelCloseRevision + 1 });
+     },
+     closePanel: () => {
+         if (!get().panelMounted || get().panelClosing) return;
+         if (typeof window !== "undefined") sqlitePreferences.setItem(OPEN_KEY, "0");
+-        set({ panelOpen: false, panelClosing: true });
+-        clearTimeout(closeTimer);
+-        closeTimer = setTimeout(() => {
+-            closeTimer = undefined;
+-            if (get().panelClosing) set({ panelMounted: false, panelClosing: false });
+-        }, CANVAS_SIDE_PANEL_MOTION_MS);
++        set({ panelOpen: false, panelClosing: true, panelCloseRevision: get().panelCloseRevision + 1 });
++    },
++    finishPanelClose: revision => {
++        const state = get();
++        if (state.panelClosing && !state.panelOpen && revision === state.panelCloseRevision)
++            set({ panelMounted: false, panelClosing: false });
+     },
+     togglePanel: () => (get().panelOpen ? get().closePanel() : get().openPanel()),
+ }));

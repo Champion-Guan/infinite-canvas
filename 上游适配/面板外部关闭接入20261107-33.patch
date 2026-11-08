@@ -1,0 +1,12 @@
+diff --git a/web/src/components/layout/prompt-source-editor-drawer.tsx b/web/src/components/layout/prompt-source-editor-drawer.tsx
+index bfadda6..4989326 100644
+--- a/web/src/components/layout/prompt-source-editor-drawer.tsx
++++ b/web/src/components/layout/prompt-source-editor-drawer.tsx
+@@ -1,4 +1,6 @@
+-import { App, Button, Drawer, Input, Space, Switch } from "antd";
++import { App, Button, Input, Space, Switch } from "antd";
++import { OutsideDrawer as Drawer } from "@/扩展功能/主题/原生可关闭浮层";
++
+ import { useEffect, useState } from "react";
+ import { useTranslation } from "react-i18next";
+ 

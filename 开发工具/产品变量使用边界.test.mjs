@@ -18,6 +18,7 @@ const { resolvePromptVariables: resolvePrompt } = variables;
 const themes = await load('扩展功能/Excel画布/旧版主题翻译.js');
 const rules = await load('扩展功能/Excel画布/旧版参数规则.ts', { './旧版主题翻译.js': themes, '../提示词/变量使用规则': variables });
 const protectedText = await load('扩展功能/提示词/生成文本读取.ts', { './变量使用规则': variables, '../Excel画布/旧版参数规则': rules,
+    './提示词优化规则': variantModules().load('提示词/提示词优化规则.ts'),
     '../Excel画布/商品提示词规则': variantModules().load('Excel画布/商品提示词规则.ts') });
 const contexts = await load('扩展功能/Excel画布/Excel卡片上下文.ts', { './旧版参数规则': rules });
 const titles = await load('扩展功能/Excel画布/旧版最终提示词标题.ts');
@@ -87,6 +88,17 @@ test('绑定和表单初始化保留别名值，用户显式清空保持空白�
     assert.match(beforeRules(bound.nodes.at(-1).metadata.content), /73\.6 cm NA/);
     const metadata = rules.buildPromptVariablesMetadata(undefined, { id: 't', prompts: { detail: source.metadata.content } }, 'detail', values);
     assert.equal(metadata.promptVariableValues['[PRODUCT LENGTH]'], '73.6 cm');
+});
+test('未识别Excel且无变量时连接普通提示词不自动创建最终提示词卡片', () => {
+    const params = parameter({}), source = box('plain', { content: '只添加3.2 cm和6 cm尺寸标注' });
+    const fail = () => { throw Error('无变量不应创建预览'); };
+    const factory = { create: fail, place: fail, edgeId: () => 'plain-edge' };
+    for (const item of [source, box('empty', { content: '' })]) {
+        const bound = transactions.bindExcelParameters([params, item], [], params.id, item.id, factory);
+        assert.equal(bound.nodes.length, 2); assert.equal(bound.connections.length, 1);
+        assert.equal(bound.nodes.find(node => node.id === item.id).metadata.excelPromptBindingNodeId, params.id);
+        assert.ok(!bound.nodes.some(node => node.metadata?.promptVariablePreviewOf));
+    }
 });
 test('首次绑定、修改原文、Excel来源更新均同步同一套约束', () => {
     const params = parameter({ '[LENGTH]': '73.6 cm', '[COUNT]': '' });

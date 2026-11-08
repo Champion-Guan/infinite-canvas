@@ -1,0 +1,79 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index 82c3051..fb8af23 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -1,4 +1,3 @@
+-import { useSettingsTabBarAlignment } from "@/扩展功能/存储界面/设置页签测量";
+ import { SettingsDoneButton } from "@/扩展功能/存储界面/设置完成按钮";
+ import { businessFeatures, resolveBusinessConfigTab } from "@/扩展功能/产品配置/脚本与提示词来源";
+ import { productFeatures, resolveConfigTab } from "@/扩展功能/产品配置/功能开关";
+@@ -12,7 +11,7 @@ import { AppleAntButton as Button } from "@/扩展功能/主题/苹果交互按
+ import { useReducedMotion } from "motion/react";
+ import type { TFunction } from "i18next";
+ import { Cloud, Download, Pencil, Plus, RefreshCw, Trash2, Upload, Wifi } from "lucide-react";
+-import { useEffect, useRef, useState } from "react";
++import { useEffect, useLayoutEffect, useRef, useState } from "react";
+ import { useTranslation } from "react-i18next";
+ 
+ import { ModelPicker } from "@/components/model-picker";
+@@ -61,12 +60,11 @@ function createWebdavDomainProgress(): Record<AppSyncDomainKey, WebdavDomainProg
+     );
+ }
+ 
+-export function AppConfigPanel({ showDoneButton = false, initialTab = "channels" }: { showDoneButton?: boolean; initialTab?: ConfigTabKey }) {
++export function AppConfigPanel({ showDoneButton = false, initialTab = "channels", ready = true }: { showDoneButton?: boolean; initialTab?: ConfigTabKey; ready?: boolean }) {
+     const reducedMotion = useReducedMotion();
+     const { message } = App.useApp();
+     const { i18n, t } = useTranslation();
+     const configInputRef = useRef<HTMLInputElement>(null);
+-    const { surfaceRef, renderTabBar } = useSettingsTabBarAlignment();
+     const [activeTab, setActiveTab] = useState<ConfigTabKey>(() => resolveBusinessConfigTab(resolveConfigTab(initialTab)));
+     const [editingChannelId, setEditingChannelId] = useState("");
+     const [testingWebdav, setTestingWebdav] = useState(false);
+@@ -170,7 +168,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+     };
+ 
+     return (
+-        <div ref={surfaceRef} className="guan-settings-surface guan-motion-panel">
++        <div className="guan-settings-surface">
+             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-3 dark:border-stone-800">
+                 <div className="text-xs text-stone-500">{t("config.fileSecurity")}</div>
+                 <div className="flex gap-2">
+@@ -186,8 +184,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+             <Tabs
+                 className="guan-settings-tabs guan-apple-transition [&>.ant-tabs-nav_.ant-tabs-nav-list]:gap-1"
+                 animated={{ inkBar: !reducedMotion, tabPane: true }}
+-                renderTabBar={renderTabBar}
+-                styles={{ item: { transform: "none" } }}
++                styles={{ item: { transform: "none" }, indicator: { transition: ready ? undefined : "none" } }}
+                 activeKey={activeTab}
+                 onChange={(key) => {
+                     const nextTab = resolveBusinessConfigTab(resolveConfigTab(key as ConfigTabKey));
+@@ -389,6 +386,8 @@ export function AppConfigModal() {
+     const viewport = useSettingsViewport();
+     const { t } = useTranslation();
+     const isConfigOpen = useConfigStore((state) => state.isConfigOpen);
++    const [ready, setReady] = useState(false);
++    useLayoutEffect(() => { setReady(false); }, [isConfigOpen]);
+     const configTab = useConfigStore((state) => state.configTab);
+     const setConfigDialogOpen = useConfigStore((state) => state.setConfigDialogOpen);
+     return (
+@@ -400,6 +399,9 @@ export function AppConfigModal() {
+                 </div>
+             }
+             open={isConfigOpen}
++            triggerId="guan-settings-trigger"
++            transitionName="ant-fade"
++            afterOpenChange={setReady}
+             destroyOnHidden
+             width={980}
+             centered
+@@ -415,7 +417,7 @@ export function AppConfigModal() {
+             className="guan-config-modal"
+             footer={<SettingsDoneButton />}
+         >
+-            <AppConfigPanel initialTab={configTab} />
++            <AppConfigPanel initialTab={configTab} ready={ready && isConfigOpen} />
+         </Modal>
+     );
+ }

@@ -1,0 +1,28 @@
+diff --git a/web/src/components/layout/app-providers.tsx b/web/src/components/layout/app-providers.tsx
+index 3b5e9dd..3f950c0 100644
+--- a/web/src/components/layout/app-providers.tsx
++++ b/web/src/components/layout/app-providers.tsx
+@@ -1,5 +1,6 @@
+ import { InterfaceMotionProvider } from "@/扩展功能/主题/界面动态偏好";
+ import { SystemThemeSync } from "@/扩展功能/主题/三态主题设置";
++import { useTransientMessageTop } from "@/扩展功能/存储界面/消息浮层布局";
+ import type { ReactNode } from "react";
+ import { useEffect } from "react";
+ import { ProConfigProvider } from "@ant-design/pro-components";
+@@ -27,6 +28,7 @@ const queryClient = new QueryClient({
+ });
+ 
+ export function AppProviders({ children }: { children: ReactNode }) {
++    const messageTop = useTransientMessageTop();
+     const { i18n, t } = useTranslation();
+     const theme = useThemeStore((state) => state.theme);
+     const dark = theme === "dark";
+@@ -49,7 +51,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
+             <InterfaceMotionProvider>
+             <SystemThemeSync />
+             <ProConfigProvider dark={dark}>
+-                <App message={{ top: 84 + 8 }}>
++                <App message={{ top: messageTop }}>
+                     <QueryClientProvider client={queryClient}>
+                         <ClientRootInit>{children}</ClientRootInit>
+                     </QueryClientProvider>

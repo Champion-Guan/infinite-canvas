@@ -1,0 +1,22 @@
+diff --git a/web/src/components/canvas/canvas-resource-mention-textarea.tsx b/web/src/components/canvas/canvas-resource-mention-textarea.tsx
+index de92d51..36f1f98 100644
+--- a/web/src/components/canvas/canvas-resource-mention-textarea.tsx
++++ b/web/src/components/canvas/canvas-resource-mention-textarea.tsx
+@@ -110,7 +110,7 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
+                     else if (forwardedRef) forwardedRef.current = node;
+                 }}
+                 value={value}
+-                className={className}
++                className={"guan-scroll-field " + (className || "")}
+                 style={mergedStyle}
+                 onChange={(event) => {
+                     const next = event.target.value;
+@@ -244,7 +244,7 @@ function MentionMenu({ textarea, caretIndex, references, activeIndex, theme, onS
+     return createProductPortal(
+         <div
+             data-canvas-resource-mention-menu="true"
+-            className="fixed z-[120] max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md"
++            className="guan-scroll-region fixed z-[120] max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md"
+             style={{ left, top, background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
+             onPointerDown={stopCanvasInteraction}
+             onMouseDown={stopCanvasInteraction}

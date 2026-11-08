@@ -1,0 +1,30 @@
+diff --git a/web/src/components/canvas/canvas-node-hover-toolbar.tsx b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+index 9b2fe7f..f780f72 100644
+--- a/web/src/components/canvas/canvas-node-hover-toolbar.tsx
++++ b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+@@ -2,6 +2,7 @@ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { sqlitePreferences } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { useEffect, useMemo, useState, type ReactNode } from "react";
+ import { App, Segmented, Tooltip } from "antd";
++import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+ import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { OutsideDropdown as Dropdown } from "@/扩展功能/主题/原生可关闭浮层";
+ import { Download, Ellipsis, FolderPlus, Image as ImageIcon, Info, Languages, Link2, MessageSquare, Minus, Music2, Plus, RefreshCw, Settings2, Trash2, Ungroup, Upload, Video } from "lucide-react";
+@@ -293,7 +294,7 @@ export function CanvasNodeInfoModal({ node, open, onClose }: { node: CanvasNodeD
+     return (
+         <Modal className="canvas-node-info-modal" title={title} open={open && Boolean(node)} centered footer={null} onCancel={onClose}>
+             {node ? (
+-                <div className="h-[56vh] min-h-[360px] select-text text-sm" data-canvas-shortcuts-ignore>
++                <TabContentTransition transitionKey={`${node.id}:${view}`} className="h-[56vh] min-h-[360px] select-text text-sm" data-canvas-shortcuts-ignore>
+                     {view === "info" ? (
+                         <div className="guan-scroll-region thin-scrollbar h-full space-y-3 overflow-auto pr-1">
+                             <InfoRow label="ID" value={node.id} />
+@@ -336,7 +337,7 @@ export function CanvasNodeInfoModal({ node, open, onClose }: { node: CanvasNodeD
+                             {json}
+                         </pre>
+                     )}
+-                </div>
++                </TabContentTransition>
+             ) : null}
+         </Modal>
+     );

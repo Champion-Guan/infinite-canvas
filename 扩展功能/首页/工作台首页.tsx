@@ -46,7 +46,13 @@ export function WorkbenchHome({ theme, onCreate, onImportProduct, busy = false }
   const [carouselRef, api] = useEmblaCarousel({ loop: true, watchResize: false }, plugins);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [visible, setVisible] = useState(() => document.visibilityState !== "hidden");
   const [reducedMotion, setReducedMotion] = useState(() => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+  useEffect(() => {
+    const sync = () => setVisible(document.visibilityState !== "hidden");
+    document.addEventListener("visibilitychange", sync);
+    return () => document.removeEventListener("visibilitychange", sync);
+  }, []);
   useEffect(() => {
     const media = window.matchMedia?.("(prefers-reduced-motion: reduce)");
     if (!media) return;
@@ -59,13 +65,13 @@ export function WorkbenchHome({ theme, onCreate, onImportProduct, busy = false }
     if (!api || !autoplay) return;
     const sync = () => {
       if (reducedMotion) api.scrollTo(api.selectedScrollSnap(), true);
-      if (paused || reducedMotion) autoplay.stop();
+      if (paused || reducedMotion || !visible) autoplay.stop();
       else autoplay.play();
     };
     sync();
     api.on("reInit", sync);
     return () => { api.off("reInit", sync); autoplay.stop(); };
-  }, [api, paused, reducedMotion]);
+  }, [api, paused, reducedMotion, visible]);
   const select = useCallback(() => { if (api) setIndex(api.selectedScrollSnap()); }, [api]);
   useEffect(() => {
     if (!api) return;
@@ -76,15 +82,15 @@ export function WorkbenchHome({ theme, onCreate, onImportProduct, busy = false }
     const element = root.current;
     if (!api || !element) return;
     let width = element.getBoundingClientRect().width;
-    let timer: ReturnType<typeof setTimeout>;
+    let frame = 0;
     const observer = new ResizeObserver(([entry]) => {
       if (entry.contentRect.width === width) return;
       width = entry.contentRect.width;
-      clearTimeout(timer);
-      timer = setTimeout(() => api.reInit(), 150);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => api.reInit());
     });
     observer.observe(element);
-    return () => { observer.disconnect(); clearTimeout(timer); };
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
   }, [api]);
   const pending = "选择画布压缩包，新建产品并导入其内容。";
   return <main className={styles.page} data-theme={theme} aria-label="工作台首页">

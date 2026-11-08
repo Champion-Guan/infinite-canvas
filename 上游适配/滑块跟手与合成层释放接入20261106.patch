@@ -1,0 +1,38 @@
+diff --git a/web/src/styles/globals.css b/web/src/styles/globals.css
+index 1fd93bb..50bb274 100644
+--- a/web/src/styles/globals.css
++++ b/web/src/styles/globals.css
+@@ -220,7 +220,6 @@
+             background-color var(--guan-motion-fast) var(--guan-motion-gentle),
+             border-color var(--guan-motion-fast) var(--guan-motion-gentle),
+             box-shadow var(--guan-motion-normal) var(--guan-motion-gentle);
+-        will-change: transform;
+     }
+ 
+     .guan-motion-interactive:hover {
+@@ -433,7 +432,6 @@
+ 
+     .guan-touch-follow {
+         touch-action: pan-y;
+-        will-change: transform;
+     }
+ 
+     .guan-card-surface {
+@@ -1235,9 +1233,15 @@
+     }
+ 
+     .ant-slider-track,
+-    .ant-slider-handle,
++    .ant-slider-handle {
++        transition: background-color var(--guan-motion-fast) var(--guan-motion-gentle),
++            border-color var(--guan-motion-fast) var(--guan-motion-gentle),
++            box-shadow var(--guan-motion-fast) var(--guan-motion-gentle);
++    }
++
+     .ant-progress-bg {
+-        transition: all var(--guan-motion-normal) var(--guan-motion-spring);
++        transition: width var(--guan-motion-normal) var(--guan-motion-gentle),
++            background-color var(--guan-motion-fast) var(--guan-motion-gentle);
+     }
+ 
+     .guan-task-stage,

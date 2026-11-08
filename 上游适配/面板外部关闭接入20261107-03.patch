@@ -1,0 +1,12 @@
+diff --git a/web/src/components/layout/config-prompt-sources.tsx b/web/src/components/layout/config-prompt-sources.tsx
+index 8a509a7..bcdf1e2 100644
+--- a/web/src/components/layout/config-prompt-sources.tsx
++++ b/web/src/components/layout/config-prompt-sources.tsx
+@@ -52,6 +52,7 @@ export function ConfigPromptSources() {
+ 
+     const handleDelete = (source: PromptSource) => {
+         modal.confirm({
++            maskClosable: true,
+             title: t("config.promptSources.deleteTitle", { name: source.name }),
+             content: t("config.promptSources.deleteDescription"),
+             okText: t("common.delete"),

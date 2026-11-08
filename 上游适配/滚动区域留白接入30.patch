@@ -1,0 +1,13 @@
+diff --git a/web/src/components/layout/version-release-modal.tsx b/web/src/components/layout/version-release-modal.tsx
+index 88e2974..f971ed4 100644
+--- a/web/src/components/layout/version-release-modal.tsx
++++ b/web/src/components/layout/version-release-modal.tsx
+@@ -84,7 +84,7 @@ export function VersionReleaseModal({ className, style, label }: VersionReleaseM
+                     } />
+                     {status?.latest?.publishedAt ? <div className="text-xs text-stone-500 dark:text-stone-400">发布时间：{new Date(status.latest.publishedAt).toLocaleString()}</div> : null}
+                 </div>
+-                <div className="overflow-y-auto pr-2" style={{ maxHeight: viewport ? "56cqh" : "56vh" }}>
++                <div className="guan-scroll-region overflow-y-auto pr-2" style={{ maxHeight: viewport ? "56cqh" : "56vh" }}>
+                     <Timeline
+                         items={releases.map((release) => ({
+                             content: (

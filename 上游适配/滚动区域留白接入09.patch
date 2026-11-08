@@ -1,0 +1,51 @@
+diff --git a/web/src/components/agent/agent-skills-view.tsx b/web/src/components/agent/agent-skills-view.tsx
+index e31877e..23d704f 100644
+--- a/web/src/components/agent/agent-skills-view.tsx
++++ b/web/src/components/agent/agent-skills-view.tsx
+@@ -304,7 +304,7 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
+                     <Button danger type="text" size="small" className="!mt-1 !h-7 !px-1 text-xs" icon={<CircleAlert className="size-3.5" />} onClick={() => setErrorsOpen(true)}>{t("agent.skillManager.loadErrors", { count: errors.length })}</Button>
+                 ) : null}
+             </div>
+-            <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-4">
++            <div className="guan-scroll-region thin-scrollbar min-h-0 flex-1 overflow-y-auto px-4">
+                 {loading && !loaded ? (
+                     <div className="flex h-40 items-center justify-center gap-2 text-sm" style={{ color: theme.node.muted }}><LoaderCircle className="size-4 animate-spin" />{t("agent.skills.loading")}</div>
+                 ) : filteredSkills.length ? (
+@@ -356,7 +356,7 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
+             </div>
+ 
+             <Modal title={t("agent.skillManager.loadErrors", { count: errors.length })} open={errorsOpen} footer={null} width={720} onCancel={() => setErrorsOpen(false)}>
+-                <div className="thin-scrollbar mt-4 max-h-[60vh] overflow-y-auto rounded-md border px-3 py-2 text-xs leading-5" style={{ borderColor: theme.node.stroke }}>
++                <div className="guan-scroll-region thin-scrollbar mt-4 max-h-[60vh] overflow-y-auto rounded-md border px-3 py-2 text-xs leading-5" style={{ borderColor: theme.node.stroke }}>
+                     {errors.map((error, index) => <div key={`${index}:${error}`} className="break-all py-1" style={{ color: theme.node.muted }}>{error}</div>)}
+                 </div>
+             </Modal>
+@@ -370,7 +370,7 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
+                 width={680}
+                 centered
+                 destroyOnHidden
+-                styles={{ body: { maxHeight: "calc(100vh - 220px)", overflowY: "auto" } }}
++                styles={{ body: { scrollbarGutter: "stable", maxHeight: "calc(100vh - 220px)", overflowY: "auto", paddingInlineEnd: 18 } }}
+                 onCancel={() => {
+                     if (saving) return;
+                     setDraft(null);
+@@ -388,8 +388,8 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
+                         </Form.Item>
+                         <Form.Item name="displayName" label={t("agent.skillManager.displayName")} rules={[{ max: 64, message: t("agent.skillManager.displayNameMax") }]}><Input maxLength={64} placeholder={t("agent.skillManager.displayNamePlaceholder")} /></Form.Item>
+                     </div>
+-                    <Form.Item name="description" label={t("agent.skillManager.whenToUse")} extra={t("agent.skillManager.whenToUseExtra")} rules={[{ required: true, message: t("agent.skillManager.whenToUseRequired") }, { max: 1024, message: t("agent.skillManager.whenToUseMax") }, { validator: (_, value) => typeof value === "string" && /[<>]/.test(value) ? Promise.reject(new Error(t("agent.skillManager.noAngleBrackets"))) : Promise.resolve() }]}><Input.TextArea maxLength={1024} autoSize={{ minRows: 2, maxRows: 4 }} placeholder={t("agent.skillManager.whenToUsePlaceholder")} /></Form.Item>
+-                    <Form.Item name="instructions" label={t("agent.skillManager.instructions")} extra={t("agent.skillManager.instructionsExtra")} rules={[{ required: true, message: t("agent.skillManager.instructionsRequired") }]}><Input.TextArea className="!leading-6" autoSize={{ minRows: 6, maxRows: 10 }} placeholder={t("agent.skillManager.instructionsPlaceholder")} /></Form.Item>
++                    <Form.Item name="description" label={t("agent.skillManager.whenToUse")} extra={t("agent.skillManager.whenToUseExtra")} rules={[{ required: true, message: t("agent.skillManager.whenToUseRequired") }, { max: 1024, message: t("agent.skillManager.whenToUseMax") }, { validator: (_, value) => typeof value === "string" && /[<>]/.test(value) ? Promise.reject(new Error(t("agent.skillManager.noAngleBrackets"))) : Promise.resolve() }]}><Input.TextArea maxLength={1024} autoSize={{ minRows: 2, maxRows: 4 }} placeholder={t("agent.skillManager.whenToUsePlaceholder")} className="guan-scroll-field" /></Form.Item>
++                    <Form.Item name="instructions" label={t("agent.skillManager.instructions")} extra={t("agent.skillManager.instructionsExtra")} rules={[{ required: true, message: t("agent.skillManager.instructionsRequired") }]}><Input.TextArea className="guan-scroll-field !leading-6" autoSize={{ minRows: 6, maxRows: 10 }} placeholder={t("agent.skillManager.instructionsPlaceholder")} /></Form.Item>
+                     <Collapse
+                         ghost
+                         size="small"
+@@ -403,7 +403,7 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
+                             children: (
+                                 <>
+                                     <Form.Item name="shortDescription" label={t("agent.skillManager.shortDescription")} extra={t("agent.skillManager.shortDescriptionExtra")} rules={[{ min: 25, message: t("agent.skillManager.shortDescriptionMin") }, { max: 64, message: t("agent.skillManager.shortDescriptionMax") }]}><Input maxLength={64} showCount placeholder={t("agent.skillManager.shortDescriptionPlaceholder")} /></Form.Item>
+-                                    <Form.Item name="defaultPrompt" label={t("agent.skillManager.defaultPrompt")} extra={t("agent.skillManager.defaultPromptExtra")} rules={[{ max: 1024, message: t("agent.skillManager.defaultPromptMax") }]}><Input.TextArea maxLength={1024} autoSize={{ minRows: 2, maxRows: 4 }} placeholder={t("agent.skillManager.defaultPromptPlaceholder")} /></Form.Item>
++                                    <Form.Item name="defaultPrompt" label={t("agent.skillManager.defaultPrompt")} extra={t("agent.skillManager.defaultPromptExtra")} rules={[{ max: 1024, message: t("agent.skillManager.defaultPromptMax") }]}><Input.TextArea maxLength={1024} autoSize={{ minRows: 2, maxRows: 4 }} placeholder={t("agent.skillManager.defaultPromptPlaceholder")} className="guan-scroll-field" /></Form.Item>
+                                 </>
+                             ),
+                         }]}

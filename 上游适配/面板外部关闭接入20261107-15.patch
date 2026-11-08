@@ -1,0 +1,12 @@
+diff --git a/web/src/components/canvas/asset-picker-modal.tsx b/web/src/components/canvas/asset-picker-modal.tsx
+index f42092c..40e947f 100644
+--- a/web/src/components/canvas/asset-picker-modal.tsx
++++ b/web/src/components/canvas/asset-picker-modal.tsx
+@@ -1,5 +1,6 @@
+ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+-import { Empty, Input, Pagination, Select, Tag } from "antd";
++import { Empty, Input, Pagination, Tag } from "antd";
++import { OutsideSelect as Select } from "@/扩展功能/主题/原生可关闭浮层";
+ import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { Search } from "lucide-react";
+ import { useTranslation } from "react-i18next";

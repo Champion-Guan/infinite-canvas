@@ -45,6 +45,7 @@ export function connectionJunctions(routes: readonly (readonly Position[])[]) {
 // 给连续主干的内侧轮廓添加小圆角填充，而不是把两条大圆弧叠在一起。
 // 与线条一同在同一透明度组绘制，避免交点颜色加深；尺寸以屏幕像素固定。
 export function softJunctionContours(routes: readonly (readonly Position[])[], topology: readonly (readonly Position[])[], scale: number, lineWidth: number) {
+    if (!routes.length) return "";
     const junctions = connectionJunctions(topology);
     const zoom = Math.max(scale, 0.05), half = lineWidth / (2 * zoom), desired = 3 / zoom;
     const patches: string[] = [];
@@ -66,6 +67,7 @@ export function softJunctionContours(routes: readonly (readonly Position[])[], t
 
 // 只标记实际分叉/汇合处，不把普通转弯或无关系的交叉画成连接点。
 export function connectionJunctionDots(routes: readonly (readonly Position[])[], topology: readonly (readonly Position[])[] = routes) {
+    if (!routes.length) return [];
     const junctions = connectionJunctions(topology);
     return [...junctionDirections(routes)]
         .filter(([key, junction]) => junctions.has(key) && junction.rays.size >= 2)

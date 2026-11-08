@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { Switch } from "antd";
 import { BookOpen, ChevronRight } from "lucide-react";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { CanvasTheme } from "@/lib/canvas-theme";
@@ -40,12 +41,12 @@ export function ExcelPromptGroup({ keyword, theme, onInsert, onView, renderRow }
         <button type="button" className="guan-excel-product-menu" onClick={() => setProductOpen(value => !value)} aria-expanded={productOpen}>
           <span style={{ transform: productOpen ? "rotate(90deg)" : "rotate(0deg)" }}>›</span>{context.activeProductName || "当前产品"}
         </button>
-        <label className="guan-excel-video-import-toggle" title={`是否导入视频提示词：${includeVideo ? "已开启，一键导入时包含视频提示词" : "已关闭，一键导入时跳过视频提示词"}`}>
-          <input type="checkbox" role="switch" aria-label="是否导入视频提示词" checked={includeVideo} onChange={event => {
-            setIncludeVideo(event.target.checked);
-            sqlitePreferences.setItem("guan-excel-import-video-prompts-v2", String(event.target.checked));
-          }} /><span aria-hidden="true" className="guan-excel-video-track"><span /></span>
-        </label>
+        <span className="guan-excel-video-import-toggle" title={`是否导入视频提示词：${includeVideo ? "已开启，一键导入时包含视频提示词" : "已关闭，一键导入时跳过视频提示词"}`}>
+          <Switch size="small" aria-label="是否导入视频提示词" checked={includeVideo} onChange={checked => {
+            setIncludeVideo(checked);
+            sqlitePreferences.setItem("guan-excel-import-video-prompts-v2", String(checked));
+          }} />
+        </span>
         <button type="button" className="guan-excel-batch-import" onClick={() => onInsert({ kind: "excel-batch", productId, includeVideo })}>一键导入</button>
       </div>
       {productOpen ? <div className="space-y-1.5" style={{ color: theme.node.text }}>

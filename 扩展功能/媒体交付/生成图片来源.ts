@@ -1,4 +1,4 @@
-import { numberGeneratedImages } from "./生成图片命名";
+import { numberGeneratedImages, restoreVariantImageNames } from "./生成图片命名";
 import { CanvasNodeType, type CanvasNodeData, type CanvasConnection } from "@/types/canvas";
 
 export function generatedImageCardTitle(promptNode?: CanvasNodeData): string {
@@ -29,6 +29,13 @@ export function findGeneratedImageSourcePrompt(node: Pick<CanvasNodeData, "id">,
 }
 
 export function renameGeneratedImageNodes(nodes: CanvasNodeData[], connections: CanvasConnection[]): CanvasNodeData[] {
-    return numberGeneratedImages(nodes, (node: CanvasNodeData) => node.metadata?.generationType ? node.metadata.generationNameBase || generatedImageCardTitle(findGeneratedImageSourcePrompt(node, nodes, connections)) : "");
+    const restored = restoreVariantImageNames(nodes);
+    return numberGeneratedImages(restored, (node: CanvasNodeData) => {
+        if (!node.metadata?.generationType) return "";
+        const base = node.metadata.generationNameBase;
+        // 已有自动编号只做兼容修复，不把用户改过的名称重新覆盖。
+        if (base && (!node.title?.startsWith(base + "-") || !/^\d+$/.test(node.title.slice(base.length + 1)))) return "";
+        return base || generatedImageCardTitle(findGeneratedImageSourcePrompt(node, restored, connections));
+    });
 }
 

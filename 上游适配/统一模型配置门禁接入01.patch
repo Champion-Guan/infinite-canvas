@@ -1,0 +1,76 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 84a3cae..52b3132 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,3 +1,4 @@
++import { ensureModelConfigured } from "@/扩展功能/产品配置/模型配置门禁";
+ import { ASSET_DRAG_TYPE, readAssetDrag } from "@/扩展功能/素材/上传资产规则";
+ import { useCanvasAssetInsertion } from "@/扩展功能/素材/资产插入操作";
+ import { useCanvasGenerationRequests } from "@/扩展功能/画布生成/并发生成状态";
+@@ -405,12 +406,12 @@ function InfiniteCanvasPage() {
+             let controller: AbortController | undefined;
+             try {
+                 const generationConfig = buildGenerationConfig(effectiveConfig, node, "video");
+-                if (!isAiConfigReady(generationConfig, generationConfig.model)) {
++                if (!ensureModelConfigured(generationConfig, "video", generationConfig.model)) {
+                     if (silent) {
+                         setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails: t("workbench.configFirst") } } : item)));
+                         return;
+                     }
+-                    openConfigDialog(true);
++                    
+                     return;
+                 }
+ 
+@@ -1855,6 +1856,7 @@ function InfiniteCanvasPage() {
+                 message.warning(t("canvas.projectPage.emptyReverse"));
+                 return;
+             }
++            if (!ensureModelConfigured(buildGenerationConfig(effectiveConfig, undefined, "text"), "text")) return;
+ 
+             const gap = 96;
+             const textSpec = NODE_DEFAULT_SIZE[CanvasNodeType.Text];
+@@ -1955,8 +1957,8 @@ function InfiniteCanvasPage() {
+         async (node: CanvasNodeData, payload: CanvasImageMaskEditPayload) => {
+             if (!node.metadata?.content) return;
+             const generationConfig = { ...buildGenerationConfig(effectiveConfig, node, "image"), count: "1", size: node.metadata?.size || "auto" };
+-            if (payload.generate && !isAiConfigReady(generationConfig, generationConfig.model)) {
+-                openConfigDialog(true);
++            if (payload.generate && !ensureModelConfigured(generationConfig, "image", generationConfig.model)) {
++                
+                 return;
+             }
+             const userPrompt = payload.prompt.trim();
+@@ -2045,8 +2047,8 @@ function InfiniteCanvasPage() {
+         async (node: CanvasNodeData, params: CanvasImageAngleParams) => {
+             if (!node.metadata?.content) return;
+             const generationConfig = { ...buildGenerationConfig(effectiveConfig, node, "image"), count: "1" };
+-            if (!isAiConfigReady(generationConfig, generationConfig.model)) {
+-                openConfigDialog(true);
++            if (!ensureModelConfigured(generationConfig, "image", generationConfig.model)) {
++                
+                 return;
+             }
+             const childId = nanoid();
+@@ -2323,8 +2325,8 @@ function InfiniteCanvasPage() {
+             const sourceNode = nodesRef.current.find((node) => node.id === nodeId);
+             const generationConfig = buildGenerationConfig(effectiveConfig, generationNodeForExecution(sourceNode, nodeId, nodesRef.current, connectionsRef.current), mode);
+             const generationChannel = resolveGenerationChannelMetadata(generationConfig);
+-            if (!isAiConfigReady(generationConfig, generationConfig.model)) {
+-                openConfigDialog(true);
++            if (!ensureModelConfigured(generationConfig, mode, generationConfig.model)) {
++                
+                 return;
+             }
+ 
+@@ -2796,8 +2798,8 @@ function InfiniteCanvasPage() {
+                           }
+                         : { ...buildGenerationConfig(effectiveConfig, sourceNode, node.type === CanvasNodeType.Text ? "text" : node.type === CanvasNodeType.Video ? "video" : node.type === CanvasNodeType.Audio ? "audio" : "image"), count: "1" };
+                 const generationChannel = resolveGenerationChannelMetadata(generationConfig);
+-                if (!isAiConfigReady(generationConfig, generationConfig.model)) {
+-                    openConfigDialog(true);
++                if (!ensureModelConfigured(generationConfig, node.type === CanvasNodeType.Text ? "text" : node.type === CanvasNodeType.Video ? "video" : node.type === CanvasNodeType.Audio ? "audio" : "image", generationConfig.model)) {
++                    
+                     return;
+                 }
+ 

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Button, Modal } from "antd";
+import { Button } from "antd";
+import { AppleModal as Modal } from "../主题/苹果弹窗";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { defaultModelOrder } from "./模型默认排序.mjs";
 import styles from "./模型排序面板.module.css";

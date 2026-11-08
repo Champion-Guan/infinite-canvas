@@ -69,9 +69,7 @@
 }
 
 .guan-dc-file-menu {
-  position: absolute;
-  top: calc(100% + 7px);
-  left: 0;
+  position: relative;
   box-sizing: border-box;
   width: 100%;
   max-height: min(420px, calc(100vh - 115px));
@@ -246,18 +244,12 @@
 @media(max-width:640px) { .guan-excel-recycle-actions { flex-wrap: wrap; justify-content: flex-end; } .guan-excel-recycle-row { align-items: flex-start; } }
 
 
-.guan-dc-excel-import-modal {
+.guan-dc-excel-import-modal, .guan-dc-excel-import-content {
   --dc-bg: #ffffff;
   --dc-text: #17181a;
   --dc-muted: #72757a;
   --dc-border: rgba(20, 24, 32, .12);
-  position: fixed;
-  inset: 0;
-  z-index: 1001;
-  display: grid;
-  place-items: center;
   box-sizing: border-box;
-  padding: 20px;
   pointer-events: auto;
   color: var(--dc-text);
   font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -286,6 +278,7 @@
   background: var(--dc-bg);
   box-shadow: 0 28px 90px rgba(0, 0, 0, .28);
   pointer-events: auto;
+  animation: none;
 }
 
 .guan-dc-excel-import-head {
@@ -608,7 +601,8 @@
   to { transform: rotate(360deg); }
 }
 
-.guan-excel-scope[data-theme="dark"] .guan-dc-excel-import-modal {
+.guan-excel-scope[data-theme="dark"] .guan-dc-excel-import-modal,
+.guan-excel-scope[data-theme="dark"] .guan-dc-excel-import-content {
   --dc-bg: #1d1e20;
   --dc-text: #f4f4f5;
   --dc-muted: #a1a1aa;

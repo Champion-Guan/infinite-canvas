@@ -77,6 +77,47 @@ test('原选择按钮默认全选，部分批次可补齐全选；下载期间�
     api.toggleSelectionMode(); api = render(); assert.deepEqual(api.selectedFiles, []);
 });
 
+test('关闭总览退出自动开启的选择并清空临时勾选，再次打开从未勾选开始', async () => {
+    const runtime = hookFixture();
+    const { useHistorySelection } = await load('历史选择操作.ts', { react: runtime.hooks });
+    const render = () => runtime.render(() => useHistorySelection(files, false));
+    let api = render(); api.beginOverviewSelection(); api = render();
+    api.selectFiles([files[0].id], true); api = render();
+    api.beginOverviewSelection(); api = render();
+    assert.equal(api.selectedFiles.length, 1, '重复打开不覆盖已有勾选');
+    api.endOverviewSelection(); api = render();
+    assert.equal(api.selectionMode, false); assert.equal(api.selectedIds.size, 0);
+    api.endOverviewSelection(); api = render();
+    api.beginOverviewSelection(); api = render();
+    assert.equal(api.selectionMode, true); assert.deepEqual(api.selectedFiles, []);
+});
+
+test('进入总览前手动开启的选择模式保留，关闭不清除用户勾选', async () => {
+    const runtime = hookFixture();
+    const { useHistorySelection } = await load('历史选择操作.ts', { react: runtime.hooks });
+    const render = () => runtime.render(() => useHistorySelection(files, false));
+    let api = render(); api.toggleSelectionMode(); api = render();
+    api.selectFiles([files[1].id], false); api = render();
+    api.beginOverviewSelection(); api = render(); api.endOverviewSelection(); api = render();
+    assert.equal(api.selectionMode, true);
+    assert.deepEqual(api.selectedFiles.map(file => file.id), [files[0].id, files[2].id]);
+    api.toggleSelectionMode(); api = render(); api.beginOverviewSelection(); api = render(); api.endOverviewSelection(); api = render();
+    assert.equal(api.selectionMode, false, '下一次自动开启仍正常退出');
+});
+
+test('打包期间关闭总览仍退出自动勾选，独立手动选择不会被旧关闭回调清理', async () => {
+    const runtime = hookFixture();
+    const { useHistorySelection } = await load('历史选择操作.ts', { react: runtime.hooks });
+    const render = busy => runtime.render(() => useHistorySelection(files, busy));
+    let api = render(false); api.beginOverviewSelection(); api = render(false);
+    api.selectFiles([files[0].id], true); api = render(true);
+    api.endOverviewSelection(); api = render(true);
+    assert.equal(api.selectionMode, false); assert.equal(api.selectedIds.size, 0);
+    api = render(false); api.toggleSelectionMode(); api = render(false);
+    api.endOverviewSelection(); api = render(false);
+    assert.equal(api.selectionMode, true); assert.equal(api.selectedFiles.length, files.length);
+});
+
 async function downloadFixture(options = {}) {
     const runtime = hookFixture(), saved = [], messages = [], reads = [];
     const { useHistoryDownloads } = await load('历史下载操作.ts', {
@@ -149,35 +190,46 @@ test('屏幕外详情不读取原图，进入视区后读取；退出或卸载�
     runtime.unmount(); assert.equal(reads.length, 1);
 });
 
-function jsx(type, props, key) { return { type, props: props || {}, key }; }
+function TestHistoryVirtualList(props) { return jsx('VirtualList', { ...props, children: props.items.map(props.children) }); }
+function jsx(type, props, key) { return type === TestHistoryVirtualList ? type(props) : { type, props: props || {}, key }; }
 function elements(value) { if (Array.isArray(value)) return value.flatMap(elements); if (!value || typeof value !== 'object') return []; return [value, ...elements(value.props?.children)]; }
 const theme = { node: { text: '#111', panel: '#fff', fill: '#eee', stroke: '#ccc' } };
 
 test('总览详情只含已选文件；排序只切换顺序，不改变图片勾选', async () => {
-    const runtime = hookFixture(), selections = [], sorts = [];
+    const runtime = hookFixture(), selections = [], sorts = [], captures = [];
     const { HistoryOverviewPanel } = await load('历史总览面板.tsx', {
         react: runtime.hooks, 'react/jsx-runtime': { jsx, jsxs: jsx }, antd: { Checkbox: 'Checkbox', Empty: 'Empty', Modal: 'Modal', Spin: 'Spin' },
         'lucide-react': { ArrowDownWideNarrow: 'Sort', Download: 'Download', Image: 'Image', Video: 'Video' }, '@/lib/image-utils': { formatBytes: size => size + ' B' },
-        'motion/react': { useInView: () => true },
+        'motion/react': { useInView: () => true, AnimatePresence: 'Presence' },
+        '../主题/苹果弹窗': { AppleModal: 'Modal' },
         '@/stores/use-config-store': { decodeChannelModel: () => null }, '@/services/image-storage': { previewUrlFor: () => undefined }, '@/types/canvas': types,
         '../媒体交付/媒体缩略图': { MediaThumbnail: 'Thumbnail' },
         './历史媒体详情': { historyMediaInfo }, './历史媒体预览': { useHistoryMediaPreview: file => ({ url: file.content }) },
+        './历史虚拟列表': { HistoryVirtualList: TestHistoryVirtualList },
+        './历史排序动效': { useHistorySortMotion: () => ({ root: { current: null }, capture: () => captures.push('before-toggle') }) },
+        './历史虚拟化规则': await load('历史虚拟化规则.ts', {}),
         './历史总览面板.module.css': { __esModule: true, default: new Proxy({}, { get: (_object, key) => key }) },
     });
     const props = { history: fixtureNodes, files, selectedFiles: [files[1]], selectedIds: new Set([files[1].id]), sorted: false, downloading: false, theme,
         onSelect: (...args) => selections.push(args), onDownload: () => {}, onDownloadSelected: () => {}, onToggleSort: () => sorts.push('toggle'), onClose: () => {} };
     const render = () => runtime.render(() => HistoryOverviewPanel(props));
     let tree = render();
+    assert.equal(elements(tree).find(item => item.props['aria-label'] === '勾选任务 主图').props.indeterminate, true, '跨文件选择仍正确显示批次的部分选中状态');
     const detailFiles = elements(tree).filter(item => typeof item.type === 'function' && item.props.file).map(item => item.props.file.id);
     assert.deepEqual(detailFiles, [files[1].id]);
     const detail = elements(tree).find(item => typeof item.type === 'function' && item.props.file);
     const detailTree = detail.type(detail.props);
     assert.ok(JSON.stringify(detailTree).includes('1584x992')); assert.ok(!JSON.stringify(detailTree).includes('900x1200'));
+    elements(detailTree).find(item => item.type === 'details').props.onToggle({ currentTarget: { open: true } });
+    tree = render();
+    assert.equal(elements(tree).find(item => typeof item.type === 'function' && item.props.file).props.promptOpen, true, '提示词展开状态由总览持有，虚拟行卸载不会清掉');
     const sortButton = () => elements(tree).find(item => item.props.title?.startsWith('排序：'));
     assert.equal(sortButton().props['aria-pressed'], false);
     sortButton().props.onClick();
     props.sorted = true; tree = render();
     assert.deepEqual(sorts, ['toggle']); assert.equal(sortButton().props['aria-pressed'], true);
+    assert.deepEqual(captures, ['before-toggle']);
+    assert.ok(elements(tree).filter(item => item.type === 'VirtualList').every(item => item.props.animateSort));
     assert.deepEqual(props.selectedFiles.map(file => file.id), [files[1].id]); assert.deepEqual(selections, []);
     elements(tree).find(item => item.props['aria-label'] === '预览 ' + files[0].name).props.onClick();
     tree = render(); assert.deepEqual(selections, []);
@@ -191,20 +243,25 @@ test('选择模式缩略图仅预览、文字才勾选；隐藏产品卸下展�
     const selection = await load('历史选择操作.ts', { react: runtime.hooks });
     const actionStyles = { default: {} };
     const { HistoryActionButton } = await load('历史操作按钮.tsx', {
+        react: runtime.hooks,
         'react/jsx-runtime': { jsx, jsxs: jsx }, antd: { Tooltip: 'Tooltip' },
         'motion/react': { motion: { button: 'button' }, useReducedMotion: () => false },
+        '../主题/苹果动效': { APPLE_CONTROL_SPRING: { type: 'spring', stiffness: 520, damping: 39, mass: .7 } },
         '@/lib/utils': { cn: (...values) => values.filter(Boolean).join(' ') }, './历史操作栏.module.css': actionStyles,
     });
     const renderElement = (type, props, key) => type === HistoryActionButton ? type(props) : jsx(type, props, key);
     const { CanvasGenerationHistoryTab } = await load('生成历史页签.tsx', {
         react: runtime.hooks, 'react/jsx-runtime': { jsx: renderElement, jsxs: renderElement }, antd: { App: { useApp: () => ({ message: {} }) }, Checkbox: 'Checkbox', Empty: 'Empty' },
         'lucide-react': Object.fromEntries(['ArrowDownWideNarrow', 'Download', 'Image', 'LayoutGrid', 'ListChecks', 'RotateCcw', 'Video'].map(key => [key, key])),
-        'motion/react': { motion: { div: 'motion.div' } }, '@/lib/utils': { cn: (...values) => values.filter(Boolean).join(' ') },
+        'motion/react': { motion: { div: 'motion.div' }, AnimatePresence: 'Presence' }, '@/lib/utils': { cn: (...values) => values.filter(Boolean).join(' ') },
+        '../主题/选择模式动效': { SelectionInline: 'SelectionInline', SelectionFooter: 'SelectionFooter' },
         '@/lib/image-utils': { formatBytes: () => '文件大小' }, './任务摘要': { failedTaskTargets: () => [] }, './历史失败重试': { runHistoryRetries: async () => {} },
         './历史下载文件': { historyDownloadFiles }, './历史媒体详情': { historyMediaInfo }, './历史排序': { sortGenerationHistory: value => value },
         './历史下载操作': { useHistoryDownloads: () => ({ downloading: false, downloadFile: () => {}, downloadAll: () => {} }) },
         './历史选择操作': selection, './历史总览面板': { HistoryOverviewPanel: 'Overview' },
+        './历史虚拟列表': { HistoryVirtualList: TestHistoryVirtualList },
         './历史操作按钮': { HistoryActionButton }, './历史操作栏.module.css': actionStyles,
+        './历史媒体可用性': { missingHistoryMedia: async () => new Set() },
         '../产品/产品界面边界': { useProductActive: () => productActive },
         '../媒体交付/媒体缩略图': { MediaThumbnail: 'Thumbnail' },
         '@/services/file-storage': { getMediaBlob: async () => new Blob(['media']) },
@@ -213,15 +270,26 @@ test('选择模式缩略图仅预览、文字才勾选；隐藏产品卸下展�
     });
     const render = () => runtime.render(() => CanvasGenerationHistoryTab({ nodes: fixtureNodes, connections: [], getCurrentNode: () => undefined, onPreviewNode: id => previews.push(id), onRetryNode: () => {}, theme }));
     let tree = render();
+    const viewSlots = () => elements(tree).filter(item => item.type === 'SelectionInline' && item.key === 'view');
+    assert.equal(viewSlots().length, 2, '查看提示也通过可收放占位进入，不能在复选框退出期间直接挤进文字区');
+    assert.ok(viewSlots().every(item => item.props.width === 24 && item.props.children.props.className.includes('whitespace-nowrap')));
     const header = tree.props.children[0];
     const buttons = elements(header).filter(item => item.type === 'button');
     buttons.find(item => item.props['aria-label'] === '排序').props.onClick();
     assert.deepEqual(sorts, ['sorted']);
     assert.deepEqual(buttons.slice(-2).map(item => item.props['aria-label']), ['下载', '总览']);
+    buttons.find(item => item.props['aria-label'] === '总览').props.onClick();
+    tree = render();
+    assert.ok(elements(tree).some(item => item.type === 'Checkbox' && item.props['aria-label']));
+    elements(tree).find(item => item.type === 'Overview').props.onClose();
+    tree = render();
+    assert.ok(!elements(tree).some(item => item.type === 'Checkbox' && item.props['aria-label']));
+    assert.ok(!elements(tree).some(item => item.type === 'Overview'));
     buttons.find(item => item.props.className.includes('guan-history-select')).props.onClick();
     tree = render();
     const selected = () => elements(tree).filter(item => item.type === 'Checkbox' && item.props['aria-label']).map(item => item.props.checked);
     assert.deepEqual(selected(), [true, true]);
+    assert.equal(viewSlots().length, 0);
     elements(tree).find(item => item.props['aria-label'] === '预览主图').props.onClick();
     tree = render(); assert.deepEqual(previews, ['batch']); assert.deepEqual(selected(), [true, true]);
     elements(tree).find(item => item.props['aria-label'] === '选择主图').props.onClick();
@@ -230,6 +298,12 @@ test('选择模式缩略图仅预览、文字才勾选；隐藏产品卸下展�
     assert.equal(render(), null);
     productActive = true;
     tree = render(); assert.deepEqual(selected(), [false, true]);
+    elements(tree).find(item => item.type === 'button' && item.props['aria-label'] === '取消').props.onClick();
+    tree = render();
+    assert.deepEqual(selected(), []);
+    assert.equal(viewSlots().length, 2, '退出选择时只改变视觉占位，查看操作立即恢复');
+    elements(tree).find(item => item.props['aria-label'] === '查看主图的成功图片').props.onClick();
+    assert.deepEqual(previews, ['batch', 'batch']);
 
     const failedOnly = { id: 'failed-only', title: '失败的图片', type: 'image', metadata: {
         status: 'error', images: [{ id: 'failed-slot', status: 'error', content: '', errorDetails: '上游失败' }],
@@ -243,7 +317,7 @@ test('选择模式缩略图仅预览、文字才勾选；隐藏产品卸下展�
 
 test('新历史模块Hook调用顺序及依赖检查通过', () => {
     const linter = new Linter();
-    for (const name of ['历史选择操作.ts', '历史下载操作.ts', '历史媒体预览.ts', '历史总览面板.tsx', '生成历史页签.tsx']) {
+    for (const name of ['历史选择操作.ts', '历史下载操作.ts', '历史媒体预览.ts', '历史总览面板.tsx', '生成历史页签.tsx', '历史虚拟列表.tsx']) {
         const file = resolve(root, '扩展功能/生成历史', name);
         const messages = linter.verify(readFileSync(file, 'utf8'), [{ files: ['**/*.{ts,tsx}'], languageOptions: { parser: ts.parser, parserOptions: { ecmaVersion: 2022, sourceType: 'module', ecmaFeatures: { jsx: true } } }, plugins: { 'react-hooks': reactHooks }, rules: { 'react-hooks/rules-of-hooks': 'error', 'react-hooks/exhaustive-deps': 'error' } }], { filename: file });
         assert.deepEqual(messages, [], name);

@@ -1,0 +1,24 @@
+diff --git a/web/src/styles/globals.css b/web/src/styles/globals.css
+index c4bb5a8..b8717f7 100644
+--- a/web/src/styles/globals.css
++++ b/web/src/styles/globals.css
+@@ -509,7 +509,7 @@
+     .ant-select-selector,
+     .ant-switch { transition: border-color var(--guan-motion-fast) var(--guan-motion-gentle), box-shadow var(--guan-motion-normal) var(--guan-motion-gentle), background-color var(--guan-motion-fast) var(--guan-motion-gentle); }
+     .ant-input-affix-wrapper:focus-within,
+-    .ant-select-focused .ant-select-selector { box-shadow: 0 0 0 3px rgb(47 128 255 / 12%) !important; }
++    .ant-select-focused .ant-select-selector { box-shadow: inset 0 0 0 3px rgb(47 128 255 / 12%) !important; }
+ 
+     @keyframes guan-node-settle {
+         from { opacity: .78; }
+@@ -1140,7 +1140,9 @@
+     input:not([type="range"]):not([type="checkbox"]):focus,
+     textarea:focus,
+     select:focus {
+-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 18%, transparent);
++        /* Keep focus strokes inside controls flush with a scroll clip edge. */
++        --tw-ring-inset: inset;
++        box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--ring) 18%, transparent);
+     }
+ 
+     .ant-empty,

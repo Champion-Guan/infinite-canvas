@@ -1,0 +1,12 @@
+diff --git a/web/src/components/layout/model-select-modal.tsx b/web/src/components/layout/model-select-modal.tsx
+index 59027c4..1d18620 100644
+--- a/web/src/components/layout/model-select-modal.tsx
++++ b/web/src/components/layout/model-select-modal.tsx
+@@ -1,5 +1,6 @@
+ import { useSettingsViewport } from "@/扩展功能/存储界面/设置视区";
+-import { App, Button, Checkbox, Input, InputNumber, Modal, Tabs } from "antd";
++import { App, Button, Checkbox, Input, InputNumber, Tabs } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { RefreshCw, Search } from "lucide-react";
+ import { useEffect, useMemo, useState } from "react";
+ import { useTranslation } from "react-i18next";

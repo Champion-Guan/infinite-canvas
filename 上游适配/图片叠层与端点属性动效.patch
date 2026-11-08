@@ -1,0 +1,22 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 111d424..94d4341 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -1067,7 +1067,7 @@ function BatchFrame({ batchCount, batchExpanded, children }: { batchCount: numbe
+                     {Array.from({ length: Math.min(batchCount - 1, 3) }).map((_, index) => (
+                         <div
+                             key={index}
+-                            className="absolute rounded-[inherit] border shadow-[0_10px_24px_rgba(68,64,60,.12)] transition-all duration-300 group-hover/batch:translate-x-1"
++                            className="absolute rounded-[inherit] border shadow-[0_10px_24px_rgba(68,64,60,.12)] transition-[transform,translate,opacity,background-color,border-color] duration-200 motion-reduce:transition-none motion-reduce:group-hover/batch:translate-x-0 group-hover/batch:translate-x-1"
+                             style={{
+                                 inset: 0,
+                                 background: `linear-gradient(135deg, ${theme.node.panel}, ${theme.node.fill})`,
+@@ -1105,7 +1105,7 @@ function ConnectionHandleDot({ side, visible, onMouseDown }: { side: "left" | "r
+             } ${visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
+             onMouseDown={onMouseDown}
+         >
+-            <div className="size-3 rounded-full border-2 transition-all hover:scale-125" style={{ background: theme.canvas.background, borderColor: theme.node.muted }} />
++            <div className="size-3 rounded-full border-2 transition-[transform,scale,background-color,border-color] hover:scale-125 motion-reduce:transition-none motion-reduce:hover:scale-100" style={{ background: theme.canvas.background, borderColor: theme.node.muted }} />
+         </div>
+     );
+ }

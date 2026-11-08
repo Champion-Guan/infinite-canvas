@@ -23,7 +23,7 @@ export function orderedProducts<T extends ProductIdentity>(
     .sort((a, b) => productDateKey(a.createdAt).localeCompare(productDateKey(b.createdAt)));
 }
 
-function productDateKey(value: unknown): string {
+export function productDateKey(value: unknown): string {
   if (typeof value === "string") return value;
   if (typeof value === "number" && Number.isFinite(value) && Number.isFinite(new Date(value).getTime())) return new Date(value).toISOString();
   return "";

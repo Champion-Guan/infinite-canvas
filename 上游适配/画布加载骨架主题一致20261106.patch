@@ -1,0 +1,21 @@
+diff --git a/web/src/components/canvas/canvas-refresh-shell.tsx b/web/src/components/canvas/canvas-refresh-shell.tsx
+index 62b4c93..69d77ed 100644
+--- a/web/src/components/canvas/canvas-refresh-shell.tsx
++++ b/web/src/components/canvas/canvas-refresh-shell.tsx
+@@ -1,10 +1,14 @@
++import { canvasThemes } from "@/lib/canvas-theme";
++import { useThemeStore } from "@/stores/use-theme-store";
++
+ export function CanvasRefreshShell() {
++    const theme = canvasThemes[useThemeStore(state => state.theme)];
+     return (
+-        <main className="relative h-full min-h-0 overflow-hidden bg-background text-foreground">
++        <main className="relative h-full min-h-0 overflow-hidden" style={{ background: theme.canvas.background, color: theme.node.text }}>
+             <div
+                 className="absolute inset-0 opacity-60"
+                 style={{
+-                    backgroundImage: "radial-gradient(circle, var(--border) 1px, transparent 1px)",
++                    backgroundImage: `radial-gradient(circle, ${theme.canvas.dot} 1px, transparent 1px)`,
+                     backgroundSize: "28px 28px",
+                 }}
+             />

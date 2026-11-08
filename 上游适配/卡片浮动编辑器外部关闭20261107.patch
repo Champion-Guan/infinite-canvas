@@ -1,0 +1,35 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 69073b7..a3bc796 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,4 +1,5 @@
+ import { ensureModelConfigured } from "@/扩展功能/产品配置/模型配置门禁";
++import { OutsidePanelBoundary } from "@/扩展功能/主题/原生可关闭浮层";
+ import { ASSET_DRAG_TYPE, readAssetDrag } from "@/扩展功能/素材/上传资产规则";
+ import { useCanvasAssetInsertion } from "@/扩展功能/素材/资产插入操作";
+ import { useCanvasGenerationRequests } from "@/扩展功能/画布生成/并发生成状态";
+@@ -3081,8 +3082,13 @@ function InfiniteCanvasPage() {
+     }, []);
+ 
+     const renderNodePanel = useCallback(
+-        (panelNode: CanvasNodeData) =>
+-            getNodeDefinition(panelNode.type)?.Panel ? (
++        (panelNode: CanvasNodeData) => <OutsidePanelBoundary onClose={() => setDialogNodeId(null)} anchor={() => {
++            const surface = containerRef.current?.closest("[data-product-id]");
++            const id = CSS.escape(panelNode.id);
++            return surface?.querySelector<HTMLElement>(panelNode.type === CanvasNodeType.Config
++                ? `[data-node-id="${id}"] [data-composer-toggle]` : `[data-node-toolbar="${id}"]`) ?? null;
++        }}>
++            {getNodeDefinition(panelNode.type)?.Panel ? (
+                 renderPluginPanel(panelNode)
+             ) : panelNode.type === CanvasNodeType.Config ? (
+                 <CanvasConfigComposer
+@@ -3115,7 +3121,7 @@ function InfiniteCanvasPage() {
+                         if (open) setToolbarNodeId(null);
+                     }}
+                 />
+-            ),
++            )}</OutsidePanelBoundary>,
+         [configInputsById, confirmStopGeneration, connectedNodesByNodeId, disconnectNodeReference, handleConfigNodeChange, handleGenerateNode, handleNodePromptChange, mentionReferencesByNodeId, contentNodes, renderPluginPanel, runningNodeIds, startNodeReferenceSelection],
+     );
+ 

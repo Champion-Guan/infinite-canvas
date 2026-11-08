@@ -1,0 +1,15 @@
+diff --git a/web/src/pages/image/index.tsx b/web/src/pages/image/index.tsx
+index b034fe4..65d55be 100644
+--- a/web/src/pages/image/index.tsx
++++ b/web/src/pages/image/index.tsx
+@@ -2,7 +2,9 @@ import { ensureModelConfigured } from "@/扩展功能/产品配置/模型配置
+ import { uploadGeneratedImage } from "@/services/image-storage";
+ import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, ImagePlus, LoaderCircle, PenLine, Plus, SlidersHorizontal, Sparkles, Trash2, Upload } from "lucide-react";
+ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+-import { App, Button, Checkbox, Drawer, Empty, Image, Input, Modal, Tag, Tooltip, Typography } from "antd";
++import { App, Button, Checkbox, Empty, Image, Input, Tag, Tooltip, Typography } from "antd";
++import { OutsideDrawer as Drawer } from "@/扩展功能/主题/原生可关闭浮层";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { sqliteForage as localforage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { saveAs } from "file-saver";
+ import { useTranslation } from "react-i18next";

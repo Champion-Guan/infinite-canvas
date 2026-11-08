@@ -26,7 +26,7 @@ export function planProductRecycle(state: ProductState, id: string, deletedAt: s
   }
   if (canvasTaskSummary(project.nodes, project.connections).status === "loading")
     throw new Error("该产品有生成任务运行中，请等待任务结束后再删除。");
-  const ids = orderedProducts(state.projects).map((item) => item.id), index = ids.indexOf(id);
+  const ids = orderedProducts(state.projects.filter(item => (item.productSetId ?? null) === (project.productSetId ?? null))).map((item) => item.id), index = ids.indexOf(id);
   const entry: RecycledProduct = {
     id, deletedAt, project: structuredClone(project),
     nextProductId: ids[index + 1] || ids[index - 1] || "",

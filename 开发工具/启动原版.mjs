@@ -1,0 +1,14 @@
+import { spawn } from 'node:child_process';
+import { join } from 'node:path';
+import { 根目录, 基线, 检查 } from './公共.mjs';
+import { 检查运行副本 } from './检查运行副本.mjs';
+检查();
+检查运行副本();
+const web = join(根目录, '.运行', 基线.提交, 'web');
+const env = Object.fromEntries(['PATH', 'HOME', 'TMPDIR', 'LANG', 'LC_ALL', 'TERM'].filter(key => process.env[key]).map(key => [key, process.env[key]]));
+env.NODE_ENV = 'development';
+console.log('隔离工作台入口：http://localhost:3100；仅使用已批准适配，旧数据和旧服务未接入。');
+const child = spawn(process.execPath, [join(web, 'node_modules/vite/bin/vite.js'), '--host', 'localhost', '--port', '3100', '--strictPort'], { cwd: web, env, stdio: 'inherit' });
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => child.kill(signal));
+child.on('error', () => { console.error('启动失败，请先运行准备原版.mjs'); process.exitCode = 1; });
+child.on('exit', code => { process.exitCode = code ?? 1; });

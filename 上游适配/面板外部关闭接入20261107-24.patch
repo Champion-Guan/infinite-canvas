@@ -1,0 +1,14 @@
+diff --git a/web/src/components/canvas/canvas-zoom-controls.tsx b/web/src/components/canvas/canvas-zoom-controls.tsx
+index a539e68..f8c4d8d 100644
+--- a/web/src/components/canvas/canvas-zoom-controls.tsx
++++ b/web/src/components/canvas/canvas-zoom-controls.tsx
+@@ -2,7 +2,8 @@ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import type { ReactNode } from "react";
+ import { Compass, Focus, HelpCircle } from "lucide-react";
+ import { useState } from "react";
+-import { Button, Modal, Tooltip } from "antd";
++import { Button, Tooltip } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { useTranslation } from "react-i18next";
+ 
+ import { canvasThemes } from "@/lib/canvas-theme";

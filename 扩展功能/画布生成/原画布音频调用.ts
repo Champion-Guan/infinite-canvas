@@ -3,6 +3,7 @@ import { audioMimeType, normalizeAudioFormatValue, normalizeAudioSpeedValue, nor
 import { requireGenerationMode } from "../产品配置/精简与离线策略";
 import { bindGenerationChannel, type CanvasImageTask, type CanvasImageReceipt } from "./原画布图片调用";
 import { runCanvasImageTask } from "./图片任务衔接.mjs";
+import { requireModelConfigured } from "../产品配置/模型配置门禁";
 
 export function prepareAudioRequest(config: AiConfig, prompt: string) {
     if (config.apiFormat === "gemini") throw Error("当前音频协议不支持Gemini渠道。");
@@ -30,11 +31,16 @@ export async function requestCanvasAudio(options: {
     deferConfirm?: () => boolean;
 }) {
     requireGenerationMode("audio");
+    options.signal?.throwIfAborted();
+    if (!options.previous) requireModelConfigured(options.config, "audio", options.config.model || options.config.audioModel);
     const host = (window as unknown as { __guanGenerationHost?: Parameters<typeof bindGenerationChannel>[0] }).__guanGenerationHost;
     if (!host) throw Error("本机生成端口尚未就绪，未发送音频请求。");
-    const config = structuredClone(options.config), channel = resolveModelRequestConfig(config, config.model || config.audioModel);
+    const config = structuredClone(options.config);
     await runCanvasImageTask({ host, scope: options.scope, previous: options.previous, signal: options.signal, retry: options.retry, deferConfirm: options.deferConfirm,
-        prepare: async () => prepareAudioRequest(channel, options.prompt), bind: () => bindGenerationChannel(host, { ...config, model: config.model || config.audioModel }),
+        prepare: async () => {
+            requireModelConfigured(config, "audio", config.model || config.audioModel);
+            return prepareAudioRequest(resolveModelRequestConfig(config, config.model || config.audioModel), options.prompt);
+        }, bind: () => bindGenerationChannel(host, { ...config, model: config.model || config.audioModel }),
         recordTask: options.recordTask,
         applyAndSave: async (job: { bytes: string; result: { contentType: string } }, receipt: CanvasImageReceipt) => {
             return await options.applyAndSave(parseAudioResponse(job.bytes, job.result.contentType, config.audioFormat), receipt);

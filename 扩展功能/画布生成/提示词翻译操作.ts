@@ -7,6 +7,7 @@ import type { CanvasNodeGenerationMode } from "@/components/canvas/canvas-node-p
 import { buildGenerationConfig } from "@/lib/canvas/canvas-generation-helpers";
 import { createCanvasNode } from "@/lib/canvas/canvas-node-factory";
 import { nanoid } from "nanoid";
+import { ensureModelConfigured } from "../产品配置/模型配置门禁";
 
 type TranslationPort = {
     projectId: string;
@@ -23,7 +24,7 @@ type TranslationPort = {
     message: MessageInstance;
 };
 export function usePromptTranslation({ projectId, nodesRef, connectionsRef, generateNodeRef, effectiveConfig,
-    isAiConfigReady, openConfigDialog, assertImportTarget, setNodes, setConnections, setSelectedNodeIds, message }: TranslationPort) {
+    assertImportTarget, setNodes, setConnections, setSelectedNodeIds, message }: TranslationPort) {
     const pending = useRef(new Set<ReturnType<typeof setTimeout>>());
     useEffect(() => {
         const timers = pending.current;
@@ -39,7 +40,7 @@ export function usePromptTranslation({ projectId, nodesRef, connectionsRef, gene
         const existing = nodesRef.current.find(item => item.metadata?.promptVariableTranslationOf === current.id && item.metadata?.promptVariableTranslationLanguage === language);
         if (existing) { setSelectedNodeIds(new Set([existing.id])); return; }
         const config = buildGenerationConfig(effectiveConfig, current, "text");
-        if (!isAiConfigReady(config, config.model)) { openConfigDialog(true); return; }
+        if (!ensureModelConfigured(config, "text")) return;
         const translated = {
             ...createCanvasNode(CanvasNodeType.Text, { x: current.position.x, y: current.position.y + current.height + 96 },
                 { status: "idle", promptVariableTranslationOf: current.id, promptVariableTranslationLanguage: language }),
@@ -64,6 +65,6 @@ export function usePromptTranslation({ projectId, nodesRef, connectionsRef, gene
             } catch { /* 切换或关闭原画布后不提交新的翻译请求。 */ }
         }, 0);
         pending.current.add(timer);
-    }, [nodesRef, connectionsRef, generateNodeRef, effectiveConfig, isAiConfigReady, openConfigDialog, assertImportTarget,
+    }, [nodesRef, connectionsRef, generateNodeRef, effectiveConfig, assertImportTarget,
         setNodes, setConnections, setSelectedNodeIds, message]);
 }

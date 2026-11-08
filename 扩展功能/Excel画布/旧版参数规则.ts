@@ -31,35 +31,24 @@ export type ExcelPromptContext = {
 
 export const WILDBERRIES_PLATFORM = "Wildberries";
 export const WILDBERRIES_LANGUAGE = "俄文";
+export function defaultProductLanguage(platform: string) {
+    if (platform === WILDBERRIES_PLATFORM || platform === "Ozon") return WILDBERRIES_LANGUAGE;
+    if (platform === "亚马逊" || platform === "Takealot") return "英文";
+    return "";
+}
 export type ProductOption = { value: string; label: string };
 export const PRODUCT_PLATFORM_OPTIONS: ProductOption[] = [
     { value: WILDBERRIES_PLATFORM, label: "Wildberries" },
     { value: "Ozon", label: "OZON" },
     { value: "亚马逊", label: "亚马逊" },
-    { value: "淘宝天猫", label: "淘宝天猫" },
-    { value: "1688", label: "1688" },
-    { value: "Temu", label: "Temu" },
-    { value: "TikTok Shop", label: "TikTok Shop" },
-    { value: "拼多多", label: "拼多多" },
-    { value: "抖音电商", label: "抖音电商" },
-    { value: "独立站", label: "独立站" },
-    { value: "Shopee", label: "Shopee" },
-    { value: "阿里国际站", label: "阿里国际站" },
-    { value: "速卖通", label: "速卖通" },
-    { value: "SHEIN", label: "SHEIN" },
-    { value: "京东", label: "京东" },
-    { value: "美客多", label: "美客多" },
+    { value: "Takealot", label: "Takealot" },
+    { value: "未指定", label: "未指定" },
 ];
 export const PRODUCT_LANGUAGE_OPTIONS: ProductOption[] = [
+    { value: WILDBERRIES_LANGUAGE, label: "俄文" },
     { value: "英文", label: "英文" },
     { value: "中文", label: "中文" },
-    { value: "日文", label: "日文" },
-    { value: "韩文", label: "韩文" },
-    { value: "西班牙文", label: "西班牙文" },
-    // 沿用旧产品的存储值，只更新俄语的显示名称。
-    { value: WILDBERRIES_LANGUAGE, label: "俄语" },
-    { value: "泰语", label: "泰语" },
-    { value: "马来语", label: "马来语" },
+    { value: "", label: "未指定" },
 ];
 export const WILDBERRIES_RULES_TEXT = [
     "主图/轮播图：1800 x 2400 px ，3 : 4 ，PNG ，单张小于10MB 。",
@@ -84,6 +73,7 @@ export const PRODUCT_BRIEF_FIELDS = [
     { key: "usageScenarios", label: "主要使用场景", kind: "multiline", help: "描述买家在什么地方、什么情况下使用，以及希望解决什么问题。" },
     { key: "buyerConcerns", label: "买家最担心的问题", kind: "multiline", help: "填写买家购买前最在意的疑问，例如尺寸是否合适、是否耐用、是否易用或配件是否齐全。" },
     { key: "richContent", label: "富内容", kind: "choice", help: "选择本次是否需要制作富内容图片。" },
+    { key: "imageKeywords", label: "需要在图片中展现的关键词", kind: "multiline", help: "填写希望显示在图片上的关键词或短句，可分行填写。AI写提示词会选择适合展示文字的图片，并安排字体样式与构图位置，不要求每张图片都展示。" },
     { key: "styleReference", label: "风格或竞品参考", kind: "multiline", help: "可填写参考风格、竞品链接、品牌 Logo、品牌色，以及希望借鉴的排版或氛围。" },
     { key: "preserveConstraints", label: "必须保留／禁止改变的地方", kind: "multiline", help: "说明必须保持一致的外形、颜色、结构、Logo、数量等，以及禁止添加、删减或改动的内容。" },
 ] as const;

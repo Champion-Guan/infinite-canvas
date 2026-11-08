@@ -1,0 +1,12 @@
+diff --git a/web/src/components/canvas/canvas-image-toolbar-settings-modal.tsx b/web/src/components/canvas/canvas-image-toolbar-settings-modal.tsx
+index 7464dbb..602ce4b 100644
+--- a/web/src/components/canvas/canvas-image-toolbar-settings-modal.tsx
++++ b/web/src/components/canvas/canvas-image-toolbar-settings-modal.tsx
+@@ -1,5 +1,6 @@
+ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+-import { Button, Card, Checkbox, Form, Modal, Space, Switch, Tag, Tooltip, Typography, theme as antdTheme } from "antd";
++import { Button, Card, Checkbox, Form, Space, Switch, Tag, Tooltip, Typography, theme as antdTheme } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { Ellipsis, Image as ImageIcon, Settings2 } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 

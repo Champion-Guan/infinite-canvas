@@ -1,0 +1,14 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index 2ed3b19..1bc882f 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -4,7 +4,8 @@ import { businessFeatures, resolveBusinessConfigTab } from "@/扩展功能/产
+ import { productFeatures, resolveConfigTab } from "@/扩展功能/产品配置/功能开关";
+ import { useSettingsViewport } from "@/扩展功能/存储界面/设置视区";
+ import { OriginalFallbackPanel } from "@/扩展功能/故障切换/原版Fallback面板";
+-import { App, Form, Input, Modal, Progress, Radio, Select, Switch, Tabs } from "antd";
++import { App, Form, Input, Progress, Radio, Select, Switch, Tabs } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { AppleAntButton as Button } from "@/扩展功能/主题/苹果交互按钮";
+ import { APPLE_SURFACE_SPRING, APPLE_FADE } from "@/扩展功能/主题/苹果动效";
+ import { motion, useReducedMotion } from "motion/react";

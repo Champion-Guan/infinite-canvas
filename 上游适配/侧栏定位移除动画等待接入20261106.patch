@@ -1,0 +1,30 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index d752327..eb63d54 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -255,23 +255,10 @@ function CanvasNodesTab({ nodes, connections, selectedNodeIds, onFocusNode, onPr
+     const allChecked = filtered.length > 0 && filtered.every((node) => checked.has(node.id));
+     const toggleAll = () => setChecked(allChecked ? new Set() : new Set(filtered.map((node) => node.id)));
+ 
+-    // Let the hover preview fade out before the canvas starts moving to the node.
+-    const PRESS_FOCUS_DELAY = 180;
+-    const focusTimerRef = useRef<number | null>(null);
+-    useEffect(() => () => { if (focusTimerRef.current !== null) window.clearTimeout(focusTimerRef.current); }, []);
+     const activateNode = (node: CanvasNodeData) => {
+-        if (focusTimerRef.current !== null) window.clearTimeout(focusTimerRef.current);
+-        focusTimerRef.current = null;
+-        const hasPreview = (node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video) && Boolean(node.metadata?.content);
+-        if (!hasPreview) {
+-            onFocusNode(node.id);
+-            return;
+-        }
++        // 预览退场与画布定位同时开始，不用退场动画阻塞点击。
+         onHoverNode(null);
+-        focusTimerRef.current = window.setTimeout(() => {
+-            focusTimerRef.current = null;
+-            onFocusNode(node.id);
+-        }, PRESS_FOCUS_DELAY);
++        onFocusNode(node.id);
+     };
+ 
+     const handleExport = async () => {

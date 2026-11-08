@@ -1,0 +1,23 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 8976659..f2103f5 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -21,7 +21,7 @@ import { useCanvasMediaDownloads } from "@/扩展功能/媒体交付/画布下
+ import { useCanvasBatchGeneration } from "@/扩展功能/画布生成/批量生成操作";
+ import { useProductVariantGeneration } from "@/扩展功能/画布生成/产品变体执行";
+ import { canStartVariantGeneration, productVariantResult } from "@/扩展功能/画布生成/产品变体生成";
+-import { buildProductGenerationContext } from "@/扩展功能/画布生成/商品提示词生成";
++import { buildProductGenerationContext, productPromptInputSummary } from "@/扩展功能/画布生成/商品提示词生成";
+ import { useCanvasNodeRecycle } from "@/扩展功能/画布回收/节点回收操作";
+ import { useCanvasNodeDeletion } from "@/扩展功能/画布回收/节点删除操作";
+ import { useCanvasContentImport } from "@/扩展功能/画布导入/当前画布导入操作";
+@@ -3078,7 +3078,8 @@ function InfiniteCanvasPage() {
+             <CanvasConfigNodePanel
+                 node={contentNode}
+                 isRunning={runningNodeIds.has(contentNode.id)}
+-                inputSummary={getInputSummary(configInputsById.get(contentNode.id) || [])}
++                inputSummary={productPromptInputSummary(contentNode.id, nodesRef.current, connectionsRef.current,
++                    getInputSummary(configInputsById.get(contentNode.id) || []))}
+                 onConfigChange={handleConfigNodeChange}
+                 onComposerToggle={() => setDialogNodeId((current) => (current === contentNode.id ? null : contentNode.id))}
+                 onStop={confirmStopGeneration}

@@ -70,7 +70,12 @@ test('资料表所有字段可编辑，制作范围有专用控件，不重复�
         assert.ok(input, field.label);
         input.props.onChange(field.kind === 'choice' ? '需要' : { target: { value: '用户填写' } });
     }
-    assert.equal(edits.length, 12);
+    assert.equal(edits.length, 13);
+    const keywordIndex = controls.findIndex(element => element.props?.['aria-label'] === '需要在图片中展现的关键词');
+    const styleIndex = controls.findIndex(element => element.props?.['aria-label'] === '风格或竞品参考');
+    assert.ok(keywordIndex > 0 && keywordIndex < styleIndex);
+    assert.equal(controls[keywordIndex].type, 'textarea');
+    assert.equal(controls[keywordIndex].props.placeholder, '可选');
     assert.ok(!controls.some(element => element.props?.['aria-label'] === '轮播图张数'));
     assert.equal(controls.find(element => element.props?.label === '富内容').type, 'ProductOptionSelect');
     assert.doesNotMatch(JSON.stringify(tree), /实物图|图片文字语言|未上传|已附|使用的生图工具/);

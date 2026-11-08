@@ -1,0 +1,14 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index a3bc796..a518913 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -79,7 +79,8 @@ import { batchResultPosition, resizedResultPosition, type BatchResultPlacement }
+ import { nextGenerationResultPosition, placeCanvasNode } from "@/扩展功能/画布布局/卡片自动避让";
+ import { useCanvasNodeArrangement } from "@/扩展功能/画布布局/重叠卡片整理操作";
+ import { captureVideoFrame, type VideoFramePosition } from "@/lib/canvas/canvas-video-frame";
+-import { App, Button, Modal } from "antd";
++import { App, Button } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
+ import { ActiveConnectionPath } from "@/components/canvas/canvas-connections";
+ import { CanvasConfigComposer } from "@/components/canvas/canvas-config-composer";

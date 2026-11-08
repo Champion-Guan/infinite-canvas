@@ -91,7 +91,7 @@ test('右键菜单禁用删除并说明原因，普通连线和节点仍保留�
     const jsx = (type, props) => ({ type, props });
     const icons = new Proxy({}, { get: (_target, type) => type });
     const { CanvasNodeContextMenu } = await load('.运行/3100源/画布副本/web/src/components/canvas/canvas-context-menu.tsx', {
-        react: { useEffect: () => {} }, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': icons,
+        react: { useEffect: () => {}, useRef: current => ({ current }) }, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': icons,
         'react-i18next': { useTranslation: () => ({ t: key => key }) }, '@/lib/canvas-theme': { canvasThemes: { light: { toolbar: {}, node: {} } } },
         '@/stores/use-theme-store': { useThemeStore: select => select({ theme: 'light' }) },
     });

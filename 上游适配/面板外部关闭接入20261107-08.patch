@@ -1,0 +1,12 @@
+diff --git a/web/src/components/agent/agent-chat-composer.tsx b/web/src/components/agent/agent-chat-composer.tsx
+index f759043..888ae9a 100644
+--- a/web/src/components/agent/agent-chat-composer.tsx
++++ b/web/src/components/agent/agent-chat-composer.tsx
+@@ -1,5 +1,6 @@
+ import { useRef, useState, type ReactNode } from "react";
+-import { Button, Dropdown, Tooltip } from "antd";
++import { Button, Tooltip } from "antd";
++import { OutsideDropdown as Dropdown } from "@/扩展功能/主题/原生可关闭浮层";
+ import { ArrowUp, Check, ChevronUp, Cpu, Gauge, Hand, ImagePlus, LoaderCircle, RefreshCw, ShieldAlert, ShieldCheck, ShieldOff, Square, X } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 

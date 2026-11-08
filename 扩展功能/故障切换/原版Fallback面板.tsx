@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { AnimatePresence } from "motion/react";
 import { Settings } from "lucide-react";
 import type { ModelCapability, ModelChannel, ChannelModel } from "@/stores/use-config-store";
 import { useConfigStore } from "@/stores/use-config-store";
@@ -78,8 +79,8 @@ export function OriginalFallbackPanel() {
             <div className="local-canvas-settings-note">总开关关闭时不会执行任何 Fallback；每种能力还可独立保存渠道勾选和切换顺序。</div>
             {error ? <div className="local-canvas-settings-note" role="alert">{error}</div> : null}
         </section>
-    </div>{sorting ? <ModelOrderPanel key={sorting} label={capabilities.find(item => item.key === sorting)!.label}
+    </div><AnimatePresence>{sorting ? <ModelOrderPanel key={sorting} label={capabilities.find(item => item.key === sorting)!.label}
         entries={data.capabilities[sorting].entries} preferred={data.capabilities[sorting].modelOrder}
         revision={stored.revision} busy={busy} onClose={() => setSorting(null)}
-        onSave={(order, revision) => change({ type: "model-order", capability: sorting, order }, revision)} /> : null}</div>;
+        onSave={(order, revision) => change({ type: "model-order", capability: sorting, order }, revision)} /> : null}</AnimatePresence></div>;
 }

@@ -50,7 +50,7 @@ const {code:compiled}=await transformWithEsbuild(source,'在线安装操作.tsx'
 function render(status, { blockedPopup = false, progressError = false, installError = false } = {}){
     const calls=[],confirmations=[],module={exports:{}};
     const jsx=(type,props)=>({type,props});
-    const fakeRequire=name=>name.includes('产品界面边界')?{useProductActive:()=>true}:name.includes('独立进度窗口')?{connectUpdateProgressWindow:async popup=>{if(!popup||progressError)throw Error('进度未连接');calls.push('progress-window');}}:name.includes('更新进度面板')?{UpdateProgressPanel:'progress'}:name==='react'?{useEffect(){},useState:()=>[false,()=>{}]}:name==='react/jsx-runtime'?{jsx,jsxs:jsx}:
+    const fakeRequire=name=>name.includes('可见页面轮询')?{useVisiblePolling(){}}:name.includes('产品界面边界')?{useProductActive:()=>true}:name.includes('独立进度窗口')?{connectUpdateProgressWindow:async popup=>{if(!popup||progressError)throw Error('进度未连接');calls.push('progress-window');}}:name.includes('更新进度面板')?{UpdateProgressPanel:'progress'}:name==='react'?{useEffect(){},useState:()=>[false,()=>{}]}:name==='react/jsx-runtime'?{jsx,jsxs:jsx}:
         name==='antd'?{App:{useApp:()=>({message:{error(){}},modal:{confirm:options=>confirmations.push(options)}})},Button:'button'}:
         {installationMessages:{},updateMessages:{},updateRequest:async operation=>{calls.push(operation);if(operation==='install'&&installError)throw Error('安装未开始');}};
     new Function('require','module','exports','window',compiled)(fakeRequire,module,module.exports,{open:()=>blockedPopup?null:{close(){}},dispatchEvent:()=>calls.push('wake')});

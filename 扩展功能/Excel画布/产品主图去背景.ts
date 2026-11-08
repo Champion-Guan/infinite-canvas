@@ -1,6 +1,7 @@
 import type { CanvasNodeContext } from "@/types/canvas-plugin";
 import type { CanvasImageReceipt, CanvasImageTask } from "../画布生成/原画布图片调用";
 import { applyProductImageCutout, productMainImages, productMainImagesPatch, sameProductImageSource, type ProductImageMetadata } from "./产品主图规则";
+import { requireModelConfigured } from "../产品配置/模型配置门禁";
 
 export const PRODUCT_BACKGROUND_REMOVAL_PROMPT = "Remove only the background of the supplied product photo and return a transparent PNG. Preserve the product exactly: its shape, proportions, colors, material, texture, printed text, details and all included parts. Do not redraw, retouch, add objects, add shadows or crop the product.";
 
@@ -30,10 +31,7 @@ export async function removeProductMainImageBackground({ ctx, productId, imageId
     const state = useConfigStore.getState();
     // 原图可能是任意像素尺寸，不能套用交付尺寸的16px网格校验。
     const config = { ...buildGenerationConfig(state.config, undefined, "image"), count: "1", background: "transparent", size: "auto" };
-    if (!state.isAiConfigReady(config, config.model)) {
-        state.openConfigDialog(false, "channels");
-        throw new Error("请先配置可用的生图渠道，原图已保留。");
-    }
+    requireModelConfigured(config, "image");
     assertSource();
     await requestCanvasImage({
         config, prompt: PRODUCT_BACKGROUND_REMOVAL_PROMPT, signal, retry: true,

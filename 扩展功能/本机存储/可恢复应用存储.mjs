@@ -13,9 +13,9 @@ export function createRecoverableApplicationStorage(options) {
   }
   function status() {
     const active = [...spaces.values()], failed = active.filter(space => space.error);
-    const pending = active.reduce((sum, space) => sum + space.queue.length, 0) + reads;
+    const pending = active.reduce((sum, space) => sum + space.queue.length, 0);
     const baseStatus = base?.getStatus();
-    return { state: failed.length || baseStatus?.state === 'error' ? 'error' : pending ? 'saving' : everSaved ? 'saved' : 'idle', pending,
+    return { state: failed.length || baseStatus?.state === 'error' ? 'error' : pending ? 'saving' : everSaved ? 'saved' : 'idle', pending, reads,
       errors: [...new Set([...failed.map(space => space.name), ...(baseStatus?.errors ?? [])])], retrying: !!flight,
       failures: failed.map(space => ({ namespace: space.name, code: typeof space.error?.code === 'string' ? space.error.code : 'save_unconfirmed' })) };
   }
@@ -75,9 +75,13 @@ export function createRecoverableApplicationStorage(options) {
   function createInstance(options = {}) {
     const instance = base.createInstance(options), space = state(options.storeName ?? 'app_state');
     async function read(method, args) {
-      requireValue(!space.queue.length, 'pending_write_unresolved', '仍有未确认编辑，不读取旧值覆盖当前内容。', 409);
       reads++; notify();
-      try { return await instance[method](...args); } finally { reads--; notify(); }
+      try {
+        // 正常在途保存先等同一命名空间的ACK；失败队列仍禁止读取旧值。
+        while (space.running) await space.running;
+        requireValue(!space.queue.length && !space.error, 'pending_write_unresolved', '仍有未确认编辑，不读取旧值覆盖当前内容。', 409);
+        return await instance[method](...args);
+      } finally { reads--; notify(); }
     }
     return {
       getItem: key => read('getItem', [key]), keys: () => read('keys', []), length: () => read('length', []), iterate: callback => read('iterate', [callback]),

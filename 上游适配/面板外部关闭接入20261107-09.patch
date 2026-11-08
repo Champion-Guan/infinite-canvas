@@ -1,0 +1,11 @@
+diff --git a/web/src/components/agent/agent-chat-prompt-input.tsx b/web/src/components/agent/agent-chat-prompt-input.tsx
+index 4edd433..9f7ea87 100644
+--- a/web/src/components/agent/agent-chat-prompt-input.tsx
++++ b/web/src/components/agent/agent-chat-prompt-input.tsx
+@@ -1,5 +1,5 @@
+ import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
+-import { Popover } from "antd";
++import { OutsidePopover as Popover } from "@/扩展功能/主题/原生可关闭浮层";
+ import { Sparkles } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 

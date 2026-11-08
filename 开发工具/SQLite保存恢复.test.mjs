@@ -32,6 +32,38 @@ test('正常并行保存有真实ACK且快照不随调用方变化；立即读�
     assert.equal((await f.app.flush()).state, 'saved'); f.app.close();
   } finally { f.close(); }
 });
+test('素材读取单独计数，不误报保存中；在途读取仍阻止关闭存储', async () => {
+  const f = fixture(); let release, entered;
+  const started = new Promise(resolve => { entered = resolve; }), gate = new Promise(resolve => { release = resolve; });
+  let reading;
+  try {
+    const images = f.app.createInstance({ storeName: 'image_files' });
+    await images.setItem('image:focus', new Blob(['定位时读取的图片'], { type: 'image/png' }));
+    const readMedia = f.client.readMedia;
+    f.client.readMedia = async id => { entered(); await gate; return readMedia(id); };
+    reading = images.getItem('image:focus'); await started;
+    const status = f.app.getStatus();
+    assert.equal(status.reads, 1); assert.equal(status.pending, 0); assert.equal(status.state, 'saved');
+    assert.throws(() => f.app.close(), code('save_not_confirmed'));
+    release(); assert.equal(await (await reading).text(), '定位时读取的图片');
+    assert.equal(f.app.getStatus().reads, 0); f.app.close();
+  } finally { release(); await reading?.catch(() => {}); f.close(); }
+});
+test('读取其他素材不会掩盖已有保存失败或把失败队列标成已保存', async () => {
+  let fail = false;
+  const f = fixture(async (action, input) => {
+    if (fail && input.value.namespace === 'app_state') throw Error('合成保存失败');
+    return action();
+  });
+  try {
+    const images = f.app.createInstance({ storeName: 'image_files' });
+    await images.setItem('image:focus', new Blob(['图片'], { type: 'image/png' }));
+    fail = true; await assert.rejects(f.store.setItem('content', '尚未确认的新内容'));
+    await images.getItem('image:focus');
+    assert.equal(f.app.getStatus().state, 'error'); assert.equal(f.app.getStatus().pending, 1);
+    fail = false; await f.app.retryPending(); await f.app.flush(); f.app.close();
+  } finally { f.close(); }
+});
 test('ACK丢失后保留后续编辑，同一原操作先核实，之后按顺序提交，不重复落盘', async () => {
   let lose = true;
   const f = fixture(async action => { const ack = await action(); if (lose) { lose = false; throw Error('合成ACK丢失'); } return ack; });

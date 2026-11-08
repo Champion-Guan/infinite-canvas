@@ -1,0 +1,11 @@
+diff --git a/web/src/components/canvas/canvas-size-picker.tsx b/web/src/components/canvas/canvas-size-picker.tsx
+index 0abd482..c683777 100644
+--- a/web/src/components/canvas/canvas-size-picker.tsx
++++ b/web/src/components/canvas/canvas-size-picker.tsx
+@@ -1,5 +1,5 @@
+ import { useEffect, useRef, useState } from "react";
+-import { Select } from "antd";
++import { OutsideSelect as Select } from "@/扩展功能/主题/原生可关闭浮层";
+ import { useTranslation } from "react-i18next";
+ 
+ import { cn } from "@/lib/utils";

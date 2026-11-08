@@ -79,10 +79,10 @@ async function callbackFixture() {
     visit(ast); assert.ok(callback);
     const registry = createCanvasGenerationRegistry(), nodesRef = { current: [imageNode('result', ['one', 'two'])] };
     const tasks = [], errors = [], retryingNodeIdsRef = { current: new Set() };
-    const scope = { ...guards, ...registry, ...variantModules().load('画布生成/产品变体生成.ts'), nodesRef, retryingNodeIdsRef, generationRequestsRef: { current: registry.requests }, connectionsRef: { current: [] },
+    const scope = { protectProductCanvasWork: (_id, operation) => operation, ...guards, ...registry, ...variantModules().load('画布生成/产品变体生成.ts'), nodesRef, retryingNodeIdsRef, generationRequestsRef: { current: registry.requests }, connectionsRef: { current: [] },
         CanvasNodeType: { Image: 'image', Video: 'video', Audio: 'audio', Text: 'text' }, NODE_STATUS_LOADING: 'loading', NODE_STATUS_SUCCESS: 'success', NODE_STATUS_ERROR: 'error',
         hasResumableVideoTask: () => false, findRetrySourceNode: () => undefined, effectiveConfig: {},
-        resolveGenerationChannelMetadata: () => ({ channel: '本地mock' }), isAiConfigReady: () => true,
+        resolveGenerationChannelMetadata: () => ({ channel: '本地mock' }), isAiConfigReady: () => true, ensureModelConfigured: () => true,
         openConfigDialog: () => assert.fail('不应修改配置'),
         buildNodeGenerationContext: () => ({ prompt: '本地测试' }), readProtectedRetryPrompt: text => text,
         resolveMetadataReferences: async () => [],

@@ -33,11 +33,14 @@ type CanvasSavePort = {
     generationRequestsRef: RefObject<ReadonlyMap<string, unknown>>;
     runningNodeId: string | null;
     updateProject: ReturnType<typeof useCanvasStore.getState>["updateProject"];
+    beforeRelease?: () => Promise<void>;
+    retiring?: boolean;
+    pendingEditor?: boolean;
 };
 
-export function useCanvasPersistence({ projectId, nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport, projectLoaded, restoredProjectIdRef, nodeTransactionRef, historyPausedRef, dragRef, isNodeDragging, isNodeResizing, isCanvasPanning = false, canvasPanningRef, nodeResizingRef, focusAnimRef, viewportRef, viewportSaveTimerRef, generationRequestsRef, runningNodeId, updateProject }: CanvasSavePort) {
+export function useCanvasPersistence({ projectId, nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport, projectLoaded, restoredProjectIdRef, nodeTransactionRef, historyPausedRef, dragRef, isNodeDragging, isNodeResizing, isCanvasPanning = false, canvasPanningRef, nodeResizingRef, focusAnimRef, viewportRef, viewportSaveTimerRef, generationRequestsRef, runningNodeId, updateProject, beforeRelease, retiring = false, pendingEditor = false }: CanvasSavePort) {
     useEffect(() => {
-        if (!projectLoaded || restoredProjectIdRef.current !== projectId || historyPausedRef.current
+        if (retiring || !projectLoaded || restoredProjectIdRef.current !== projectId || historyPausedRef.current
             || isNodeDragging || isNodeResizing || isCanvasPanning || dragRef.current.isDraggingNode
             || nodeResizingRef?.current || canvasPanningRef?.current || focusAnimRef.current !== null) return;
         const current = useCanvasStore.getState().projects.find(project => project.id === projectId);
@@ -50,15 +53,16 @@ export function useCanvasPersistence({ projectId, nodes, connections, chatSessio
         }
         // 手势结束后将最终卡片和最终视区一并提交，避免再拆成两次保存。
         updateProject(projectId, retainCanvasReferences(current, { ...patch, viewport: viewportRef.current }));
-    }, [activeChatId, backgroundMode, chatSessions, connections, nodes, projectId, projectLoaded, showImageInfo, updateProject, isNodeDragging, isNodeResizing, isCanvasPanning, historyPausedRef, dragRef, nodeResizingRef, canvasPanningRef, focusAnimRef, restoredProjectIdRef, viewport, viewportRef]);
+    }, [activeChatId, backgroundMode, chatSessions, connections, nodes, projectId, projectLoaded, showImageInfo, updateProject, isNodeDragging, isNodeResizing, isCanvasPanning, historyPausedRef, dragRef, nodeResizingRef, canvasPanningRef, focusAnimRef, restoredProjectIdRef, viewport, viewportRef, retiring]);
 
     const snapshot = useMemo(() => ({ projectId, nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport }),
         [projectId, nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport]);
     useProductCanvasSave(projectId, snapshot,
-        () => projectLoaded && restoredProjectIdRef.current === projectId && !historyPausedRef.current && nodes === nodeTransactionRef.current
+        () => !retiring && projectLoaded && restoredProjectIdRef.current === projectId && !historyPausedRef.current && nodes === nodeTransactionRef.current
             && !dragRef.current.isDraggingNode && !isNodeDragging && !isNodeResizing && !isCanvasPanning
             && !nodeResizingRef?.current && !canvasPanningRef?.current && focusAnimRef.current === null,
         async (committed, options) => {
+            if (retiring) throw new Error("画布正在完成删除交接，不能修改原画布。");
             const { projectId: id, ...patch } = committed;
             if (restoredProjectIdRef.current !== id || committed.nodes !== nodeTransactionRef.current) throw new Error("Canvas commit invalidated");
             if (!useCanvasStore.getState().projects.some(project => project.id === id)) throw new Error("Canvas unavailable");
@@ -69,12 +73,12 @@ export function useCanvasPersistence({ projectId, nodes, connections, chatSessio
                 if (viewportSaveTimerRef.current) clearTimeout(viewportSaveTimerRef.current);
                 viewportSaveTimerRef.current = null;
             }
-        }, () => generationRequestsRef.current.size === 0 && runningNodeId === null);
+        }, () => generationRequestsRef.current.size === 0 && runningNodeId === null, beforeRelease, retiring, () => !pendingEditor);
 
     useEffect(() => {
         if (viewportSaveTimerRef.current) clearTimeout(viewportSaveTimerRef.current);
         viewportSaveTimerRef.current = null;
-        if (!projectLoaded || isNodeDragging || isNodeResizing || isCanvasPanning
+        if (retiring || !projectLoaded || isNodeDragging || isNodeResizing || isCanvasPanning
             || dragRef.current.isDraggingNode || historyPausedRef.current || nodeResizingRef?.current
             || canvasPanningRef?.current || focusAnimRef.current !== null) return;
         const current = useCanvasStore.getState().projects.find(project => project.id === projectId);
@@ -101,11 +105,11 @@ export function useCanvasPersistence({ projectId, nodes, connections, chatSessio
             clearTimeout(timer);
             if (viewportSaveTimerRef.current === timer) viewportSaveTimerRef.current = null;
         };
-    }, [projectId, projectLoaded, updateProject, viewport, viewportRef, viewportSaveTimerRef, isNodeDragging, isNodeResizing, isCanvasPanning, dragRef, historyPausedRef, nodeResizingRef, canvasPanningRef, focusAnimRef, restoredProjectIdRef]);
+    }, [projectId, projectLoaded, updateProject, viewport, viewportRef, viewportSaveTimerRef, isNodeDragging, isNodeResizing, isCanvasPanning, dragRef, historyPausedRef, nodeResizingRef, canvasPanningRef, focusAnimRef, restoredProjectIdRef, retiring]);
 
     useEffect(() => {
         const commitPendingViewport = (event?: BeforeUnloadEvent) => {
-            if (!projectLoaded || restoredProjectIdRef.current !== projectId || historyPausedRef.current
+            if (retiring || !projectLoaded || restoredProjectIdRef.current !== projectId || historyPausedRef.current
                 || isNodeDragging || isNodeResizing || isCanvasPanning || dragRef.current.isDraggingNode
                 || nodeResizingRef?.current || canvasPanningRef?.current || focusAnimRef.current !== null) return;
             const current = useCanvasStore.getState().projects.find(project => project.id === projectId);
@@ -133,5 +137,5 @@ export function useCanvasPersistence({ projectId, nodes, connections, chatSessio
         };
     }, [projectId, projectLoaded, updateProject, isNodeDragging, isNodeResizing, isCanvasPanning,
         restoredProjectIdRef, historyPausedRef, dragRef, nodeResizingRef, canvasPanningRef,
-        focusAnimRef, viewportRef, viewportSaveTimerRef]);
+        focusAnimRef, viewportRef, viewportSaveTimerRef, retiring]);
 }

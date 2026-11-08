@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/canvas-audio-settings-popover.tsx b/web/src/components/canvas/canvas-audio-settings-popover.tsx
+index 694ac4d..e68cd9f 100644
+--- a/web/src/components/canvas/canvas-audio-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-audio-settings-popover.tsx
+@@ -64,7 +64,7 @@ function AudioSettingsPortal({
+         boxShadow: "0 18px 54px rgba(28, 25, 23, 0.16)",
+         padding: 18,
+         overflowY: "auto",
+-        color: theme.node.text, paddingInline: 16
++        color: theme.node.text, paddingInline: 18
+     } as const;
+ 
+     return createProductPortal(

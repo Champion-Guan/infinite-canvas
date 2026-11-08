@@ -1,0 +1,12 @@
+diff --git a/web/src/components/canvas/canvas-node-upscale-dialog.tsx b/web/src/components/canvas/canvas-node-upscale-dialog.tsx
+index 0d0f40c..c6adcdb 100644
+--- a/web/src/components/canvas/canvas-node-upscale-dialog.tsx
++++ b/web/src/components/canvas/canvas-node-upscale-dialog.tsx
+@@ -1,5 +1,6 @@
+ import { useEffect, useMemo, useState } from "react";
+-import { Button, Modal, Segmented } from "antd";
++import { Button, Segmented } from "antd";
++import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { ImagePlus } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 

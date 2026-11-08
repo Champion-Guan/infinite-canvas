@@ -129,8 +129,27 @@ async function persistence(options = {}) {
     render();
     return { port, store, get id() { return registration[0]; }, get snapshot() { return registration[1]; },
         ready: () => registration[2](), persist: () => registration[3](registration[1]), canDelete: () => registration[4](),
+        retiring: () => registration[6], canRelease: () => registration[7](),
         render, effects, updates, pendingTimers, cleared, windowEvents, documentEvents, flushed: () => flushed };
 }
+test('删除交接背景停止自动保存和视区计时，不把回收画布写回活动列表', async () => {
+    const api = await persistence();
+    api.effects.forEach(effect => effect());
+    assert.ok(api.pendingTimers.size > 0);
+    api.render({ retiring: true });
+    const cleanups = api.effects.map(effect => effect());
+    assert.equal(api.retiring(), true);
+    assert.equal(api.ready(), false);
+    assert.equal(api.pendingTimers.size, 0);
+    const previousWrites = api.updates.length;
+    api.windowEvents.dispatchEvent(new Event('beforeunload', { cancelable: true }));
+    api.documentEvents.visibilityState = 'hidden';
+    api.documentEvents.dispatchEvent(new Event('visibilitychange'));
+    await assert.rejects(api.persist(), /删除交接/);
+    assert.equal(api.updates.length, previousWrites);
+    assert.equal(api.flushed(), 0);
+    cleanups.forEach(cleanup => cleanup?.());
+});
 test('平移后未到两秒就关闭时先提交最终视区并阻止未确认退出，卸载后不遗留监听', async () => {
     const api = await persistence({ applyUpdates: true });
     api.store.projects[0] = { id: api.id, ...api.snapshot, viewport: { x: 0, y: 0, k: 1 } };
@@ -188,6 +207,11 @@ test('保存票据只在节点、产品身份和交互稳定时就绪，未决�
     api.port.generationRequestsRef.current.set('task', {}); assert.equal(api.canDelete(), false);
     const running = await persistence({ port: { runningNodeId: 'node' } }); assert.equal(running.canDelete(), false);
 });
+test('未完成编辑窗口单独阻止休眠，关闭窗口后恢复资格，不禁用正常内容保存', async () => {
+    const api = await persistence({ port: { pendingEditor: true } });
+    assert.equal(api.canRelease(), false); assert.equal(api.ready(), true);
+    api.render({ pendingEditor: false }); assert.equal(api.canRelease(), true);
+});
 test('过期提交或已删除产品在写入和SQLite刷新之前拒绝', async () => {
     for (const change of [
         api => { api.port.restoredProjectIdRef.current = 'other'; },
@@ -234,11 +258,15 @@ test('视区延迟写入读取最新引用并在卸载时取消，未加载不�
     const unloaded = await persistence({ port: { projectLoaded: false } }); unloaded.effects[1]();
     assert.equal(unloaded.pendingTimers.size, 0);
 });
-test('画布手势预览期间顶部状态不显示保存中，松手后才显示最终快照待保存', () => {
+test('定位与平移只改变视角时不误报内容待保存，实际内容变更仍显示待保存', () => {
     const current = { nodes: [], connections: [], chatSessions: [], activeChatId: null, backgroundMode: 'lines', showImageInfo: false, viewport: { x: 0, y: 0, k: 1 } };
     const next = { ...current, viewport: { x: 40, y: 20, k: 1.2 } };
     assert.equal(save判定.canvasSavePending(current, next, true), false, '平移/缩放预览期间不显示保存中');
-    assert.equal(save判定.canvasSavePending(current, next, false), true, '手势结束后显示待保存');
+    assert.equal(save判定.canvasSavePending(current, next, false), false, '视角等待合并保存时不误报内容待保存');
+    assert.equal(save判定.canvasHasPendingChanges(current, next), true, '视角仍需持久化，不能为了状态提示取消保存');
+    const edited = { ...next, nodes: [node('edited')] };
+    assert.equal(save判定.canvasSavePending(current, edited, false), true, '卡片内容尚未提交时仍显示待保存');
+    assert.equal(save判定.canvasSavePending(current, { ...next, backgroundMode: 'dots' }), true, '画布外观仍属于真实修改');
     assert.equal(save判定.canvasSavePending(current, current, true), false, '无变化的手势不显示保存中');
 });
 test('拖动、平移、尺寸调整与聚焦动画期间不提交快照，也不创建视区保存计时器', async () => {
@@ -380,6 +408,8 @@ test('视区覆盖层保持穿透，节点与多选胶囊恢复命中并只触�
         'react/jsx-runtime': { jsx, jsxs: jsx },
         react: { useState: value => [value, () => {}], useEffect: () => {} },
         antd: { App: { useApp: () => ({ message: {} }) }, Tooltip: 'Tooltip' },
+        '@/扩展功能/主题/原生可关闭浮层': { OutsideDropdown: 'NativeDropdown' },
+        '@/扩展功能/主题/苹果弹窗': { AppleModal: 'Modal' },
         'react-i18next': { useTranslation: () => ({ t: key => key }) },
         'lucide-react': new Proxy({}, { get: (_, key) => key }),
         '@/lib/canvas-theme': { canvasThemes: { light: { canvas: {} } } },
@@ -389,6 +419,7 @@ test('视区覆盖层保持穿透，节点与多选胶囊恢复命中并只触�
     const source = resolve(root, '.运行/3100源/画布副本/web/src');
     const toolbar = await load(resolve(source, 'components/canvas/canvas-node-hover-toolbar.tsx'), {
         ...common,
+        '@/扩展功能/主题/页签内容过渡': { TabContentTransition: 'TabTransition' },
         '@/扩展功能/产品/产品界面边界': { useProductActive: () => true },
         '@/扩展功能/本机存储/上游浏览器存储桥': {}, '@/lib/canvas/node-registry': {},
         '@/lib/image-utils': {}, '@/hooks/use-copy-text': { useCopyText: () => () => {} }, '@/stores/use-config-store': {},

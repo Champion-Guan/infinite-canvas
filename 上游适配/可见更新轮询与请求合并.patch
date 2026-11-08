@@ -1,0 +1,36 @@
+diff --git a/web/src/hooks/use-version-check.ts b/web/src/hooks/use-version-check.ts
+--- a/web/src/hooks/use-version-check.ts
++++ b/web/src/hooks/use-version-check.ts
+@@ -1,4 +1,5 @@
+-import { useCallback, useEffect, useMemo, useState } from "react";
++import { useCallback, useMemo, useState } from "react";
++import { useVisiblePolling } from "@/扩展功能/主题/可见页面轮询";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { App } from "antd";
+ import { APP_VERSION } from "@/constant/env";
+@@ -10,7 +11,7 @@
+     return serverVersion || bundleVersion;
+ }
+ 
+-export function useVersionCheck() {
++export function useVersionCheck(enabled = true) {
+     const { message } = App.useApp();
+     const productActive = useProductActive();
+     const localReleases = useMemo<ReleaseInfo[]>(() => __APP_RELEASES__ || [], []);
+@@ -44,15 +45,7 @@ export function useVersionCheck() {
+         [message, refresh],
+     );
+ 
+-    useEffect(() => {
+-        // 缓存产品继续保存任务，但不可见页面不重复轮询更新状态。
+-        if (!productActive) return;
+-        const refreshVisible = () => { if (document.visibilityState === "visible") void refresh(); };
+-        refreshVisible();
+-        document.addEventListener("visibilitychange", refreshVisible);
+-        const timer = setInterval(refreshVisible, 30000);
+-        return () => { clearInterval(timer); document.removeEventListener("visibilitychange", refreshVisible); };
+-    }, [productActive, refresh]);
++    useVisiblePolling(productActive && enabled, refresh, 30000);
+ 
+     const openReleaseModal = useCallback(() => {
+         setOpen(true);

@@ -1,0 +1,28 @@
+diff --git a/web/src/components/layout/model-select-modal.tsx b/web/src/components/layout/model-select-modal.tsx
+index 6ba5f62..803d9af 100644
+--- a/web/src/components/layout/model-select-modal.tsx
++++ b/web/src/components/layout/model-select-modal.tsx
+@@ -1,5 +1,6 @@
+ import { useSettingsViewport } from "@/扩展功能/存储界面/设置视区";
+-import { App, Button, Checkbox, Input, InputNumber, Tabs } from "antd";
++import { App, Button, Checkbox, Input, InputNumber } from "antd";
++import { NativeFadeTabs as Tabs, TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+ import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { RefreshCw, Search } from "lucide-react";
+ import { useEffect, useMemo, useState } from "react";
+@@ -138,6 +139,7 @@ export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onCl
+                 ]}
+             />
+ 
++            <TabContentTransition transitionKey={activeTab}>
+             <div className="mb-3 flex items-center justify-between gap-2">
+                 <span className="text-xs text-stone-500">{t("config.modelSelect.visibleSelected", { selected: visibleSelectedCount, total: visibleList.length })}</span>
+                 <div className="flex gap-2">
+@@ -164,6 +166,7 @@ export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onCl
+             ) : (
+                 <div className="py-8 text-center text-sm text-stone-500">{t(activeTab === "new" ? "config.modelSelect.fetchedEmpty" : "config.modelSelect.existingEmpty")}</div>
+             )}
++            </TabContentTransition>
+         </Modal>
+     );
+ }

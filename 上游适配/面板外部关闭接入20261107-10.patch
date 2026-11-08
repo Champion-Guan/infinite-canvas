@@ -1,0 +1,20 @@
+diff --git a/web/src/components/agent/agent-skills-view.tsx b/web/src/components/agent/agent-skills-view.tsx
+index 75c9af4..ad59bdf 100644
+--- a/web/src/components/agent/agent-skills-view.tsx
++++ b/web/src/components/agent/agent-skills-view.tsx
+@@ -1,5 +1,6 @@
+ import { useEffect, useMemo, useRef, useState } from "react";
+-import { App, Button, Collapse, Dropdown, Form, Input, Modal, Select, Switch, Tooltip } from "antd";
++import { App, Button, Collapse, Form, Input, Modal, Switch, Tooltip } from "antd";
++import { OutsideDropdown as Dropdown, OutsideSelect as Select } from "@/扩展功能/主题/原生可关闭浮层";
+ import type { MenuProps } from "antd";
+ import { Check, ChevronDown, CircleAlert, FilePenLine, LoaderCircle, LockKeyhole, MessageSquareText, Plus, RefreshCw, Search, Sparkles, Trash2, Workflow } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+@@ -176,6 +177,7 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
+     const confirmDelete = (skill: AgentSkillSummary) => {
+         const connectionRevision = useAgentSkillStore.getState().connectionRevision;
+         confirmRef.current = modal.confirm({
++            maskClosable: true,
+             title: t("agent.skillManager.deleteTitle", { name: skill.interface?.displayName || skill.name }),
+             content: t("agent.skillManager.deleteDescription"),
+             okText: t("agent.skillManager.delete"),
