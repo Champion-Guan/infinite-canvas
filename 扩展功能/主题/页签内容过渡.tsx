@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode, type RefObject } from "react";
-import { Tabs, type TabsProps, type TabsRef } from "antd";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ComponentRef, type HTMLAttributes, type ReactNode, type RefObject } from "react";
+import { Tabs, type TabsProps } from "antd";
 import { useReducedMotion } from "motion/react";
 import { createTabFadePlayer } from "./页签淡变播放器";
 import styles from "./页签内容过渡.module.css";
@@ -60,7 +60,7 @@ export function NativeFadeTabs({ activeKey, defaultActiveKey, items, onChange, a
     const [internalKey, setInternalKey] = useState(defaultActiveKey);
     const requested = activeKey ?? internalKey;
     const current = items?.some(item => item.key === requested) ? requested : items?.[0]?.key;
-    const root = useRef<TabsRef>(null);
+    const root = useRef<ComponentRef<typeof Tabs>>(null);
     const horizontal = !["left", "right"].includes(props.tabPosition || "") && !["start", "end"].includes(props.tabPlacement || "");
     const line = horizontal && (!props.type || props.type === "line");
     useUnifiedTabIndicator(root, current || "", { native: true, enabled: line, reduced });
