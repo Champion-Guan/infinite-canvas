@@ -1,0 +1,51 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 3bdfefc..4c448f4 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -27,6 +27,7 @@ import { useProductVariantGeneration } from "@/扩展功能/画布生成/产品
+ import { canStartVariantGeneration, productVariantResult } from "@/扩展功能/画布生成/产品变体生成";
+ import { productVariantConfigNode } from "@/扩展功能/Excel画布/共用商品提示词";
+ import { buildProductGenerationContext, productPromptInputSummary } from "@/扩展功能/画布生成/商品提示词生成";
++import { assertImageReferenceLimit, imageGenerationReferences } from "@/扩展功能/画布生成/参考图数量限制";
+ import { pulseProductPromptWarning } from "@/扩展功能/Excel画布/商品提示词阻止反馈";
+ import { useCanvasNodeRecycle } from "@/扩展功能/画布回收/节点回收操作";
+ import type { CanvasHistorySnapshot } from "@/扩展功能/扩展边界/画布历史接口";
+@@ -2378,7 +2379,9 @@ function InfiniteCanvasPage() {
+                 setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, ...generationChannel, prompt: scene, status: NODE_STATUS_LOADING, errorDetails: undefined } } : node)));
+                 try {
+                     const fullPrompt = (builtinPanel.promptPrefix || "") + scene;
+-                    const context = await hydrateNodeGenerationContext(buildNodeGenerationContext(nodeId, nodesRef.current, connectionsRef.current, fullPrompt));
++                    const inputContext = buildNodeGenerationContext(nodeId, nodesRef.current, connectionsRef.current, fullPrompt);
++                    assertImageReferenceLimit(inputContext.referenceImages);
++                    const context = await hydrateNodeGenerationContext(inputContext);
+                     const refs = context.referenceImages;
+                     const image = refs.length
+                         ? await requestEdit({ ...generationConfig, count: "1" }, context.prompt, refs, { signal: controller.signal }).then((items) => items[0])
+@@ -2407,10 +2410,10 @@ function InfiniteCanvasPage() {
+             const markSourceStatus = sourceNode?.type !== CanvasNodeType.Image && !editingTextNode;
+             let pendingChildIds: string[] = [];
+             try {
+-                const generationContext = await hydrateNodeGenerationContext(
+-                    buildProductGenerationContext(nodeId, nodesRef.current, connectionsRef.current,
+-                        editingTextNode ? t("canvas.projectPage.editTextPrompt", { source: sourceTextContent, prompt }) : prompt, variantExecution),
+-                );
++                const inputContext = buildProductGenerationContext(nodeId, nodesRef.current, connectionsRef.current,
++                    editingTextNode ? t("canvas.projectPage.editTextPrompt", { source: sourceTextContent, prompt }) : prompt, variantExecution);
++                if (mode === "image") assertImageReferenceLimit(imageGenerationReferences(sourceNode, inputContext.referenceImages, overwriteExisting));
++                const generationContext = await hydrateNodeGenerationContext(inputContext);
+                 const effectivePrompt = generationContext.prompt.trim();
+                 if (runController.signal.aborted) return;
+                 if (!effectivePrompt && (mode === "text" || mode === "audio")) return;
+@@ -2423,11 +2426,7 @@ function InfiniteCanvasPage() {
+                     const isImageNode = sourceNode?.type === CanvasNodeType.Image;
+                     const isEmptyImageNode = isImageNode && !sourceNode?.metadata?.content;
+                     const reuseImageNode = isImageNode && (overwriteExisting || isEmptyImageNode);
+-                    const sourceReference =
+-                        isImageNode && sourceNode?.metadata?.content && !overwriteExisting
+-                            ? [{ id: sourceNode.id, name: `${sourceNode.title || sourceNode.id}.png`, type: sourceNode.metadata.mimeType || "image/png", dataUrl: sourceNode.metadata.content, storageKey: sourceNode.metadata.storageKey }]
+-                            : [];
+-                    const referenceImages = [...new Map([...sourceReference, ...generationContext.referenceImages].map((image) => [image.id, image])).values()];
++                    const referenceImages = imageGenerationReferences(sourceNode, generationContext.referenceImages, overwriteExisting);
+                     const generationType = referenceImages.length ? ("edit" as const) : ("generation" as const);
+                     const generationMetadata = { ...buildImageGenerationMetadata(generationType, generationConfig, count, referenceImages), ...generationChannel,
+                         ...(variantExecution ? { productVariant: variantExecution.snapshot } : {}) };

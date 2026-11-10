@@ -35,6 +35,23 @@ const results = await load('扩展功能/媒体交付/图片结果回写.ts', {
     '@/lib/canvas/canvas-node-factory': factory, '@/types/canvas': types,
 });
 const normalize = value => JSON.parse(JSON.stringify(value));
+test('变体结果完成和重试保留统一显示宽度，横竖比例及原始像素元数据不变', () => {
+    const node = { id: 'variant', type: 'image', title: 'variant-1', width: 340, height: 340,
+        position: { x: 1000, y: 300 }, metadata: { generationBatchId: 'batch', productVariant: { id: 'red' },
+            images: [{ id: 'slot', status: 'loading' }] } };
+    for (const [width, height] of [[1800, 2400], [800, 500]]) {
+        const input = { slotId: 'slot', uploaded: { url: 'local-image', storageKey: 'image:result', width, height, bytes: 100, mimeType: 'image/png' },
+            receipt: { taskId: 'task', responseHash: 'hash' } };
+        const applied = results.applyBatchImageResult(node, input);
+        const retried = results.applyRetriedImageResult(node, input, { imageId: 'slot', prompt: 'original', generationMetadata: {} });
+        for (const item of [applied, retried]) {
+            assert.equal(item.width, 340);
+            assert.equal(item.height, 340 * height / width);
+            assert.equal(item.position.x, node.position.x);
+            assert.deepEqual([item.metadata.naturalWidth, item.metadata.naturalHeight], [width, height]);
+        }
+    }
+});
 for (const sample of samples) test('与拆分前原回调一致：' + sample.名称, () => {
     const node = structuredClone(sample.原节点), before = structuredClone(node);
     const input = { slotId: sample.槽位, uploaded: sample.上传结果, receipt: sample.回执, requestedSize: sample.图片.deliverySize, upstreamSize: sample.图片.upstreamSize };
@@ -106,6 +123,32 @@ test('蒙版与多角度结果保持原卡片边界，保存原图交付图编�
     assert.equal(result.metadata.deliveryStorageKey, 'image:交付');
     assert.deepEqual(result.metadata.gatewayGenerationReceipts.filter(item => item.taskId === 'task'), [request.receipt]);
     assert.deepEqual(api.order, ['upload', 'apply', 'save']);
+});
+
+test('一键超人首次和重试都优先采用保存的原图尺寸，拒绝比例不符的结果', async () => {
+    for (const mode of ['tool', 'retry']) {
+        const api = await fixture();
+        api.port.nodesRef.current[0].metadata.imageSuperSourceSize = '1086x1448';
+        const request = { ...api.request, mode, prompt: '换语言', generationMetadata: { generationType: 'edit' }, requestedSize: '1024x1024' };
+        await assert.rejects(api.run(request), /比例与原图 1086x1448 不同/);
+        assert.deepEqual(api.targets, ['1086x1448']);
+        assert.deepEqual(api.order, ['upload']);
+        assert.equal(api.counts().saves, 0);
+        assert.deepEqual(api.cleaned, ['image:交付', 'image:原图']);
+    }
+});
+
+test('一键超人结果像素与原图一致时正常回写和保存', async () => {
+    const api = await fixture();
+    const [width, height] = [samples[0].上传结果.width, samples[0].上传结果.height];
+    const exactSize = `${width}x${height}`;
+    api.port.nodesRef.current[0].metadata.imageSuperSourceSize = exactSize;
+    const request = { ...api.request, mode: 'tool', prompt: '换颜色', generationMetadata: { generationType: 'edit' }, requestedSize: '1024x1024' };
+    await api.run(request);
+    assert.deepEqual(api.targets, [exactSize]);
+    assert.equal(api.port.nodesRef.current[0].metadata.imageSuperSourceSize, exactSize);
+    assert.equal(api.port.nodesRef.current[0].metadata.requestedSize, exactSize);
+    assert.equal(api.counts().saves, 1);
 });
 
 test('结果卡、槽位缺失或任务已更换时，落盘前停止且不保存', async () => {

@@ -110,7 +110,7 @@ test('在线更新日志沿用逐条分类标签，发布身份采用服务端�
         id => { assert.ok(Object.hasOwn(dependencies, id), id); return dependencies[id]; }, module, module.exports, localReleases);
     const render = notes => {
         stateIndex = 0;
-        status = { latest: { version: '2.0.0-beta.22', publishedAt: '2026-11-02T04:00:00Z', notes } };
+        status = { preferences: { developerMode: true }, latest: { version: '2.0.0-beta.22', publishedAt: '2026-11-02T04:00:00Z', notes } };
         return module.exports.useVersionCheck().releases;
     };
     const items = ['新增', '优化', '调整', '修复', '文档'].map(type => ({ type, content: `${type}对应的一项用户可见变化。` }));
@@ -121,5 +121,39 @@ test('在线更新日志沿用逐条分类标签，发布身份采用服务端�
     assert.deepEqual(render(legacy)[0].items, [{ type: '更新', content: legacy }]);
     assert.deepEqual(render('')[0].items, [{ type: '更新', content: '暂无更新说明' }]);
     status = null; stateIndex = 0;
-    assert.deepEqual(module.exports.useVersionCheck().releases, localReleases);
+    assert.deepEqual(module.exports.useVersionCheck().releases, [localReleases[1]]);
+});
+
+test('Beta历史跟随已保存的开发者模式，关闭及尚未读取时隐藏，重新开启恢复且不改当前版本', () => {
+    const localReleases = [
+        { version: '2.1.0-beta.2', date: '2026-11-08', items: [{ type: '新增', content: 'Beta说明' }] },
+        { version: '2.0.0', date: '2026-11-07', items: [{ type: '修复', content: '正式说明' }] },
+        { version: 'v1.9.0-beta+build.7', date: '2026-11-06', items: [{ type: '修复', content: '带元数据的Beta说明' }] },
+        { version: '1.8.0+beta.docs', date: '2026-11-05', items: [{ type: '文档', content: '正式版构建元数据不是Beta' }] },
+    ];
+    const before = structuredClone(localReleases);
+    let status = null, stateIndex = 0;
+    const dependencies = {
+        react: { useCallback: callback => callback, useMemo: callback => callback(), useState: initial => [stateIndex++ === 0 ? status : initial, () => {}] },
+        '@/扩展功能/产品/产品界面边界': { useProductActive: () => true },
+        antd: { App: { useApp: () => ({ message: {} }) } }, '@/constant/env': { APP_VERSION: '2.1.0-beta.2' },
+        '@/扩展功能/软件更新/软件更新客户端': { updateRequest: () => assert.fail('过滤历史不应发出请求'), updateMessages: {} },
+        '@/lib/release': releaseModule.exports, '@/扩展功能/主题/可见页面轮询': { useVisiblePolling() {} },
+    };
+    const source = readFileSync(new URL('../.运行/3100源/画布副本/web/src/hooks/use-version-check.ts', import.meta.url), 'utf8');
+    const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+    const module = { exports: {} };
+    new Function('require', 'module', 'exports', '__APP_RELEASES__', code)(
+        id => { assert.ok(Object.hasOwn(dependencies, id), id); return dependencies[id]; }, module, module.exports, localReleases);
+    const render = value => { status = value; stateIndex = 0; return module.exports.useVersionCheck(); };
+    const stable = [localReleases[1], localReleases[3]];
+    assert.deepEqual(render(null).releases, stable);
+    for (const developerMode of [false, true, false, true]) {
+        const value = render({ currentVersion: '2.1.0-beta.2', preferences: { developerMode },
+            latest: { version: '2.1.0-beta.2', publishedAt: '2026-11-08T00:00:00Z', notes: '+ [新增] 在线Beta说明' } });
+        assert.equal(value.currentVersion, '2.1.0-beta.2');
+        assert.deepEqual(value.releases.map(item => item.version), (developerMode ? localReleases : stable).map(item => item.version));
+        if (developerMode) assert.equal(value.releases[0].items[0].content, '在线Beta说明');
+    }
+    assert.deepEqual(localReleases, before, '切换只过滤展示，不删除离线Beta历史');
 });

@@ -102,13 +102,19 @@ export function createLocalAuthorizationGateway({ origin, dataURL, controller, c
             page.port.initialize();
             json(200, result); return true;
           }
-          requireValue(['initialize', 'renew', 'reconnect', 'close'].includes(value?.operation) && exactKeys(value, ['renew', 'reconnect'].includes(value.operation) ? ['operation', 'session'] : ['operation']), 'invalid_authorization_command', '会话操作格式无效。');
+          const sessionOperation = ['renew', 'reconnect'].includes(value?.operation);
+          const reconnectShape = value?.operation === 'reconnect' &&
+            (exactKeys(value, ['operation', 'session']) || exactKeys(value, ['operation', 'session', 'reason'])) &&
+            (value.reason === undefined || ['session_denied', 'authorization_connection_failed'].includes(value.reason));
+          requireValue(['initialize', 'renew', 'reconnect', 'close'].includes(value?.operation) &&
+            (value.operation === 'reconnect' ? reconnectShape : exactKeys(value, sessionOperation ? ['operation', 'session'] : ['operation'])),
+            'invalid_authorization_command', '会话操作格式无效。');
           let session = null;
           if (value.operation === 'initialize') session = page.port.initialize();
           if (value.operation === 'renew') session = page.port.renew(value.session);
           if (value.operation === 'reconnect') {
             requireValue(typeof page.port.reconnect === 'function', 'reconnect_unavailable', '当前本机服务不支持保留页面重新连接。', 503);
-            session = page.port.reconnect(value.session);
+            session = page.port.reconnect(value.session, { reason: value.reason });
           }
           if (value.operation === 'close') { page.port.close(); pages.delete(digest(capability)); }
           json(200, { protocol: AUTHORIZATION_PROTOCOL, session });

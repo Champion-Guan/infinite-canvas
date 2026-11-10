@@ -325,7 +325,10 @@ test('新历史模块Hook调用顺序及依赖检查通过', () => {
 });
 
 test('导入日期规范化兼容旧毫秒值，非法时间在写媒体和画布前拒绝', async () => {
-    const { prepareCanvasExport } = await load('../画布导入/画布导入数据.ts', { nanoid: { nanoid: () => 'new-key' } });
+    const portableMedia = await load('../画布导入/便携媒体引用.ts', {});
+    const { prepareCanvasExport } = await load('../画布导入/画布导入数据.ts', {
+        nanoid: { nanoid: () => 'new-key' }, './便携媒体引用': portableMedia,
+    });
     const project = { title: '验收画布', nodes: [], connections: [], createdAt: 1792674000000, updatedAt: '2026-10-22T13:00:00.000Z' };
     const wrap = item => ({ app: 'infinite-canvas', version: 3, projects: [{ project: item, files: [] }] });
     const result = prepareCanvasExport(wrap(project), new Map());

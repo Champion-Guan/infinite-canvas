@@ -1,4 +1,4 @@
-import { WILDBERRIES_PLATFORM, productPlatformRules, type ProductParameterMetadata } from "./旧版参数规则";
+import { WILDBERRIES_IMAGE_COUNTS, WILDBERRIES_PLATFORM, productPlatformRules, type ProductParameterMetadata } from "./旧版参数规则";
 import type { ProductImagePlan } from "./商品提示词规则";
 import { productImageLanguageRequirement } from "./商品图片语言";
 
@@ -18,11 +18,13 @@ export function productPlanningRequirements(metadata: ProductParameterMetadata) 
         } : null,
         channelRules: productPlatformRules({ ...metadata, productPlatform: platform }),
         production: platform === WILDBERRIES_PLATFORM ? {
-            mainAndCarousel: { width: 1800, height: 2400, format: "png", maxMB: 10, overlayText: "as-needed", promotionalLabels: false },
-            rich: { required: true, width: 800, height: 500, format: "png", maxMB: 5, video: false },
+            mainAndCarousel: { count: WILDBERRIES_IMAGE_COUNTS.main + WILDBERRIES_IMAGE_COUNTS.carousel,
+                mainCount: WILDBERRIES_IMAGE_COUNTS.main, carouselCount: WILDBERRIES_IMAGE_COUNTS.carousel,
+                width: 1800, height: 2400, format: "png", maxMB: 10, overlayText: "as-needed", promotionalLabels: false },
+            rich: { required: true, count: WILDBERRIES_IMAGE_COUNTS.rich, width: 800, height: 500, format: "png", maxMB: 5, video: false },
             main: "完整展示实际销售商品或套装；细节图可按需要展示局部，不误导整体结构和数量。",
         } : null,
-        instructions: "根据商品事实智能决定图片类型和数量。未给出的渠道规格不得套用其他平台规则；必要制作假设列入 assumptions。每个变体使用其专属照片与事实，共用图片分工和风格，不能混用颜色、尺寸、数量或款式。输出格式及文件大小需要导出后检查。",
+        instructions: "本次任务的 production 如明确规定图片分类与数量，必须按规定输出完整方案，每个选中变体沿用同一套图片分工；否则根据商品事实智能决定图片类型和数量。未给出的渠道规格不得套用其他平台规则；必要制作假设列入 assumptions。每个变体使用其专属照片与事实，共用图片分工和风格，不能混用颜色、尺寸、数量或款式。输出格式及文件大小需要导出后检查。",
     };
 }
 
@@ -35,5 +37,11 @@ export function validateProductPlanRequirements(plan: ProductImagePlan, metadata
         if (image.delivery.width !== expected[0] || image.delivery.height !== expected[1]
             || image.delivery.format !== "png" || image.delivery.maxMB !== expected[2])
             throw Error(`“${image.name}”不符合本次任务提供的交付要求，请重新策划。`);
+    }
+    const counts = { main: 0, carousel: 0, rich: 0 };
+    for (const image of plan.images) counts[image.kind]++;
+    if (Object.entries(WILDBERRIES_IMAGE_COUNTS).some(([kind, count]) => counts[kind as keyof typeof counts] !== count)) {
+        const { main, carousel, rich } = WILDBERRIES_IMAGE_COUNTS;
+        throw Error(`本次 Wildberries 图片数量不符合要求：主图${main}张、轮播图${carousel}张（共${main + carousel}张），另含富内容${rich}张，共${main + carousel + rich}张；原有卡片已保留，请重新策划。`);
     }
 }

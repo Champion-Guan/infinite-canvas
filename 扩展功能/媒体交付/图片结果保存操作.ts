@@ -40,10 +40,16 @@ export function useCanvasImageResults({ projectId, nodesRef, restoredProjectIdRe
             if (task && task.taskId !== request.receipt.taskId) throw Error("图片槽位已开始新任务，旧响应保留在任务账本。");
         };
         assertTarget();
+        const exactSize = nodesRef.current.find(node => node.id === request.nodeId)?.metadata?.imageSuperSourceSize;
+        const targetSize = exactSize || request.image.deliverySize || request.requestedSize;
         const uploaded = await uploadGeneratedImage(request.image.dataUrl, {
-            signal: request.signal, targetSize: request.image.deliverySize || request.requestedSize,
+            signal: request.signal, targetSize,
         });
-        try { assertTarget(); }
+        try {
+            assertTarget();
+            if (exactSize && `${uploaded.width}x${uploaded.height}` !== exactSize)
+                throw Error(`上游返回的图片比例与原图 ${exactSize} 不同，未采用该结果；原图已保留，请重试。`);
+        }
         catch (error) {
             // 保存期间原目标消失时，只回收本次上传尚未被节点引用的文件。
             await deleteStoredImages([uploaded.storageKey, uploaded.originalStorageKey].filter((key): key is string => Boolean(key)));
@@ -51,7 +57,7 @@ export function useCanvasImageResults({ projectId, nodesRef, restoredProjectIdRe
         }
         const result: ImageResult = {
             slotId: request.slotId, uploaded, receipt: request.receipt,
-            requestedSize: request.image.deliverySize || request.requestedSize, upstreamSize: request.image.upstreamSize,
+            requestedSize: targetSize, upstreamSize: request.image.upstreamSize,
             channel: request.image.channel, channelId: request.image.channelId,
             model: request.image.model, transport: request.image.transport,
         };

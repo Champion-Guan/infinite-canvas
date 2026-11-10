@@ -1,0 +1,18 @@
+diff --git a/web/src/components/canvas/canvas-image-toolbar-settings-modal.tsx b/web/src/components/canvas/canvas-image-toolbar-settings-modal.tsx
+index 602ce4b..cc4f2d2 100644
+--- a/web/src/components/canvas/canvas-image-toolbar-settings-modal.tsx
++++ b/web/src/components/canvas/canvas-image-toolbar-settings-modal.tsx
+@@ -206,10 +206,10 @@ export function ImageToolSettingsModal({
+                 >
+                     <Checkbox.Group value={selectedIds} className="grid w-full gap-3 md:grid-cols-3" onChange={(values) => updateSelectedTools(values as ImageQuickToolId[])}>
+                         {tools.map((tool) => (
+-                            <Checkbox key={tool.id} value={tool.id} className="m-0">
+-                                <span className="inline-flex items-center gap-2">
++                            <Checkbox key={tool.id} value={tool.id} className="m-0" style={{ display: "inline-flex", alignItems: "center" }}>
++                                <span style={{ display: "inline-flex", alignItems: "center", gap: 8, verticalAlign: "middle" }}>
+                                     {tool.icon}
+-                                    {tool.label}
++                                    <span>{tool.label}</span>
+                                 </span>
+                             </Checkbox>
+                         ))}

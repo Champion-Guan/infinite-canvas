@@ -1,0 +1,28 @@
+diff --git a/web/src/components/canvas/canvas-node-hover-toolbar.tsx b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+index 73f063f..5cf8ca1 100644
+--- a/web/src/components/canvas/canvas-node-hover-toolbar.tsx
++++ b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+@@ -1,4 +1,5 @@
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
++import { nodeToolbarTop } from "@/扩展功能/画布交互/节点工具栏定位";
+ import { ImageSuperMenu } from "@/扩展功能/画布生成/一键超人菜单";
+ import type { ImageSuperAction } from "@/扩展功能/画布生成/一键超人规则";
+ import { sqlitePreferences } from "@/扩展功能/本机存储/上游浏览器存储桥";
+@@ -129,7 +130,7 @@ export function CanvasNodeHoverToolbar({
+ 
+     const activeNode = node;
+     const left = viewport.x + (node.position.x + node.width / 2) * viewport.k;
+-    const top = viewport.y + node.position.y * viewport.k - 14;
++    const top = nodeToolbarTop(viewport.y + node.position.y * viewport.k);
+     const isImage = node.type === CanvasNodeType.Image;
+     const isVideo = node.type === CanvasNodeType.Video;
+     const isAudio = node.type === CanvasNodeType.Audio;
+@@ -208,7 +209,7 @@ export function CanvasNodeHoverToolbar({
+     return (
+         <>
+             <div
+-                className="pointer-events-auto absolute z-[70] flex h-12 -translate-x-1/2 -translate-y-full items-center overflow-visible rounded-[18px] border border-black/10 bg-white text-[15px] text-[#242529] shadow-[0_8px_28px_rgba(15,23,42,.12)]"
++                className="pointer-events-auto absolute z-[70] flex h-12 -translate-x-1/2 items-center overflow-visible rounded-[18px] border border-black/10 bg-white text-[15px] text-[#242529] shadow-[0_8px_28px_rgba(15,23,42,.12)]"
+                 data-node-toolbar={node.id}
+                 style={{ left, top }}
+                 onMouseEnter={() => onKeep(node.id)}

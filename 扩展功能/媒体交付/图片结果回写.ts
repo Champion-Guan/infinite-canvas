@@ -58,6 +58,12 @@ function deliveryDetails(result: ImageResult) {
     return { requestedSize: result.requestedSize, upstreamSize: result.upstreamSize, deliverySize: `${result.uploaded.width}x${result.uploaded.height}` };
 }
 
+function resultDisplaySize(node: CanvasNodeData, result: ImageResult, width: number, height: number) {
+    if ((node.metadata as CanvasNodeMetadata & { productVariant?: unknown })?.productVariant)
+        return { width: node.width, height: node.width * result.uploaded.height / result.uploaded.width };
+    return fitNodeSize(result.uploaded.width, result.uploaded.height, width, height);
+}
+
 export function applyBatchImageResult(node: CanvasNodeData, result: ImageResult): CanvasNodeData {
     const metadata = {
         ...node.metadata, images: resultImages(node, result) || [], status: "success" as const,
@@ -67,7 +73,7 @@ export function applyBatchImageResult(node: CanvasNodeData, result: ImageResult)
     // 并发返回的后续图片只更新所属槽位，第一张成功图片继续作为主图。
     if (node.metadata?.primaryImageId) return { ...node, metadata };
     const bounds = NODE_DEFAULT_SIZE[CanvasNodeType.Image];
-    const size = fitNodeSize(result.uploaded.width, result.uploaded.height, bounds.width, bounds.height);
+    const size = resultDisplaySize(node, result, bounds.width, bounds.height);
     return {
         ...node, ...size,
         position: resizedResultPosition(node, size),
@@ -83,7 +89,7 @@ export function applyRetriedImageResult(node: CanvasNodeData, result: ImageResul
     const makePrimary = !options.imageId || !node.metadata?.content;
     const bounds = NODE_DEFAULT_SIZE[CanvasNodeType.Image];
     const size = options.imageId && node.metadata?.freeResize ? { width: node.width, height: node.height }
-        : fitNodeSize(result.uploaded.width, result.uploaded.height, bounds.width, bounds.height);
+        : resultDisplaySize(node, result, bounds.width, bounds.height);
     return {
         ...node, type: CanvasNodeType.Image,
         ...(makePrimary ? { ...size, ...(options.imageId ? { position: resizedResultPosition(node, size) } : {}) } : {}),
@@ -99,7 +105,7 @@ export function applyRetriedImageResult(node: CanvasNodeData, result: ImageResul
 }
 
 export function applyToolImageResult(node: CanvasNodeData, result: ImageResult, options: { prompt: string; generationMetadata: CanvasNodeMetadata }): CanvasNodeData {
-    const size = fitNodeSize(result.uploaded.width, result.uploaded.height, node.width, node.height);
+    const size = resultDisplaySize(node, result, node.width, node.height);
     return { ...node, ...size, metadata: { ...node.metadata, ...options.generationMetadata, ...resultChannelFields(result),
         ...imageMetadata(result.uploaded, deliveryDetails(result)), prompt: options.prompt,
         errorDetails: undefined, gatewayGenerationReceipts: resultReceipts(node, result.receipt),

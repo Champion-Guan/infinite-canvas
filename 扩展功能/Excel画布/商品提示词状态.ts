@@ -2,6 +2,7 @@ import type { CanvasNodeData } from "@/types/canvas";
 import { productVariants, type ProductVariantMetadata } from "./产品变体规则";
 import { isPromptReady, productPlanningChangeDetails, productPromptTranslationError, promptDocument, promptPair,
     validateEnglishPrompt, type ProductPromptMetadata } from "./商品提示词规则";
+import { compileConfirmationPair, validateConfirmationImages } from "./商品待确认提示词";
 
 export function productPromptProblems(node: CanvasNodeData, parameter?: CanvasNodeData | null, variantId?: string, cache?: Map<string, string[]>) {
     const doc = promptDocument(node);
@@ -19,11 +20,19 @@ export function productPromptProblems(node: CanvasNodeData, parameter?: CanvasNo
     if (reasons.length) return reasons;
     if (doc.variantId && !productVariants(parameter.metadata).some(variant => variant.id === doc.variantId))
         return [`变体“${doc.variantName || doc.variantId}”已移除，请恢复该变体，或重新使用“AI写提示词”更新原卡片。`];
-    const pair = promptPair(doc, variantId);
-    if (!isPromptReady(pair)) return [pair?.translationError
-        ? `英文同步失败：${productPromptTranslationError(pair.translationError)}请重试同步英文。`
-        : "英文提示词尚未同步，请完成同步后再生成。"];
-    try { validateEnglishPrompt(pair!.english); } catch (error) { return [error instanceof Error ? error.message : "英文提示词不完整，请重新填写。"]; }
+    const selected = variantId || doc.variantId ? [variantId || doc.variantId]
+        : Object.keys(doc.variants).length ? productVariants(parameter.metadata).filter(variant => variant.enabled).map(variant => variant.id) : [undefined];
+    for (const id of selected) {
+        const pair = promptPair(doc, id);
+        if (!isPromptReady(pair)) return [pair?.translationError
+            ? `英文同步失败：${productPromptTranslationError(pair.translationError)}请重试同步英文。`
+            : "英文提示词尚未同步，请完成同步后再生成。"];
+        try {
+            validateConfirmationImages(parameter.metadata || {}, doc);
+            const resolved = compileConfirmationPair(pair!, parameter.metadata, doc.key, id);
+            validateEnglishPrompt(resolved.pair.english);
+        } catch (error) { return [error instanceof Error ? error.message : "英文提示词不完整，请重新填写。"]; }
+    }
     return [];
 }
 

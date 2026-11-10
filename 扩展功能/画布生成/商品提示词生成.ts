@@ -7,6 +7,7 @@ import type { ProductVariantMetadata } from "../Excel画布/产品变体规则";
 import { generationProductParameters, variantGenerationContext, variantInputPrompt, variantScopedNodes, type ProductVariantExecution } from "./产品变体生成";
 import { productVariants, variantImages } from "../Excel画布/产品变体规则";
 import { productImageLanguageRequirement } from "../Excel画布/商品图片语言";
+import { compileConfirmationPair, confirmationImageReferences } from "../Excel画布/商品待确认提示词";
 
 export function productPromptInputSummary(nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[],
     fallback: { textCount: number; imageCount: number; videoCount: number; audioCount: number }) {
@@ -22,6 +23,9 @@ export function productPromptInputSummary(nodeId: string, nodes: CanvasNodeData[
         const variant = productVariants(metadata).find(item => item.id === doc.variantId);
         const photos = variant ? variantImages(metadata, variant) : productMainImages(metadata);
         for (const image of photos) ids.add(image.id);
+        const variants = doc.variantId ? [doc.variantId] : productVariants(metadata).filter(item => item.enabled).map(item => item.id);
+        for (const variantId of variants.length ? variants : [undefined])
+            for (const image of confirmationImageReferences(metadata, doc, variantId)) ids.add(image.id);
     }
     return { ...fallback, imageCount: Math.max(ids.size, fallback.imageCount) };
 }
@@ -33,9 +37,12 @@ export function buildProductGenerationContext(nodeId: string, nodes: CanvasNodeD
         variantScopedNodes(nodes, execution), connections, variantInputPrompt(prompt, execution)), execution);
     const scoped = variantScopedNodes(nodes, execution).map(node => {
         const doc = promptDocument(node);
-        return doc && prompts.some(input => input.id === node.id) ? { ...node, metadata: {
-            ...node.metadata, productImagePrompt: { ...doc, prompt: promptPair(doc, execution?.snapshot.id)! },
-        } as ProductPromptMetadata } : node;
+        if (!doc || !prompts.some(input => input.id === node.id)) return node;
+        const parameter = nodes.find(item => item.id === doc.parameterId);
+        const selected = execution?.snapshot.id || doc.variantId;
+        const pair = compileConfirmationPair(promptPair(doc, selected)!, parameter?.metadata, doc.key, selected).pair;
+        return { ...node, metadata: { ...node.metadata, productImagePrompt: { ...doc, prompt: pair,
+            ...(selected ? { variants: { ...doc.variants, [selected]: pair } } : {}) } } as ProductPromptMetadata };
     });
     const inputs = buildNodeGenerationInputs(nodeId, scoped, connections);
     const composer = nodes.find(node => node.id === nodeId)?.metadata?.composerContent?.trim();
@@ -48,7 +55,11 @@ export function buildProductGenerationContext(nodeId: string, nodes: CanvasNodeD
         return input ? flatten([input]).map(item => item.text || item.title).join("\n\n") : "";
     }) : [prompt, ...resources.flatMap(input => input.text ? [input.text] : [])].filter(Boolean).join("\n\n");
     const parameter = scoped.find(node => node.id === promptDocument(prompts[0])!.parameterId)!;
-    const photos = productMainImages(parameter.metadata as ProductVariantMetadata).map(image => ({
+    const pendingPhotos = prompts.flatMap(input => {
+        const doc = promptDocument(input)!;
+        return confirmationImageReferences(parameter.metadata || {}, doc, execution?.snapshot.id || doc.variantId);
+    });
+    const photos = [...new Map([...productMainImages(parameter.metadata as ProductVariantMetadata), ...pendingPhotos].map(image => [image.id, image])).values()].map(image => ({
         id: image.id, name: image.name, storageKey: image.storageKey, dataUrl: image.url || "", type: image.mimeType || "image/png",
     }));
     // 变体只使用其独有照片和共用照片，不混入其他销售款；提示词保持完整英文。

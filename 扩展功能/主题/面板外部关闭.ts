@@ -22,7 +22,13 @@ export function createOutsidePanelRegistry(host: EventTarget | null) {
         }
         const element = target instanceof Element ? target : target.parentElement;
         // 未接入的原生/Radix选项仍由各自组件处理，不能在选择前关掉父面板。
-        if (!keep.size && element?.closest(nestedOptions)) return;
+        if (!keep.size && element?.closest(nestedOptions)) {
+            const backdrop = element.closest(".ant-modal-wrap,.ant-modal-mask");
+            const ownBackdrop = backdrop && [...layers].some(layer => layer.modal
+                && layer.panel()?.closest(".ant-modal-root")?.contains(backdrop));
+            // 当前注册弹窗自己的遮罩是外部点击；另一个原生弹窗和选项Portal仍保留。
+            if (!ownBackdrop || element.closest(".ant-modal")) return;
+        }
         for (const layer of [...layers].reverse()) if (!keep.has(layer)) {
             layer.dismiss(event);
             if (layer.modal) break;

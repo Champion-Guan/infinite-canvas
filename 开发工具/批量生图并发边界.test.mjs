@@ -33,6 +33,8 @@ async function load() {
             '../产品配置/模型配置门禁': { ensureModelConfigured: () => true },
             '../画布布局/生成配置水平排布': { placeAlignedGenerationConfig: (_source, node) => node },
             './产品变体生成': variants.load('画布生成/产品变体生成.ts'),
+            './商品提示词生成': variants.load('画布生成/商品提示词生成.ts'),
+            './参考图数量限制': variants.load('画布生成/参考图数量限制.ts'),
             '../Excel画布/商品提示词规则': variants.load('Excel画布/商品提示词规则.ts'),
             '../Excel画布/商品提示词阻止反馈': variants.load('Excel画布/商品提示词阻止反馈.ts'),
             '../Excel画布/商品提示词画布': variants.load('Excel画布/商品提示词画布.ts'),

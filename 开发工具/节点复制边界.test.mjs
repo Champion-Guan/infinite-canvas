@@ -20,7 +20,8 @@ async function load(name, dependencies = {}) {
 }
 const themes = await load('Excel画布/旧版主题翻译.js');
 const variables = await load('提示词/变量使用规则.ts');
-const rules = await load('Excel画布/旧版参数规则.ts', { './旧版主题翻译.js': themes, '../提示词/变量使用规则': variables });
+const confirmationRules = await load('Excel画布/商品待确认规则.ts');
+const rules = await load('Excel画布/旧版参数规则.ts', { './旧版主题翻译.js': themes, '../提示词/变量使用规则': variables, './商品待确认规则': confirmationRules });
 const context = await load('Excel画布/Excel卡片上下文.ts', { './旧版参数规则': rules });
 const titles = await load('Excel画布/旧版最终提示词标题.ts');
 const parameterLinks = await load('Excel画布/产品参数联动.ts', { '../提示词/变量使用规则': variables, './旧版最终提示词标题': titles, './旧版参数规则': rules });

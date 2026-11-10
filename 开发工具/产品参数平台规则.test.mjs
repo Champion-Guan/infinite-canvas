@@ -16,19 +16,20 @@ async function load(file, dependencies = {}) {
 }
 const themes = await load('扩展功能/Excel画布/旧版主题翻译.js');
 const variables = await load('扩展功能/提示词/变量使用规则.ts');
-const rules = await load('扩展功能/Excel画布/旧版参数规则.ts', { './旧版主题翻译.js': themes, '../提示词/变量使用规则': variables });
+const confirmationRules = await load('扩展功能/Excel画布/商品待确认规则.ts');
+const rules = await load('扩展功能/Excel画布/旧版参数规则.ts', { './旧版主题翻译.js': themes, '../提示词/变量使用规则': variables, './商品待确认规则': confirmationRules });
 
 test('新产品参数卡默认 Wildberries 与俄文，并带入对应规则', () => {
     const metadata = rules.buildPromptVariablesMetadata();
     assert.equal(metadata.productPlatform, rules.WILDBERRIES_PLATFORM);
     assert.equal(metadata.productLanguage, rules.WILDBERRIES_LANGUAGE);
     assert.equal(metadata.productPlatformRules, [
-        '主图/轮播图：1800 x 2400 px ，3 : 4 ，PNG ，单张小于10MB 。',
-        '富内容：800 x 500 px ，PNG ，单张最大5MB 。',
+        '主图/轮播图：共11张（主图1张、轮播图10张），1800 x 2400 px ，3 : 4 ，PNG ，单张小于10MB 。',
+        '富内容：6张，800 x 500 px ，PNG ，单张最大5MB 。',
         '商品卡视频：3 : 4 ，MP4 ，小于50MB 。',
     ].join('\n'));
     const prompt = rules.productParameterSupplement(metadata);
-    assert.equal(prompt, `${metadata.productPlatformRules}\n\n富内容必须制作：800 x 500 px，PNG，单张最大5MB。`);
+    assert.equal(prompt, `${metadata.productPlatformRules}\n\n富内容必须制作6张：800 x 500 px，PNG，单张最大5MB。`);
 });
 
 test('已有参数卡的旧默认规则更新为新文案，保留用户自定义规则', () => {
@@ -38,6 +39,18 @@ test('已有参数卡的旧默认规则更新为新文案，保留用户自定�
         '富内容：仅图片，800×500，JPG/PNG，单张最大5MB。',
     ].join('\n') };
     assert.equal(rules.productPlatformRules(metadata), rules.WILDBERRIES_RULES_TEXT);
+    const previousDefaults = [
+        '主图/轮播图：1800 x 2400 px ，3 : 4 ，PNG ，单张小于10MB 。',
+        '富内容：800 x 500 px ，PNG ，单张最大5MB 。',
+        '商品卡视频：3 : 4 ，MP4 ，小于50MB 。',
+    ].join('\n');
+    assert.equal(rules.productPlatformRules({ ...metadata, productPlatformRules: previousDefaults }), rules.WILDBERRIES_RULES_TEXT);
+    const previousCounts = [
+        '主图/轮播图：共10张（主图1张、轮播图9张），1800 x 2400 px ，3 : 4 ，PNG ，单张小于10MB 。',
+        '富内容：6张，800 x 500 px ，PNG ，单张最大5MB 。',
+        '商品卡视频：3 : 4 ，MP4 ，小于50MB 。',
+    ].join('\n');
+    assert.equal(rules.productPlatformRules({ ...metadata, productPlatformRules: previousCounts }), rules.WILDBERRIES_RULES_TEXT);
     assert.equal(rules.productPlatformRules({ ...metadata, productPlatformRules: '自定义规则' }), '自定义规则');
 });
 
@@ -54,7 +67,7 @@ test('平台切换提供俄文或英文默认值，未指定不设置图片文�
 test('Wildberries 富内容始终必需，旧资料中的不需要不再注入；其他平台保留原选择', () => {
     const metadata = { productPlatform: 'Wildberries', productBrief: { nameCategory: '收纳包', richContent: '不需要' } };
     const prompt = rules.productParameterSupplement(metadata);
-    assert.match(prompt, /富内容必须制作：800 x 500 px，PNG，单张最大5MB/);
+    assert.match(prompt, /富内容必须制作6张：800 x 500 px，PNG，单张最大5MB/);
     assert.doesNotMatch(prompt, /富内容：不需要/);
     assert.match(rules.productParameterSupplement({ ...metadata, productPlatform: 'Ozon' }), /富内容：不需要/);
     assert.equal(metadata.productBrief.richContent, '不需要', '读取时应用平台要求，不覆盖其他平台的原选择');

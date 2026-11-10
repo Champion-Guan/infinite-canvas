@@ -152,8 +152,9 @@ test('客户端使用二进制请求和既有授权会话，响应不明不重�
   await assert.rejects(failed.convertHeic(new Blob([heic])), /未完成/); assert.equal(sent, 1);
 });
 
-test('有效 HEIC 实际通过系统转换，尺寸和原始字节保持，清理所有暂存', { skip: !process.env.GUAN_HEIC_TEST_FILE || process.platform !== 'darwin' }, async t => {
-  const original = await readFile(process.env.GUAN_HEIC_TEST_FILE);
+test('有效 HEIC 实际通过系统转换，尺寸和原始字节保持，清理所有暂存', { skip: process.platform !== 'darwin' }, async t => {
+  const source = process.env.GUAN_HEIC_TEST_FILE || new URL('./测试素材/HEIC真实样本.heic', import.meta.url);
+  const original = await readFile(source);
   const { converter, directory } = await fixture(t, { execute: promisify(execFile) });
   const result = await converter.convert(original);
   const output = join(directory, '验收.jpg'); await writeFile(output, result);
@@ -161,7 +162,7 @@ test('有效 HEIC 实际通过系统转换，尺寸和原始字节保持，清�
     const { stdout } = await promisify(execFile)('/usr/bin/sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', output]);
     assert.match(stdout, /pixelWidth: 5712/); assert.match(stdout, /pixelHeight: 4284/);
     assert.equal(result[0], 255); assert.equal(result[1], 216);
-    assert.deepEqual(await readFile(process.env.GUAN_HEIC_TEST_FILE), original);
+    assert.deepEqual(await readFile(source), original);
   } finally { await rm(output); }
   assert.deepEqual(await readdir(directory), []);
 });

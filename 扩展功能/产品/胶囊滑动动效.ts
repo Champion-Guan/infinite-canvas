@@ -7,6 +7,7 @@ type CapsuleMotionPort = {
   read(): CapsuleFrame;
   move(frame: CapsuleFrame): void;
   play(frames: CapsuleFrame[], duration: number): CapsulePlayback;
+  setMoving?(moving: boolean): void;
 };
 
 export function capsuleOverflowDirection(frame: CapsuleFrame | null, scrollLeft: number, viewportWidth: number) {
@@ -33,6 +34,7 @@ export function createCapsuleSlideMotion(port: CapsuleMotionPort) {
     revision++;
     active?.playback.cancel();
     active = null;
+    port.setMoving?.(false);
   };
   const moveTo = (next: CapsuleFrame, immediate = false) => {
     const start = port.read(), carried: CapsuleFrame = { x: 0, width: 0 };
@@ -69,13 +71,23 @@ export function createCapsuleSlideMotion(port: CapsuleMotionPort) {
     }
     samples[samples.length - 1] = next;
     if (!duration) { port.move(next); return; }
-    const playback = port.play(samples, duration);
+    let playback: CapsulePlayback;
+    try {
+      port.setMoving?.(true);
+      playback = port.play(samples, duration);
+    } catch {
+      port.move(next);
+      port.setMoving?.(false);
+      return;
+    }
     active = { playback, samples, duration };
-    void playback.finished.then(() => {
+    const settle = () => {
       if (revision !== token) return;
       port.move(next);
       stop();
-    }, () => {});
+    };
+    // 原生播放被外部取消时也要落到当前目标；旧播放的迟到取消不能覆盖新目标。
+    void playback.finished.then(settle, settle);
   };
   return { moveTo, stop, finish() { stop(); if (target) port.move(target); } };
 }
@@ -91,6 +103,9 @@ export function useCapsuleSlide(activeId: string, owner: string | null, ownershi
   const [offscreen, setOffscreen] = useState<ReturnType<typeof capsuleOverflowDirection>>(null);
   const reveal = useRef<(() => void) | null>(null);
   if (!movement.current) movement.current = createCapsuleSlideMotion({
+    setMoving: moving => {
+      if (navigation.current) navigation.current.dataset.capsuleSliding = String(moving);
+    },
     read: () => {
       const element = indicator.current!;
       const style = getComputedStyle(element);

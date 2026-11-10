@@ -7,6 +7,41 @@
   ],
   "文件": [
     {
+      "来源": "扩展功能/Excel画布/参数图片预览.tsx",
+      "目标": "画布副本/web/src/扩展功能/Excel画布/参数图片预览.tsx",
+      "原位置": "新增参数卡原图放大预览",
+      "类型": "前端",
+      "SHA256": "f643873f1bd907d0e53c66b835b1f6679d16d8ea0b243929c84da049b1eb484f"
+    },
+    {
+      "来源": "扩展功能/画布交互/节点工具栏定位.ts",
+      "目标": "画布副本/web/src/扩展功能/画布交互/节点工具栏定位.ts",
+      "原位置": "新增节点工具栏顶部可见定位规则",
+      "类型": "前端",
+      "SHA256": "598dc42ab0190ef6ec296776d4279e2716bdd63cbc8a60d1147349d718970c75"
+    },
+    {
+      "来源": "扩展功能/画布生成/一键超人规则.ts",
+      "目标": "画布副本/web/src/扩展功能/画布生成/一键超人规则.ts",
+      "原位置": "新增图片快捷编辑规则",
+      "类型": "前端",
+      "SHA256": "bec818f3a39d4737f62f2ea9fd9f3fd44dd2068e9c5c6a4d5459976c89c95f75"
+    },
+    {
+      "来源": "扩展功能/画布生成/一键超人菜单.tsx",
+      "目标": "画布副本/web/src/扩展功能/画布生成/一键超人菜单.tsx",
+      "原位置": "新增图片快捷编辑菜单",
+      "类型": "前端",
+      "SHA256": "e9d27fc22e9ca76ababe113cf7a212b0a11b5ef64e4b017b7f8aa8c09aa46c1c"
+    },
+    {
+      "来源": "扩展功能/画布生成/一键超人操作.ts",
+      "目标": "画布副本/web/src/扩展功能/画布生成/一键超人操作.ts",
+      "原位置": "新增图片快捷编辑生成操作",
+      "类型": "前端",
+      "SHA256": "41bccaa472bb91aeede343f182b0750ca5d09964fb2a3cf8dba25bc1cc0ad208"
+    },
+    {
       "来源": "扩展功能/画布生成/偏好模型规则.ts",
       "目标": "画布副本/web/src/扩展功能/画布生成/偏好模型规则.ts",
       "原位置": "新增偏好模型同步规则",
@@ -142,7 +177,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/Excel参数节点注册.tsx",
       "原SHA256": "93930db85b84648ce5b22147d127d736b2cfb100397f9fb76e2d9dd633b24613",
       "类型": "前端",
-      "SHA256": "245fd4bfeda4770434556a16ca023852d115360c1f8a07601d1229b029beb9a4"
+      "SHA256": "405efeba99466d0374b4191f46e107b8d37404d51016d439f4611ce29689fcad"
     },
     {
       "来源": "扩展功能/Excel画布/Excel参数记忆.ts",
@@ -286,7 +321,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/generation/原版图片协议.ts",
       "原SHA256": "ee632349971edae2ab5730e0d2b1d18035f38fbd975d11b1ef32746190acdd5c",
       "类型": "前端",
-      "SHA256": "a999cd71029b9e8f3d72756581a1e7341279e844275b513708a4bd7b1a8fb216"
+      "SHA256": "98818d0413edd0ed8bd7dc2a2e41b628177387e3004292cef16e3822ce6cc418"
     },
     {
       "来源": "扩展功能/画布生成/原画布图片调用.ts",
@@ -294,7 +329,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/generation/原画布图片调用.ts",
       "原SHA256": "eeff23c674c7e1c982eb2f120e6be6e0fe4005441db0b60bc22a3e1c7077e6cf",
       "类型": "前端",
-      "SHA256": "4d7ceb850865e6d7410aedc7999f6d9713fcb5711124ac6a3441dfebce0fc398"
+      "SHA256": "9a95f6698e795a0c2e8b39973ebf328be59b861327874ef05632eeebfbbf83f2"
     },
     {
       "来源": "扩展功能/画布生成/原画布文本调用.ts",
@@ -326,7 +361,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/generation/图片任务衔接.mjs",
       "原SHA256": "f5c95ebfdbce89144cdc5e5919183ddd252e51fbaa0ed7938fc8751fce6d1ed1",
       "类型": "前端",
-      "SHA256": "6f24e02fda18c576b1b08952ab79cdc5329ce8b00941c833f6c37190a2f91446"
+      "SHA256": "7a79a844bfe3ecd3b5016fc800adba6c943e527ab3420e6c59296ba4330aec6d"
     },
     {
       "来源": "扩展功能/画布生成/文本生成协议.ts",
@@ -342,7 +377,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/generation/生成任务客户端.mjs",
       "原SHA256": "a4e92558b09264d50b43d9fe731d54ccc1f51021b5d6cb7780c9072fdf3bedf2",
       "类型": "前端",
-      "SHA256": "e1283a9a46b32d9f005614d7d7687c5a6882d1838c342e500ed8ba1e4cebaf5c"
+      "SHA256": "414195971132778abf717ba676e0aea266853e06006b889fc869eb6e5e3f7b92"
     },
     {
       "来源": "扩展功能/生成任务/本机任务响应恢复.mjs",
@@ -676,7 +711,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/产品胶囊.module.css",
       "原SHA256": "81ab42f8966323d183c85f358a32325ca8002a9d6d3bd05729e1b1be44c30195",
       "类型": "前端",
-      "SHA256": "50133b348628afb2c9f6a557dcf60be7163a55c979157524bfeab27c950b938e"
+      "SHA256": "2dbc5eb7b3d823058c46bf74e5c6316fa36c9434ebe5e0e8cd092e1469319f00"
     },
     {
       "来源": "扩展功能/产品/产品规则.ts",
@@ -714,7 +749,7 @@
       "来源": "扩展功能/画布布局/画布整体排布.ts",
       "目标": "画布副本/web/src/扩展功能/画布布局/画布整体排布.ts",
       "类型": "前端",
-      "SHA256": "0f374c06594f8701d71b302204394bcbb9ead282d1ed7f9269c10beabe5c8ebc"
+      "SHA256": "3b5b941350c51842dadf0eba21ea94d7f45786488d4b907d517d882dc4840032"
     },
     {
       "来源": "扩展功能/画布布局/画布流程分组排布.ts",
@@ -825,7 +860,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/旧版参数卡片.tsx",
       "原SHA256": "96cbc9d83c8ba1d28aa5dedd9829f621c4d72f5ddbb54a703a7de9bb27e8f80e",
       "类型": "前端",
-      "SHA256": "2faed0a303785eabe29fa69c21165169bbb174c8bc227fcf670e003ae813a0e5"
+      "SHA256": "855ac857f3f133baaa9abce7035f719a8d9dc1e661a54ffcce39a3d6f09c1f62"
     },
     {
       "来源": "扩展功能/Excel画布/旧版参数规则.ts",
@@ -833,7 +868,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/旧版参数规则.ts",
       "原SHA256": "477cda087d68367e0bb81bec6b41c22923d77f303d7cfc0270531bbebc940cf7",
       "类型": "前端",
-      "SHA256": "24e150344584049143564628d3f23bf8e01e5c13518d23112c10cd1f99f7d01e"
+      "SHA256": "226d7c3321dcb388df2e6d4dc70b6fc895d186c3caf661cbbfafe80126be6c86"
     },
     {
       "来源": "扩展功能/Excel删除/旧版工作簿删除.js",
@@ -969,7 +1004,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/components/layout/config-software-updates.tsx",
       "原SHA256": "ea23272cddcb7651b63debcc4b6f08bd32046c9df038a8d7eb2e5004275a46e6",
       "类型": "前端",
-      "SHA256": "a8f5dbbf56f565620d0b7dd02257a5fcff2ad057a2fb69cdf1ac0cf091c89933"
+      "SHA256": "538a4404b41158a0b6598778f60ed27f988005b0a552b17125602b1d1d7001b6"
     },
     {
       "来源": "扩展功能/生成历史/生成历史页签.tsx",
@@ -1009,7 +1044,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/lib/canvas/画布内容导入.ts",
       "原SHA256": "09b310b314047c43bcfc0575cf7eecf717becbc0fa205389e133ca0b38849b1e",
       "类型": "前端",
-      "SHA256": "09b310b314047c43bcfc0575cf7eecf717becbc0fa205389e133ca0b38849b1e"
+      "SHA256": "d8fb5c53743b88953050c372decb90193709863d0654e8dbd9f26ff961e7dffa"
     },
     {
       "来源": "扩展功能/画布导入/画布导入.ts",
@@ -1025,7 +1060,14 @@
       "原位置": ".运行/3100源/画布副本/web/src/lib/canvas/canvas-import-data.ts",
       "原SHA256": "8be916c590fab84b16b8187d3422ac2fc089cf43eb6b8eea7f26f9a9e0437f00",
       "类型": "前端",
-      "SHA256": "d98fe98ea50567b7a3cf023283963fee67ae284f3090108e63ddecf159800b24"
+      "SHA256": "f72dca999bbda9b08c0ab6ef1fe4481db1cd7d41e1817748c03ec26f236dfbd8"
+    },
+    {
+      "来源": "扩展功能/画布导入/便携媒体引用.ts",
+      "目标": "画布副本/web/src/扩展功能/画布导入/便携媒体引用.ts",
+      "原位置": "跨电脑画布ZIP共用的稳定媒体引用转换",
+      "类型": "前端",
+      "SHA256": "daa9d5c8cbef848f7746a7496839a99f3d4ca9273b727101405d59140545441c"
     },
     {
       "来源": "扩展功能/媒体交付/生成图片来源.ts",
@@ -1033,7 +1075,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/lib/canvas/generated-image-source.ts",
       "原SHA256": "8b85b79ee8015915d5b2cec0841193dcd7ffd1ec4b3cfe19853b7de16d503470",
       "类型": "前端",
-      "SHA256": "abc82ed4297288a85848be061561ca83e5a1775d6e84fc5b72d8665e704d8c3c"
+      "SHA256": "2d5d9eafcd1c5159ab05288faf6530f4b5b447f072dd28a6627a6f4c95c49229"
     },
     {
       "来源": "扩展功能/画布迁移扩展/media-download.ts",
@@ -1169,7 +1211,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/lib/canvas/generated-image-names.js",
       "原SHA256": "5d7202721386daa17452ddd8915623d1e3e6ef8719a87a8b89b902d3598d8761",
       "类型": "前端",
-      "SHA256": "43245b7e384a44e70c788c78dd6ad7c7b0333cdd5e3926b6ceb7953461e441e8"
+      "SHA256": "11af38a4b0569d1074aa3984fbbb9b23f4357e2895109624b669dc27ff1c1399"
     },
     {
       "来源": "扩展功能/媒体交付/生成图片命名.d.ts",
@@ -1328,7 +1370,7 @@
       "原位置": ".运行/3100源/画布副本/扩展功能/生成任务/生成任务客户端.mjs",
       "原SHA256": "5b8e1b3ce0dbedd88f8eef40a043e2bbd36c25a8a68596ab437ad6e1c96b8271",
       "类型": "服务",
-      "SHA256": "e1283a9a46b32d9f005614d7d7687c5a6882d1838c342e500ed8ba1e4cebaf5c"
+      "SHA256": "414195971132778abf717ba676e0aea266853e06006b889fc869eb6e5e3f7b92"
     },
     {
       "来源": "扩展功能/生成任务/本机任务响应恢复.mjs",
@@ -1551,7 +1593,7 @@
       "原位置": ".运行/3100源/画布副本/扩展功能/软件更新/software-updates.mjs",
       "原SHA256": "31fb881528a914d90f0a04f1bfc65b869c2384b63577081a82eb55a8bc08b052",
       "类型": "服务",
-      "SHA256": "581b2784d8b246c05fc86053005edafb53fd0f7fbd773be3a163baaaca0d8db7"
+      "SHA256": "ce5bd7b717a4dcb1da754d369bb77cd06afe9edd766be7fc82da1c292d0c6297"
     },
     {
       "来源": "扩展功能/软件更新/stable-download.mjs",
@@ -1607,7 +1649,7 @@
       "原位置": ".运行/3100源/画布副本/扩展功能/软件更新/更新服务装配.mjs",
       "原SHA256": "3cef3ac1126e071479e35e69fc8e2e282609d3c127cd497b67e4413f4f0d1512",
       "类型": "服务",
-      "SHA256": "9b39109849f11cd29f53ff0414ad4fb21fa2f1d02b8ad9bdef5042b93927a6e3"
+      "SHA256": "2351f22bfc2c5f6da6b9fd6ade640dfd5bcc32c44fb4176f63962b9147b838e5"
     },
     {
       "来源": "扩展功能/本机存储/SQLite工作区.mjs",
@@ -2018,7 +2060,7 @@
       "来源": "扩展功能/画布生成/批量生成操作.ts",
       "目标": "画布副本/web/src/扩展功能/画布生成/批量生成操作.ts",
       "类型": "前端模块",
-      "SHA256": "bb49fd49d281581a761f581e18274aa0bf9c28075caf1d82b6f8e04627c977e4"
+      "SHA256": "4af33dafd84a027a9c06ae61044bc32f14e5edda1b38d975220387c68256c9de"
     },
     {
       "来源": "扩展功能/画布生成/批量保存协调.ts",
@@ -2066,13 +2108,13 @@
       "来源": "扩展功能/媒体交付/图片结果回写.ts",
       "目标": "画布副本/web/src/扩展功能/媒体交付/图片结果回写.ts",
       "类型": "前端模块",
-      "SHA256": "396f869feae9b72edbadae2b4db9bbc2ccac2252b373e61dd3eb9f422941b0f8"
+      "SHA256": "6ca91b67f25c315fc0e9461d80a42ef9c7577c633f0b62b05a82cdf810800a96"
     },
     {
       "来源": "扩展功能/媒体交付/图片结果保存操作.ts",
       "目标": "画布副本/web/src/扩展功能/媒体交付/图片结果保存操作.ts",
       "类型": "前端模块",
-      "SHA256": "b52fec6ca2cdfd3cc3500111369762cd364399380b8608eb77a5d9e408e1b978"
+      "SHA256": "58066fb51d31f36b17a0e0a6c58d782c42109b4fbe9bc178f60f5140f63e5519"
     },
     {
       "来源": "扩展功能/提示词/变量使用规则.ts",
@@ -2240,7 +2282,7 @@
       "目标": "画布副本/web/src/扩展功能/Excel画布/产品主图上传.tsx",
       "原位置": "新增功能模块",
       "类型": "前端",
-      "SHA256": "c11be217ef7ab4534dccd8fe6a135273e121de346af56640aae4be33ffd28169"
+      "SHA256": "301678c0dd1399f6c4599b6f0a0616b4c877887cc614abd163b260aec63b5d17"
     },
     {
       "来源": "扩展功能/客户安装/Web压缩包读取.mjs",
@@ -2615,7 +2657,7 @@
       "目标": "画布副本/web/src/扩展功能/画布交互/快捷键边界.ts",
       "原位置": "新增功能模块",
       "类型": "前端",
-      "SHA256": "2d9419ea49659e23e7ecbffcb65c1f25f398b558a07456751879c48f0f603aac"
+      "SHA256": "bcbc43482417879f18fe67bcc438d43c73db0d1ed5123836b67f904087ccf003"
     },
     {
       "来源": "扩展功能/画布交互/设置浮层位置.ts",
@@ -3464,14 +3506,14 @@
       "目标": "画布副本/web/src/扩展功能/Excel画布/产品变体编辑.tsx",
       "原位置": "新增功能模块",
       "类型": "前端",
-      "SHA256": "3820c0ac7ca7eed43a345f4aa2d34d79c50c2c54dac634e584f055ce031246f9"
+      "SHA256": "0306a54e5f9bc9f16478a68c5ac43fdac9e6004a16ae197a0886980e42b5982e"
     },
     {
       "来源": "扩展功能/画布生成/产品变体生成.ts",
       "目标": "画布副本/web/src/扩展功能/画布生成/产品变体生成.ts",
       "原位置": "新增功能模块",
       "类型": "前端",
-      "SHA256": "6f7774ab46da4144bb5ba13fb91aaa4531f3c4858f9e97a0fb538276878d0eba"
+      "SHA256": "318437a8edc893e247f5c1a8a6fa53535eb4b332d6748121e74c789ed2f223bc"
     },
     {
       "来源": "扩展功能/画布生成/产品变体执行.ts",
@@ -3485,49 +3527,56 @@
       "目标": "画布副本/web/src/扩展功能/Excel画布/商品视觉策划指令.ts",
       "原位置": "新增商品视觉策划功能",
       "类型": "前端",
-      "SHA256": "fe2ce4b3077d57b53ae61c404c17c2bb76fdc4a5c9e49310797fea218e156c7c"
+      "SHA256": "bf0dc51c9354d9a07e42e41dfdfe1e3d28cc46780bf680d6fdfb349474b4e685"
     },
     {
       "来源": "扩展功能/Excel画布/商品提示词规则.ts",
       "目标": "画布副本/web/src/扩展功能/Excel画布/商品提示词规则.ts",
       "原位置": "新增商品视觉策划功能",
       "类型": "前端",
-      "SHA256": "b01e7fc64ae65bca7770fb77a5d853f5547d3da4a8a4d965772f324c2be3fa7c"
+      "SHA256": "e27a12436113430ebceada469ac8b938ce261556ea4bf24acdbbde3b268f7c9a"
     },
     {
       "来源": "扩展功能/Excel画布/商品策划任务规则.ts",
       "目标": "画布副本/web/src/扩展功能/Excel画布/商品策划任务规则.ts",
       "原位置": "新增商品视觉策划功能",
       "类型": "前端",
-      "SHA256": "73f77f27e6665e3508fdd85345cc037ad6f3fccb0993835834cf73a1ea1f7f58"
+      "SHA256": "4d507120306a46d6794a230fe6a88991de3ac368bba09c7ad1bb07dcc3db9a92"
+    },
+    {
+      "来源": "扩展功能/Excel画布/共用商品提示词.ts",
+      "目标": "画布副本/web/src/扩展功能/Excel画布/共用商品提示词.ts",
+      "原位置": "按用途共用提示词及变体差异配置",
+      "类型": "前端",
+      "SHA256": "34b869f38291137a7a6213accfc0da5c52c2011274169c86f780f08fbfbad2cb"
     },
     {
       "来源": "扩展功能/Excel画布/商品提示词画布.ts",
       "目标": "画布副本/web/src/扩展功能/Excel画布/商品提示词画布.ts",
       "原位置": "新增商品视觉策划功能",
       "类型": "前端",
-      "SHA256": "ca65423cffb5c11e86681c6140690f1ad47347405cee0e425be4880b8e61fc1e"
+      "SHA256": "a67654630178acf8a5d768382f0f31106c3f019c2f32c1626bc6c73d62ad56c5"
     },
     {
       "来源": "扩展功能/Excel画布/商品策划请求.ts",
       "目标": "画布副本/web/src/扩展功能/Excel画布/商品策划请求.ts",
       "原位置": "新增商品视觉策划功能",
       "类型": "前端",
-      "SHA256": "1e7a0b2fd2b712fb4b4dd85117f8b62bd80f243f12c732104b256708839b4126"
+      "SHA256": "37d147a123cb7a1f36bdc65402625189fc77e29e9395bb73f18c4e4c8cf69a40"
     },
     {
       "来源": "扩展功能/Excel画布/商品策划按钮.tsx",
       "目标": "画布副本/web/src/扩展功能/Excel画布/商品策划按钮.tsx",
       "原位置": "新增商品视觉策划功能",
       "类型": "前端",
-      "SHA256": "dbe419e8a91b0cdf83fb1d0504ebc225e898784686d11b761ef60abcdfea52bf"
+      "SHA256": "5a22a85b46ccbc4312dc944addbcdac8cb59c107479fb119d58a80afbf7eb750"
     },
     {
       "来源": "扩展功能/Excel画布/商品提示词卡片.tsx",
       "目标": "画布副本/web/src/扩展功能/Excel画布/商品提示词卡片.tsx",
       "原位置": "新增商品视觉策划功能",
       "类型": "前端",
-      "SHA256": "d8c989ce65240bddae2dff91d8560f2bc46344eab120743ae91b24fc77eeabb0"
+      "SHA256": "59a723673b747e72aa6be8c9a925ee99e2e899569e548ce33e9458a20735a600"
     },
     {
       "来源": "扩展功能/Excel画布/商品提示词输入.ts",
@@ -3541,7 +3590,7 @@
       "目标": "画布副本/web/src/扩展功能/Excel画布/商品提示词状态.ts",
       "原位置": "新增提示词失效状态",
       "类型": "前端",
-      "SHA256": "a94aa3e9bb6942f3a990768614863d22b35a63d07a03122fb0f98c7ba483cf99"
+      "SHA256": "1505fab3179d4374e49b92d5a86ab94661c8eafba817ea05af139470fb58247c"
     },
     {
       "来源": "扩展功能/Excel画布/商品提示词失效提示.tsx",
@@ -3569,7 +3618,7 @@
       "目标": "画布副本/web/src/扩展功能/画布生成/商品提示词生成.ts",
       "原位置": "新增商品视觉策划功能",
       "类型": "前端",
-      "SHA256": "0e892bd3cd1b29a7f6bd5ffd625fc007850916c9003afc1bb0abdc252ffbf4e6"
+      "SHA256": "7ab952a2778d7a3a7426391429376026e10b85cb71901cc21d6116be5dc2bea2"
     },
     {
       "来源": "扩展功能/Excel画布/商品图片语言.ts",
@@ -3597,7 +3646,7 @@
       "目标": "画布副本/web/src/扩展功能/提示词/提示词优化规则.ts",
       "原位置": "新增AI优化提示词功能",
       "类型": "前端",
-      "SHA256": "3def941fa47ae9b121b682569d8c5ee607aa62dfa5484d5c7fb35fa5af937a96"
+      "SHA256": "c4c8a23da179b778bdf7a73ce3d85961623759bd54daea682fc29cebcff5f3d7"
     },
     {
       "来源": "扩展功能/提示词/提示词优化请求.ts",
@@ -3681,7 +3730,7 @@
       "目标": "画布副本/web/src/扩展功能/提示词/双语联动文本框.tsx",
       "原位置": "双语提示词选择高亮与滚动联动",
       "类型": "前端",
-      "SHA256": "0cd4ec9ae3d599f201ce1095f909f6d8ec0b114393b7c8938d2e3296a539e95f"
+      "SHA256": "60b651405972a42c3ad40ca29f1b4fc166dc21b6005a40dbaa9fae8dcbe5648d"
     },
     {
       "来源": "扩展功能/提示词/双语联动文本框.module.css",
@@ -3842,7 +3891,7 @@
       "目标": "画布副本/web/src/扩展功能/产品/胶囊滑动动效.ts",
       "原位置": ".运行/3100源/画布副本/web/src/扩展功能/产品/胶囊滑动动效.ts",
       "类型": "前端",
-      "SHA256": "3791d45a52f113ce6dc7ac63e0c35c394ffbc4078d1022147abb39512b5be1fd"
+      "SHA256": "40226c6146cfe75c250c461a56a2ca2b494949ad8616129739ac59b9e61f9cf0"
     },
     {
       "来源": "扩展功能/主题/原生设置浮层.tsx",
@@ -3884,7 +3933,7 @@
       "目标": "画布副本/web/src/扩展功能/主题/面板外部关闭.ts",
       "原位置": ".运行/3100源/画布副本/web/src/扩展功能/主题/面板外部关闭.ts",
       "类型": "前端",
-      "SHA256": "5ae8169442a6dec4200506e292b9206b05dfecca21d135d8033cc794d6070c07"
+      "SHA256": "73edf67f0dbffc6ecf823f0d31515813caccb1c51a0ca7f584ec1487ab821cbd"
     },
     {
       "来源": "扩展功能/主题/原生可关闭浮层.tsx",
@@ -3906,6 +3955,62 @@
       "原位置": "新增分类系统提示词",
       "类型": "前端",
       "SHA256": "c96f2aadde6344aded9f72c293c2468bb334d8bbac4d83b2e5d1a5033e17f0a7"
+    },
+    {
+      "来源": "扩展功能/软件更新/版本历史时间线.tsx",
+      "目标": "画布副本/web/src/扩展功能/软件更新/版本历史时间线.tsx",
+      "原位置": "设置与版本弹窗共用的客户历史时间线",
+      "类型": "前端",
+      "SHA256": "1be95644dd12cbd5f2aca8c04c057d0d62ea64c5c3b5c50346421871804677ae"
+    },
+    {
+      "来源": "扩展功能/画布生成/参考图数量限制.ts",
+      "目标": "画布副本/web/src/扩展功能/画布生成/参考图数量限制.ts",
+      "类型": "前端",
+      "原位置": "新增参考图限制与上游错误读取",
+      "SHA256": "0638e4d4c1d7f3df28f5c194fb0a4fef308f95a9f1d25bb8121c4275bcad219a"
+    },
+    {
+      "来源": "扩展功能/生成任务/上游失败原因.mjs",
+      "目标": "画布副本/web/src/扩展功能/生成任务/上游失败原因.mjs",
+      "类型": "前端",
+      "原位置": "新增参考图限制与上游错误读取",
+      "SHA256": "cd7c4e554633049b6fe474e39734e82c068401adb402cd67f35901f119405994"
+    },
+    {
+      "来源": "扩展功能/生成任务/上游失败原因.mjs",
+      "目标": "画布副本/扩展功能/生成任务/上游失败原因.mjs",
+      "类型": "服务",
+      "原位置": "新增参考图限制与上游错误读取",
+      "SHA256": "cd7c4e554633049b6fe474e39734e82c068401adb402cd67f35901f119405994"
+    },
+    {
+      "来源": "扩展功能/Excel画布/商品待确认规则.ts",
+      "目标": "画布副本/web/src/扩展功能/Excel画布/商品待确认规则.ts",
+      "原位置": "新增商品待确认资料与定向关联",
+      "类型": "前端",
+      "SHA256": "477c9ec19abb5b6be766181d049580a779404933781a31849ba83ab44540bac0"
+    },
+    {
+      "来源": "扩展功能/Excel画布/商品待确认提示词.ts",
+      "目标": "画布副本/web/src/扩展功能/Excel画布/商品待确认提示词.ts",
+      "原位置": "新增商品待确认资料与定向关联",
+      "类型": "前端",
+      "SHA256": "6e138511a3c1b89b36b68f09bdc7ab45c08b99b9d4ec80ff8a644dafe4c98f98"
+    },
+    {
+      "来源": "扩展功能/Excel画布/商品待确认编辑.tsx",
+      "目标": "画布副本/web/src/扩展功能/Excel画布/商品待确认编辑.tsx",
+      "原位置": "新增商品待确认资料与定向关联",
+      "类型": "前端",
+      "SHA256": "ca831abb216a04d1e0bb48c18d79cb9009c3068efc895aaf18c373bd9ab06835"
+    },
+    {
+      "来源": "扩展功能/Excel画布/商品待确认上传.ts",
+      "目标": "画布副本/web/src/扩展功能/Excel画布/商品待确认上传.ts",
+      "原位置": "新增商品待确认资料与定向关联",
+      "类型": "前端",
+      "SHA256": "0525048adbfa583b15e399d16c3328c92738f18f911fddeb7cf6941b64bd9f4e"
     }
   ],
   "接入差异": [
@@ -8047,6 +8152,158 @@
       "SHA256": "f4201c25a4ecc3ecbbcdbdd5694cb738a12c9ac1bf6f0f11b8a2a9670925183b",
       "前态SHA256": "45c6dd872e8523f0b0675ffec4174fee2b4f3edcf301246473b0c5c3d2d20eee",
       "后态SHA256": "087c3306a369622b7778bf07506e54974445beba367bf3d22880ff631a475e1d"
+    },
+    {
+      "文件": "上游适配/软件更新历史统一时间线.patch",
+      "目标": "web/src/components/layout/version-release-modal.tsx",
+      "职责": "软件更新历史统一时间线",
+      "SHA256": "b607947f32bada23c52a4f752a608a86c81c26e3866e907d2c6c02ec4b38a85d",
+      "前态SHA256": "c5bb5226f14414bbb855aabbb57673b07407e17d2ecd5c4f4e11a91fcfeb91a0",
+      "后态SHA256": "0ed9a2706d83d4cb23496327b35288feaa96562961edfcd0e71c821cdce84f2b"
+    },
+    {
+      "文件": "上游适配/版本历史跟随开发者模式.patch",
+      "目标": "web/src/hooks/use-version-check.ts",
+      "职责": "版本历史跟随开发者模式",
+      "SHA256": "3bdb0795213cf20993b0a8dd98e58b8bf9d885837d86b92d895cee9bd9285c07",
+      "前态SHA256": "258a2e000c0db8a16bf5e528323702021c8f3e23011508eb9280b6a79d72b912",
+      "后态SHA256": "d6eaae3b7a725dffcbb85e9c55876cec058c69d2f5277e60081fad809cca3c42"
+    },
+    {
+      "文件": "上游适配/跨电脑画布导出稳定媒体引用.patch",
+      "目标": "web/src/lib/canvas/canvas-export.ts",
+      "职责": "跨电脑画布导出稳定媒体引用",
+      "SHA256": "d5b950cc017ef6950db2bcc8e0dee8a44c49e0224de28b00d3caa61773e99450",
+      "前态SHA256": "b6b094cf7d21ecc7a1055cbe5c27088b39415a7f1118a455ae0f93278c2be31d",
+      "后态SHA256": "7a8ab9cf02aa7abf588ad1b8de1d23a69cbe1acf3259618a68c45c97cdb9da29"
+    },
+    {
+      "文件": "上游适配/共用提示词保留变体配置接入.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "共用提示词保留变体配置接入",
+      "SHA256": "636663aef96b40f57577c203673fd32ee06ebd9477b2edbf2727781fbbb71df1",
+      "前态SHA256": "8bd9f969fab79e9260d4973c0d25fbc1f7bf22186efbf519faa2d2c599d3c38c",
+      "后态SHA256": "b580730b2adabee403149dcf18cd8c846c84c12fa64015ef5255a0d72232c259"
+    },
+    {
+      "文件": "上游适配/生图参考图十四张预检01.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "生图参考图十四张预检01",
+      "SHA256": "08a739f48959d8fa71d10a30f6fa9b7689718393326a8e47a89edfee6bffca92",
+      "前态SHA256": "b580730b2adabee403149dcf18cd8c846c84c12fa64015ef5255a0d72232c259",
+      "后态SHA256": "1f202f634e959054e1a03fb8415a93a34773d839dc55c8fe6d5e5fa207b685b3"
+    },
+    {
+      "文件": "上游适配/图片编辑参考图十四张预检01.patch",
+      "目标": "web/src/services/api/image.ts",
+      "职责": "图片编辑参考图十四张预检01",
+      "SHA256": "ac9865ce151e8fd1e96fb8697ad7220f9e7fcd50740f4769c848377dc57628e5",
+      "前态SHA256": "8d6c0b9cb385cd3d499cf28f134e236b071f1fe5736cf58cc107a6c37575951e",
+      "后态SHA256": "33666bf4ac51052c801fb786a2dabf4ecdc48d0738c99ca494d78411013a9090"
+    },
+    {
+      "文件": "上游适配/空格画布工具与按钮焦点边界01.patch",
+      "目标": "web/src/components/canvas/infinite-canvas.tsx",
+      "职责": "空格画布工具与按钮焦点边界01",
+      "SHA256": "075a064f0b80b7910becc691a3f4ae56a94b783bce3a8efe23d6baa99ba5a10c",
+      "前态SHA256": "5b09159c838650d8bb696047783545d091dbc64cdb2ce71965a27fb14cf7d9f3",
+      "后态SHA256": "9de0def9e079a17a1e11093c98f1e61d36cc9ce1b24dba681058a4c7a8f1795c"
+    },
+    {
+      "文件": "上游适配/WB生图结果用途命名接入01.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "WB生图结果用途命名接入01",
+      "SHA256": "ece2b0a201f2d7ebc4569d9ca765549a16bacf36c68ecfcea3c887638219600f",
+      "前态SHA256": "1f202f634e959054e1a03fb8415a93a34773d839dc55c8fe6d5e5fa207b685b3",
+      "后态SHA256": "eb3ea6f154b3ea51dbba1658c90f20f5525a1d9f52a4dd8044cf4d6fb78f5729"
+    },
+    {
+      "文件": "上游适配/一键超人图片工具栏接入.patch",
+      "目标": "web/src/components/canvas/canvas-node-hover-toolbar.tsx",
+      "职责": "一键超人图片工具栏接入",
+      "SHA256": "6f1c1e8e8220bcd77a3bb6333209617bc61dac875575ebacaa94b1df44803f2b",
+      "前态SHA256": "20e45efdbe617e58e24eba031dd73e4ccbcfce6e8242f73257d221e16f2e594c",
+      "后态SHA256": "3c1cdd76931068547d9ba5352e4b3c6a6baf9db3cb346d31105813a9b53e2519"
+    },
+    {
+      "文件": "上游适配/一键超人生图接入.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "一键超人生图接入",
+      "SHA256": "c84d7ad45c566de8103896bec0cbaf3ba709e0e452a0f0a3a66c595049edc5e5",
+      "前态SHA256": "eb3ea6f154b3ea51dbba1658c90f20f5525a1d9f52a4dd8044cf4d6fb78f5729",
+      "后态SHA256": "e3e72fd7a9bc81fecce149e58a8b0e265e8bacc18aaf3d86aa95b0a28c71be51"
+    },
+    {
+      "文件": "上游适配/节点工具栏顶部可见定位接入.patch",
+      "目标": "web/src/components/canvas/canvas-node-hover-toolbar.tsx",
+      "职责": "节点工具栏顶部可见定位接入",
+      "SHA256": "734b436e84f3da7389c85195850627121b4071fa1e94c564ad16ddc9e3cc6c7f",
+      "前态SHA256": "3c1cdd76931068547d9ba5352e4b3c6a6baf9db3cb346d31105813a9b53e2519",
+      "后态SHA256": "ac2b45b9cbb1696a385f1e639663c7ccdbafeaf7a37f12d59bfccb7ace4c69c2"
+    },
+    {
+      "文件": "上游适配/一键超人自定义工具栏接入.patch",
+      "目标": "web/src/components/canvas/canvas-node-hover-toolbar.tsx",
+      "职责": "一键超人自定义工具栏接入",
+      "SHA256": "21a52f01f5cd822a71c9ebd2f154943654cb91f4e1d9e32b2cb8168dd85bff6b",
+      "前态SHA256": "ac2b45b9cbb1696a385f1e639663c7ccdbafeaf7a37f12d59bfccb7ace4c69c2",
+      "后态SHA256": "77532193059c2c571656813c3e968b73659d9504fe354534f67bb63dfcf686a2"
+    },
+    {
+      "文件": "上游适配/一键超人快捷工具配置接入.patch",
+      "目标": "web/src/components/canvas/canvas-image-toolbar-tools.tsx",
+      "职责": "一键超人快捷工具配置接入",
+      "SHA256": "a80b272ff6b32e1b85fdf5ba7967bf1fdcd5c9990284a82892ec6ec28c609fbe",
+      "前态SHA256": "d73804dc342959340f021ce07b6b7f54a6894b13f43d321864db5f768585f43d",
+      "后态SHA256": "c6c8ccb17925a2d31de3a4b0b2a40922e1d0d6bc28628c5bdc322474a165db32"
+    },
+    {
+      "文件": "上游适配/一键超人原图像素尺寸接入.patch",
+      "目标": "web/src/types/canvas.ts",
+      "职责": "一键超人原图像素尺寸接入",
+      "SHA256": "2070377e19213684b72835673887c746e47373643805e81aaf32ea106616f8a3",
+      "前态SHA256": "1e08477be746aa44319731468e8a88429a43dab14f6d5efdcf15e03be8638fd1",
+      "后态SHA256": "49d359cf866800214a3b6ba27b87d7d61c4b980178f77ca15fe81edcd5412e44"
+    },
+    {
+      "文件": "上游适配/节点工具栏实时坐标接入.patch",
+      "目标": "web/src/components/canvas/canvas-node-hover-toolbar.tsx",
+      "职责": "节点工具栏实时坐标接入",
+      "SHA256": "39f7a83d692340f60c401cd21f9ed40329625806178bd58700af4c1d0b433b77",
+      "前态SHA256": "77532193059c2c571656813c3e968b73659d9504fe354534f67bb63dfcf686a2",
+      "后态SHA256": "7d3b77d5be54ee3b24b76ae9b4fcd3ae7c413aff44138717f7b8542e6ae41c49"
+    },
+    {
+      "文件": "上游适配/节点工具栏视区同步接入.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "节点工具栏视区同步接入",
+      "SHA256": "6891a2c40b53aada35a2f551eba1d7e6c5dee9df64cc27a4a7a7e6f28ad46252",
+      "前态SHA256": "e3e72fd7a9bc81fecce149e58a8b0e265e8bacc18aaf3d86aa95b0a28c71be51",
+      "后态SHA256": "53dfee6575d0b403c2bca58ccd9faeeb915e2c34da27574947cba98622b555b4"
+    },
+    {
+      "文件": "上游适配/自定义工具栏选项垂直对齐接入.patch",
+      "目标": "web/src/components/canvas/canvas-image-toolbar-settings-modal.tsx",
+      "职责": "自定义工具栏选项垂直对齐接入",
+      "SHA256": "2914a2dcc16e731eec8addfeef3471157a743736261a5a71e455df43d4ad8afe",
+      "前态SHA256": "c33cc88f0ddd6a05ede3417a59019f94d99c31ad395943157a55ed202d8d8ffd",
+      "后态SHA256": "15c476341f62a7e1a7703a07200522c852642e99bde4edc1e804e010347c1284"
+    },
+    {
+      "文件": "上游适配/自定义工具栏标签盒居中接入.patch",
+      "目标": "web/src/components/canvas/canvas-image-toolbar-settings-modal.tsx",
+      "职责": "自定义工具栏标签盒居中接入",
+      "SHA256": "ce74a9427c108e8170d2c0e4d7315f9a33baaeee0e91f81806b951f380a3ea62",
+      "前态SHA256": "15c476341f62a7e1a7703a07200522c852642e99bde4edc1e804e010347c1284",
+      "后态SHA256": "be5761db1eaede593b175321d663c8f3419bd39f15a6208f59102bb7bede5a27"
+    },
+    {
+      "文件": "上游适配/画布禁止焦点隐式滚动接入.patch",
+      "目标": "web/src/components/canvas/infinite-canvas.tsx",
+      "职责": "画布禁止焦点隐式滚动接入",
+      "SHA256": "d48f7a07de2a72df4f51f0441681f4f6780f9c778a4510769d4474c43f7e9efc",
+      "前态SHA256": "9de0def9e079a17a1e11093c98f1e61d36cc9ce1b24dba681058a4c7a8f1795c",
+      "后态SHA256": "b8f68cdf84abf618262a927903d5eef360fecaaca8b7f69815c8822c66fb1187"
     }
   ]
 }

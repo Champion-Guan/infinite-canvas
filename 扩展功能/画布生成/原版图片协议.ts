@@ -6,6 +6,7 @@ import { dataUrlToFile } from "@/lib/image-utils";
 import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
 import { imageToDataUrl } from "@/services/image-storage";
 import type { ReferenceImage } from "@/types/image";
+import { assertImageReferenceLimit } from "./参考图数量限制";
 import { resolvePromptVariables } from "../提示词/变量使用规则";
 import { imageSizePresets } from "../图片设置/图片尺寸规则";
 type AiConfig = BaseAiConfig & { moderation?: string };
@@ -259,6 +260,7 @@ function attachRequestMetadata<T extends { id: string; dataUrl: string }>(images
 }
 
 export async function prepareOriginalImageRequest(config: AiConfig, prompt: string, references: ReferenceImage[] = []) {
+    assertImageReferenceLimit(references);
     prompt = resolvePromptVariables(prompt);
     const requestConfig = resolveModelRequestConfig(config, config.model || config.imageModel);
     // 原脚本关闭策略继续生效；不把脚本模型静默改为系统请求。

@@ -55,6 +55,7 @@ export function createRenewingDataClient({ url, host, origin = globalThis.locati
       holder = await acquire();
       const result = await holder.client[method](...values);
       if (method === 'writeDocument') lastAck = Object.freeze({ ...result });
+      if (method === 'writeFragments' && result.length) lastAck = Object.freeze({ ...result.at(-1) });
       errors.delete(key); return result;
     } catch (error) {
       errors.set(key, { key, code: error instanceof StorageError ? error.code : 'connection_failed', message: error instanceof StorageError ? error.message : '本机连接或续期失败；保存结果未确认，没有自动重发。' });
@@ -84,7 +85,11 @@ export function createRenewingDataClient({ url, host, origin = globalThis.locati
     writeDocument: input => run(`write:${input?.collection}:${input?.id}`, 'writeDocument', () => {
       try { return [structuredClone(input)]; } catch { throw new StorageError('invalid_document', '保存内容不可快照，没有发送保存请求。'); }
     }),
+    writeFragments: input => run('write:fragments', 'writeFragments', () => {
+      try { return [structuredClone(input)]; } catch { throw new StorageError('invalid_fragment_batch', '分片批次不可快照，没有发送保存请求。'); }
+    }),
     writeMedia: blob => run('media:upload', 'writeMedia', [blob]),
+    writeMediaBatch: items => run('media:batch', 'writeMediaBatch', () => [items.map(item => ({ blob: item.blob, mime: item.mime }))]),
     readMedia: id => run(`media:${id}`, 'readMedia', [id]),
     async close() {
       requireValue(!pending && !errors.size && !reconnectFlight, 'save_not_confirmed', '仍有未确认或失败操作，不能关闭数据客户端。', 409);

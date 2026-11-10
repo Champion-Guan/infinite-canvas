@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, Sparkles, X } from "lucide-react";
 import type { CanvasNodeContext } from "@/types/canvas-plugin";
 import type { ProductPromptMetadata } from "./商品提示词规则";
-import { compactProductPromptTitles, expandLegacyProductPrompts } from "./商品提示词画布";
+import { compactProductPromptTitles, mergeLegacyProductPrompts } from "./商品提示词画布";
 import { AppleActionButton } from "../主题/苹果交互按钮";
 import { TextTaskStatus, type TextTaskPhase } from "../主题/任务阶段反馈";
+import { ProductConfirmationList } from "./商品待确认编辑";
 
 export function ProductPlanningButton({ ctx, productId }: { ctx: CanvasNodeContext; productId: string }) {
     const [busy, setBusy] = useState(false), [error, setError] = useState("");
@@ -13,7 +14,7 @@ export function ProductPlanningButton({ ctx, productId }: { ctx: CanvasNodeConte
     useEffect(() => {
         const parameter = ctx.getNode(ctx.node.id);
         if (!parameter) return;
-        const ops = expandLegacyProductPrompts(parameter, ctx.getNodes(), ctx.getConnections());
+        const ops = mergeLegacyProductPrompts(parameter, ctx.getNodes(), ctx.getConnections());
         if (ops.length) ctx.applyOps(ops);
         const titles = compactProductPromptTitles(parameter, ctx.getNodes());
         if (titles.length) ctx.applyOps(titles);
@@ -45,11 +46,12 @@ export function ProductPlanningButton({ ctx, productId }: { ctx: CanvasNodeConte
     </div>;
 }
 
-export function ProductPlanOverview({ metadata }: { metadata: ProductPromptMetadata }) {
+export function ProductPlanOverview({ metadata, ctx, productId }: { metadata: ProductPromptMetadata; ctx?: CanvasNodeContext; productId?: string }) {
     const plan = metadata.productImagePlan;
     if (!plan) return null;
-    return <details className="border-t border-current/15 pt-2 text-[11px]" open={plan.pendingFacts.length > 0}>
-        <summary className="cursor-pointer font-medium">整套策划 · {plan.imageCount} 张{plan.pendingFacts.length ? ` · ${plan.pendingFacts.length} 项待确认` : ""}</summary>
+    const count = plan.confirmations?.length ?? plan.pendingFacts.length;
+    return <details className="border-t border-current/15 pt-2 text-[11px]" open={count > 0}>
+        <summary className="cursor-pointer font-medium">整套策划 · {plan.imageCount} 张{count ? ` · ${count} 项待确认` : ""}</summary>
         <dl className="mt-2 space-y-2 leading-5">
             {([
                 ["目标买家", plan.overview.buyers], ["核心卖点", plan.overview.sellingPoints],
@@ -57,7 +59,9 @@ export function ProductPlanOverview({ metadata }: { metadata: ProductPromptMetad
                 ["一致性约束", plan.overview.consistency], ["顺序与分工", plan.overview.sequence],
             ] as const).map(([label, text]) => <div key={label}><dt className="font-medium">{label}</dt><dd className="whitespace-pre-wrap opacity-75">{text}</dd></div>)}
             {plan.assumptions.length ? <div><dt className="font-medium">本次制作假设</dt><dd>{plan.assumptions.join("\n")}</dd></div> : null}
-            {plan.pendingFacts.length ? <div><dt className="font-medium text-amber-700 dark:text-amber-300">待确认</dt><dd className="whitespace-pre-wrap">{plan.pendingFacts.join("\n")}</dd></div> : null}
+            {plan.pendingFacts.length || plan.confirmations?.length ? <div><dt className="font-medium text-amber-700 dark:text-amber-300">待确认</dt>
+                <dd>{ctx && productId ? <ProductConfirmationList ctx={ctx} productId={productId} />
+                    : <span className="whitespace-pre-wrap">{plan.pendingFacts.join("\n")}</span>}</dd></div> : null}
             {plan.preserved ? <div>已保留 {plan.preserved} 张手工修改的旧方案，批量生成使用新方案。</div> : null}
         </dl>
     </details>;

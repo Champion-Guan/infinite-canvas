@@ -7,7 +7,7 @@ import { STABLE_REPOSITORY, isWorkbenchRepository, isPublicUpdateRepository, sam
 import { acceptsUpdateVersion, requireUpdateChannel, readUpdateDeveloperMode, saveUpdateDeveloperMode } from './更新发布渠道.mjs';
 
 export const UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1000;
-const defaults = () => ({ version: 1, repository: STABLE_REPOSITORY, autoCheck: true, autoDownload: true, autoInstall: false, developerMode: false, network: 'auto' });
+const defaults = () => ({ version: 1, repository: STABLE_REPOSITORY, autoCheck: true, autoDownload: true, autoInstall: true, developerMode: false, network: 'auto' });
 export class SoftwareUpdates {
   constructor({ directory, auth, currentVersion, downloader = null, manager = null, progress = null, proxyUrl = () => null, readRelease = readGitHubStable, now = Date.now, lockRepository = true }) {
     this.progress = progress;
@@ -43,7 +43,7 @@ export class SoftwareUpdates {
       const raw = await readPrivateFile(this.file, { maxBytes: 4096 });
       if (raw === null) return { ...defaults(), developerMode: await readUpdateDeveloperMode(this.directory) };
       const p = JSON.parse(raw);
-      if (p.version !== 1 || p.repository !== '' && !validRepository(p.repository) || ['autoCheck', 'autoDownload', 'autoInstall'].some(k => typeof p[k] !== 'boolean')
+      if (p.version !== 1 || p.repository !== '' && !validRepository(p.repository) || ['autoCheck', 'autoDownload', 'autoInstall'].some(k => p[k] !== undefined && typeof p[k] !== 'boolean')
         || p.developerMode !== undefined && typeof p.developerMode !== 'boolean'
         || !['auto', 'direct', 'proxy'].includes(p.network) || Object.keys(p).some(k => !Object.hasOwn(defaults(), k))) throw Error();
       return { ...defaults(), ...p, developerMode: await readUpdateDeveloperMode(this.directory), ...(this.lockRepository || isWorkbenchRepository(p.repository) ? { repository: STABLE_REPOSITORY } : {}) };

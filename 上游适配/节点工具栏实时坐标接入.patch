@@ -1,0 +1,14 @@
+diff --git a/web/src/components/canvas/canvas-node-hover-toolbar.tsx b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+index ae62522..bbfc272 100644
+--- a/web/src/components/canvas/canvas-node-hover-toolbar.tsx
++++ b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+@@ -212,6 +212,9 @@ export function CanvasNodeHoverToolbar({
+             <div
+                 className="pointer-events-auto absolute z-[70] flex h-12 -translate-x-1/2 items-center overflow-visible rounded-[18px] border border-black/10 bg-white text-[15px] text-[#242529] shadow-[0_8px_28px_rgba(15,23,42,.12)]"
+                 data-node-toolbar={node.id}
++                data-toolbar-node-x={node.position.x}
++                data-toolbar-node-y={node.position.y}
++                data-toolbar-node-width={node.width}
+                 style={{ left, top }}
+                 onMouseEnter={() => onKeep(node.id)}
+                 onMouseLeave={() => {

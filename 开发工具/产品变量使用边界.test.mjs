@@ -16,7 +16,8 @@ async function load(file, dependencies = {}) {
 const variables = await load('扩展功能/提示词/变量使用规则.ts');
 const { resolvePromptVariables: resolvePrompt } = variables;
 const themes = await load('扩展功能/Excel画布/旧版主题翻译.js');
-const rules = await load('扩展功能/Excel画布/旧版参数规则.ts', { './旧版主题翻译.js': themes, '../提示词/变量使用规则': variables });
+const rules = await load('扩展功能/Excel画布/旧版参数规则.ts', { './旧版主题翻译.js': themes, '../提示词/变量使用规则': variables,
+    './商品待确认规则': variantModules().load('Excel画布/商品待确认规则.ts') });
 const protectedText = await load('扩展功能/提示词/生成文本读取.ts', { './变量使用规则': variables, '../Excel画布/旧版参数规则': rules,
     './提示词优化规则': variantModules().load('提示词/提示词优化规则.ts'),
     '../Excel画布/商品提示词规则': variantModules().load('Excel画布/商品提示词规则.ts') });
@@ -141,6 +142,7 @@ const protocol = await load('扩展功能/画布生成/原版图片协议.ts', {
     '@/i18n/index': i18n, nanoid: { nanoid: () => 'id' }, '@/stores/use-config-store': { resolveModelRequestConfig: config => config, resolveModelScript: () => null },
     '@/lib/image-utils': {}, '@/lib/image-reference-prompt': {}, '@/services/image-storage': {}, '../提示词/变量使用规则': variables,
     '../图片设置/图片尺寸规则': await load('扩展功能/图片设置/图片尺寸规则.ts'),
+    './参考图数量限制': await load('扩展功能/画布生成/参考图数量限制.ts'),
 });
 test('直接输入和无资源composer同样保护缺值，重试使用当前可追溯变量而非旧快照', async () => {
     for (const composer of [false, true]) {

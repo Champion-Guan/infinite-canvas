@@ -17,7 +17,7 @@ function fixture(reduced = false) {
     const slots = [], effects = [], calls = [], focused = [], observers = [], scrolls = [], writes = [], passive = [], frames = new Map();
     const scrollEvents = new EventTarget();
     let now = 0, frameId = 0, nativeCalls = 0;
-    let cursor = 0, active = 'A', owner = 'book', busy = false, fail = false, node;
+    let cursor = 0, active = 'A', owner = 'book', busy = false, fail = false, taskStatus = 'idle', node;
     const projects = ['A', 'B', 'C'].map((id, index) => ({ id, title: id, createdAt: String(index), nodes: [], connections: [] }));
     class Element {
         constructor(id) { this.dataset = { productId: id }; this.id = id; this.parentElement = {
@@ -28,7 +28,7 @@ function fixture(reduced = false) {
         getBoundingClientRect() { return { left: this.parentElement.offsetLeft - container.scrollLeft, right: this.parentElement.offsetLeft + 128 - container.scrollLeft }; }
     }
     const container = {
-        clientWidth: 265, scrollWidth: 394, scrollLeft: 0,
+        clientWidth: 265, scrollWidth: 394, scrollLeft: 0, dataset: {},
         querySelector: () => tabs.find(tab => tab.id === active),
         querySelectorAll: () => tabs,
         getBoundingClientRect: () => ({ left: 0, right: container.clientWidth }),
@@ -83,9 +83,9 @@ function fixture(reduced = false) {
         '../Excel/Excel产品归属': { orderedWorkbookProjects: items => items, visibleWorkbookId: () => owner },
         './产品规则': { orderedProducts: items => items },
         './产品操作': { useProductNavigation: () => ({ activeId: active, busy, selectProduct: async id => { calls.push(id); if (fail) throw Error('合成切换失败'); active = id; } }) },
-        './产品任务摘要.js': { canvasTaskSummary: () => ({ status: 'idle' }) },
+        './产品任务摘要.js': { canvasTaskSummary: () => ({ status: taskStatus }) },
         './旧版产品显示名.js': { productDisplayName: project => project.title },
-        './旧版产品胶囊状态.js': { readCanvasCapsuleStatus: () => 'idle' },
+        './旧版产品胶囊状态.js': { readCanvasCapsuleStatus: () => taskStatus },
         './产品胶囊.module.css': { default: { root: 'root', track: 'track', indicator: 'indicator', error: 'error' } },
         './产品回收面板': { ProductDeleteDialog: 'Dialog', ProductTrashIcon: 'Trash' },
         'motion/react': { AnimatePresence: 'Presence', motion: { button: 'motion.button' }, useReducedMotion: () => reduced },
@@ -126,6 +126,7 @@ function fixture(reduced = false) {
         position: () => computed().m41, nativeCalls: () => nativeCalls,
         finish() { for (let i = 0; frames.size && i < 150; i++) step(16); assert.equal(frames.size, 0); },
         select: id => { active = id; }, workbook: value => { owner = value; }, block: value => { busy = value; }, fail: () => { fail = true; },
+        status: value => { taskStatus = value; },
         elements: () => all(node), tab: id => all(node).find(item => item.props.role === 'tab' && item.props['data-product-id'] === id),
         indicator: () => all(node).find(item => item.props['data-product-indicator']),
         nav: () => all(node).find(item => item.props.role === 'tablist'),
@@ -152,9 +153,57 @@ test('单一选中背景使用浏览器动画，连续点选从当前呈现位�
     assert.equal(f.elements().filter(item => item.props['data-product-indicator']).length, 1);
     assert.equal(f.indicator().props['aria-hidden'], 'true');
     assert.equal(f.frames.size, 1, '只保留一条动画，旧目标不继续执行');
+    assert.equal(f.container.dataset.capsuleSliding, 'true');
     f.finish(); assert.equal(f.position(), 266);
+    await Promise.resolve();
+    assert.equal(f.container.dataset.capsuleSliding, 'false');
     assert.equal(f.nativeCalls(), 2);
     assert.deepEqual(f.writes, []);
+});
+
+test('原生动画被外部取消时落到当前目标并交回实体底色，旧取消不会覆盖连续切换', async () => {
+    const f = fixture(); f.render(); f.effects();
+    f.select('B'); f.render(); f.effects(); f.step(48);
+    const old = [...f.frames.values()][0];
+    f.select('C'); f.render(); f.effects();
+    await Promise.resolve();
+    assert.equal(old.cancelled, true);
+    assert.equal(f.container.dataset.capsuleSliding, 'true');
+    assert.equal(f.frames.size, 1);
+    const current = [...f.frames.values()][0];
+    current.cancel();
+    await Promise.resolve();
+    assert.equal(f.position(), 266);
+    assert.equal(f.container.dataset.capsuleSliding, 'false');
+    assert.equal(f.frames.size, 0);
+});
+
+test('浏览器播放失败时仍显示当前实体胶囊，减少动态效果不进入滑动透明态', () => {
+    const f = fixture(); f.render(); f.effects();
+    f.indicator().props.ref.current.animate = () => { throw Error('synthetic playback unavailable'); };
+    f.select('C'); f.render();
+    assert.doesNotThrow(() => f.effects());
+    assert.equal(f.position(), 266);
+    assert.equal(f.container.dataset.capsuleSliding, 'false');
+    const reduced = fixture(true); reduced.render(); reduced.effects();
+    reduced.select('C'); reduced.render(); reduced.effects();
+    assert.equal(reduced.container.dataset.capsuleSliding, 'false');
+});
+
+test('任务状态改变和边缘定位提示使用同一状态，不重新进入几何滑动或遗留透明态', () => {
+    const f = fixture(); f.select('C'); f.render(); f.effects();
+    for (const status of ['loading', 'success', 'error', 'idle', 'success']) {
+        f.status(status); f.render();
+        assert.equal(f.indicator().props['data-status'], status);
+        assert.match(f.tab('C').props.className, new RegExp(`capsule-${status} `));
+        assert.equal(f.container.dataset.capsuleSliding, 'false');
+        assert.equal(f.frames.size, 0);
+        f.scroll(0); f.render();
+        assert.equal(all(f.hint('right')).find(item => item.type === 'ActionButton').props['data-status'], status);
+        all(f.hint('right')).find(item => item.type === 'ActionButton').props.onClick(); f.render();
+        assert.equal(f.container.dataset.capsuleSliding, 'false');
+    }
+    assert.deepEqual(f.calls, []);
 });
 
 test('按距离调整实际Motion弹簧速度与阻尼：远距离更快，回弹更少且能收敛', () => {

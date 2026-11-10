@@ -6,6 +6,7 @@ import { productVariants, variantParameterMetadata, type ProductVariantMetadata 
 import { productPromptProblems } from "../Excel画布/商品提示词状态";
 import { promptVariableTokens, resolvePromptVariables, PRODUCT_PROMPT_SUPPLEMENT_SEPARATOR } from "./变量使用规则";
 import { readBilingualSegments, type BilingualAlignment } from "./双语片段对齐";
+import { productPromptEditingVariant } from "../Excel画布/共用商品提示词";
 
 export type OptimizedPrompt = { text?: string; chinese?: string; english?: string; alignment?: BilingualAlignment; changes: string[] };
 export type OptimizationDraft = { signature: string; raw: string; instruction: string; model: string; directions?: string[] };
@@ -42,7 +43,7 @@ export function optimizedFinalPrompt(node: CanvasNodeData, nodes: CanvasNodeData
 export function readPromptOptimizationSource(node: CanvasNodeData, nodes: CanvasNodeData[]): PromptOptimizationSource {
     if (!canOptimizePrompt(node)) throw Error("这张卡片不是提示词卡片。");
     if (node.metadata?.status === "loading") throw Error("卡片仍在生成，请完成后再优化。");
-    const doc = promptDocument(node), pair = doc && promptPair(doc);
+    const doc = promptDocument(node), variantId = productPromptEditingVariant(node), pair = doc && promptPair(doc, variantId);
     const parameterId = doc?.parameterId || node.metadata?.promptVariablePreviewOf || node.metadata?.excelPromptBindingNodeId;
     const parameter = nodes.find(item => item.id === parameterId);
     const source = node.metadata?.promptVariablePreviewOf
@@ -54,7 +55,7 @@ export function readPromptOptimizationSource(node: CanvasNodeData, nodes: Canvas
         : rawText(node);
     if (!(doc ? pair!.chinese.trim() || pair!.english.trim() : text.trim())) throw Error("请先填写提示词，再使用 AI 优化。");
     const metadata = parameter?.metadata as ProductVariantMetadata | undefined;
-    const variant = doc?.variantId ? productVariants(metadata).find(item => item.id === doc.variantId) : undefined;
+    const variant = variantId ? productVariants(metadata).find(item => item.id === variantId) : undefined;
     const scoped = metadata && variant ? variantParameterMetadata(metadata, variant) : metadata;
     // 只向模型提供相关商品资料，不传凭据、任务记录、本机路径或素材存储键。
     const context = {
@@ -62,11 +63,11 @@ export function readPromptOptimizationSource(node: CanvasNodeData, nodes: Canvas
         brief: scoped?.productBrief, variables: scoped?.promptVariableValues, supplement: productParameterSupplement(scoped),
         ...(doc ? { image: { name: doc.name, kind: doc.kind, delivery: doc.delivery, buyerQuestion: doc.buyerQuestion,
             evidence: doc.evidence, composition: doc.composition, constraints: doc.constraints, copyLayout: doc.copyLayout,
-            checks: doc.checks, variantId: doc.variantId } } : {}),
+            checks: doc.checks, variantId } } : {}),
     };
     return { id: node.id, title: node.title, kind: doc ? "bilingual" : "text", text,
         chinese: pair?.chinese, english: pair?.english, alignment: pair?.alignment, englishCurrent: pair ? isPromptReady(pair) : undefined, context,
-        signature: JSON.stringify([node.type, rawText(node), doc, parameterState(parameter),
+        signature: JSON.stringify([node.type, rawText(node), doc, variantId, parameterState(parameter),
             node.metadata?.excelPromptBindingNodeId, node.metadata?.promptVariablePreviewOf,
             source ? [source.id, rawText(source)] : null, (node.metadata as OptimizationMetadata)?.promptOptimizationOverride,
             (node.metadata as ProductPromptMetadata)?.productPromptSourceFingerprint, (node.metadata as ProductPromptMetadata)?.productPromptRetired]),
@@ -128,10 +129,11 @@ export function promptOptimizationOps(source: PromptOptimizationSource, result: 
     const doc = promptDocument(node);
     if (doc) {
         if (!result.chinese || !result.english) throw Error("优化结果缺少中英文。");
-        const pair = { ...promptPair(doc)!, chinese: result.chinese, english: result.english,
+        const variantId = productPromptEditingVariant(node);
+        const pair = { ...promptPair(doc, variantId)!, chinese: result.chinese, english: result.english,
             translatedChinese: result.chinese, alignment: result.alignment, translationError: undefined };
-        return [{ type: "update_node", id: node.id, metadata: { productImagePrompt: doc.variantId
-            ? { ...doc, prompt: pair, variants: { ...doc.variants, [doc.variantId]: pair } } : { ...doc, prompt: pair } } as ProductPromptMetadata }];
+        return [{ type: "update_node", id: node.id, metadata: { productImagePrompt: variantId
+            ? { ...doc, variants: { ...doc.variants, [variantId]: pair } } : { ...doc, prompt: pair } } as ProductPromptMetadata }];
     }
     if (!result.text) throw Error("优化结果为空。");
     const metadata: OptimizationMetadata = { content: result.text, prompt: result.text };

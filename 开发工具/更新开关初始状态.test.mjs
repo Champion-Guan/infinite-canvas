@@ -18,9 +18,10 @@ function fixture() {
         react: { useState: () => [saving, value => { saving = value; }] }, 'react/jsx-runtime': { jsx, jsxs: jsx },
         antd: { App: { useApp: () => ({ message: { success: text => notices.push(['success', text]), error: text => notices.push(['error', text]) } }) }, Button: 'Button', Switch: 'Switch', Skeleton: { Button: 'Skeleton' } },
         '@/扩展功能/主题/原生可关闭浮层': { OutsideSelect: 'Select' }, '@/constant/env': { formatDisplayVersion: value => value },
-        '@/hooks/use-version-check': { useVersionCheck: () => ({ status, unavailable, currentVersion: 'test', checking: false, refresh: async () => { if (pending) status = { ...status, preferences: { ...status.preferences, ...pending } }; }, checkLatestRelease: async () => writes.push(['check']) }) },
+        '@/hooks/use-version-check': { useVersionCheck: () => ({ status, unavailable, currentVersion: 'test', releases: [], checking: false, refresh: async () => { if (pending) status = { ...status, preferences: { ...status.preferences, ...pending } }; }, checkLatestRelease: async () => writes.push(['check']) }) },
         './软件更新客户端': { updateMessages: {}, updateRequest: async (operation, input) => { writes.push([operation, input]); if (fail) throw Error('保存失败'); pending = input; } },
         './在线安装操作': { OnlineInstallActions: 'InstallActions' },
+        './版本历史时间线': { ReleaseTimeline: 'ReleaseTimeline' },
     };
     const module = { exports: {} };
     const source = readFileSync(new URL('../扩展功能/软件更新/软件更新设置.tsx', import.meta.url), 'utf8');
@@ -47,7 +48,7 @@ test('首次读取没有假开关状态，拿到真实值才首次挂载四个�
         const network = loading.find(node => node.type === 'Select'); assert.equal(network.props.value, undefined); assert.equal(network.props.disabled, true);
         f.load(values, false); const ready = switches(f.render());
         assert.deepEqual(ready.map(node => node.props.checked), Object.values(values));
-        assert.equal(ready[2].props.disabled, true, '未允许自动安装时，显示真实状态并保持禁用');
+        assert.equal(ready[2].props.disabled, false, '源码模式仍允许用户选择并保存自动安装偏好');
         assert.deepEqual(f.writes, [], '加载本身不得写设置或检查更新');
     }
 });
@@ -77,4 +78,21 @@ test('读取不可用不展示假默认值，保存失败保留真实值并结�
     switches(f.render())[3].props.onChange(false); await settle();
     assert.equal(switches(f.render())[3].props.checked, true); assert.equal(switches(f.render())[3].props.disabled, false);
     assert.deepEqual(f.notices, [['error', '保存失败']]);
+});
+
+test('源码和客户模式均可自行开关自动安装，选择只保存偏好且不发起安装或更新检查', async () => {
+    for (const allowed of [false, true]) {
+        const f = fixture();
+        f.load({ autoCheck: true, autoDownload: true, autoInstall: false, developerMode: true }, allowed);
+        assert.equal(switches(f.render())[2].props.disabled, false);
+        switches(f.render())[2].props.onChange(true);
+        assert.equal(switches(f.render())[2].props.disabled, true, '保存过程中保留防重复提交');
+        await settle();
+        assert.equal(switches(f.render())[2].props.checked, true);
+        assert.equal(switches(f.render())[2].props.disabled, false);
+        switches(f.render())[2].props.onChange(false);
+        await settle();
+        assert.equal(switches(f.render())[2].props.checked, false);
+        assert.deepEqual(f.writes, [['preferences', { autoInstall: true }], ['preferences', { autoInstall: false }]]);
+    }
 });

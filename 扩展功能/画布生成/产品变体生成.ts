@@ -10,6 +10,8 @@ import { planBatchResultColumn, type BatchResultPlacement } from "../画布布�
 import type { CanvasGenerationRequest } from "./并发生成状态";
 import { promptDocument } from "../Excel画布/商品提示词规则";
 import { productPromptInputs, validateProductPromptInputs } from "../Excel画布/商品提示词输入";
+import { productVariantConfigNode } from "../Excel画布/共用商品提示词";
+import { assertImageReferenceLimit } from "./参考图数量限制";
 
 export type ProductVariantSnapshot = { parameterId: string; id: string; name: string; attributes: Record<string, string> };
 export type ProductVariantExecution = {
@@ -75,6 +77,7 @@ export function productVariantExecutions(nodeId: string, nodes: CanvasNodeData[]
             throw Error(`变体“${name}”的图片已被移除，请重新分配。`);
         }
         const references = variantImages(metadata, variant);
+        assertImageReferenceLimit(references);
         if (references.some(image => !image.storageKey && (!image.url || image.url.startsWith("blob:")))) {
             throw Error(`变体“${name}”有未保存的图片，请重新上传后生成。`);
         }
@@ -143,7 +146,8 @@ export function planProductGenerationJobs(sources: CanvasNodeData[], nodes: Canv
         for (const execution of executions.length ? executions : [undefined]) {
             validateProductPromptInputs(source.id, nodes, connections, execution?.snapshot.id);
             const group = execution ? `${execution.snapshot.parameterId}:${execution.snapshot.id}` : "regular";
-            groups.set(group, [...groups.get(group) || [], { source, mode, prompt: source.metadata?.composerContent || source.metadata?.prompt || "", execution }]);
+            const scoped = productVariantConfigNode(source, execution?.snapshot.id)!;
+            groups.set(group, [...groups.get(group) || [], { source: scoped, mode, prompt: scoped.metadata?.composerContent || scoped.metadata?.prompt || "", execution }]);
         }
     }
     const occupied = [...nodes], jobs: ProductGenerationJob[] = [];

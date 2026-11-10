@@ -5,7 +5,7 @@ import { LoaderCircle, Plus, RotateCcw, Scissors, X } from "lucide-react";
 import type { CanvasNodeContext } from "@/types/canvas-plugin";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { ASSET_DRAG_TYPE, readAssetDrag } from "../素材/上传资产规则";
-import { MediaThumbnail } from "../媒体交付/媒体缩略图";
+import { ParameterImageThumbnail } from "./参数图片预览";
 import { applyProductImageCutout, productMainImages, productMainImagesPatch, productImageSource, restoreProductMainImage,
     sameProductImageSource, type ProductImageMetadata, type ProductMainImage } from "./产品主图规则";
 
@@ -158,8 +158,7 @@ export function ProductMainImageUploader({ ctx, productId }: { ctx: CanvasNodeCo
                     return (
                         <div key={image.id} className="group/product-image relative aspect-square min-w-0 overflow-hidden rounded-lg border"
                             style={{ borderColor: theme.node.stroke, background: theme.toolbar.itemHover }}>
-                            <MediaThumbnail storageKey={image.storageKey} fallback={image.url} alt={`产品主图 ${label}`} className="h-full min-h-0 w-full min-w-0 object-contain"
-                                style={{ gridTemplateRows: "minmax(0, 1fr)", gridTemplateColumns: "minmax(0, 1fr)" }} />
+                            <ParameterImageThumbnail image={image} name={`产品主图 ${label}`} className="block h-full min-h-0 w-full min-w-0" />
                             <button type="button" aria-label={`移除产品主图 ${label}`} title="移除图片" disabled={pending}
                                 className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/95 text-stone-900 opacity-0 shadow-sm transition-opacity group-hover/product-image:opacity-100 group-focus-within/product-image:opacity-100 disabled:cursor-wait motion-reduce:transition-none [@media(hover:none)]:opacity-100"
                                 onClick={() => updateImages(current => current.filter(item => item.id !== image.id))}><X className="size-3" /></button>

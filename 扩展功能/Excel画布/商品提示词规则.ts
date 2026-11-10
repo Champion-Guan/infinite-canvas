@@ -3,21 +3,23 @@ import { productMainImages } from "./产品主图规则";
 import { productVariants, variantImages, variantLabel, variantParameterMetadata, type ProductVariantMetadata } from "./产品变体规则";
 import { PRODUCT_BRIEF_FIELDS, PRODUCT_PLATFORM_OPTIONS, WILDBERRIES_PLATFORM, productPlatformRules } from "./旧版参数规则";
 import { readBilingualSegments, type BilingualAlignment } from "../提示词/双语片段对齐";
+import { baseConfirmationSupplement, parseConditionalTemplates, parseConfirmations, validateConditionalTemplates, type Confirmation } from "./商品待确认规则";
 
 export const PRODUCT_PROMPT_NODE_TYPE = "guan:product-prompt";
-export type BilingualPrompt = { english: string; chinese: string; translatedChinese: string; translationError?: string; alignment?: BilingualAlignment };
+export type BilingualPrompt = { english: string; chinese: string; translatedChinese: string; translationError?: string; alignment?: BilingualAlignment; conditionalTemplate?: string };
 export type ProductImageBrief = {
     key: string; kind: "main" | "carousel" | "rich"; name: string;
     buyerQuestion: string; evidence: string; composition: string; constraints: string; copyLayout: string; checks: string;
     delivery: { width: number; height: number; format: "png" | "jpeg" | "webp"; maxMB: number | null };
     prompt: BilingualPrompt; variants: Record<string, BilingualPrompt>;
+    confirmationImageIds?: string[];
 };
 export type ProductImagePlan = {
     overview: { buyers: string; sellingPoints: string; concerns: string; consistency: string; sequence: string };
-    style: string; assumptions: string[]; pendingFacts: string[]; images: ProductImageBrief[];
+    style: string; assumptions: string[]; pendingFacts: string[]; confirmations?: Confirmation[]; images: ProductImageBrief[];
 };
 export type ProductPromptDocument = ProductImageBrief & {
-    parameterId: string; generatedSignature: string; variantId?: string; variantName?: string; planName?: string;
+    parameterId: string; generatedSignature: string; planIndex?: number; variantId?: string; variantName?: string; planName?: string;
 };
 export type ProductPlanningParameters = Pick<ProductVariantMetadata, "productPlatform" | "productPlatformRules" | "productBrief" |
     "promptVariableValues" | "promptVariableSupplement" | "productMainImages" | "productMainImageStorageKey" | "productMainImageUrl" |
@@ -85,7 +87,9 @@ function bilingual(value: unknown): BilingualPrompt {
     const item = aligned || value as { english?: unknown; chinese?: unknown } | null;
     const chinese = text(item?.chinese, "中文对照");
     if (!/[\u3400-\u9fff]/.test(chinese)) throw Error("策划结果缺少中文对照，请重新生成。");
-    return { english: validateEnglishPrompt(item?.english), chinese, translatedChinese: chinese, ...(aligned ? { alignment: aligned.alignment } : {}) };
+    const conditionalTemplate = parseConditionalTemplates((value as { conditions?: unknown } | null)?.conditions);
+    return { english: validateEnglishPrompt(item?.english), chinese, translatedChinese: chinese, ...(aligned ? { alignment: aligned.alignment } : {}),
+        ...(conditionalTemplate ? { conditionalTemplate } : {}) };
 }
 
 export function parseProductImagePlan(response: string, variantIds: string[]): ProductImagePlan {
@@ -114,13 +118,18 @@ export function parseProductImagePlan(response: string, variantIds: string[]): P
             copyLayout: text(item.copyLayout, "文案与排版建议（无文字时应说明）"),
             delivery, checks: text(item.checks, "人工检查项"), prompt: bilingual(item.prompt),
             variants: Object.fromEntries(variantIds.map(id => [id, bilingual((item.variants as Record<string, unknown> | undefined)?.[id])])),
+            ...(Array.isArray(item.confirmationImageIds) && item.confirmationImageIds.every(id => typeof id === "string" && id.length < 100)
+                ? { confirmationImageIds: [...new Set(item.confirmationImageIds)] as string[] } : {}),
         };
     });
+    const confirmations = parseConfirmations(input.confirmations, images.map(image => image.key));
+    for (const image of images) for (const pair of [image.prompt, ...Object.values(image.variants)])
+        validateConditionalTemplates(pair.chinese, pair.english, pair.conditionalTemplate, confirmations || [], image.key);
     const overview = Object.fromEntries(["buyers", "sellingPoints", "concerns", "consistency", "sequence"]
         .map(key => [key, text(input.overview?.[key], "整套策划概览")])) as ProductImagePlan["overview"];
     return { overview, style: text(input.style, "统一视觉风格"),
         assumptions: input.assumptions.map((value: unknown) => text(value, "制作假设")),
-        pendingFacts: input.pendingFacts.map((value: unknown) => text(value, "待确认内容")), images };
+        pendingFacts: input.pendingFacts.map((value: unknown) => text(value, "待确认内容")), ...(confirmations ? { confirmations } : {}), images };
 }
 
 const cleanBrief = (brief?: ProductVariantMetadata["productBrief"]) => {
@@ -155,7 +164,7 @@ export function productPlanningFacts(metadata: ProductVariantMetadata) {
         platform: metadata.productPlatform || WILDBERRIES_PLATFORM, language: metadata.productLanguage || "",
         channelRequirements: productPlatformRules({ ...metadata, productPlatform: metadata.productPlatform || WILDBERRIES_PLATFORM }),
         brief: cleanBrief(metadata.productBrief), variables: metadata.promptVariableValues || {},
-        supplement: metadata.promptVariableSupplement || "",
+        supplement: baseConfirmationSupplement(metadata.promptVariableSupplement),
         images: images.map(image => ({ id: image.id, name: image.name })), variants: variantFacts,
     };
 }

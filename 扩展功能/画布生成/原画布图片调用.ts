@@ -5,6 +5,7 @@ import { type GeneratedImage } from "./原版图片协议";
 import { runCanvasImageTask } from "./图片任务衔接.mjs";
 import { bindConfiguredChannel } from "../生成网关/渠道绑定客户端";
 import { requireModelConfigured } from "../产品配置/模型配置门禁";
+import { assertImageReferenceLimit } from "./参考图数量限制";
 
 export type CanvasImageTask = { taskId: string; slotId: string; binding: string; requestHash: string };
 export type CanvasImageReceipt = { taskId: string; responseHash: string };
@@ -30,6 +31,7 @@ export async function requestCanvasImage(options: {
   deferConfirm?: () => boolean;
 }) {
     options.signal?.throwIfAborted();
+    if (!options.previous) assertImageReferenceLimit(options.references || []);
     if (!options.previous) requireModelConfigured(options.config, "image", options.config.model || options.config.imageModel);
   const host = (window as unknown as { __guanGenerationHost?: GenerationHost }).__guanGenerationHost;
   if (!host) throw new Error("本机生成端口尚未接入，请重新打开工作台；未改用浏览器直连。");

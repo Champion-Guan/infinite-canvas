@@ -105,10 +105,10 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
                     </div>
                 </div>
                 {(cardMetadata.productPlatform || WILDBERRIES_PLATFORM) === WILDBERRIES_PLATFORM ? (
-                    <div className="whitespace-pre-line rounded-lg bg-black/[.06] px-2.5 py-2 text-[10px] leading-5 opacity-75 dark:bg-white/[.08]">{cardMetadata.productPlatformRules || WILDBERRIES_RULES_TEXT}</div>
+                    <div className="whitespace-pre-line rounded-lg bg-black/[.06] px-2.5 py-2 text-[10px] leading-5 opacity-75 dark:bg-white/[.08]">{productPlatformRules({ ...cardMetadata, productPlatform: platform })}</div>
                 ) : null}
             </section>
-            <ProductPlanOverview metadata={cardMetadata} />
+            <ProductPlanOverview metadata={cardMetadata} ctx={ctx} productId={productId} />
             <ProductMainImageUploader ctx={ctx} productId={productId} />
             <ProductVariantEditor ctx={ctx} onChange={updateMetadata} tokens={tokens} />
             {!tokens.length ? (

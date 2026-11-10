@@ -471,6 +471,8 @@ test("批量最终保存失败后释放批量门控，重试入口只恢复保�
     "../Excel画布/商品提示词阻止反馈": variants.load("Excel画布/商品提示词阻止反馈.ts"),
     "../画布布局/批量结果排布": columns,
     "./产品变体生成": variants.load("画布生成/产品变体生成.ts"),
+    "./商品提示词生成": variants.load("画布生成/商品提示词生成.ts"),
+    "./参考图数量限制": variants.load("画布生成/参考图数量限制.ts"),
     "../Excel画布/商品提示词规则": variants.load("Excel画布/商品提示词规则.ts"),
     "../Excel画布/商品提示词画布": variants.load("Excel画布/商品提示词画布.ts"),
     "./批量保存协调": batchSave,

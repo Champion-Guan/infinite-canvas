@@ -70,7 +70,6 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
         await authorize(request); reply(200, { result }); return true;
       }
       if (operation === 'preferences') {
-        if (!manager && preferences?.autoInstall === true) throw new UpdateError('web_release_required');
         await updates.configure(preferences);
       } else if (operation === 'check') await updates.check();
       else if (operation === 'download') await updates.download();

@@ -1,7 +1,6 @@
 import { nanoid } from "nanoid";
 import type { CanvasExportFile } from "@/types/canvas-export";
-
-const storageFields = new Set(["storageKey", "originalStorageKey", "deliveryStorageKey", "references"]);
+import { remapCanvasMedia } from "./便携媒体引用";
 
 // Validate the entire package before writing files. Imported media always gets new keys.
 export function prepareCanvasExport(data: unknown, zip: Map<string, Blob>, missingMedia: ReadonlyMap<string, string> = new Map()) {
@@ -35,21 +34,7 @@ export function prepareCanvasExport(data: unknown, zip: Map<string, Blob>, missi
             media.push({ key: storageKey, blob: blob.slice(0, blob.size, file.mimeType) });
             return { ...file, storageKey };
         });
-        const remap = (value: unknown, field = ""): unknown => {
-            if (typeof value === "string" && storageFields.has(field) && /^(image|video|audio|file):/.test(value)) {
-                const key = keys.get(value);
-                if (!key) {
-                    const missing = missingMedia.get(value);
-                    if (missing) return missing;
-                    throw new Error("画布引用的媒体未包含在 ZIP 中");
-                }
-                return key;
-            }
-            if (Array.isArray(value)) return value.map((entry) => remap(entry, field));
-            if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, remap(entry, key)]));
-            return value;
-        };
-        return { project: { ...remap(project) as typeof project, ...dates }, files };
+        return { project: { ...remapCanvasMedia(project, keys, missingMedia), ...dates }, files };
     });
     return { projects, media };
 }

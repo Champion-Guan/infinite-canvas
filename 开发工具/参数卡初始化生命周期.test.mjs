@@ -16,6 +16,7 @@ const variables = load('提示词/变量使用规则.ts');
 const productRules = load('Excel画布/旧版参数规则.ts', {
     './旧版主题翻译.js': { localizePromptTheme: value => value },
     '../提示词/变量使用规则': variables,
+    './商品待确认规则': load('Excel画布/商品待确认规则.ts'),
 });
 
 test('参数卡记忆恢复和补齐一次提交；重复渲染不写入，明确留空不被旧记忆复原', () => {
@@ -99,16 +100,19 @@ test('Wildberries 默认俄文但允许修改；重复渲染与重新打开保�
         cursor = 0;
         const tree = PromptVariablesContent({ ctx: { node, getNode: () => node, getNodes: () => [node], updateMetadata } });
         while (effects.length) effects.shift()();
-        const selectors = [];
+        const selectors = [], texts = [];
         const visit = element => {
+            if (typeof element === 'string') { texts.push(element); return; }
             if (!element || typeof element !== 'object') return;
             if (element.type === 'ProductOptionSelect') selectors.push(element.props);
             for (const child of [element.props?.children].flat(Infinity)) visit(child);
         };
         visit(tree);
-        return { platform: selectors[0], language: selectors[1] };
+        return { platform: selectors[0], language: selectors[1], text: texts.join('\n') };
     };
-    render();
+    const first = render();
+    assert.match(first.text, /共11张（主图1张、轮播图10张）/);
+    assert.match(first.text, /富内容：6张/);
     assert.equal(node.metadata.productLanguage, '俄文');
     assert.equal(render().language.disabled, undefined);
     for (const language of productRules.PRODUCT_LANGUAGE_OPTIONS.map(option => option.value)) {

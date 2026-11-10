@@ -22,6 +22,15 @@ function planData(variantIds = []) {
         })),
     };
 }
+function wbPlanData(variantIds = []) {
+    const plan = planData(variantIds), [main, rich] = plan.images;
+    plan.images = [
+        main,
+        ...Array.from({ length: 10 }, (_, i) => ({ ...structuredClone(main), kind: 'carousel', key: `carousel-${i + 1}`, name: `轮播图${i + 1}` })),
+        ...Array.from({ length: 6 }, (_, i) => ({ ...structuredClone(rich), key: `rich-${i + 1}`, name: `富内容${i + 1}` })),
+    ];
+    return plan;
+}
 function modules(overrides = {}) {
     let sequence = 0, loader;
     loader = variantModules({
@@ -43,6 +52,12 @@ function apply(fixture, ops) {
         }
         if (op.type === 'connect_nodes' && !fixture.connections.some(item => item.fromNodeId === op.fromNodeId && item.toNodeId === op.toNodeId))
             fixture.connections.push({ id: `edge-${fixture.connections.length}`, ...op });
+        if (op.type === 'delete_connections') fixture.connections = fixture.connections.filter(edge => !op.ids.includes(edge.id));
+        if (op.type === 'delete_node') {
+            const ids = new Set(op.ids || [op.id]);
+            fixture.nodes = fixture.nodes.filter(node => !ids.has(node.id));
+            fixture.connections = fixture.connections.filter(edge => !ids.has(edge.fromNodeId) && !ids.has(edge.toNodeId));
+        }
     }
 }
 function planned(loader = modules()) {
@@ -85,6 +100,40 @@ test('通用角色不含平台规格，策划只使用所选平台规则，删�
         assert.equal(requirements.channelRules, '', value);
         assert.equal(requirements.production, null, value);
     }
+});
+
+test('WB任务明确传入主图1张轮播10张富内容6张，通用输出遵守任务数量，其他平台不带入配额', () => {
+    const loader = modules(), task = loader.load('Excel画布/商品策划任务规则.ts');
+    const { PRODUCT_PLANNING_OUTPUT } = loader.load('Excel画布/商品视觉策划指令.ts');
+    const requirements = task.productPlanningRequirements({ productPlatform: 'Wildberries' });
+    assert.equal(requirements.production.mainAndCarousel.count, 11);
+    assert.equal(requirements.production.mainAndCarousel.mainCount, 1);
+    assert.equal(requirements.production.mainAndCarousel.carouselCount, 10);
+    assert.equal(requirements.production.rich.count, 6);
+    assert.match(requirements.channelRules, /共11张（主图1张、轮播图10张）/);
+    assert.match(requirements.channelRules, /富内容：6张/);
+    assert.match(PRODUCT_PLANNING_OUTPUT, /requirements\.production.*图片分类和数量.*必须遵守/);
+    assert.doesNotMatch(PRODUCT_PLANNING_OUTPUT, /Wildberries|主图1张|富内容6张/);
+    for (const platform of ['Ozon', '亚马逊', 'Takealot', '未指定'])
+        assert.equal(task.productPlanningRequirements({ productPlatform: platform }).production, null);
+});
+
+test('WB完整方案必须恰好1主图10轮播6富内容，拒绝少图、多图和错误分类，待补事实仍可先返回问题', () => {
+    const loader = modules(), task = loader.load('Excel画布/商品策划任务规则.ts');
+    const plan = wbPlanData();
+    assert.doesNotThrow(() => task.validateProductPlanRequirements(plan, { productPlatform: 'Wildberries' }));
+    for (const change of [
+        value => value.images.pop(),
+        value => value.images.splice(1, 1),
+        value => value.images.push({ ...value.images[0], key: 'extra-main' }),
+        value => { value.images[1].kind = 'main'; },
+        value => { value.images[11].kind = 'carousel'; value.images[11].delivery = value.images[0].delivery; },
+    ]) {
+        const invalid = structuredClone(plan); change(invalid);
+        assert.throws(() => task.validateProductPlanRequirements(invalid, { productPlatform: 'Wildberries' }), /图片数量.*主图1张、轮播图10张.*富内容6张，共17张.*原有卡片已保留/);
+        assert.doesNotThrow(() => task.validateProductPlanRequirements(invalid, { productPlatform: 'Ozon' }));
+    }
+    assert.doesNotThrow(() => task.validateProductPlanRequirements({ ...plan, images: [], pendingFacts: ['包装数量待确认'] }, { productPlatform: 'Wildberries' }));
 });
 
 test('图片关键词按需进入策划，未填关键词仍可按用途标注总数或尺寸，清空不会使旧方案失效', () => {
@@ -140,20 +189,23 @@ test('真实策划入口传入关键词；套装图不展示关键词仍保留�
     const fixture = variantFixture();
     fixture.parameter.metadata.productBrief.imageKeywords = 'Лёгкий\nУдобный';
     fixture.nodes = [fixture.parameter]; fixture.connections = [];
-    const data = planData(['red', 'blue']);
+    const data = wbPlanData(['red', 'blue']);
     const overlay = {
         english: ' Render the exact words "Лёгкий" and "Удобный" in bold sans-serif type, with a clear heading hierarchy, dark green lettering at the upper left, left aligned with safe margins, without covering the product.',
         chinese: ' 在左上角以粗体无衬线字体实际显示“Лёгкий”和“Удобный”，明确标题层级，深绿色文字、左对齐并保留安全边距，不遮挡商品。',
     };
-    for (const pair of [data.images[0].prompt, ...Object.values(data.images[0].variants)]) {
-        pair.english += ' Add a clear "2" total-pieces annotation in sans-serif type at the upper right, without keyword headings.';
-        pair.chinese += ' 右上角使用无衬线字体清晰标注套装总数“2”，不添加关键词标题。';
+    for (const image of data.images) {
+        for (const pair of [image.prompt, ...Object.values(image.variants)]) {
+            if (image.kind === 'rich') {
+                pair.english += overlay.english; pair.chinese += overlay.chinese;
+            } else {
+                pair.english += ' Add a clear "2" total-pieces annotation in sans-serif type at the upper right, without keyword headings.';
+                pair.chinese += ' 右上角使用无衬线字体清晰标注套装总数“2”，不添加关键词标题。';
+            }
+        }
+        image.copyLayout = image.kind === 'rich' ? '左上角显示“Лёгкий”和“Удобный”，粗体无衬线、深绿色、左对齐，保留安全边距。'
+            : '右上角使用无衬线字体标注真实套装总数“2”，不展示用户关键词。';
     }
-    data.images[0].copyLayout = '右上角使用无衬线字体标注真实套装总数“2”，不展示用户关键词。';
-    for (const pair of [data.images[1].prompt, ...Object.values(data.images[1].variants)]) {
-        pair.english += overlay.english; pair.chinese += overlay.chinese;
-    }
-    data.images[1].copyLayout = '左上角显示“Лёгкий”和“Удобный”，粗体无衬线、深绿色、左对齐，保留安全边距。';
     const loader = modules({
         '@/stores/use-config-store': { useConfigStore: { getState: () => ({ config: {}, isAiConfigReady: () => true }) } },
         '@/lib/canvas/canvas-generation-helpers': { buildGenerationConfig: () => ({ model: 'vision' }), getGenerationCount: () => 1 },
@@ -180,7 +232,7 @@ test('真实策划入口传入关键词；套装图不展示关键词仍保留�
     const generator = loader.load('画布生成/商品提示词生成.ts');
     const configs = fixture.nodes.filter(node => node.type === 'config');
     const jobs = loader.load('画布生成/产品变体生成.ts').planProductGenerationJobs(configs, fixture.nodes, fixture.connections, 'keywords');
-    assert.equal(jobs.length, 4);
+    assert.equal(jobs.length, 34);
     for (const job of jobs) {
         const doc = rules.promptDocument(fixture.nodes.find(node => node.id === job.source.metadata.productPromptConfigKey));
         const result = generator.buildProductGenerationContext(job.source.id, fixture.nodes, fixture.connections, '', job.placement.productVariant);
@@ -275,8 +327,8 @@ test('重新策划原位更新手改提示词，保留原卡ID、位置、尺寸
     assert.deepEqual(fixture.connections, original.connections);
     assert.equal(rules.promptDocument(prompts[0]).variants.red.chinese, '重新策划后的中文');
     assert.equal(config.metadata.model, 'user-chosen-model'); assert.equal(config.metadata.count, 3); assert.equal(config.metadata.quality, 'high');
-    assert.equal(fixture.nodes.filter(node => rules.promptDocument(node) && !node.metadata.productPromptRetired).length, 4);
-    assert.equal(fixture.nodes.filter(node => node.type === 'config' && !node.metadata.productPromptRetired).length, 4);
+    assert.equal(fixture.nodes.filter(node => rules.promptDocument(node) && !node.metadata.productPromptRetired).length, 2);
+    assert.equal(fixture.nodes.filter(node => node.type === 'config' && !node.metadata.productPromptRetired).length, 2);
 });
 
 test('平台改变后的新用途名称和key优先复用同变体原卡，不占用后续精确匹配的卡片', () => {
@@ -303,7 +355,7 @@ test('变更后立即可推导失效状态和常驻原因，写清原平台、�
     assert.deepEqual(status.productPromptWarningGroups(fixture.nodes), []);
     fixture.parameter.metadata.productPlatform = '亚马逊';
     const groups = status.productPromptWarningGroups(fixture.nodes);
-    assert.equal(groups.length, 1); assert.equal(groups[0].nodeIds.length, 4);
+    assert.equal(groups.length, 1); assert.equal(groups[0].nodeIds.length, 2);
     assert.match(groups[0].reasons[0], /上架平台已从“Wildberries”改为“亚马逊”/);
     assert.match(groups[0].reasons[0], /上架平台恢复为“Wildberries”/);
     assert.match(groups[0].reasons[0], /更新原卡片/);
@@ -400,7 +452,7 @@ test('批量变体使用各自英文与图片；任一翻译过期、资料更�
         assert.doesNotMatch(context.prompt, /当前销售变体|变量与画面约束/);
         assert.deepEqual(context.referenceImages.map(image => image.id), [variant.snapshot.id, 'shared']);
     }
-    const prompt = fixture.nodes.find(node => rules.promptDocument(node)?.variantId === 'blue');
+    const prompt = fixture.nodes.find(node => rules.promptDocument(node)?.variants.blue);
     const pair = rules.promptDocument(prompt).variants.blue;
     pair.chinese += '新的修改';
     assert.throws(() => batch.planProductGenerationJobs(configs, fixture.nodes, fixture.connections, 'batch'), /尚未同步/);
@@ -455,7 +507,7 @@ test('只改图片文字语言保留AI提示词，实际生图请求使用当前
             assert.ok(context.prompt.includes(`Image text language: ${target}.`));
             assert.match(context.prompt, /numbers, measurement units and exact dimension strings unchanged/);
             assert.match(context.prompt, /Do not add words to a text-free image/);
-            assert.ok(context.prompt.includes(rules.readProductPrompt(prompts.find(node => node.id === job.source.metadata.productPromptConfigKey))));
+            assert.ok(context.prompt.includes(rules.readProductPrompt(prompts.find(node => node.id === job.source.metadata.productPromptConfigKey), job.placement.productVariant.snapshot.id)));
             assert.deepEqual(context.referenceImages.map(image => image.id), [job.placement.productVariant.snapshot.id, 'shared']);
         }
         assert.ok(task.productPlanningRequirements(fixture.parameter.metadata).imageTextLanguageRequirement.includes(`Image text language: ${target}.`));
@@ -473,7 +525,7 @@ test('尺寸标注提示词的数字单位原文保留；旧俄文要求由本�
     const { loader, fixture, rules } = planned();
     const config = fixture.nodes.find(node => node.type === 'config');
     const prompt = fixture.nodes.find(node => node.id === config.metadata.productPromptConfigKey);
-    const pair = rules.promptPair(rules.promptDocument(prompt));
+    const pair = rules.promptPair(rules.promptDocument(prompt), 'red');
     pair.english += ' Add only "3.2cm/1.3in" and "6cm/2.4in". Render ordinary captions in Russian.';
     fixture.parameter.metadata.productLanguage = '中文';
     const job = loader.load('画布生成/产品变体生成.ts').planProductGenerationJobs([config], fixture.nodes, fixture.connections, 'dimension')[0];
@@ -491,7 +543,7 @@ test('短名称突出变体和用途，旧卡片只改自动名称，保留手�
     for (const node of prompts) {
         const doc = rules.promptDocument(node);
         doc.planName = '数字0–9原图尺寸标注：每个变体一张';
-        doc.name = `${doc.variantName} · ${doc.planName}`;
+        doc.name = doc.planName;
         node.title = doc.name;
         const config = fixture.nodes.find(item => item.metadata.productPromptConfigKey === node.id);
         config.title = `${doc.name} · 生成`;
@@ -504,10 +556,10 @@ test('短名称突出变体和用途，旧卡片只改自动名称，保留手�
     assert.equal(custom.title, '用户手动名称'); assert.equal(config.title, '用户指定配置');
     for (const prompt of prompts.slice(1)) {
         const doc = rules.promptDocument(prompt);
-        const expected = `${doc.variantName} · 尺寸标注 ${doc.key === 'main' ? 1 : 2}`;
+        const expected = `尺寸标注 ${doc.key === 'main' ? 1 : 2}`;
         assert.equal(prompt.title, expected);
         assert.equal(fixture.nodes.find(item => item.metadata.productPromptConfigKey === prompt.id).title, `${expected} · 生图`);
-        assert.equal(rules.productPromptTitle(doc), `${doc.variantName} · 尺寸标注`, '单一方案不添加多余编号');
+        assert.equal(rules.productPromptTitle(doc), '尺寸标注', '单一方案不添加多余编号');
     }
     assert.deepEqual(fixture.nodes.map(node => node.id), before.nodes.map(node => node.id));
     assert.deepEqual(fixture.nodes.map(node => node.metadata), before.nodes.map(node => node.metadata));
@@ -518,7 +570,7 @@ test('短名称突出变体和用途，旧卡片只改自动名称，保留手�
     assert.notEqual(rules.productPromptTitle(brief, [brief, other]), rules.productPromptTitle(other, [brief, other]), '缩短后同名的不同方案需保留可见编号');
 });
 
-test('十个变体拆成十对纵向卡片，单卡只执行一个变体，批量不平方展开', () => {
+test('十个变体共用一对提示词与配置，单卡按勾选生成十张，批量不平方展开', () => {
     const loader = modules(), fixture = variantFixture();
     const ids = Array.from({ length: 10 }, (_, i) => String(i));
     fixture.parameter.metadata.productPlatform = '未指定';
@@ -530,8 +582,8 @@ test('十个变体拆成十对纵向卡片，单卡只执行一个变体，批�
     apply(fixture, canvas.productPlanOps(fixture.parameter, rules.parseProductImagePlan(JSON.stringify(plan), ids),
         fixture.nodes, fixture.connections, rules.planningFingerprint(fixture.parameter.metadata)));
     const prompts = fixture.nodes.filter(node => rules.promptDocument(node)), configs = fixture.nodes.filter(node => node.type === 'config');
-    assert.equal(prompts.length, 10); assert.equal(configs.length, 10); assert.equal(fixture.connections.length, 20);
-    assert.deepEqual(prompts.map(node => rules.promptDocument(node).variantId), ids);
+    assert.equal(prompts.length, 1); assert.equal(configs.length, 1); assert.equal(fixture.connections.length, 2);
+    assert.deepEqual(Object.keys(rules.promptDocument(prompts[0]).variants), ids);
     assert.equal(new Set(prompts.map(node => node.position.x)).size, 1);
     assert.equal(new Set(configs.map(node => node.position.x)).size, 1);
     for (let i = 0; i < prompts.length; i++) {
@@ -543,14 +595,14 @@ test('十个变体拆成十对纵向卡片，单卡只执行一个变体，批�
     assert.equal(jobs.length, 10);
     const generator = loader.load('画布生成/商品提示词生成.ts');
     assert.equal(generator.productPromptInputSummary(configs[0].id, fixture.nodes, fixture.connections,
-        { textCount: 1, imageCount: 0, videoCount: 0, audioCount: 0 }).imageCount, 2);
+        { textCount: 1, imageCount: 0, videoCount: 0, audioCount: 0 }).imageCount, 11);
     assert.deepEqual(jobs.map(job => job.placement.productVariant.snapshot.id).sort(), ids);
-    assert.equal(batch.planProductGenerationJobs([configs[0]], fixture.nodes, fixture.connections, 'single').length, 1);
+    assert.equal(batch.planProductGenerationJobs([configs[0]], fixture.nodes, fixture.connections, 'single').length, 10);
     fixture.parameter.metadata.productVariants[0].enabled = false;
     assert.equal(batch.planProductGenerationJobs(configs, fixture.nodes, fixture.connections, 'partial').length, 9);
 });
 
-test('已有合并卡无须重调AI即可展开，保留各变体手改内容、原ID和配置，重复执行无变化', () => {
+test('已有共用卡不再拆成变体卡，保留各变体手改内容、原ID和配置', () => {
     const loader = modules(), fixture = variantFixture();
     const rules = loader.load('Excel画布/商品提示词规则.ts'), canvas = loader.load('Excel画布/商品提示词画布.ts');
     const plan = rules.parseProductImagePlan(JSON.stringify(planData(['red', 'blue'])), ['red', 'blue']);
@@ -562,13 +614,13 @@ test('已有合并卡无须重调AI即可展开，保留各变体手改内容、
     const config = { ...fixture.config, metadata: { ...fixture.config.metadata, productPromptConfigKey: source.id } };
     fixture.nodes = [fixture.parameter, source, config]; fixture.connections = [
         { id: 'p', fromNodeId: fixture.parameter.id, toNodeId: source.id }, { id: 'c', fromNodeId: source.id, toNodeId: config.id }];
-    apply(fixture, canvas.expandLegacyProductPrompts(fixture.parameter, fixture.nodes, fixture.connections));
-    assert.equal(fixture.nodes.filter(node => rules.promptDocument(node)).length, 2);
-    assert.equal(fixture.nodes.filter(node => node.type === 'config').length, 2);
-    assert.equal(rules.promptDocument(fixture.nodes.find(node => node.id === 'legacy')).variantId, 'red');
-    assert.match(rules.promptDocument(fixture.nodes.find(node => rules.promptDocument(node)?.variantId === 'blue')).variants.blue.chinese, /用户手改内容/);
+    apply(fixture, canvas.mergeLegacyProductPrompts(fixture.parameter, fixture.nodes, fixture.connections));
+    assert.equal(fixture.nodes.filter(node => rules.promptDocument(node)).length, 1);
+    assert.equal(fixture.nodes.filter(node => node.type === 'config').length, 1);
+    assert.equal(rules.promptDocument(fixture.nodes.find(node => node.id === 'legacy')).variantId, undefined);
+    assert.match(rules.promptDocument(fixture.nodes.find(node => node.id === 'legacy')).variants.blue.chinese, /用户手改内容/);
     assert.equal(fixture.nodes.find(node => node.id === config.id).metadata.count, 2);
-    assert.deepEqual(canvas.expandLegacyProductPrompts(fixture.parameter, fixture.nodes, fixture.connections), []);
+    assert.deepEqual(canvas.mergeLegacyProductPrompts(fixture.parameter, fixture.nodes, fixture.connections), []);
 });
 
 test('整理卡片后AI提示词及配置仍在对应两列且每行居中对齐', () => {
@@ -586,7 +638,7 @@ test('整理卡片后AI提示词及配置仍在对应两列且每行居中对齐
 });
 
 test('策划服务记录并保存任务后落地，非法结果、旧资料与取消不会创建卡片；系统角色无平台污染', async () => {
-    let incoming, failSave = false, failFinalSave = false, cancelled = false, mutateSource = false, noImages = false;
+    let incoming, failSave = false, failFinalSave = false, cancelled = false, mutateSource = false, noImages = false, wrongCount = false;
     const fixture = variantFixture(); fixture.nodes = [fixture.parameter]; fixture.connections = [];
     let ops = 0, saves = 0;
     const notifications = [];
@@ -600,7 +652,8 @@ test('策划服务记录并保存任务后落地，非法结果、旧资料与�
             await options.recordTask({ slotId: options.scope.slotId, taskId: 'mock-task' });
             if (cancelled) controller.abort();
             if (mutateSource) fixture.parameter.metadata.productBrief.nameCategory += '变更';
-            const plan = planData(['red', 'blue']);
+            const plan = wbPlanData(['red', 'blue']);
+            if (wrongCount) plan.images.pop();
             if (noImages) { plan.images = []; plan.pendingFacts = ['销售数量待确认']; }
             return options.applyAndSave(JSON.stringify(plan), { taskId: 'mock-task' });
         } },
@@ -623,6 +676,18 @@ test('策划服务记录并保存任务后落地，非法结果、旧资料与�
     assert.ok(fixture.nodes.filter(node => node.type === 'config').every(node => node.metadata.model === 'user-selected-image'));
     assert.doesNotMatch(incoming.messages[0].content, /Wildberries|1800|2400/);
     assert.match(incoming.messages[1].content[0].text, /Wildberries/);
+    const sent = JSON.parse(incoming.messages[1].content[0].text);
+    assert.equal(sent.requirements.production.mainAndCarousel.count, 11);
+    assert.equal(sent.requirements.production.rich.count, 6);
+    assert.equal(fixture.nodes.filter(node => node.type === 'config').length, 17, '两个变体共用17种图片用途，不重复建卡');
+    wrongCount = true;
+    const retainedNodes = structuredClone(fixture.nodes), retainedConnections = structuredClone(fixture.connections);
+    await assert.rejects(service.planProductImages(ctx, 'product', controller.signal), /图片数量不符合要求/);
+    assert.equal(ops, 1);
+    assert.deepEqual(fixture.nodes.map(node => ({ ...node, metadata: { ...node.metadata, gatewayGenerationTasks: undefined } })),
+        retainedNodes.map(node => ({ ...node, metadata: { ...node.metadata, gatewayGenerationTasks: undefined } })), '数量不符时不改原有策划卡片');
+    assert.deepEqual(fixture.connections, retainedConnections);
+    wrongCount = false;
     failSave = true;
     await assert.rejects(service.planProductImages(ctx, 'product', controller.signal), /保存尚未确认/);
     assert.equal(ops, 1); failSave = false; mutateSource = true;
@@ -729,14 +794,16 @@ test('旧翻译错误可重试，失败仅更新错误说明，保留中英文�
     const effects = [];
     let calls = 0;
     const loader = modules({
-        react: { useEffect: callback => effects.push(callback), useRef: value => ({ current: value }), useState: value => [value, () => {}] },
+        react: { useEffect: callback => effects.push(callback), useRef: value => ({ current: value }), useState: value => [typeof value === 'function' ? value() : value, () => {}] },
         'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
         'lucide-react': { Languages: 'Languages', RotateCcw: 'RotateCcw' },
         './Excel画布上下文': { useExcelProductId: () => 'product' },
         './商品策划请求': { translateProductPrompt: async () => { calls++; throw new Error(resourceError); } },
+        './商品待确认编辑': { ProductConfirmationDialog: 'ProductConfirmationDialog' },
         '../提示词/双语联动文本框': { useBilingualPromptSync: () => ({}), BilingualPromptField: 'textarea' },
+        antd: { Segmented: 'Segmented' }, '../主题/页签内容过渡': { TabContentTransition: 'TabContentTransition' },
     });
-    const ctx = { node, theme: { node: {} }, getNode: id => fixture.nodes.find(item => item.id === id),
+    const ctx = { node, theme: { node: {} }, getNode: id => fixture.nodes.find(item => item.id === id), getConnections: () => fixture.connections,
         updateMetadata: patch => { node.metadata = { ...node.metadata, ...patch }; } };
     const component = loader.load('Excel画布/商品提示词卡片.tsx');
     const elements = tree => {

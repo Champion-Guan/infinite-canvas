@@ -24,7 +24,8 @@ async function load(name, dependencies = {}, globals = {}) {
 const placement = await load('画布布局/卡片自动避让.ts');
 const themes = await load('Excel画布/旧版主题翻译.js');
 const variables = await load('提示词/变量使用规则.ts');
-const rules = await load('Excel画布/旧版参数规则.ts', { './旧版主题翻译.js': themes, '../提示词/变量使用规则': variables });
+const confirmationRules = await load('Excel画布/商品待确认规则.ts');
+const rules = await load('Excel画布/旧版参数规则.ts', { './旧版主题翻译.js': themes, '../提示词/变量使用规则': variables, './商品待确认规则': confirmationRules });
 const contexts = await load('Excel画布/Excel卡片上下文.ts', { './旧版参数规则': rules });
 const titles = await load('Excel画布/旧版最终提示词标题.ts');
 const parameterLinks = await load('Excel画布/产品参数联动.ts', { '../提示词/变量使用规则': variables, './旧版最终提示词标题': titles, './旧版参数规则': rules });
@@ -419,6 +420,8 @@ test('视区覆盖层保持穿透，节点与多选胶囊恢复命中并只触�
     const source = resolve(root, '.运行/3100源/画布副本/web/src');
     const toolbar = await load(resolve(source, 'components/canvas/canvas-node-hover-toolbar.tsx'), {
         ...common,
+        '@/扩展功能/画布交互/节点工具栏定位': await load('画布交互/节点工具栏定位.ts'),
+        '@/扩展功能/画布生成/一键超人菜单': { ImageSuperMenu: 'ImageSuperMenu' },
         '@/扩展功能/主题/页签内容过渡': { TabContentTransition: 'TabTransition' },
         '@/扩展功能/产品/产品界面边界': { useProductActive: () => true },
         '@/扩展功能/本机存储/上游浏览器存储桥': {}, '@/lib/canvas/node-registry': {},

@@ -1,0 +1,66 @@
+diff --git a/web/src/components/canvas/canvas-node-hover-toolbar.tsx b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+index f780f72..73f063f 100644
+--- a/web/src/components/canvas/canvas-node-hover-toolbar.tsx
++++ b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+@@ -1,4 +1,6 @@
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
++import { ImageSuperMenu } from "@/扩展功能/画布生成/一键超人菜单";
++import type { ImageSuperAction } from "@/扩展功能/画布生成/一键超人规则";
+ import { sqlitePreferences } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { useEffect, useMemo, useState, type ReactNode } from "react";
+ import { App, Segmented, Tooltip } from "antd";
+@@ -44,6 +46,7 @@ type CanvasNodeHoverToolbarProps = {
+     onSplit: (node: CanvasNodeData) => void;
+     onUpscale: (node: CanvasNodeData) => void;
+     onAngle: (node: CanvasNodeData) => void;
++    onSuperGenerate: (node: CanvasNodeData, action: ImageSuperAction, value: string) => boolean;
+     onViewImage: (node: CanvasNodeData) => void;
+     onReversePrompt: (node: CanvasNodeData) => void;
+     onTranslatePrompt?: (node: CanvasNodeData, language: "en" | "zh") => void;
+@@ -83,6 +86,7 @@ export function CanvasNodeHoverToolbar({
+     onSplit,
+     onUpscale,
+     onAngle,
++    onSuperGenerate,
+     onViewImage,
+     onReversePrompt,
+     onTranslatePrompt,
+@@ -97,6 +101,7 @@ export function CanvasNodeHoverToolbar({
+     const [draftImageToolIds, setDraftImageToolIds] = useState<ImageQuickToolId[]>(defaultImageQuickToolIds);
+     const [draftShowImageToolLabels, setDraftShowImageToolLabels] = useState(false);
+     const [imageToolSettingsOpen, setImageToolSettingsOpen] = useState(false);
++    const [superMenuOpen, setSuperMenuOpen] = useState(false);
+     const productActive = useProductActive();
+     const { message } = App.useApp();
+     const { t } = useTranslation();
+@@ -117,6 +122,7 @@ export function CanvasNodeHoverToolbar({
+ 
+     useEffect(() => {
+         setImageToolSettingsOpen(false);
++        setSuperMenuOpen(false);
+     }, [node?.id]);
+ 
+     if (!node) return null;
+@@ -207,7 +213,7 @@ export function CanvasNodeHoverToolbar({
+                 style={{ left, top }}
+                 onMouseEnter={() => onKeep(node.id)}
+                 onMouseLeave={() => {
+-                    if (!imageToolSettingsOpen) onLeave();
++                    if (!imageToolSettingsOpen && !superMenuOpen) onLeave();
+                 }}
+                 onMouseDown={(event) => event.stopPropagation()}
+                 onPointerDown={(event) => event.stopPropagation()}
+@@ -234,6 +240,13 @@ export function CanvasNodeHoverToolbar({
+                         <ToolbarAction key={tool.id} {...tool} showLabel={isImage ? showImageToolLabels : true} />
+                     ),
+                 )}
++                {hasImage ? <ImageSuperMenu key={node.id} open={productActive && superMenuOpen} showLabel={showImageToolLabels}
++                    onOpenChange={open => {
++                        setSuperMenuOpen(open);
++                        if (open) onKeep(node.id);
++                        else onLeave();
++                    }}
++                    onGenerate={(action, value) => onSuperGenerate(node, action, value)} /> : null}
+                 {hasImage ? <ToolbarAction id="more" title={t("canvas.imageTools.configure")} label={t("canvas.imageTools.more")} icon={<Ellipsis className="size-4" />} active={imageToolSettingsOpen} onClick={openImageToolSettings} showLabel={showImageToolLabels} /> : null}
+             </div>
+             {hasImage ? (

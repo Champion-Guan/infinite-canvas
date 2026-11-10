@@ -83,7 +83,7 @@ test('仅运行卡片集合变化才通知React，不因结果子请求频繁重
   const hook = useCanvasGenerationRequests(); assert.equal(hook.generationRequestsRef.current.size, 0); assert.equal(hook.runningNodeIds.size, 0);
 });
 
-async function executionFixture({ failPreparation = false, blank = false } = {}) {
+async function executionFixture({ failPreparation = false, blank = false, referenceCount = 0 } = {}) {
   const registry = createCanvasGenerationRegistry(), tasks = [], errors = [];
   const nodesRef = { current: ['A','B','C'].map((id, index) => ({ id, type: 'config', position: { x: 0, y: index * 500 }, width: 300, height: 240, metadata: { prompt: '产品照片' } })) };
   const connectionsRef = { current: [] }; let sequence = 0, generated = 0;
@@ -91,13 +91,17 @@ async function executionFixture({ failPreparation = false, blank = false } = {})
   const scope = {
     protectProductCanvasWork: (_id, operation) => operation,
     ...registry, ...variants.load('画布生成/产品变体生成.ts'), ...variants.load('画布生成/商品提示词生成.ts'),
+    ...variants.load('Excel画布/共用商品提示词.ts'),
     ...variants.load('Excel画布/商品提示词阻止反馈.ts'),
+    ...variants.load('画布生成/参考图数量限制.ts'),
+    ...(referenceCount ? { buildProductGenerationContext: () => ({ prompt: '产品照片',
+      referenceImages: Array.from({ length: referenceCount }, (_, i) => ({ id: `ref-${i}` })) }) } : {}),
     generationRequestsRef: { current: registry.requests }, nodesRef, connectionsRef,
     resolveGenerationChannelMetadata: () => ({ channel: '测试渠道', channelId: 'test-channel' }),
     isGenerationModeEnabled: () => true, generationNodeForExecution: node => node,
     effectiveConfig: {}, buildGenerationConfig: () => ({ count: '1' }), isAiConfigReady: () => true, ensureModelConfigured: () => true, getNodeDefinition: () => undefined,
     openConfigDialog: () => assert.fail('不应打开配置'),
-    buildNodeGenerationContext: () => ({}), hydrateNodeGenerationContext: async () => {
+    buildNodeGenerationContext: () => ({ referenceImages: Array.from({ length: referenceCount }, (_, i) => ({ id: `ref-${i}` })) }), hydrateNodeGenerationContext: async () => {
       if (failPreparation) throw Error('参考图读取失败');
       return { prompt: blank ? '' : '产品照片', referenceImages: [] };
     },
@@ -107,7 +111,7 @@ async function executionFixture({ failPreparation = false, blank = false } = {})
     NODE_DEFAULT_SIZE: { config: { width: 300, height: 240 }, image: { width: 300, height: 400 } },
     getGenerationCount: () => 1, buildImageGenerationMetadata: () => ({}), nanoid: () => 'result-' + ++sequence,
     generatedImageCardTitle: () => '详情', findGeneratedImageSourcePrompt: () => undefined,
-    nextGenerationResultPosition: () => ({ x: 500, y: 0 }), numberGeneratedImages: nodes => nodes,
+    nextGenerationResultPosition: () => ({ x: 500, y: 0 }), numberGeneratedImages: nodes => nodes, renameGeneratedImageNodes: nodes => nodes,
     setSelectedNodeIds() {}, setSelectedConnectionId() {}, setDialogNodeId() {},
     requestCanvasImage: options => { generated++; return new Promise(resolve => tasks.push({ options, resolve })); },
     saveCanvasImageResult: async options => options.onApplied(), recordImageGatewayTask() {},
@@ -135,8 +139,18 @@ test('真实回调准备失败或空文本提前退出释放运行状态；同�
   live.tasks[0].resolve(); await pending; assert.deepEqual(ids(live.registry), []);
 });
 
+test('真实单卡回调在读取图片及创建结果卡之前拒绝15张参考图，结束运行状态', async () => {
+  const f = await executionFixture({ referenceCount: 15 });
+  await f.run('A', 'image', '产品照片');
+  assert.equal(f.generated(), 0);
+  assert.match(f.errors[0], /最多支持 14 张，当前有 15 张/);
+  assert.equal(f.nodesRef.current.length, 3);
+  assert.deepEqual(ids(f.registry), []);
+});
+
 const jsx = (type, props) => ({ type, props });
 const { CanvasConfigNodePanel } = await load('.运行/3100源/画布副本/web/src/components/canvas/canvas-config-node-panel.tsx', {
+  '@/扩展功能/主题/页签内容过渡': { TabContentTransition: 'TabContentTransition' },
   'react/jsx-runtime': { jsx, jsxs: jsx }, '@/扩展功能/产品配置/精简与离线策略': { isGenerationModeEnabled: () => true },
   '@/扩展功能/画布生成/配置节点状态显示': { configNodeGenerationStatus: () => '渠道 · 生成中' },
   'lucide-react': Object.fromEntries(['Image','LoaderCircle','MessageSquare','Music2','Play','Settings2','Square','Video'].map(name => [name,name])),

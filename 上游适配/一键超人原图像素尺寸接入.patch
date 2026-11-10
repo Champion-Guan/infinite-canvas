@@ -1,0 +1,12 @@
+diff --git a/web/src/types/canvas.ts b/web/src/types/canvas.ts
+index 0dc0f82..cb556d7 100644
+--- a/web/src/types/canvas.ts
++++ b/web/src/types/canvas.ts
+@@ -64,6 +64,7 @@ export type CanvasNodeText = {
+ };
+ 
+ export type CanvasNodeMetadata = {
++    imageSuperSourceSize?: string;
+     gatewayGenerationTasks?: Array<{ taskId: string; slotId: string; binding: string; requestHash: string }>;
+     gatewayGenerationReceipts?: Array<{ taskId: string; responseHash: string }>;
+     gatewayThemeCalibrationInput?: { taskId: string; input: Array<{ id: string; prompt: string; source: string }> };

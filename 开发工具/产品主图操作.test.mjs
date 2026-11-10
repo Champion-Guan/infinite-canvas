@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 const require = createRequire(new URL('../.运行/3100源/画布副本/web/package.json', import.meta.url));
 const ts = require('typescript');
 function load(name, dependencies = {}) {
-    dependencies = { '../主题/苹果弹窗': { AppleModal: 'Modal' }, ...dependencies };
+    dependencies = { '../主题/苹果弹窗': { AppleModal: 'Modal' }, './参数图片预览': { ParameterImageThumbnail: 'ParameterImageThumbnail' }, ...dependencies };
     const source = readFileSync(new URL('../扩展功能/Excel画布/' + name, import.meta.url), 'utf8');
     const javascript = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
     const module = { exports: {} };
@@ -130,8 +130,8 @@ test('多选追加保留旧主图，部分文件失败不丢成功图片；再�
         assert.deepEqual(node.metadata.productMainImages.map(image => image.storageKey), ['image:original', 'image:side', 'image:one.png', 'image:two.png']);
         tree = render();
         assert.match(tree.find(element => element.props?.role === 'alert').props.children, /bad.png：无法读取/);
-        assert.equal(tree.filter(element => element.type === 'MediaThumbnail').length, 4);
-        assert.equal(tree.find(element => element.type === 'MediaThumbnail').props.style.gridTemplateRows, 'minmax(0, 1fr)');
+        assert.equal(tree.filter(element => element.type === 'ParameterImageThumbnail').length, 4);
+        assert.equal(tree.find(element => element.type === 'ParameterImageThumbnail').props.image.storageKey, 'image:original');
         assert.ok(tree.some(element => element.type === 'button' && element.props['aria-label']?.startsWith('移除背景 产品主图')));
     } finally { cleanup(); }
 });

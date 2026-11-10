@@ -36,8 +36,9 @@ export function useBilingualPromptSync({ chinese, english, alignment, ready = tr
 }
 type Link = ReturnType<typeof useBilingualPromptSync>;
 
-export function BilingualPromptField({ link, language, ...props }: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "value"> & {
+export function BilingualPromptField({ link, language, variableRanges = [], onVariableClick, ...props }: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "value"> & {
     link: Link; language: Language; value: string;
+    variableRanges?: Array<{ id: string; start: number; end: number }>; onVariableClick?: (id: string) => void;
 }) {
     const textarea = useRef<HTMLTextAreaElement>(null), overlay = useRef<HTMLDivElement>(null), mirror = useRef<HTMLDivElement>(null);
     const marked = useMemo(() => link.ready && link.highlight[language]?.text === props.value
@@ -72,12 +73,26 @@ export function BilingualPromptField({ link, language, ...props }: Omit<Textarea
         syncMirror();
     }, [marked, link, syncMirror]);
     let cursor = 0;
-    const parts = marked.flatMap(([a, b], index) => {
+    const highlights = [...marked, ...variableRanges.map(item => [item.start, item.end] as TextRange)].sort((a, b) => a[0] - b[0])
+        .reduce<TextRange[]>((result, range) => {
+            const previous = result.at(-1);
+            if (previous && range[0] <= previous[1]) previous[1] = Math.max(previous[1], range[1]);
+            else result.push([...range]);
+            return result;
+        }, []);
+    const parts = highlights.flatMap(([a, b], index) => {
         const before = props.value.slice(cursor, a); cursor = b;
         return [before, <mark key={index}>{props.value.slice(a, b)}</mark>];
     });
     return <div className={styles.field}>
         <textarea {...props} ref={textarea} lang={language === "chinese" ? "zh" : "en"}
+            onClick={event => {
+                props.onClick?.(event);
+                const position = event.currentTarget.selectionStart;
+                if (position !== event.currentTarget.selectionEnd) return;
+                const variable = variableRanges.find(item => position >= item.start && position < item.end);
+                if (variable) onVariableClick?.(variable.id);
+            }}
             onSelect={event => { link.select(language, event.currentTarget); props.onSelect?.(event); }}
             onScroll={event => { syncMirror(); link.scroll(language, event.currentTarget); props.onScroll?.(event); }} />
         <div ref={overlay} className={styles.overlay} aria-hidden="true">

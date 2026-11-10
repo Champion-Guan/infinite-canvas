@@ -2,6 +2,7 @@ import { StorageError, requireValue } from '../本机存储/协议.mjs';
 import { GENERATION_PROTOCOL, validateSubmission, jobLike, terminalState, TASK_STATES, MAX_RESPONSE_BYTES, canonicalBase64 } from '../生成网关/生成协议.mjs';
 import { readTextProgress } from './文本进度客户端.mjs';
 import { assertGenerationActive, recoverGenerationResponse } from './本机任务响应恢复.mjs';
+import { upstreamFailureMessage } from './上游失败原因.mjs';
 
 // 只接受已授权闭包，不接收URL、密钥导出端口或浏览器持久化实现。
 // 调用方必须保留同一id；传输失败不新建任务、不自动重发收费请求。
@@ -17,6 +18,14 @@ export function createGenerationClient({ command, observe } = {}) {
   function match(job, expected) {
     requireValue(jobLike(job?.id) && job.id === expected.id && job.productId === expected.productId && job.nodeId === expected.nodeId && TASK_STATES.includes(job.state) && typeof job.applied === 'boolean', 'generation_scope_mismatch', '任务结果与原产品或节点不匹配，未写入当前画布。', 409);
     return job;
+  }
+  async function readResult(task, recovery) {
+    const job = match(await recoverGenerationResponse(() => call({ operation: 'result', id: task.id }), recovery), task);
+    requireValue(canonicalBase64(job.bytes, MAX_RESPONSE_BYTES), 'generation_result_invalid', '任务结果编码无效。', 409);
+    const bytes = Uint8Array.from(atob(job.bytes), value => value.charCodeAt(0));
+    const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(value => value.toString(16).padStart(2, '0')).join('');
+    requireValue(job.result?.id === digest && job.result.size === bytes.length, 'generation_result_invalid', '任务结果大小或摘要不匹配。', 409);
+    return { job, bytes };
   }
   return Object.freeze({
     ...(observe ? { async observeText(task, options) { return match(await readTextProgress(await observe({ operation: 'text-observe', id: task.id }, options?.signal), task, options), task); } } : {}),
@@ -40,6 +49,11 @@ export function createGenerationClient({ command, observe } = {}) {
     list: productId => call({ operation: 'list', productId }),
     cancel: id => call({ operation: 'cancel', id }),
     retryResultSave: id => call({ operation: 'retry-save', id }),
+    async failure(task, { signal, retryWait } = {}) {
+      const { job, bytes } = await readResult(task, { signal, wait: retryWait });
+      requireValue(job.state === 'failed' && job.result.status >= 400, 'generation_not_failed', '任务尚无已确认的上游失败响应。', 409);
+      return upstreamFailureMessage(bytes, job.result.status, job.result.contentType);
+    },
     // 独立确认已保存结果：没有result/submit/bind，也不重写图片或新建任务。
     async confirmSaved(task, { responseHash } = {}) {
       requireValue(/^[0-9a-f]{64}$/.test(responseHash), 'generation_receipt_invalid', '原任务收据摘要无效。', 409);
@@ -55,12 +69,8 @@ export function createGenerationClient({ command, observe } = {}) {
     async deliver(task, { applyAndSave, deferConfirm = () => false, signal, retryWait, commit = operation => operation() } = {}) {
       requireValue(typeof applyAndSave === 'function', 'generation_save_port_required', '需要原产品的保存确认端口。');
       const recovery = { signal, wait: retryWait };
-      const job = match(await recoverGenerationResponse(() => call({ operation: 'result', id: task.id }), recovery), task);
+      const { job } = await readResult(task, recovery);
       requireValue(job.state === 'succeeded' && terminalState(job.state) && typeof job.bytes === 'string', 'generation_not_successful', '任务没有可应用的成功结果。', 409);
-      requireValue(canonicalBase64(job.bytes, MAX_RESPONSE_BYTES), 'generation_result_invalid', '任务结果编码无效。', 409);
-      const bytes = Uint8Array.from(atob(job.bytes), value => value.charCodeAt(0));
-      const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(value => value.toString(16).padStart(2, '0')).join('');
-      requireValue(job.result?.id === digest && job.result.size === bytes.length, 'generation_result_invalid', '任务结果大小或摘要不匹配。', 409);
       // 取图不占用同产品保存队列；保存、检查点和确认仍须作为一个串行操作。
       return commit(async () => {
         assertGenerationActive(signal);

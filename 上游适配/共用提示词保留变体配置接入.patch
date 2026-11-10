@@ -1,0 +1,21 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index a518913..3bdfefc 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -25,6 +25,7 @@ import { useCanvasMediaDownloads } from "@/扩展功能/媒体交付/画布下
+ import { useCanvasBatchGeneration } from "@/扩展功能/画布生成/批量生成操作";
+ import { useProductVariantGeneration } from "@/扩展功能/画布生成/产品变体执行";
+ import { canStartVariantGeneration, productVariantResult } from "@/扩展功能/画布生成/产品变体生成";
++import { productVariantConfigNode } from "@/扩展功能/Excel画布/共用商品提示词";
+ import { buildProductGenerationContext, productPromptInputSummary } from "@/扩展功能/画布生成/商品提示词生成";
+ import { pulseProductPromptWarning } from "@/扩展功能/Excel画布/商品提示词阻止反馈";
+ import { useCanvasNodeRecycle } from "@/扩展功能/画布回收/节点回收操作";
+@@ -2359,7 +2360,7 @@ function InfiniteCanvasPage() {
+             if (variantExecution ? !canStartVariantGeneration(generationRequestsRef.current, nodeId, batchPlacement) : [...generationRequestsRef.current.values()].some(request => request.runningNodeId === nodeId && !request.controller.signal.aborted)) return;
+             if (!isGenerationModeEnabled(mode)) { message.info("不支持的生成模式。"); return; }
+             const sourceNode = nodesRef.current.find((node) => node.id === nodeId);
+-            const generationConfig = buildGenerationConfig(effectiveConfig, generationNodeForExecution(sourceNode, nodeId, nodesRef.current, connectionsRef.current), mode);
++            const generationConfig = buildGenerationConfig(effectiveConfig, productVariantConfigNode(generationNodeForExecution(sourceNode, nodeId, nodesRef.current, connectionsRef.current), variantExecution?.snapshot.id), mode);
+             const generationChannel = resolveGenerationChannelMetadata(generationConfig);
+             if (!ensureModelConfigured(generationConfig, mode, generationConfig.model)) {
+                 

@@ -35,6 +35,7 @@ const protocol = await load('扩展功能/画布生成/原版图片协议.ts', {
     '@/stores/use-config-store': { resolveModelRequestConfig: config => config, resolveModelChannel: () => ({ id: "test-channel", name: "测试渠道" }), resolveModelScript: () => null },
     '@/lib/image-utils': {}, '@/lib/image-reference-prompt': {}, '@/services/image-storage': {},
     '../提示词/变量使用规则': variables, '../图片设置/图片尺寸规则': sizes,
+    './参考图数量限制': await load('扩展功能/画布生成/参考图数量限制.ts'),
 });
 const config = { model: 'gpt-image-1', baseUrl: 'https://example.invalid', count: 1, quality: 'auto', systemPrompt: '', apiFormat: 'openai' };
 const bodyFor = async overrides => JSON.parse(Buffer.from((await protocol.prepareOriginalImageRequest({ ...config, ...overrides }, '产品照片')).body, 'base64').toString('utf8'));

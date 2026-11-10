@@ -149,7 +149,8 @@ test('无文件和不存在的批次槽位不读取；原文件失败不产生�
 
 const themes = await load('Excel画布/旧版主题翻译.js');
 const variableRules = await load('提示词/变量使用规则.ts');
-const rules = await load('Excel画布/旧版参数规则.ts', { './旧版主题翻译.js': themes, '../提示词/变量使用规则': variableRules });
+const rules = await load('Excel画布/旧版参数规则.ts', { './旧版主题翻译.js': themes, '../提示词/变量使用规则': variableRules,
+    './商品待确认规则': await load('Excel画布/商品待确认规则.ts') });
 test('参数卡启用独立AI入口后，填写仍同步原卡和关联预览，空变量保留', async () => {
     const parameter = node('parameter', { promptVariableValues: { '[NAME]': '产品' }, promptVariableTokens: ['[NAME]', '[LENGTH]'], promptVariableSourceNodeId: 'source' }, 'guan:prompt-variables');
     const source = node('source', { content: '[NAME] [LENGTH]', excelPromptBindingNodeId: parameter.id });

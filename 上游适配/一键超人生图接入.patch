@@ -1,0 +1,27 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 89ab7b9..8b043fa 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,4 +1,5 @@
+ import { ensureModelConfigured } from "@/扩展功能/产品配置/模型配置门禁";
++import { useImageSuperGeneration } from "@/扩展功能/画布生成/一键超人操作";
+ import { OutsidePanelBoundary } from "@/扩展功能/主题/原生可关闭浮层";
+ import { ASSET_DRAG_TYPE, readAssetDrag } from "@/扩展功能/素材/上传资产规则";
+ import { useCanvasAssetInsertion } from "@/扩展功能/素材/资产插入操作";
+@@ -672,6 +673,8 @@ function InfiniteCanvasPage() {
+     const { clearConfirmedImageError, recordImageGatewayTask, requestNodeText, requestNodeAudio } = useCanvasTaskReceipts({ projectId, nodesRef, restoredProjectIdRef, setNodes });
+     const saveCanvasImageResult = useCanvasImageResults({ projectId, nodesRef, restoredProjectIdRef, surfaceRef, setNodes });
+     const requestImageTool = useCanvasImageTools({ projectId, nodesRef, recordTask: recordImageGatewayTask, saveResult: saveCanvasImageResult });
++    const generateSuperImage = useImageSuperGeneration({ projectId, nodesRef, surfaceRef, effectiveConfig, setNodes, setConnections,
++        setSelectedNodeIds, setSelectedConnectionId, requestImageTool, startGenerationRequest, finishGenerationRequest, message });
+ 
+     useEffect(() => {
+         if (!dialogNodeId) setNodeImageSettingsOpen(false);
+@@ -3367,6 +3370,7 @@ function InfiniteCanvasPage() {
+                     onSplit={(node) => setSplitNodeId(node.id)}
+                     onUpscale={(node) => setUpscaleNodeId(node.id)}
+                     onAngle={(node) => setAngleNodeId(node.id)}
++                    onSuperGenerate={generateSuperImage}
+                     onViewImage={handleNodeViewImage}
+                     onReversePrompt={createImageReversePromptNodes}
+                     onTranslatePrompt={translatePromptNode}

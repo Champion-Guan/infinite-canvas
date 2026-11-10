@@ -1,0 +1,18 @@
+diff --git a/web/src/services/api/image.ts b/web/src/services/api/image.ts
+index f6082e3..a26e384 100644
+--- a/web/src/services/api/image.ts
++++ b/web/src/services/api/image.ts
+@@ -1,4 +1,5 @@
+ import { requireModelConfigured } from "@/扩展功能/产品配置/模型配置门禁";
++import { assertImageReferenceLimit } from "@/扩展功能/画布生成/参考图数量限制";
+ import { fetchConfiguredModels } from "@/扩展功能/生成网关/模型读取客户端";
+ import { 本地转发Axios as axios, 本地转发请求 as fetch } from "@/扩展功能/网络代理/本地转发请求";
+ 
+@@ -755,6 +756,7 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
+ }
+ 
+ export async function requestEdit(config: AiConfig, prompt: string, references: ReferenceImage[], options?: RequestOptions) {
++    assertImageReferenceLimit(references);
+     requireModelConfigured(config, "image", config.model || config.imageModel);
+     const requestConfig = resolveModelRequestConfig(config, config.model || config.imageModel);
+     const n = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));

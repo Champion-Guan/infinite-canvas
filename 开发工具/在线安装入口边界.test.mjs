@@ -19,7 +19,7 @@ async function fixture(overrides = {}) {
         downloader:{status:()=>({state:'verified'}),stageIdentity:()=>identity},
         manager:{status:async()=>({allowed:true,state:'staged',canApprove:true}),stagedIdentity:async()=>identity,
             approve:async(...args)=>calls.push(args),...overrides}});
-    await updates.configure({developerMode:true});
+    await updates.configure({developerMode:true,autoInstall:false});
     return {updates,calls};
 }
 test('手动安装在自动安装关闭时仍可明确确认，且不改变安装偏好',async()=>{
@@ -101,9 +101,86 @@ test('授权HTTP手动入口保持偏好关闭，不接受额外身份并保留�
         let statusCode,body;const res={destroyed:false,writableEnded:false,writeHead(code){statusCode=code;},end(value){body=JSON.parse(value);}};
         req.end(JSON.stringify(input));await service.handle(req,res);return {statusCode,body};
     }
-    assert.equal((await request({operation:'preferences',preferences:{developerMode:true}})).statusCode,200);authorizations=0;
+    assert.equal((await request({operation:'preferences',preferences:{developerMode:true,autoInstall:false}})).statusCode,200);authorizations=0;
     const result=await request({operation:'approve-manual'});assert.equal(result.statusCode,200);assert.equal(approvals,1);assert.equal(authorizations,3);
     assert.equal(result.body.result.preferences.autoInstall,false);
     assert.equal((await request({operation:'approve-manual',identity})).statusCode,409);assert.equal(approvals,1);
     await service.close();
+});
+
+test('源码模式可保存及冷读自动安装偏好，但不会因此取得暂存、批准或执行安装能力', async () => {
+    const { assembleSoftwareUpdates } = await import('../扩展功能/软件更新/更新服务装配.mjs');
+    const { PassThrough } = await import('node:stream');
+    const dataRoot = await temporary('源码安装偏好-');
+    const create = () => assembleSoftwareUpdates({ dataRoot, origin: 'http://localhost:3001', currentVersion: '2.0.0-beta.27',
+        authorize: async () => 'page', updatePages: () => ['page'], networkProxy: { getStatus: () => ({ enabled: false }) } });
+    let service = create();
+    async function request(input) {
+        const req = new PassThrough();
+        req.url = '/__guan-local/software-updates'; req.method = 'POST';
+        req.headers = { host: 'localhost:3001', origin: 'http://localhost:3001', 'content-type': 'application/json',
+            'x-guan-local-protocol': 'guan-local-authorization.v1' };
+        let statusCode, body;
+        const res = { destroyed: false, writableEnded: false, writeHead(code) { statusCode = code; }, end(value) { body = JSON.parse(value); } };
+        req.end(JSON.stringify(input)); await service.handle(req, res); return { statusCode, body };
+    }
+    try {
+        assert.equal((await request({ operation: 'status' })).body.result.preferences.autoInstall, true);
+        assert.equal((await request({ operation: 'preferences', preferences: { autoInstall: false } })).body.result.preferences.autoInstall, false);
+        const enabled = await request({ operation: 'preferences', preferences: { autoInstall: true } });
+        assert.equal(enabled.statusCode, 200);
+        assert.equal(enabled.body.result.preferences.autoInstall, true);
+        assert.equal(enabled.body.result.install.allowed, false);
+        await service.close();
+        service = create();
+        const restored = await request({ operation: 'status' });
+        assert.equal(restored.body.result.preferences.autoInstall, true);
+        assert.equal(restored.body.result.install.state, 'source-development');
+        const idle = await request({ operation: 'activity', activity: { ready: true, idle: true, prepared: false, error: false, version: null } });
+        assert.equal(idle.body.result.install.coordination.state, 'idle');
+        for (const operation of ['stage', 'install', 'approve', 'approve-manual']) {
+            const blocked = await request({ operation });
+            assert.equal(blocked.statusCode, 409, operation);
+            assert.ok(['web_release_required', 'update_stage_unavailable'].includes(blocked.body.error.code), operation);
+        }
+        const disabled = await request({ operation: 'preferences', preferences: { autoInstall: false } });
+        assert.equal(disabled.statusCode, 200);
+        assert.equal(disabled.body.result.preferences.autoInstall, false);
+        await service.close();
+        service = create();
+        assert.equal((await request({ operation: 'status' })).body.result.preferences.autoInstall, false, '已保存关闭的选择不能被新默认值覆盖');
+    } finally { await service.close(); }
+});
+
+test('客户安装版首次读取默认开启空闲自动安装，用户手动关闭后重启仍关闭', async () => {
+    const directory = await temporary('客户自动安装默认-');
+    const options = { directory, currentVersion: '2.0.0', auth: {},
+        manager: { status: async () => ({ allowed: true, state: 'idle' }) } };
+    const updates = new SoftwareUpdates(options);
+    assert.equal((await updates.preferences()).autoInstall, true);
+    assert.equal((await updates.status()).install.allowed, true);
+    await updates.configure({ network: 'direct' });
+    assert.equal((await updates.preferences()).autoInstall, true);
+    await updates.configure({ autoInstall: false });
+    const restarted = new SoftwareUpdates(options);
+    assert.equal((await restarted.preferences()).autoInstall, false);
+    await restarted.configure({ autoInstall: true });
+    assert.equal((await new SoftwareUpdates(options).preferences()).autoInstall, true);
+});
+
+test('旧客户偏好缺少自动安装字段时沿用新默认开启，不丢失其他设置', async () => {
+    const directory = await temporary('客户旧偏好默认-');
+    const options = { directory, currentVersion: '2.0.0', auth: {},
+        manager: { status: async () => ({ allowed: true, state: 'idle' }) } };
+    const updates = new SoftwareUpdates(options);
+    await updates.configure({ autoCheck: false, autoDownload: false, network: 'direct' });
+    const old = JSON.parse(await readFile(updates.file));
+    delete old.autoInstall;
+    await (await import('node:fs/promises')).writeFile(updates.file, JSON.stringify(old));
+    const restored = new SoftwareUpdates(options);
+    const preferences = await restored.preferences();
+    assert.equal(preferences.autoInstall, true);
+    assert.equal(preferences.autoCheck, false);
+    assert.equal(preferences.autoDownload, false);
+    assert.equal(preferences.network, 'direct');
 });

@@ -1,24 +1,39 @@
 import { useEffect, useRef, useState } from "react";
 import { Languages, RotateCcw } from "lucide-react";
+import { Segmented } from "antd";
 import type { CanvasNodeContext } from "@/types/canvas-plugin";
 import { useExcelProductId } from "./Excel画布上下文";
 import { translateProductPrompt } from "./商品策划请求";
 import { productImageTextLanguage } from "./商品图片语言";
 import type { ProductVariantMetadata } from "./产品变体规则";
 import { productPromptProblems } from "./商品提示词状态";
+import { productVariants, variantLabel } from "./产品变体规则";
+import { productPromptEditingVariant, selectProductPromptVariant } from "./共用商品提示词";
+import { TabContentTransition } from "../主题/页签内容过渡";
 import { BilingualPromptField, useBilingualPromptSync } from "../提示词/双语联动文本框";
 import { isPromptReady, productPromptTranslationError, promptDocument, promptPair, type BilingualPrompt, type ProductPromptMetadata } from "./商品提示词规则";
+import { compileConfirmationPair, editConfirmationTemplate, type ConfirmationCompilation } from "./商品待确认提示词";
+import { ProductConfirmationDialog } from "./商品待确认编辑";
+import { confirmationFields, type ConfirmationMetadata } from "./商品待确认规则";
 
 export function ProductPromptContent({ ctx }: { ctx: CanvasNodeContext }) {
     const productId = useExcelProductId(), doc = promptDocument(ctx.node);
     const [translating, setTranslating] = useState(false);
     const latest = useRef(ctx); latest.current = ctx;
     const controller = useRef<AbortController | null>(null);
-    const variantId = doc?.variantId;
+    const parameter = doc && ctx.getNode(doc.parameterId);
+    const [selection, setSelection] = useState(() => productPromptEditingVariant(ctx.node));
+    const variantId = doc?.variantId || (selection && doc?.variants[selection] ? selection : Object.keys(doc?.variants || {})[0]);
+    const variants = productVariants(parameter?.metadata);
     const pair = doc && promptPair(doc, variantId);
+    const [editingFact, setEditingFact] = useState<string | null>(null), [variableError, setVariableError] = useState("");
+    let compilation: ConfirmationCompilation | undefined;
+    try { compilation = doc && pair ? compileConfirmationPair(pair, parameter?.metadata, doc.key, variantId, true) : undefined; }
+    catch { /* 失效原因由productPromptProblems展示，保留原文可修复。 */ }
+    const displayedPair = compilation?.pair || pair;
     const chinese = pair?.chinese, translationError = pair?.translationError, translatedChinese = pair?.translatedChinese;
-    const bilingual = useBilingualPromptSync({ chinese: pair?.chinese || "", english: pair?.english || "",
-        alignment: pair?.alignment, ready: isPromptReady(pair) });
+    const bilingual = useBilingualPromptSync({ chinese: displayedPair?.chinese || "", english: displayedPair?.english || "",
+        alignment: displayedPair?.alignment, ready: isPromptReady(pair) });
     useEffect(() => {
         if (!chinese?.trim() || chinese === translatedChinese || translationError) return;
         const job = new AbortController(); controller.current = job;
@@ -51,12 +66,26 @@ export function ProductPromptContent({ ctx }: { ctx: CanvasNodeContext }) {
             ? { ...document, variants: { ...document.variants, [variantId]: value } }
             : { ...document, prompt: value } } as ProductPromptMetadata);
     };
-    const parameter = ctx.getNode(doc.parameterId);
-    const problems = productPromptProblems(ctx.node, parameter);
+    const editField = (language: "chinese" | "english", value: string) => {
+        try {
+            const text = compilation ? editConfirmationTemplate(displayedPair![language], value, compilation.sections[language]) : value;
+            setVariableError("");
+            updatePair(language === "chinese" ? { chinese: text, translationError: undefined }
+                : { english: text, translatedChinese: pair.chinese, translationError: undefined });
+        } catch (failure) { setVariableError(failure instanceof Error ? failure.message : "请在对应变量中填写资料。"); }
+    };
+    const problems = productPromptProblems(ctx.node, parameter, variantId);
     const language = productImageTextLanguage((parameter?.metadata as ProductVariantMetadata | undefined)?.productLanguage);
     const failure = translationError ? productPromptTranslationError(translationError) : "";
     const style = { borderColor: ctx.theme.node.stroke, color: ctx.theme.node.text };
     const fieldClass = "w-full min-w-0 max-w-full resize-y rounded-md border bg-transparent p-2 text-xs leading-5 outline-none focus:ring-2 focus:ring-stone-400/50";
+    const fields = confirmationFields(parameter?.metadata as ConfirmationMetadata);
+    const related = fields.filter(field => field.imageKeys.includes(doc.key));
+    const lastFactEdit = Math.max(0, ...((parameter?.metadata as ConfirmationMetadata | undefined)?.productConfirmations || [])
+        .filter(answer => related.some(field => field.id === answer.factId) && (!answer.variantId || answer.variantId === variantId)).map(answer => answer.updatedAt));
+    const configs = ctx.getConnections().filter(edge => edge.fromNodeId === ctx.node.id).map(edge => edge.toNodeId);
+    const results = ctx.getConnections().filter(edge => configs.includes(edge.fromNodeId)).flatMap(edge => ctx.getNode(edge.toNodeId) || []);
+    const staleResults = results.some(node => node.type === "image" && (node.metadata?.generationStartedAt || 0) < lastFactEdit);
     return <div data-canvas-no-zoom className="flex h-full w-full min-h-0 min-w-0 max-w-full flex-col overflow-hidden p-3 text-xs" style={{ color: ctx.theme.node.text }}
         onMouseDown={event => { if ((event.target as HTMLElement).closest("input, textarea, button, select, [contenteditable=true]")) event.stopPropagation(); }}
         onPointerDown={event => { if ((event.target as HTMLElement).closest("input, textarea, button, select, [contenteditable=true]")) event.stopPropagation(); }}
@@ -67,10 +96,15 @@ export function ProductPromptContent({ ctx }: { ctx: CanvasNodeContext }) {
             {problems.length ? <p role="alert" title={problems.join("\n")} style={{ margin: 0 }} className="justify-self-center whitespace-nowrap font-semibold text-red-600 dark:text-red-400">提示词已失效</p> : null}
             <span className="shrink-0 justify-self-end whitespace-nowrap text-[10px] opacity-60">{doc.delivery.width} x {doc.delivery.height} · {doc.delivery.format.toUpperCase()}</span>
         </div>
+        {!doc.variantId && Object.keys(doc.variants).length ? <Segmented size="small" aria-label="提示词变体" value={variantId}
+            className="mb-2 max-w-full shrink-0 overflow-x-auto" options={Object.keys(doc.variants).map(id => ({
+                value: id, label: variantLabel(variants.find(variant => variant.id === id) || { id, name: id, attributes: {}, imageIds: [], enabled: true }),
+            }))} onChange={id => { selectProductPromptVariant(ctx.node.id, id); setSelection(id); }} /> : null}
+        <TabContentTransition transitionKey={`${ctx.node.id}:${variantId || "base"}`} className="min-h-0 min-w-0 flex-1">
         <div className="guan-scroll-region thin-scrollbar min-h-0 min-w-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto pr-1 [overflow-wrap:anywhere]">
             <label className="block min-w-0"><span className="mb-1 block font-medium">中文提示词</span>
-                <BilingualPromptField link={bilingual} language="chinese" aria-label="中文提示词" rows={7} className={"guan-scroll-field " + (fieldClass || "")} style={style} value={pair.chinese}
-                    onChange={event => updatePair({ chinese: event.target.value, translationError: undefined })} />
+                <BilingualPromptField link={bilingual} language="chinese" aria-label="中文提示词" rows={7} className={"guan-scroll-field " + (fieldClass || "")} style={style} value={displayedPair!.chinese}
+                    variableRanges={compilation?.ranges.chinese} onVariableClick={setEditingFact} onChange={event => editField("chinese", event.target.value)} />
             </label>
             <div className="flex h-6 min-w-0 items-center gap-1 text-[10px]" role="status">
                 <Languages aria-hidden className="size-3.5 shrink-0" />
@@ -83,14 +117,27 @@ export function ProductPromptContent({ ctx }: { ctx: CanvasNodeContext }) {
                 <span className="shrink-0 opacity-60">图片文字：{language}</span>
             </div>
             <label className="block min-w-0"><span className="mb-1 block font-medium">英文生图提示词</span>
-                <BilingualPromptField link={bilingual} language="english" aria-label="英文生图提示词" rows={7} className={"guan-scroll-field " + (fieldClass || "")} style={style} value={pair.english}
-                    onChange={event => updatePair({ english: event.target.value, translatedChinese: pair.chinese, translationError: undefined })} />
+                <BilingualPromptField link={bilingual} language="english" aria-label="英文生图提示词" rows={7} className={"guan-scroll-field " + (fieldClass || "")} style={style} value={displayedPair!.english}
+                    variableRanges={compilation?.ranges.english} onVariableClick={setEditingFact} onChange={event => editField("english", event.target.value)} />
             </label>
+            {related.length ? <div className="space-y-1 border-t border-current/10 pt-2">
+                {related.map(field => <div key={field.id} className="flex flex-wrap items-baseline gap-1 text-[10px]">
+                    <button type="button" className="rounded bg-yellow-400/20 px-1 py-0.5 font-medium hover:bg-yellow-400/30"
+                        onClick={() => setEditingFact(field.id)}>{field.label}</button>
+                    <span role="status" className="opacity-60">{compilation?.states.find(state => state.field.id === field.id)?.filled
+                        ? "已同步中英文" : field.fallback}</span>
+                </div>)}
+            </div> : null}
+            {staleResults ? <p role="status" className="text-[10px] text-amber-700 dark:text-amber-400">参数已更新，可重新生成；已有图片保留。</p> : null}
+            {variableError ? <p role="alert" className="text-[10px] text-red-600 dark:text-red-400">{variableError}</p> : null}
             <dl className="space-y-2 text-[11px] leading-5">
                 {([["买家问题", doc.buyerQuestion], ["商品事实与参考图", doc.evidence], ["画面与摄影", doc.composition],
                     ["禁止改动与生成错误", doc.constraints], ["文案与排版", doc.copyLayout], ["人工检查", doc.checks]] as const)
                     .map(([label, text]) => <div key={label}><dt className="font-medium">{label}</dt><dd className="whitespace-pre-wrap opacity-70">{text}</dd></div>)}
             </dl>
         </div>
+        </TabContentTransition>
+        <ProductConfirmationDialog ctx={ctx} parameterId={doc.parameterId} productId={productId}
+            fieldId={editingFact} variantId={variantId} onClose={() => setEditingFact(null)} />
     </div>;
 }

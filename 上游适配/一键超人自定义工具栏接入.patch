@@ -1,0 +1,61 @@
+diff --git a/web/src/components/canvas/canvas-node-hover-toolbar.tsx b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+index 5cf8ca1..ae62522 100644
+--- a/web/src/components/canvas/canvas-node-hover-toolbar.tsx
++++ b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+@@ -8,7 +8,7 @@ import { App, Segmented, Tooltip } from "antd";
+ import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+ import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { OutsideDropdown as Dropdown } from "@/扩展功能/主题/原生可关闭浮层";
+-import { Download, Ellipsis, FolderPlus, Image as ImageIcon, Info, Languages, Link2, MessageSquare, Minus, Music2, Plus, RefreshCw, Settings2, Trash2, Ungroup, Upload, Video } from "lucide-react";
++import { Download, Ellipsis, FolderPlus, Image as ImageIcon, Info, Languages, Link2, MessageSquare, Minus, Music2, Plus, RefreshCw, Settings2, Trash2, Ungroup, Upload, Video, Zap } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 
+ import { canvasThemes } from "@/lib/canvas-theme";
+@@ -180,6 +180,7 @@ export function CanvasNodeHoverToolbar({
+         ...(isVideo ? [{ id: "uploadVideo", title: t(hasVideo ? "canvas.nodeToolbar.replaceVideo" : "canvas.nodeToolbar.uploadVideo"), label: t(hasVideo ? "canvas.nodeToolbar.replaceVideo" : "canvas.nodeToolbar.uploadVideo"), icon: <Video className="size-4" />, onClick: () => onUpload(node) }] : []),
+         ...(isAudio ? [{ id: "uploadAudio", title: t(hasAudio ? "canvas.nodeToolbar.replaceAudio" : "canvas.nodeToolbar.uploadAudio"), label: t(hasAudio ? "canvas.nodeToolbar.replaceAudio" : "canvas.nodeToolbar.uploadAudio"), icon: <Music2 className="size-4" />, onClick: () => onUpload(node) }] : []),
+         ...(hasImage ? imageTools.map((tool) => ({ id: tool.id, title: tool.title, label: tool.label, icon: tool.icon, active: tool.active, onClick: tool.onClick })) : []),
++        ...(hasImage ? [{ id: "superGenerate", title: "一键超人", label: "一键超人", icon: <Zap className="size-4" />, onClick: () => undefined }] : []),
+     ];
+     const toolbarTools = hasImage ? [...baseToolbarTools, ...nodeToolbarTools].filter((tool) => quickImageToolIdSet.has(tool.id as ImageQuickToolId)) : [...baseToolbarTools, ...nodeToolbarTools, ...extraTools];
+     const selectableImageToolbarTools = [...baseToolbarTools, ...nodeToolbarTools].filter((tool) => tool.id !== "retry") as ImageToolbarSettingsTool[];
+@@ -199,7 +200,7 @@ export function CanvasNodeHoverToolbar({
+     };
+ 
+     const saveImageToolSettings = () => {
+-        const config = { ids: draftImageToolIds, showLabels: draftShowImageToolLabels };
++        const config = { ids: draftImageToolIds, showLabels: draftShowImageToolLabels, superToolsVersion: 1 };
+         setQuickImageToolIds(config.ids);
+         setShowImageToolLabels(config.showLabels);
+         sqlitePreferences.setItem(IMAGE_QUICK_TOOLS_STORAGE_KEY, JSON.stringify(config));
+@@ -220,7 +221,15 @@ export function CanvasNodeHoverToolbar({
+                 onPointerDown={(event) => event.stopPropagation()}
+             >
+                 {toolbarTools.map((tool) =>
+-                    tool.id === "translatePrompt" && onTranslatePrompt ? (
++                    tool.id === "superGenerate" ? (
++                        <ImageSuperMenu key={node.id} open={productActive && superMenuOpen} showLabel={showImageToolLabels}
++                            onOpenChange={open => {
++                                setSuperMenuOpen(open);
++                                if (open) onKeep(node.id);
++                                else onLeave();
++                            }}
++                            onGenerate={(action, value) => onSuperGenerate(node, action, value)} />
++                    ) : tool.id === "translatePrompt" && onTranslatePrompt ? (
+                         <Dropdown
+                             key={tool.id}
+                             trigger={["click"]}
+@@ -241,13 +250,6 @@ export function CanvasNodeHoverToolbar({
+                         <ToolbarAction key={tool.id} {...tool} showLabel={isImage ? showImageToolLabels : true} />
+                     ),
+                 )}
+-                {hasImage ? <ImageSuperMenu key={node.id} open={productActive && superMenuOpen} showLabel={showImageToolLabels}
+-                    onOpenChange={open => {
+-                        setSuperMenuOpen(open);
+-                        if (open) onKeep(node.id);
+-                        else onLeave();
+-                    }}
+-                    onGenerate={(action, value) => onSuperGenerate(node, action, value)} /> : null}
+                 {hasImage ? <ToolbarAction id="more" title={t("canvas.imageTools.configure")} label={t("canvas.imageTools.more")} icon={<Ellipsis className="size-4" />} active={imageToolSettingsOpen} onClick={openImageToolSettings} showLabel={showImageToolLabels} /> : null}
+             </div>
+             {hasImage ? (

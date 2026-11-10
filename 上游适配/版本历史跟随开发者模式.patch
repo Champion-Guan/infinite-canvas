@@ -1,0 +1,17 @@
+diff --git a/web/src/hooks/use-version-check.ts b/web/src/hooks/use-version-check.ts
+index 2c61935..0513b13 100644
+--- a/web/src/hooks/use-version-check.ts
++++ b/web/src/hooks/use-version-check.ts
+@@ -57,9 +57,11 @@ export function useVersionCheck(enabled = true) {
+     // be ahead during source-mode rollout or stale in an already-open iframe.
+     const currentVersion = resolveCurrentWorkbenchVersion(status?.currentVersion);
+     const remoteItems = latest ? parseChangelog(`## ${latest.version}\n${latest.notes || ""}`)[0]?.items : undefined;
+-    const releases = latest ? [{ version: latest.version, date: latest.publishedAt.slice(0, 10),
++    const allReleases = latest ? [{ version: latest.version, date: latest.publishedAt.slice(0, 10),
+         items: remoteItems || [{ type: "更新", content: latest.notes || "暂无更新说明" }] },
+         ...localReleases.filter(r => r.version !== latest.version)] : localReleases;
++    const developerMode = status?.preferences?.developerMode === true;
++    const releases = allReleases.filter(release => developerMode || !/-beta(?:\.|$)/.test(release.version.split("+", 1)[0]));
+ 
+     return {
+         open,

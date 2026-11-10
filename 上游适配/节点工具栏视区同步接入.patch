@@ -1,0 +1,45 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 8b043fa..41b3120 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,4 +1,5 @@
+ import { ensureModelConfigured } from "@/扩展功能/产品配置/模型配置门禁";
++import { paintNodeToolbar } from "@/扩展功能/画布交互/节点工具栏定位";
+ import { useImageSuperGeneration } from "@/扩展功能/画布生成/一键超人操作";
+ import { OutsidePanelBoundary } from "@/扩展功能/主题/原生可关闭浮层";
+ import { ASSET_DRAG_TYPE, readAssetDrag } from "@/扩展功能/素材/上传资产规则";
+@@ -350,6 +351,7 @@ function InfiniteCanvasPage() {
+     const canvasPanningRef = useRef(false);
+     const [isCanvasPanning, setIsCanvasPanning] = useState(false);
+     const panOverlayRef = useRef<HTMLDivElement>(null);
++    const nodeToolbarLayerRef = useRef<HTMLDivElement>(null);
+     const renderedViewportRef = useRef(viewport);
+     renderedViewportRef.current = viewport;
+     const previewCanvasViewport = useCallback((next: ViewportTransform) => {
+@@ -357,6 +359,7 @@ function InfiniteCanvasPage() {
+         const rendered = renderedViewportRef.current;
+         const ratio = next.k / rendered.k;
+         if (panOverlayRef.current) panOverlayRef.current.style.transform = `translate(${next.x - rendered.x * ratio}px, ${next.y - rendered.y * ratio}px) scale(${ratio})`;
++        paintNodeToolbar(nodeToolbarLayerRef.current, next);
+     }, []);
+     const changeCanvasPanning = useCallback((panning: boolean) => {
+         canvasPanningRef.current = panning;
+@@ -3349,7 +3352,7 @@ function InfiniteCanvasPage() {
+                     </div>
+                 </div>
+ 
+-                <div ref={panOverlayRef} className="pointer-events-none absolute inset-0 z-[70]" style={{ transformOrigin: "top left", willChange: isCanvasPanning ? "transform" : undefined }}>
++                <div ref={nodeToolbarLayerRef} className="pointer-events-none absolute inset-0 z-[70]">
+                 <CanvasNodeHoverToolbar
+                     node={isNodeDragging || isNodeResizing || nodeImageSettingsOpen || Boolean(referencePickerNodeId) || expandedBatchNodeIds.has(toolbarNode?.id || "") ? null : toolbarNode}
+                     viewport={viewport}
+@@ -3379,7 +3382,9 @@ function InfiniteCanvasPage() {
+                     onDelete={(node) => deleteNodes(new Set([node.id]))}
+                     onUngroup={(node) => ungroupSelection(new Set([node.id]))}
+                 />
++                </div>
+ 
++                <div ref={panOverlayRef} className="pointer-events-none absolute inset-0 z-[70]" style={{ transformOrigin: "top left", willChange: isCanvasPanning ? "transform" : undefined }}>
+                 {hasMultipleSelectedNodes && !selectionBox ? (
+                     <CanvasSelectionToolbar
+                         nodes={selectedNodes}

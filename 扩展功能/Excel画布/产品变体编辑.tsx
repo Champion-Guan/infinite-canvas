@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Checkbox, Tooltip } from "antd";
+import { Button, Checkbox, Tooltip } from "antd";
 import { AppleModal as Modal } from "../主题/苹果弹窗";
 import { Check, ChevronDown, Copy, Images, Plus, Trash2, X } from "lucide-react";
 import type { CanvasNodeContext } from "@/types/canvas-plugin";
 import type { CanvasNodeMetadata } from "@/types/canvas";
 import { MediaThumbnail } from "../媒体交付/媒体缩略图";
+import { ParameterImageThumbnail } from "./参数图片预览";
 import { productMainImages } from "./产品主图规则";
 import { PRODUCT_BRIEF_FIELDS, variableLabel } from "./旧版参数规则";
 import { DEFAULT_VARIANT_ATTRIBUTES, groupVariantImagesByFilename, newProductVariant, productVariants, variantLabel, type ProductVariant, type ProductVariantMetadata } from "./产品变体规则";
@@ -100,10 +101,10 @@ export function ProductVariantEditor({ ctx, onChange, tokens }: {
                             return <div key={variant.id} className="min-w-0 p-2" data-variant-id={variant.id}>
                                 <div className="flex min-w-0 items-center gap-2">
                                     <Checkbox aria-label={`生成 ${variantLabel(variant)}`} checked={variant.enabled} onChange={event => edit(variant.id, item => ({ ...item, enabled: event.target.checked }))} />
+                                    {primary ? <ParameterImageThumbnail image={primary} name={`变体 ${variantLabel(variant)} · ${primary.name}`}
+                                        className="grid size-8 shrink-0 place-items-center overflow-hidden rounded border" style={style} /> : null}
                                     <button type="button" aria-label={`编辑变体 ${variantLabel(variant)}`} aria-expanded={open} onClick={() => setExpanded(open ? null : variant.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
-                                        <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded border" style={style}>
-                                            {primary ? <MediaThumbnail storageKey={primary.storageKey} fallback={primary.url} alt={primary.name} className="h-full w-full object-contain" /> : <Images className="size-4 opacity-40" />}
-                                        </div>
+                                        {!primary ? <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded border" style={style}><Images className="size-4 opacity-40" /></div> : null}
                                         <span className="min-w-0 flex-1 truncate text-xs">{variantLabel(variant)}<span className="ml-1 text-[10px] opacity-50">{variant.imageIds.length} 张</span></span>
                                         <ChevronDown className={`size-3 shrink-0 transition-transform duration-150 motion-reduce:transition-none ${open ? "rotate-180" : ""}`} />
                                     </button>
@@ -164,7 +165,7 @@ export function ProductVariantEditor({ ctx, onChange, tokens }: {
                             {picking !== "shared" && checked ? <button type="button" className="text-xs" onClick={() => { if (picking) edit(picking, item => ({ ...item, primaryImageId: image.id })); }}>{target?.primaryImageId === image.id ? "主参考图" : "设为主参考图"}</button> : null}
                         </div>;
                     })}</div>}
-                    <div className="flex items-center justify-between gap-3 border-t pt-3 text-sm"><span>已选 {selectedIds.length} 张</span><button type="button" className="rounded-md bg-black px-4 py-2 text-white" onClick={() => setPicking(null)}>完成</button></div>
+                    <div className="flex items-center justify-between gap-3 border-t pt-3 text-sm"><span>已选 {selectedIds.length} 张</span><Button type="primary" onClick={() => setPicking(null)}>完成</Button></div>
                 </div>
             </Modal>
             <Modal title="删除这个变体？" open={Boolean(removing)} onCancel={() => setRemoving(null)} okText="删除变体" cancelText="取消" okButtonProps={{ danger: true }}

@@ -8,7 +8,12 @@ class Node {
     contains(target) { for (let node = target; node; node = node.parentElement) if (node === this) return true; return false; }
 }
 class Element extends Node {
-    closest() { return this.nativeOptions ? this : this.parentElement?.closest() ?? null; }
+    constructor(parent = null, className = '') { super(parent); this.className = className; }
+    closest(selector) {
+        if (this.nativeOptions && selector.includes('.ant-select-dropdown')) return this;
+        return selector.split(',').some(value => value.startsWith('.') && this.className.split(' ').includes(value.slice(1)))
+            ? this : this.parentElement?.closest(selector) ?? null;
+    }
 }
 const file = '扩展功能/主题/面板外部关闭.ts';
 const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file, { loader: 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
@@ -63,4 +68,28 @@ test('原生/Radix子选项不在选择前误关父层，Shadow DOM按照真实�
     const shadowHost = new Element(), actualButton = new Element(parent.panel);
     f.pointer(shadowHost, [actualButton, parent.panel, shadowHost]); assert.deepEqual(f.calls, []);
     parent.remove(); f.pointer(new Element()); assert.deepEqual(f.calls, []);
+});
+test('点击已注册弹窗自己的遮罩会关闭，未注册子弹窗及其遮罩不误关父层', () => {
+    const f = fixture(), modal = f.layer('补充依据', null, true);
+    const root = new Element(null, 'ant-modal-root'), wrap = new Element(root, 'ant-modal-wrap');
+    const mask = new Element(root, 'ant-modal-mask');
+    modal.panel.parentElement = wrap; modal.panel.className = 'ant-modal';
+    f.pointer(wrap); assert.deepEqual(f.calls, ['补充依据']);
+    f.calls.length = 0;
+    f.pointer(mask); assert.deepEqual(f.calls, ['补充依据']);
+    f.calls.length = 0;
+    const foreignRoot = new Element(null, 'ant-modal-root'), foreignWrap = new Element(foreignRoot, 'ant-modal-wrap');
+    f.pointer(new Element(foreignWrap, 'ant-modal')); f.pointer(foreignWrap);
+    assert.deepEqual(f.calls, []);
+    modal.remove();
+});
+test('嵌套弹窗遮罩只关闭最上层，保留父层和原生选项', () => {
+    const f = fixture(), parent = f.layer('父', null, true), child = f.layer('子', parent, true);
+    const root = new Element(null, 'ant-modal-root'), wrap = new Element(root, 'ant-modal-wrap');
+    child.panel.parentElement = wrap; child.panel.className = 'ant-modal';
+    f.pointer(wrap); assert.deepEqual(f.calls, ['子']);
+    f.calls.length = 0;
+    const select = new Element(); select.nativeOptions = true;
+    f.pointer(select); assert.deepEqual(f.calls, []);
+    child.remove(); parent.remove();
 });

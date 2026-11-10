@@ -1,4 +1,5 @@
 import type { CanvasConnection, CanvasNodeData, Position } from "@/types/canvas";
+import type { ProductPromptMetadata } from "../Excel画布/商品提示词规则";
 import { expandChangedGroups, NODE_PLACEMENT_GAP, nodesOverlap } from "./卡片自动避让";
 import { planWorkflowRows } from "./画布流程分组排布";
 
@@ -21,8 +22,13 @@ const isPromptSource = (node: CanvasNodeData) => node.type === "guan:product-pro
 const isTranslationCandidate = (node: CanvasNodeData) => node.type === "text"
     && (Boolean(node.metadata?.promptVariableTranslationOf) || /^(英文|中文|翻译).*提示词/.test(node.title || ""));
 
-export function promptOrder(node: CanvasNodeData): { rank: number; number: number; label: string } {
+export function promptOrder(node: CanvasNodeData, fallbackPlanIndex = 0): { rank: number; number: number; label: string } {
     const label = String(node.metadata?.excelPromptLabel || node.title || "");
+    const document = (node.metadata as ProductPromptMetadata | undefined)?.productImagePrompt;
+    if (document && ["main", "carousel", "rich"].includes(document.kind)) {
+        const rank = document.kind === "main" ? 0 : document.kind === "carousel" ? 1 : 2;
+        return { rank, number: Number.isSafeInteger(document.planIndex) && document.planIndex! >= 0 ? document.planIndex! : fallbackPlanIndex, label };
+    }
     const detail = label.match(/详情页(?:提示词)?\s*0*(\d+)?/i);
     const rich = label.match(/富内容(?:提示词)?\s*0*(\d+)?/i);
     const video = label.match(/视频(?:提示词)?\s*0*(\d+)?/i);
@@ -33,8 +39,8 @@ export function promptOrder(node: CanvasNodeData): { rank: number; number: numbe
     return { rank: 3, number: 0, label };
 }
 
-function comparePrompt(a: CanvasNodeData, b: CanvasNodeData) {
-    const left = promptOrder(a), right = promptOrder(b);
+function comparePrompt(a: CanvasNodeData, b: CanvasNodeData, nodeOrder?: ReadonlyMap<string, number>) {
+    const left = promptOrder(a, nodeOrder?.get(a.id)), right = promptOrder(b, nodeOrder?.get(b.id));
     return left.rank - right.rank || left.number - right.number || compare.compare(left.label, right.label) || a.id.localeCompare(b.id);
 }
 
@@ -52,10 +58,54 @@ function connectionIndex(nodes: CanvasNodeData[], connections: CanvasConnection[
 }
 
 // 编号只决定结果列；无编号和重复编号按名称稳定占用空列。
-function outputSlots(outputs: CanvasNodeData[]) {
+function variantOutputColumns(nodes: CanvasNodeData[]) {
+    const order = new Map(nodes.filter(node => isParameter(node)).flatMap(node =>
+        ((node.metadata as { productVariants?: Array<{ id: string }> } | undefined)?.productVariants || [])
+            .map((variant, index) => [JSON.stringify([node.id, variant.id]), index] as const)));
+    const groups = new Map<string, { ids: string[]; left: number; order: number }>();
+    for (const node of nodes) {
+        const variant = (node.metadata as { productVariant?: { parameterId: string; id: string } } | undefined)?.productVariant;
+        if (!variant || !isMedia(node)) continue;
+        const key = JSON.stringify([variant.parameterId, variant.id, node.metadata?.generationBatchId || ""]);
+        const group = groups.get(key) || { ids: [], left: node.position.x,
+            order: order.get(JSON.stringify([variant.parameterId, variant.id])) ?? Number.MAX_SAFE_INTEGER };
+        group.ids.push(node.id); group.left = Math.min(group.left, node.position.x); groups.set(key, group);
+    }
+    return new Map([...groups].sort((a, b) => a[1].order - b[1].order || a[1].left - b[1].left || a[0].localeCompare(b[0]))
+        .flatMap(([, group], index) => group.ids.map(id => [id, index + 1] as const)));
+}
+
+function uniformVariantResultWidths(nodes: CanvasNodeData[], selectedIds?: ReadonlySet<string>) {
+    const keyFor = (node: CanvasNodeData) => {
+        const variant = (node.metadata as { productVariant?: { parameterId: string; id: string } } | undefined)?.productVariant;
+        return node.type === "image" && variant && (!selectedIds || selectedIds.has(node.id))
+            ? JSON.stringify([variant.parameterId, variant.id]) : undefined;
+    };
+    const widths = new Map<string, number>();
+    for (const node of nodes) {
+        const key = keyFor(node);
+        if (key && valid(node)) widths.set(key, Math.max(widths.get(key) || 0, node.width));
+    }
+    return nodes.map(node => {
+        const key = keyFor(node), width = key && widths.get(key);
+        if (!width || !valid(node)) return node;
+        const pixels = node.metadata;
+        const ratio = pixels?.naturalWidth && pixels.naturalHeight ? pixels.naturalHeight / pixels.naturalWidth : node.height / node.width;
+        const height = width * ratio;
+        return Math.abs(node.width - width) < 1e-7 && Math.abs(node.height - height) < 1e-7 ? node
+            : { ...node, width, height, position: { x: node.position.x, y: node.position.y + (node.height - height) / 2 } };
+    });
+}
+
+function outputSlots(outputs: CanvasNodeData[], variantColumns: Map<string, number>) {
     const slots = new Map<number, CanvasNodeData>();
     const pending: CanvasNodeData[] = [];
+    for (const node of outputs) {
+        const slot = variantColumns.get(node.id);
+        if (slot && !slots.has(slot)) slots.set(slot, node);
+    }
     for (const node of [...outputs].sort((a, b) => compare.compare(a.title || "", b.title || "") || a.id.localeCompare(b.id))) {
+        if ([...slots.values()].some(item => item.id === node.id)) continue;
         const match = (node.title || "").match(/[-－]\s*(\d+)\s*$/);
         const number = match ? Number(match[1]) : 0;
         if (number > 0 && number <= 1000 && !slots.has(number)) slots.set(number, node);
@@ -72,6 +122,9 @@ function outputSlots(outputs: CanvasNodeData[]) {
 function collectRows(nodes: CanvasNodeData[], index: ReturnType<typeof connectionIndex>) {
     const used = new Set<string>();
     const rows: Row[] = [];
+    const variantColumns = variantOutputColumns(nodes);
+    // 旧套图没有规划序号，保留原创建顺序；整理只改坐标，不改变节点数组顺序。
+    const nodeOrder = new Map(nodes.map((node, index) => [node.id, index]));
     for (const config of nodes.filter(node => {
         if (node.type !== "config" || !valid(node)) return false;
         const inputs = [...(index.incoming.get(node.id) || [])].map(id => index.byId.get(id)!);
@@ -107,7 +160,7 @@ function collectRows(nodes: CanvasNodeData[], index: ReturnType<typeof connectio
             const incoming = [...(index.incoming.get(node.id) || [])];
             return incoming.length === 1 && incoming[0] === config.id;
         });
-        rows.push({ source, prompt, translations: [], config, orderNode: linkedSource || original || config, outputs: outputSlots(outputs) });
+        rows.push({ source, prompt, translations: [], config, orderNode: linkedSource || original || config, outputs: outputSlots(outputs, variantColumns) });
     }
     for (const source of nodes.filter(node => valid(node) && isPromptSource(node) && !isPreview(node) && !used.has(node.id))) {
         const prompt = [...(index.outgoing.get(source.id) || [])].map(id => index.byId.get(id)!).find(node =>
@@ -116,7 +169,7 @@ function collectRows(nodes: CanvasNodeData[], index: ReturnType<typeof connectio
         if (prompt) used.add(prompt.id);
         rows.push({ source, prompt, translations: [], orderNode: source, outputs: new Map() });
     }
-    rows.sort((a, b) => comparePrompt(a.orderNode, b.orderNode));
+    rows.sort((a, b) => comparePrompt(a.orderNode, b.orderNode, nodeOrder));
     for (const row of rows) {
         const origins = [row.source, row.prompt].filter((node): node is CanvasNodeData => Boolean(node));
         const originIds = new Set(origins.map(node => node.id));
@@ -197,6 +250,8 @@ function extraFlows(extras: CanvasNodeData[], index: ReturnType<typeof connectio
 /** 根据真实连线规划流程列和结果编号列，其余卡片按类型单独归列。 */
 export function layoutCanvas(nodes: CanvasNodeData[], connections: CanvasConnection[], selectedIds?: ReadonlySet<string>): CanvasNodeData[] {
     if (!nodes.length || (selectedIds && !selectedIds.size)) return nodes;
+    const normalized = uniformVariantResultWidths(nodes, selectedIds);
+    if (normalized.some((node, index) => node !== nodes[index])) nodes = normalized;
     if (selectedIds) {
         const selected = nodes.filter(node => node.type !== "group" && valid(node) && selectedIds.has(node.id)
             && (!node.metadata?.groupId || selectedIds.has(node.metadata.groupId)));

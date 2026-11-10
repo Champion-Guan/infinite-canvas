@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import type { CanvasNodeData, CanvasConnection } from "@/types/canvas";
+import { remapCanvasMedia } from "./便携媒体引用";
 
 const nodeReferences = new Set(["groupId", "generationParamsSourceNodeId", "promptVariablePreviewNodeId", "promptVariableSourceNodeId", "promptVariablePreviewOf", "promptVariableEnglishPreviewOf", "promptVariableTranslationOf", "excelPromptBindingNodeId"]);
 
@@ -24,25 +25,16 @@ export function prepareCanvasContentImport(data: unknown, zip: Map<string, Blob>
             media.push({ key, blob: blob.slice(0, blob.size, file.mimeType) });
         }
         const remap = (value: unknown, field = ""): unknown => {
-            if (["storageKey", "originalStorageKey", "deliveryStorageKey"].includes(field) && typeof value === "string") {
-                const key = keys.get(value);
-                if (!key) throw Error("卡片引用的媒体未包含在 ZIP 中");
-                return key;
-            }
             if (nodeReferences.has(field) && typeof value === "string") return ids.get(value);
-            if (field === "references" && typeof value === "string" && /^(image|video|audio|file):/.test(value)) {
-                const key = keys.get(value);
-                if (!key) throw Error("卡片引用的媒体未包含在 ZIP 中");
-                return key;
-            }
             if (Array.isArray(value)) return value.map(entry => remap(entry, field));
             if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).filter(([key]) => !["__proto__", "constructor", "prototype", "videoTaskId", "videoTaskProvider"].includes(key)).map(([key, entry]) => [key, remap(entry, key)]));
             return value;
         };
         const left = item.project.nodes.reduce((min, node) => Math.min(min, node.position.x), Infinity);
         const top = item.project.nodes.reduce((min, node) => Math.min(min, node.position.y), Infinity);
-        const imported = item.project.nodes.map(node => {
-            const next = remap(node) as CanvasNodeData;
+        const imported = remapCanvasMedia(item.project.nodes, keys).map((portable, index) => {
+            const node = item.project.nodes[index];
+            const next = remap(portable) as CanvasNodeData;
             next.id = ids.get(node.id)!;
             next.position = { x: node.position.x - left + right, y: node.position.y - top };
             if (next.metadata) {

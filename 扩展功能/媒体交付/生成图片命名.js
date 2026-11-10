@@ -31,7 +31,7 @@ export function restoreVariantImageNames(nodes) {
 
 // Reserve a whole batch before requests complete; retries retain their original slots.
 export function numberGeneratedImages(nodes, sourceBase) {
-    const bases = new Map(nodes.filter(node => node.type === "image").map(node => [node.id, sourceBase(node)]));
+    const bases = new Map(nodes.filter(node => node.type === "image" && !node.metadata?.wbImageNaming).map(node => [node.id, sourceBase(node)]));
     const next = new Map();
     for (const node of nodes) {
         const base = bases.get(node.id);

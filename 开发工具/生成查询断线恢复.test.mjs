@@ -98,7 +98,7 @@ test('收到明确的上游400失败才结束任务，不自动重提', async ()
   const f = fixture({ state: 'failed' });
   await assert.rejects(runCanvasImageTask(f.options), { code: 'generation_failed' });
   assert.equal(f.applications, 0);
-  assert.equal(f.commands.length, 1);
+  assert.deepEqual(f.commands.map(command => command.operation), ['submit', 'result']);
 });
 test('业务错误、归属错误及响应损坏不作为连接故障重试', async () => {
   for (const code of ['generation_scope_mismatch', 'generation_result_invalid', 'generation_not_found', 'generation_ack_invalid']) {

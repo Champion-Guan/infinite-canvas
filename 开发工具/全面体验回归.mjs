@@ -18,6 +18,8 @@ files.add('开发工具/全部页签双向过渡.test.mjs');
 files.add('开发工具/统一动效基础规则.test.mjs');
 files.add('开发工具/更新开关初始状态.test.mjs');
 files.add('开发工具/分类系统提示词.test.mjs');
+files.add('开发工具/Web版本说明.test.mjs');
+files.add('开发工具/更新历史统一展示.test.mjs');
 const exclusive = ['内置网络代理', '异常退出写盘', 'Web构建缓存清理', 'SQLite分片存储', 'SQLite分片故障矩阵'].map(name => '开发工具/' + name + '.test.mjs');
 const directory = resolve(root, '开发文档/验收记录/M1苹果交互20261105');
 mkdirSync(directory, { recursive: true });

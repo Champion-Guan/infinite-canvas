@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/infinite-canvas.tsx b/web/src/components/canvas/infinite-canvas.tsx
+index a0c54d5..411fa6e 100644
+--- a/web/src/components/canvas/infinite-canvas.tsx
++++ b/web/src/components/canvas/infinite-canvas.tsx
+@@ -332,7 +332,7 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+     return (
+         <div
+             ref={containerRef}
+-            className="guan-canvas-viewport relative h-full w-full select-none overflow-hidden"
++            className="guan-canvas-viewport relative h-full w-full select-none overflow-clip"
+             data-panning={isPanning ? "true" : "false"}
+             style={{ background: theme.canvas.background, cursor }}
+             onPointerDownCapture={event => {

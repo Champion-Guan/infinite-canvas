@@ -54,7 +54,11 @@
   background: #111214;
   box-shadow: 0 5px 16px rgb(0 0 0 / 12%);
   pointer-events: none;
+  opacity: 0;
   view-transition-name: none;
+}
+.root :global(.guan-dc-product-nav[data-capsule-sliding="true"]) .indicator {
+  opacity: 1;
 }
 :global(.dark) .indicator { background: #f4f4f5; }
 .indicator[data-status="loading"] { background: #facc15; }
@@ -154,13 +158,14 @@
 }
 .root :global(.guan-dc-product-capsule.is-active) {
   border-color: transparent;
-  background: transparent;
+  background: #111214;
   color: #fff;
   box-shadow: none;
+  transition-property: border-color, color, box-shadow;
 }
 :global(.dark) .root :global(.guan-dc-product-capsule.is-active) {
   border-color: #f4f4f5;
-  background: transparent;
+  background: #f4f4f5;
   color: #17181a;
 }
 .root :global(.guan-dc-product-capsule.guan-dc-product-capsule-loading) {
@@ -220,12 +225,7 @@
 .root :global(.guan-dc-product-capsule:disabled) {
   cursor: wait;
 }
-.root :global(.guan-dc-product-capsule.is-active.guan-dc-product-capsule-loading),
-.root :global(.guan-dc-product-capsule.is-active.guan-dc-product-capsule-success),
-.root :global(.guan-dc-product-capsule.is-active.guan-dc-product-capsule-error),
-:global(.dark) .root :global(.guan-dc-product-capsule.is-active.guan-dc-product-capsule-loading),
-:global(.dark) .root :global(.guan-dc-product-capsule.is-active.guan-dc-product-capsule-success),
-:global(.dark) .root :global(.guan-dc-product-capsule.is-active.guan-dc-product-capsule-error) {
+.root :global(.guan-dc-product-nav[data-capsule-sliding="true"] .guan-dc-product-capsule.is-active) {
   background: transparent;
 }
 .error {

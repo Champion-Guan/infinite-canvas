@@ -19,6 +19,8 @@ import { promptDocument, type ProductPromptMetadata } from "../Excel画布/商�
 import { productImageConfig, productConfigSignature } from "../Excel画布/商品提示词画布";
 import { ensureModelConfigured } from "../产品配置/模型配置门禁";
 import { pulseProductPromptWarning } from "../Excel画布/商品提示词阻止反馈";
+import { buildProductGenerationContext } from "./商品提示词生成";
+import { assertImageReferenceLimit, imageGenerationReferences } from "./参考图数量限制";
 
 type BatchGenerationPort = {
     projectId: string;
@@ -108,6 +110,13 @@ export function useCanvasBatchGeneration({ projectId, nodesRef, connectionsRef, 
         for (const job of jobs) {
             const node = generationNodeForExecution(job.source, job.source.id, nodesRef.current, connectionsRef.current);
             if (!ensureModelConfigured(buildGenerationConfig(effectiveConfig, node, job.mode), job.mode)) return;
+            if (job.mode === "image") try {
+                const context = buildProductGenerationContext(job.source.id, nodesRef.current, connectionsRef.current, job.prompt, job.placement.productVariant);
+                assertImageReferenceLimit(imageGenerationReferences(job.source, context.referenceImages, effectiveConfig.nodeRegenerateBehavior === "overwrite"));
+            } catch (error) {
+                if (!pulseProductPromptWarning(error)) message.error(error instanceof Error ? error.message : "参考图检查未通过");
+                return;
+            }
         }
         batchGenerationRunning.current = true;
         beginBatchCanvasSave(projectId);

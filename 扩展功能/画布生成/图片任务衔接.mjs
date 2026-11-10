@@ -24,6 +24,17 @@ function scoped(job, scope, id) {
 // 控制单个任务的查询频率；批量任务不再共用固定的每分钟查询额度。
 const delay = () => new Promise(resolve => setTimeout(resolve, 3000));
 
+async function failureMessage(host, job, options) {
+  const fallback = job.result?.status >= 400 ? `上游返回 HTTP ${job.result.status}，生成失败。`
+    : '原生成任务未成功；请查看任务状态后明确重试。';
+  if (job.state !== 'failed' || !job.result || typeof host.failure !== 'function') return fallback;
+  try { return await host.failure({ id: job.id, productId: job.productId, nodeId: job.nodeId }, options); }
+  catch {
+    assertGenerationActive(options.signal);
+    return `${fallback}错误详情暂时无法读取，请稍后查看原任务。`;
+  }
+}
+
 const slots = new Set();
 /** @param {{host: any, scope: {productId: string, nodeId: string, slotId: string}, prepare: Function, bind: Function, previous?: any, recordTask: Function, applyAndSave: Function, onProgress?: Function, signal?: AbortSignal, retry?: boolean, wait?: Function, retryWait?: Function, makeId?: Function, deferConfirm?: () => boolean}} options */
 export async function runCanvasImageTask(options) {
@@ -55,7 +66,7 @@ async function run({ host, scope, prepare, bind, previous, recordTask, applyAndS
       }
     }
     if (job && (['failed', 'cancelled'].includes(job.state) || job.state === 'succeeded' && job.applied && retry)) {
-      requireValue(retry, 'generation_explicit_retry_required', '原任务已结束，请明确点击重试后再生成。', 409);
+      requireValue(retry, 'generation_explicit_retry_required', retry ? '' : `${await failureMessage(host, job, { signal, retryWait })}请明确点击重试后再生成。`, 409);
       if (job.state === 'cancelled' && job.reason === 'replaced_before_dispatch') {
         // 多页面恢复同一旧身份时共用后继ID；旧页面迟到重试不会再生成另一笔。
         const hash = await imageRequestHash({ retiredTaskId: descriptor.taskId, ...target });
@@ -113,8 +124,9 @@ async function run({ host, scope, prepare, bind, previous, recordTask, applyAndS
     // 结果落盘失败可以重试同一份响应，不重新调用上游。
     if (job.state === 'uncertain' && job.reason === 'result_save_unconfirmed')
       job = scoped(await host.retryResultSave(task.id), target, task.id);
-    requireValue(job.state === 'succeeded', job.state === 'uncertain' ? 'generation_result_unknown' : 'generation_failed',
-      job.state === 'uncertain' ? '上游是否完成尚未确认，不能自动重试或重复计费。' : '原生成任务未成功；可明确重试，不会自动切换渠道。', 409);
+    if (job.state !== 'succeeded') requireValue(false, job.state === 'uncertain' ? 'generation_result_unknown' : 'generation_failed',
+      job.state === 'uncertain' ? '上游是否完成尚未确认，不能自动重试或重复计费。'
+        : await failureMessage(host, job, { signal, retryWait }), job.result?.status || 409);
     if (signal?.aborted) throw new DOMException('已取消', 'AbortError');
     return await host.deliver(task, { signal, retryWait,
       commit: operation => serializeProductResult(target.productId, operation), applyAndSave: async saved => {

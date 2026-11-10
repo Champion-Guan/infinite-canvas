@@ -1,0 +1,14 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 4c448f4..89ab7b9 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -2472,7 +2472,8 @@ function InfiniteCanvasPage() {
+ 
+                     setNodes((prev) => {
+                         // Include existing batches when reserving the new batch, before any request completes.
+-                        const numbered = numberGeneratedImages([...prev, rootNode], candidate => candidate.id === rootId && candidate === rootNode ? generationNameBase : candidate.metadata?.generationNameBase || (candidate.metadata?.generationType ? generatedImageCardTitle(findGeneratedImageSourcePrompt(candidate, prev, connectionsRef.current)) : ""));
++                        const pending = numberGeneratedImages([...prev, rootNode], candidate => candidate.id === rootId && candidate === rootNode ? generationNameBase : candidate.metadata?.generationNameBase || (candidate.metadata?.generationType ? generatedImageCardTitle(findGeneratedImageSourcePrompt(candidate, prev, connectionsRef.current)) : ""));
++                        const numbered = renameGeneratedImageNodes(pending, [...connectionsRef.current, { id: "naming", fromNodeId: nodeId, toNodeId: rootId }]);
+                         const namedRoot = numbered[numbered.length - 1];
+                         return [
+                             ...numbered.slice(0, -1).map((node) =>

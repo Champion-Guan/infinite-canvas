@@ -199,6 +199,7 @@ test('版本弹窗展开真实安装操作和进度组件，下载各状态始�
   }
   mocks['./更新进度面板'] = load('../扩展功能/软件更新/更新进度面板.tsx');
   mocks['@/扩展功能/软件更新/在线安装操作'] = load('../扩展功能/软件更新/在线安装操作.tsx');
+  mocks['@/扩展功能/软件更新/版本历史时间线'] = load('../扩展功能/软件更新/版本历史时间线.tsx');
   const { VersionReleaseModal } = load('../.运行/3100源/画布副本/web/src/components/layout/version-release-modal.tsx');
   function flatten(value) {
     if (!value || typeof value !== 'object') return [];
