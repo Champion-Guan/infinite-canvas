@@ -172,8 +172,8 @@
   "统计": {
     "success": true,
     "counts": {
-      "tests": 1608,
-      "passed": 1608,
+      "tests": 1611,
+      "passed": 1611,
       "failed": 0,
       "cancelled": 0,
       "skipped": 0
@@ -1504,8 +1504,8 @@
       "文件": "开发工具/Web版本说明.test.mjs",
       "通过": true,
       "退出码": 0,
-      "测试": 6,
-      "成功": 6,
+      "测试": 8,
+      "成功": 8,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -1524,8 +1524,8 @@
       "文件": "开发工具/更新历史统一展示.test.mjs",
       "通过": true,
       "退出码": 0,
-      "测试": 3,
-      "成功": 3,
+      "测试": 4,
+      "成功": 4,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -1860,6 +1860,18 @@
       "原因": "测试夹具的render与props须在注册测试前初始化",
       "源码SHA256": "fa760d0360dcd81d07b429685d753fc36b8106b8d367504f5356cc6ee4a5de42",
       "输出": "TAP version 13\n# Subtest: 重复原 ID 在规划前消歧，稳定记忆和共享段保留各自真实端点，原数据不变\nok 1 - 重复原 ID 在规划前消歧，稳定记忆和共享段保留各自真实端点，原数据不变\n  ---\n  duration_ms: 18.054\n  type: 'test'\n  ...\n# Subtest: 分组背景不当作实心障碍，真正普通卡片移动后会重新规划\nok 2 - 分组背景不当作实心障碍，真正普通卡片移动后会重新规划\n  ---\n  duration_ms: 0.594875\n  type: 'test'\n  ...\n# Subtest: 缓存热画布保留原连线，但非当前产品卸下流动粒子，切回再恢复\nok 3 - 缓存热画布保留原连线，但非当前产品卸下流动粒子，切回再恢复\n  ---\n  duration_ms: 2.625875\n  type: 'test'\n  ...\n# Subtest: 减少动态效果或浏览器后台时卸下粒子动画，原高亮路径与鼠标命中仍保留\nok 4 - 减少动态效果或浏览器后台时卸下粒子动画，原高亮路径与鼠标命中仍保留\n  ---\n  duration_ms: 0.368334\n  type: 'test'\n  ...\n# Subtest: 仅焦点关系绘制 7 画布单位数据点，拖动或平移中清空，线宽同比缩放\nok 5 - 仅焦点关系绘制 7 画布单位数据点，拖动或平移中清空，线宽同比缩放\n  ---\n  duration_ms: 1.380875\n  type: 'test'\n  ...\n# Subtest: 配置整组焦点保持在卡片下；单条关系通过独立高亮层，透明命中无选择框\nok 6 - 配置整组焦点保持在卡片下；单条关系通过独立高亮层，透明命中无选择框\n  ---\n  duration_ms: 1.29325\n  type: 'test'\n  ...\n# Subtest: 悬浮独立线及共享主干时高亮与流动点留在卡片下、不触发透视；离开恢复已选关系\nok 7 - 悬浮独立线及共享主干时高亮与流动点留在卡片下、不触发透视；离开恢复已选关系\n  ---\n  duration_ms: 1.32775\n  type: 'test'\n  ...\n# Subtest: 提示词 Portal 保留位置锚点与事件边界，面板操作不穿透画布\nok 8 - 提示词 Portal 保留位置锚点与事件边界，面板操作不穿透画布\n  ---\n  duration_ms: 1.4695\n  type: 'test'\n  ...\n# Subtest: 独立端点先阻止画布 pointerdown 捕获，同时保留 mousedown 新建连线\nok 9 - 独立端点先阻止画布 pointerdown 捕获，同时保留 mousedown 新建连线\n  ---\n  duration_ms: 1.0695\n  type: 'test'\n  ...\n# Subtest: 反向连接的端口短接不沿原路折返，来源向右出线、目标向右入线\nok 10 - 反向连接的端口短接不沿原路折返，来源向右出线、目标向右入线\n  ---\n  duration_ms: 0.444917\n  type: 'test'\n  ...\n1..10\n# tests 10\n# suites 0\n# pass 10\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 51.4525\n"
+    }
+  ],
+  "发布说明专项复测": [
+    {
+      "文件": "开发工具/Web版本说明.test.mjs",
+      "时间": "2026-11-12T06:28:40.095Z",
+      "输出": "TAP version 13\n# Subtest: 离线版本说明使用客户发布来源，保留分类和日期，不携带开发草稿与作者历史\nok 1 - 离线版本说明使用客户发布来源，保留分类和日期，不携带开发草稿与作者历史\n  ---\n  duration_ms: 4.84625\n  type: 'test'\n  ...\n# Subtest: 版本号不匹配、开发草稿、空说明和重复版本在构建前明确拒绝\nok 2 - 版本号不匹配、开发草稿、空说明和重复版本在构建前明确拒绝\n  ---\n  duration_ms: 8.547958\n  type: 'test'\n  ...\n# Subtest: 真实客户历史按原顺序保留，不通过猜测把开发草稿改成已发布版本\nok 3 - 真实客户历史按原顺序保留，不通过猜测把开发草稿改成已发布版本\n  ---\n  duration_ms: 1.190916\n  type: 'test'\n  ...\n# Subtest: GitHub历史保留已发布Beta和Stable，即使旧安装资产已撤下；草稿和作者版本不混入\nok 4 - GitHub历史保留已发布Beta和Stable，即使旧安装资产已撤下；草稿和作者版本不混入\n  ---\n  duration_ms: 1.252916\n  type: 'test'\n  ...\n# Subtest: 离线历史合并去重，旧版非分类说明原文保留，当前版仍使用当前发布说明\nok 5 - 离线历史合并去重，旧版非分类说明原文保留，当前版仍使用当前发布说明\n  ---\n  duration_ms: 1.24575\n  type: 'test'\n  ...\n# Subtest: 下一版构建保留全部已发布历史，不要求提前公开当前版本\nok 6 - 下一版构建保留全部已发布历史，不要求提前公开当前版本\n  ---\n  duration_ms: 1.033333\n  type: 'test'\n  ...\n# Subtest: AI-Workbench标题与功能文案按原条目结构读取，不改变应用内日志版式\nok 7 - AI-Workbench标题与功能文案按原条目结构读取，不改变应用内日志版式\n  ---\n  duration_ms: 1.29475\n  type: 'test'\n  ...\n# Subtest: 当前发布遵循产品名称和功能日志规范，发布工具不再写旧标题\nok 8 - 当前发布遵循产品名称和功能日志规范，发布工具不再写旧标题\n  ---\n  duration_ms: 0.681791\n  type: 'test'\n  ...\n1..8\n# tests 8\n# suites 0\n# pass 8\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 28.6475\n"
+    },
+    {
+      "文件": "开发工具/更新历史统一展示.test.mjs",
+      "时间": "2026-11-12T06:28:40.400Z",
+      "输出": "TAP version 13\n# Subtest: 统一时间线保留分类颜色、当前与最新标记、日期、换行及旧版说明\nok 1 - 统一时间线保留分类颜色、当前与最新标记、日期、换行及旧版说明\n  ---\n  duration_ms: 1.892166\n  type: 'test'\n  ...\n# Subtest: 当前渠道没有可显示历史时说明空状态，不泄露被过滤的Beta记录\nok 2 - 当前渠道没有可显示历史时说明空状态，不泄露被过滤的Beta记录\n  ---\n  duration_ms: 0.090708\n  type: 'test'\n  ...\n# Subtest: 当前日志沿用原时间线、彩色标签和正文布局，不增加概述或分组版式\nok 3 - 当前日志沿用原时间线、彩色标签和正文布局，不增加概述或分组版式\n  ---\n  duration_ms: 0.131625\n  type: 'test'\n  ...\n# Subtest: 设置页保留原最新发布说明的显示条件与操作，正文统一样式；版本弹窗保留完整历史\nok 4 - 设置页保留原最新发布说明的显示条件与操作，正文统一样式；版本弹窗保留完整历史\n  ---\n  duration_ms: 44.715417\n  type: 'test'\n  ...\n1..4\n# tests 4\n# suites 0\n# pass 4\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 52.539542\n"
     }
   ]
 }

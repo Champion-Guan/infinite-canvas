@@ -5,7 +5,12 @@ import { compareVersions, parseVersion } from '../扩展功能/软件更新/stab
 
 export function readWebReleaseDefinitions(root, parseChangelog) {
   const release = JSON.parse(readFileSync(join(root, '开发文档/Web发布版本.json'), 'utf8'));
-  const releases = parseChangelog(readFileSync(join(root, '开发文档/Web更新说明.md'), 'utf8'));
+  const notes = readFileSync(join(root, '开发文档/Web更新说明.md'), 'utf8');
+  if (release.产品名称 !== undefined) {
+    assert.equal(release.产品名称, 'AI-Workbench', '发布产品名称必须为AI-Workbench');
+    assert.ok(notes.startsWith(`## AI-Workbench v${release.版本} - `), '发布说明标题必须使用AI-Workbench v版本');
+  }
+  const releases = parseChangelog(notes);
   assert.ok(releases.length, 'Web更新说明缺少分类条目');
   assert.equal(releases[0].version, release.版本, 'Web更新说明与发布版本不一致');
   const versions = new Set();

@@ -80,3 +80,31 @@ test('下一版构建保留全部已发布历史，不要求提前公开当前�
   assert.deepEqual(JSON.parse(readWebReleaseDefinitions(directory, parseChangelog).__APP_RELEASES__).map(item => item.version),
     ['2.0.0-beta.28', '2.0.0-beta.27']);
 });
+
+test('AI-Workbench标题与功能文案按原条目结构读取，不改变应用内日志版式', t => {
+  const notes = '## AI-Workbench v2.0.0-beta.29 - 2026-11-12\n\n本版完善策划恢复。\n\n+ [新增] **图片引用**：点击可看原图。\n+ [修复] **原任务恢复**：沿用已有结果。';
+  const directory = fixture(t, notes, '2.0.0-beta.29');
+  const first = JSON.parse(readWebReleaseDefinitions(directory, parseChangelog).__APP_RELEASES__)[0];
+  assert.deepEqual(first, { version: '2.0.0-beta.29', date: '2026-11-12',
+    items: [{ type: '新增', content: '图片引用：点击可看原图。' },
+      { type: '修复', content: '原任务恢复：沿用已有结果。' }] });
+  writeFileSync(join(directory, '开发文档/Web发布版本.json'), JSON.stringify({ 产品名称: 'AI-Workbench', 版本: '2.0.0-beta.29' }));
+  assert.doesNotThrow(() => readWebReleaseDefinitions(directory, parseChangelog));
+  writeFileSync(join(directory, '开发文档/Web更新说明.md'), notes.replace('AI-Workbench v', '生图工作台 Web '));
+  assert.throws(() => readWebReleaseDefinitions(directory, parseChangelog), /标题必须使用AI-Workbench/);
+});
+
+test('当前发布遵循产品名称和功能日志规范，发布工具不再写旧标题', () => {
+  const release = JSON.parse(readFileSync(join(root, '开发文档/Web发布版本.json')));
+  const notes = readFileSync(join(root, '开发文档/Web更新说明.md'), 'utf8');
+  assert.equal(release.产品名称, 'AI-Workbench');
+  assert.ok(notes.startsWith(`## AI-Workbench v${release.版本} - `));
+  const current = parseChangelog(notes)[0];
+  assert.ok(current.items.length > 5);
+  assert.ok(current.items.every(item => !item.content.includes('**') && !Object.hasOwn(item, 'group')));
+  assert.ok(notes.split('\n').filter(line => line.startsWith('+ ')).every(line => /^\+ \[[^\]]+\] \*\*[^*]+\*\*：/.test(line)));
+  assert.doesNotMatch(notes, /^### /m);
+  const publisher = readFileSync(join(root, '开发工具/发布Web预览版.mjs'), 'utf8');
+  assert.match(publisher, /'AI-Workbench v' \+ record.version/);
+  assert.doesNotMatch(publisher, /'生图工作台 Web '/);
+});
