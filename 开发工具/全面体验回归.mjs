@@ -19,6 +19,7 @@ files.add('开发工具/统一动效基础规则.test.mjs');
 files.add('开发工具/更新开关初始状态.test.mjs');
 files.add('开发工具/分类系统提示词.test.mjs');
 files.add('开发工具/Web版本说明.test.mjs');
+files.add('开发工具/GitHub发布说明.test.mjs');
 files.add('开发工具/更新历史统一展示.test.mjs');
 files.add('开发工具/参数卡回收保存深度.test.mjs');
 files.add('开发工具/商品设计正文编译.test.mjs');

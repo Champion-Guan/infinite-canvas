@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { WEB_REPOSITORY, WEB_MANIFEST_NAMES, webReleaseAssetName, verifyWebManifest } from '../扩展功能/客户安装/Web发布协议.mjs';
 import { verifyWebUpgradeCompatibility } from '../扩展功能/客户安装/Web安装包核验.mjs';
 import { assertWebReleaseSource } from './Web发布源码核对.mjs';
+import { readGitHubReleaseNotes } from './GitHub发布说明.mjs';
 
 // 发布为单独web-v标签的Prerelease，旧Stable客户端忽略这个渠道。
 export async function publishWebPreview(recordFile) {
@@ -22,7 +23,7 @@ export async function publishWebPreview(recordFile) {
   assert.equal(manifest.commit, record.commit);
   verifyWebUpgradeCompatibility(await readFile(record.archive), { manifest, selected });
   const notes = join(directory, '发布说明.md');
-  await writeFile(notes, await readFile(join(root, '开发文档/Web更新说明.md'), 'utf8'), { flag: 'wx', mode: 0o600 });
+  await writeFile(notes, readGitHubReleaseNotes(root), { flag: 'wx', mode: 0o600 });
   run(['release', 'create', tag, '--repo', WEB_REPOSITORY, '--target', record.commit, '--draft', '--prerelease', '--title', 'AI-Workbench v' + record.version, '--notes-file', notes]);
   run(['release', 'upload', tag, '--repo', WEB_REPOSITORY, record.archive + '#' + selected.name, ...WEB_MANIFEST_NAMES.map(name => join(directory, name) + '#' + name)]);
   const downloaded = await mkdtemp(join(directory, '远程复核-'));
