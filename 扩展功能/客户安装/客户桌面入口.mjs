@@ -50,11 +50,11 @@ function 信息文件() {
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleDisplayName</key><string>生图工作台</string>
+  <key>CFBundleDisplayName</key><string>AI-Workbench</string>
   <key>CFBundleExecutable</key><string>启动工作台</string>
   <key>CFBundleIdentifier</key><string>com.championguan.guan-web-workbench</string>
   <key>CFBundleIconFile</key><string>工作台图标.icns</string>
-  <key>CFBundleName</key><string>生图工作台</string>
+  <key>CFBundleName</key><string>AI-Workbench</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundleVersion</key><string>2</string>

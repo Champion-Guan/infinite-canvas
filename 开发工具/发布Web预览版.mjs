@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WEB_REPOSITORY, WEB_MANIFEST_NAMES, webReleaseAssetName, verifyWebManifest } from '../扩展功能/客户安装/Web发布协议.mjs';
 import { verifyWebUpgradeCompatibility } from '../扩展功能/客户安装/Web安装包核验.mjs';
+import { assertWebReleaseSource } from './Web发布源码核对.mjs';
 
 // 发布为单独web-v标签的Prerelease，旧Stable客户端忽略这个渠道。
 export async function publishWebPreview(recordFile) {
@@ -13,6 +14,7 @@ export async function publishWebPreview(recordFile) {
   const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
   const user = JSON.parse(run(['api', 'user'])); assert.equal(user.login, 'Champion-Guan'); assert.equal(user.id, 87700227);
   assert.equal(git(['status', '--porcelain', '--untracked-files=all']), ''); assert.equal(git(['rev-parse', 'HEAD']), record.commit);
+  assertWebReleaseSource(root, record.commit, record.sourceSHA256);
   const directory = resolve(record.archive, '..'), tag = 'web-v' + record.version;
   assert.equal(git(['rev-parse', tag + '^{commit}']), record.commit);
   const proof = await Promise.all(WEB_MANIFEST_NAMES.map(name => readFile(join(directory, name))));

@@ -10,8 +10,8 @@ async function main() {
   const commit = git(['rev-parse', 'HEAD']);
   if (git(['rev-parse', `refs/tags/${tag}^{commit}`]) !== commit) throw Error('Release tag is not the checked-out commit');
   const branch = process.env.GUAN_DEFAULT_BRANCH;
-  if (!branch || !/^[A-Za-z0-9_./-]+$/.test(branch) || branch.includes('..')) throw Error('Default branch required');
+  if (branch !== 'main') throw Error('Stable release branch must be main');
   execFileSync('git', ['merge-base', '--is-ancestor', commit, `refs/remotes/origin/${branch}`], { stdio: 'pipe' });
   console.log(JSON.stringify({ ok: true, version, commit }));
 }
-main().catch(() => { console.error('Stable source gate failed: require an existing version-matched tag on the default branch and clean source.'); process.exitCode = 1; });
+main().catch(() => { console.error('Stable source gate failed: require an existing version-matched tag on main and clean source.'); process.exitCode = 1; });

@@ -1,6 +1,6 @@
 {
   "时间": "2026-11-12T05:59:57.212Z",
-  "测试文件数": 166,
+  "测试文件数": 167,
   "测试文件": [
     "开发工具/Excel回收站.test.mjs",
     "开发工具/Excel画布操作边界.test.mjs",
@@ -167,13 +167,14 @@
     "开发工具/面板退场与选择模式.test.mjs",
     "开发工具/页面授权释放边界.test.mjs",
     "开发工具/顶部胶囊连续滑动.test.mjs",
-    "开发工具/首页播放生命周期.test.mjs"
+    "开发工具/首页播放生命周期.test.mjs",
+    "开发工具/桌面入口修复.test.mjs"
   ],
   "统计": {
     "success": true,
     "counts": {
-      "tests": 1611,
-      "passed": 1611,
+      "tests": 1617,
+      "passed": 1617,
       "failed": 0,
       "cancelled": 0,
       "skipped": 0
@@ -1504,8 +1505,8 @@
       "文件": "开发工具/Web版本说明.test.mjs",
       "通过": true,
       "退出码": 0,
-      "测试": 8,
-      "成功": 8,
+      "测试": 9,
+      "成功": 9,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -1839,6 +1840,16 @@
       "失败": 0,
       "取消": 0,
       "跳过": 0
+    },
+    {
+      "文件": "开发工具/桌面入口修复.test.mjs",
+      "通过": true,
+      "退出码": 0,
+      "测试": 5,
+      "成功": 5,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0
     }
   ],
   "失败": [],
@@ -1872,6 +1883,23 @@
       "文件": "开发工具/更新历史统一展示.test.mjs",
       "时间": "2026-11-12T06:28:40.400Z",
       "输出": "TAP version 13\n# Subtest: 统一时间线保留分类颜色、当前与最新标记、日期、换行及旧版说明\nok 1 - 统一时间线保留分类颜色、当前与最新标记、日期、换行及旧版说明\n  ---\n  duration_ms: 1.892166\n  type: 'test'\n  ...\n# Subtest: 当前渠道没有可显示历史时说明空状态，不泄露被过滤的Beta记录\nok 2 - 当前渠道没有可显示历史时说明空状态，不泄露被过滤的Beta记录\n  ---\n  duration_ms: 0.090708\n  type: 'test'\n  ...\n# Subtest: 当前日志沿用原时间线、彩色标签和正文布局，不增加概述或分组版式\nok 3 - 当前日志沿用原时间线、彩色标签和正文布局，不增加概述或分组版式\n  ---\n  duration_ms: 0.131625\n  type: 'test'\n  ...\n# Subtest: 设置页保留原最新发布说明的显示条件与操作，正文统一样式；版本弹窗保留完整历史\nok 4 - 设置页保留原最新发布说明的显示条件与操作，正文统一样式；版本弹窗保留完整历史\n  ---\n  duration_ms: 44.715417\n  type: 'test'\n  ...\n1..4\n# tests 4\n# suites 0\n# pass 4\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 52.539542\n"
+    }
+  ],
+  "桌面工具专项复测": [
+    {
+      "文件": "开发工具/Web版本说明.test.mjs",
+      "时间": "2026-11-12T06:55:46.830Z",
+      "输出": "TAP version 13\n# Subtest: 离线版本说明使用客户发布来源，保留分类和日期，不携带开发草稿与作者历史\nok 1 - 离线版本说明使用客户发布来源，保留分类和日期，不携带开发草稿与作者历史\n  ---\n  duration_ms: 5.792458\n  type: 'test'\n  ...\n# Subtest: 版本号不匹配、开发草稿、空说明和重复版本在构建前明确拒绝\nok 2 - 版本号不匹配、开发草稿、空说明和重复版本在构建前明确拒绝\n  ---\n  duration_ms: 5.548333\n  type: 'test'\n  ...\n# Subtest: 真实客户历史按原顺序保留，不通过猜测把开发草稿改成已发布版本\nok 3 - 真实客户历史按原顺序保留，不通过猜测把开发草稿改成已发布版本\n  ---\n  duration_ms: 0.87175\n  type: 'test'\n  ...\n# Subtest: GitHub历史保留已发布Beta和Stable，即使旧安装资产已撤下；草稿和作者版本不混入\nok 4 - GitHub历史保留已发布Beta和Stable，即使旧安装资产已撤下；草稿和作者版本不混入\n  ---\n  duration_ms: 1.328667\n  type: 'test'\n  ...\n# Subtest: 离线历史合并去重，旧版非分类说明原文保留，当前版仍使用当前发布说明\nok 5 - 离线历史合并去重，旧版非分类说明原文保留，当前版仍使用当前发布说明\n  ---\n  duration_ms: 1.168667\n  type: 'test'\n  ...\n# Subtest: 下一版构建保留全部已发布历史，不要求提前公开当前版本\nok 6 - 下一版构建保留全部已发布历史，不要求提前公开当前版本\n  ---\n  duration_ms: 0.922458\n  type: 'test'\n  ...\n# Subtest: AI-Workbench标题与功能文案按原条目结构读取，不改变应用内日志版式\nok 7 - AI-Workbench标题与功能文案按原条目结构读取，不改变应用内日志版式\n  ---\n  duration_ms: 1.278375\n  type: 'test'\n  ...\n# Subtest: 当前发布遵循产品名称和功能日志规范，发布工具不再写旧标题\nok 8 - 当前发布遵循产品名称和功能日志规范，发布工具不再写旧标题\n  ---\n  duration_ms: 0.691792\n  type: 'test'\n  ...\n# Subtest: Beta代码发布到master，Stable代码发布到main，其他预发布类型不混用\nok 9 - Beta代码发布到master，Stable代码发布到main，其他预发布类型不混用\n  ---\n  duration_ms: 0.186875\n  type: 'test'\n  ...\n1..9\n# tests 9\n# suites 0\n# pass 9\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 27.155625\n"
+    },
+    {
+      "文件": "开发工具/客户桌面入口.test.mjs",
+      "时间": "2026-11-12T06:55:47.893Z",
+      "输出": "TAP version 13\n# Subtest: 创建稳定桌面入口，启动脚本读取当前版本且可重复检查\nok 1 - 创建稳定桌面入口，启动脚本读取当前版本且可重复检查\n  ---\n  duration_ms: 62.867333\n  type: 'test'\n  ...\n# Subtest: 桌面入口包含应用图标，旧脚本和丢失图标在检查时自动修复\nok 2 - 桌面入口包含应用图标，旧脚本和丢失图标在检查时自动修复\n  ---\n  duration_ms: 69.314375\n  type: 'test'\n  ...\n# Subtest: Finder使用的启动程序实际执行成功，路径含空格且更新后解析当前版本\nok 3 - Finder使用的启动程序实际执行成功，路径含空格且更新后解析当前版本\n  ---\n  duration_ms: 816.860625\n  type: 'test'\n  ...\n# Subtest: 桌面同名入口不是本工作台时拒绝覆盖\nok 4 - 桌面同名入口不是本工作台时拒绝覆盖\n  ---\n  duration_ms: 1.762542\n  type: 'test'\n  ...\n# Subtest: 桌面同名应用缺少本工作台标记时拒绝接管\nok 5 - 桌面同名应用缺少本工作台标记时拒绝接管\n  ---\n  duration_ms: 3.098209\n  type: 'test'\n  ...\n1..5\n# tests 5\n# suites 0\n# pass 5\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 957.525458\n"
+    },
+    {
+      "文件": "开发工具/桌面入口修复.test.mjs",
+      "时间": "2026-11-12T06:55:48.071Z",
+      "输出": "TAP version 13\n# Subtest: 项目工具单独修复入口、图标和脚本，重复执行不启动服务\nok 1 - 项目工具单独修复入口、图标和脚本，重复执行不启动服务\n  ---\n  duration_ms: 9.96725\n  type: 'test'\n  ...\n# Subtest: 客户工具先验签当前安装，再修复稳定入口，不改安装指针\nok 2 - 客户工具先验签当前安装，再修复稳定入口，不改安装指针\n  ---\n  duration_ms: 62.765291\n  type: 'test'\n  ...\n# Subtest: 未安装、状态错误、坏签名或提交不匹配时不写桌面\nok 3 - 未安装、状态错误、坏签名或提交不匹配时不写桌面\n  ---\n  duration_ms: 1.737458\n  type: 'test'\n  ...\n# Subtest: 客户工具拒绝覆盖其他同名应用，原文件保留\nok 4 - 客户工具拒绝覆盖其他同名应用，原文件保留\n  ---\n  duration_ms: 1.513292\n  type: 'test'\n  ...\n# Subtest: 客户包提供独立修复命令，原有启动与升级恢复入口继续保留\nok 5 - 客户包提供独立修复命令，原有启动与升级恢复入口继续保留\n  ---\n  duration_ms: 0.9195\n  type: 'test'\n  ...\n1..5\n# tests 5\n# suites 0\n# pass 5\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 80.296666\n"
     }
   ]
 }

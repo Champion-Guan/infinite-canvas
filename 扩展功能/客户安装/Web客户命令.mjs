@@ -11,6 +11,7 @@ import { readWebAddress, waitWebAddress } from './Web运行地址.mjs';
 import { acceptsWebRelease } from '../软件更新/更新发布渠道.mjs';
 import { ensureDesktopEntry, openWorkbenchAddress } from './客户桌面入口.mjs';
 import { recoverWaitingUpgrade } from './升级等待恢复.mjs';
+import { repairInstalledDesktopEntry } from './修复桌面入口.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url)), paths = webInstallPaths();
 async function bootstrapProof() {
@@ -42,6 +43,17 @@ export async function customerCommand(operation) {
     return result.identity;
   }
   if (operation === 'supervisor') return runWebSupervisor();
+  if (operation === 'repair-desktop') {
+    try { await verifySignedWebDirectory(root); }
+    catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      await bootstrapProof();
+      await verifySignedWebDirectory(root);
+    }
+    const result = await repairInstalledDesktopEntry(paths);
+    console.log('AI-Workbench桌面入口已修复：' + result.path);
+    return result;
+  }
   if (operation === 'recover-update') {
     try { await verifySignedWebDirectory(root); }
     catch (error) {

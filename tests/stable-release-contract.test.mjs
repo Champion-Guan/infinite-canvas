@@ -21,6 +21,8 @@ test('stable publication is manual, arm64-only and immutable-source-bound with i
   assert.equal([...workflow.matchAll(/node scripts\/check-stable-owner-approval.mjs/g)].length, 2);
   assert.equal([...workflow.matchAll(/github.actor_id == '87700227'/g)].length, 2);
   assert.equal([...workflow.matchAll(/inputs.commit == github.sha/g)].length, 2);
+  assert.equal([...workflow.matchAll(/github.ref == 'refs\/heads\/main'/g)].length, 2);
+  assert.equal([...workflow.matchAll(/GUAN_DEFAULT_BRANCH: main/g)].length, 2);
   for (const gate of ["github.repository == 'Champion-Guan/infinite-canvas'", 'github.event.repository.private == false', "github.repository_owner_id == '87700227'", "github.triggering_actor == 'Champion-Guan'"]) assert.equal(workflow.split(gate).length - 1, 2);
   assert.ok(workflow.includes('npm ci --prefix src/canvas --ignore-scripts --legacy-peer-deps'));
   const [build, publish] = workflow.split('\n  publish:');

@@ -2,7 +2,7 @@ import { readFile, lstat } from 'node:fs/promises';
 
 // Single-owner approval is not independent review. Never grants install rights.
 function verifyOwnerContext({ event, eventName, repository, ownerId, actorId,
-  triggeringActor, ref, sha }) {
+  triggeringActor, ref, sha }, releaseBranch) {
   const repo = event?.repository;
   if (eventName !== 'workflow_dispatch' || repository !== 'Champion-Guan/infinite-canvas'
     || repo?.full_name !== repository || repo.private !== false
@@ -10,13 +10,13 @@ function verifyOwnerContext({ event, eventName, repository, ownerId, actorId,
     || ownerId !== '87700227' || actorId !== '87700227' || triggeringActor !== 'Champion-Guan'
     || String(event.sender?.id) !== '87700227' || event.sender?.login !== 'Champion-Guan'
     || typeof repo.default_branch !== 'string' || !/^[A-Za-z0-9_./-]{1,128}$/.test(repo.default_branch)
-    || repo.default_branch.includes('..') || ref !== `refs/heads/${repo.default_branch}`
+    || repo.default_branch.includes('..') || ref !== `refs/heads/${releaseBranch || repo.default_branch}`
     || !/^[a-f0-9]{40}$/.test(sha || '') || event.inputs?.commit !== sha) throw Error('Owner approval rejected');
   return { repository, commit: sha, approvedBy: 'Champion-Guan' };
 }
 
 export function verifyStableOwnerApproval(context) {
-  const result = verifyOwnerContext(context), inputs = context.event.inputs;
+  const result = verifyOwnerContext(context, 'main'), inputs = context.event.inputs;
   if (inputs.confirmation !== 'RELEASE-STABLE' || !/^v\d+\.\d+\.\d+$/.test(inputs.tag || '')) throw Error('Owner release approval rejected');
   return { ...result, tag: inputs.tag };
 }

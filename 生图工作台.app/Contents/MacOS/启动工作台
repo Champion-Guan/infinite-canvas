@@ -1,0 +1,39 @@
+#!/bin/zsh
+emulate -L zsh
+setopt NO_UNSET PIPE_FAIL
+umask 077
+export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+
+# 由应用本身定位项目，不绑定软件版本、Cellar版本或监听端口。
+workbench_entry=${0:A}
+workbench_root=${workbench_entry:h:h:h:h}
+cd "$workbench_root" || exit 1
+workbench_runtime="$workbench_root/.运行/开发版3100"
+/bin/mkdir -p "$workbench_runtime" || exit 1
+
+workbench_node=''
+for workbench_candidate in /opt/homebrew/bin/node /usr/local/bin/node "${commands[node]:-}"; do
+  if [[ -x "$workbench_candidate" ]] && "$workbench_candidate" -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' 2>/dev/null; then
+    workbench_node="$workbench_candidate"
+    break
+  fi
+done
+if [[ -z "$workbench_node" ]]; then
+  print -r -- '启动未完成：未找到 Node.js 24 或更新版本。请安装或修复现有 Node.js；原产品和配置保持。' > "$workbench_runtime/启动环境错误.txt"
+  /usr/bin/open -a TextEdit "$workbench_runtime/启动环境错误.txt"
+  exit 1
+fi
+
+# 系统文件锁在进程退出后自动释放；连续双击不会并发启动两份服务。
+workbench_lock="$workbench_runtime/一键启动.lock"
+[[ ! -L "$workbench_lock" ]] || exit 1
+: >> "$workbench_lock"
+zmodload zsh/system || exit 1
+zsystem flock -t 180 -f workbench_lock_fd "$workbench_lock" || exit 1
+"$workbench_node" "$workbench_root/开发工具/一键启动工作台.mjs"
+workbench_result=$?
+zsystem flock -u "$workbench_lock_fd"
+if (( workbench_result != 0 )); then
+  /usr/bin/open -a TextEdit "$workbench_runtime/一键启动.log"
+fi
+exit "$workbench_result"

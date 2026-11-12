@@ -4,6 +4,12 @@ import { readFileSync, lstatSync } from 'node:fs';
 import { join } from 'node:path';
 import { sha256 } from '../扩展功能/客户安装/Web发布协议.mjs';
 
+export function webReleaseCodeBranch(version) {
+  if (/^\d+\.\d+\.\d+-beta\.\d+$/.test(version)) return 'master';
+  if (/^\d+\.\d+\.\d+$/.test(version)) return 'main';
+  throw Error('发布版本必须为Beta或Stable。');
+}
+
 // 只核对真实构建输入；不把工作区、构建结果或开发机路径当作发布源码。
 export function webSourceSnapshot(root) {
   const mapping = JSON.parse(readFileSync(join(root, '上游适配/开发源码映射.json')));
@@ -24,6 +30,8 @@ export function webSourceSnapshot(root) {
 }
 export function assertWebReleaseSource(root, commit, expected) {
   const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  const release = JSON.parse(readFileSync(join(root, '开发文档/Web发布版本.json')));
+  assert.equal(git(['branch', '--show-current']), webReleaseCodeBranch(release.版本), '发布代码分支不符合Beta/master、Stable/main规则');
   assert.equal(git(['rev-parse', 'HEAD']), commit, '发布提交已变化');
   assert.equal(git(['status', '--porcelain', '--untracked-files=all']), '', '发布必须使用干净固定提交');
   assert.deepEqual(webSourceSnapshot(root), expected, '构建期间源码发生变化');

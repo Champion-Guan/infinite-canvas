@@ -10,6 +10,8 @@ async function main() {
   // Official stable artifacts must be built from a committed tree, never from
   // an untracked personal migration package. Local dirty builds remain portable.
   if (execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: root, encoding: 'utf8' }).trim()) throw Error('Stable requires a clean committed tree');
+  const branch = execFileSync('git', ['branch', '--show-current'], { cwd: root, encoding: 'utf8' }).trim();
+  if (branch !== 'main' && process.env.GUAN_DEFAULT_BRANCH !== 'main') throw Error('Stable release source must be main');
   const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
   const portable = JSON.parse(execFileSync(process.execPath, ['scripts/create-release.mjs', '--canvas-build', '--native-helper'], { cwd: root, encoding: 'utf8', maxBuffer: 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] }));
   const result = await buildStablePackage({ root, portableDirectory: portable.zip.slice(0, -4),

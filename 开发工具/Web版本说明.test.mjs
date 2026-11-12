@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { parseChangelog } from '../.运行/3100源/画布副本/web/src/lib/release.ts';
 import { readWebReleaseDefinitions } from './Web版本说明.mjs';
 import { collectWebReleaseHistory } from './同步Web版本历史.mjs';
+import { webReleaseCodeBranch } from './Web发布源码核对.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 function fixture(t, notes, version = '2.0.0-beta.27') {
@@ -107,4 +108,11 @@ test('当前发布遵循产品名称和功能日志规范，发布工具不再�
   const publisher = readFileSync(join(root, '开发工具/发布Web预览版.mjs'), 'utf8');
   assert.match(publisher, /'AI-Workbench v' \+ record.version/);
   assert.doesNotMatch(publisher, /'生图工作台 Web '/);
+});
+
+test('Beta代码发布到master，Stable代码发布到main，其他预发布类型不混用', () => {
+  assert.equal(webReleaseCodeBranch('2.0.0-beta.29'), 'master');
+  assert.equal(webReleaseCodeBranch('2.0.0'), 'main');
+  for (const version of ['2.0.0-alpha.1', '2.0.0-rc.1', 'Unreleased', 'v2.0.0'])
+    assert.throws(() => webReleaseCodeBranch(version));
 });

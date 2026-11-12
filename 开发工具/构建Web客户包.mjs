@@ -106,12 +106,13 @@ export async function buildWebPackage({ root = sourceRoot, runtimeDirectory, ups
   catch (error) { assert.equal(error.status, 1, '助手必须在访问Keychain前拒绝非法输入'); }
 
   // 保留 beta.19 安装器的入口契约；旧修复入口仅打开当前已安装工作台，不修改任务或数据。
-  for (const [file, mode] of [['安装工作台.command', 'install'], ['启动工作台.command', 'start'], ['修复升级入口.command', 'desktop-start'], ['恢复卡住的升级.command', 'recover-update']]) {
+  for (const [file, mode] of [['安装工作台.command', 'install'], ['启动工作台.command', 'start'], ['修复桌面入口.command', 'repair-desktop'], ['修复升级入口.command', 'desktop-start'], ['恢复卡住的升级.command', 'recover-update']]) {
     // shell标识符需ASCII；面向客户的文件名称仍为中文。
     writeFileSync(join(stage, file), '#!/bin/sh\nset -eu\nGUAN_WEB_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nexec "$GUAN_WEB_ROOT/runtime/node" "$GUAN_WEB_ROOT/扩展功能/客户安装/Web客户命令.mjs" ' + mode + '\n', { mode: 0o700 });
   }
   writeFileSync(join(stage, '安装使用说明.txt'), 'Apple Silicon Web预览版。\n先双击“安装工作台.command”，联网验证固定仓库签名后安装；安装完成会检查并创建桌面“生图工作台.app”。也可以双击“启动工作台.command”，按启动器显示的实际地址打开。默认 http://localhost:3000，被占用时自动顺延空闲端口。\n点击桌面入口时，服务未运行会先启动当前安装版本，确认本机工作台健康后再打开实际地址；版本更新后入口继续指向当前版本，图标和启动文件缺失时自动修复。\n个人SQLite数据位于AI-Workbench-重建版/工作区，安装版本单独保存，更新不清空或替换私人数据。\n更新在设置的软件更新页操作；暂存完成后确认安装，页面自动保存并准备切换。未完成的真实生成和保存会显示具体原因，完成后再试；不需要手动处理历史账本。\n', { mode: 0o600 });
   writeFileSync(join(stage, '恢复升级说明.txt'), '升级长期停在“等待工作台页面关闭”或“正在交接新版安装管理器”时使用。\n1. 保存所有工作台画布，等待正在生成的任务完成。\n2. 用Command+Q完全退出工作台所在浏览器，包括进度页。\n3. 双击本包“恢复卡住的升级.command”；不用先安装本包。\n恢复器先验证本包和当前安装状态。若有已验签的待安装包，则继续原升级；若新版已经提交，则正常停止未交接的管理器并启动当前已安装版本。不会删除个人数据、清锁、强杀任务或覆盖旧版文件。确认新版服务和管理器均健康后自动打开工作台。\n此入口只恢复本机已有安装或暂存事务，不会擅自下载安装另一个版本。恢复完成后可在设置中继续升级至本包版本。\n', { mode: 0o600 });
+  writeFileSync(join(stage, '桌面入口修复说明.txt'), '桌面入口丢失、图标异常或启动脚本损坏时，双击“修复桌面入口.command”。\n工具先核验本包与当前已安装版本的原可信签名，再创建或修复本工作台的桌面入口；不启动服务、不打开浏览器、不发起生成、不安装或切换版本，不修改产品及素材。\n已有同名入口不属于本工作台时会停止并保留原文件。没有安装版本时，请先运行“安装工作台.command”。\n', { mode: 0o600 });
   // 统一包权限，包含npm依赖；不带链接或构建机身份信息。
   execFileSync('/bin/chmod', ['-R', 'go-w', stage]);
   const inventory = { format: 1, app: WEB_APP, repository: WEB_REPOSITORY, version: release.版本, commit,

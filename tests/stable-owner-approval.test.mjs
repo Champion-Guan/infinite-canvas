@@ -8,8 +8,15 @@ const fixture = () => ({ eventName: 'workflow_dispatch', repository: 'Champion-G
   ownerId: '87700227', actorId: '87700227', triggeringActor: 'Champion-Guan', ref: 'refs/heads/main', sha: 'a'.repeat(40),
   event: { repository: { full_name: 'Champion-Guan/infinite-canvas', private: false, default_branch: 'main', owner: { id: 87700227, login: 'Champion-Guan' } },
     sender: { id: 87700227, login: 'Champion-Guan' }, inputs: { commit: 'a'.repeat(40), tag: 'v1.0.4', confirmation: 'RELEASE-STABLE' } } });
-test('single owner explicitly approves exact public default-branch source', () => {
+test('single owner explicitly approves exact public main-branch source', () => {
   assert.deepEqual(verifyStableOwnerApproval(fixture()), { repository: 'Champion-Guan/infinite-canvas', commit: 'a'.repeat(40), tag: 'v1.0.4', approvedBy: 'Champion-Guan' });
+});
+test('Stable remains bound to main even when repository default branch is master', () => {
+  const f = fixture();
+  f.event.repository.default_branch = 'master';
+  assert.equal(verifyStableOwnerApproval(f).commit, f.sha);
+  f.ref = 'refs/heads/master';
+  assert.throws(() => verifyStableOwnerApproval(f));
 });
 test('push, collaborator, foreign rerun, fork, changed owner, branch and unconfirmed source are rejected', () => {
   const mutations = [f => f.eventName = 'push', f => f.actorId = '1', f => f.triggeringActor = 'friend',
