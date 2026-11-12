@@ -57,6 +57,16 @@ test('当前渠道没有可显示历史时说明空状态，不泄露被过滤�
     assert.ok(tree.some(node => node.props.children === '当前渠道暂无版本更新记录'));
 });
 
+test('当前日志沿用原时间线、彩色标签和正文布局，不增加概述或分组版式', () => {
+    const release = { version: '2.0.0-beta.29', date: '2026-11-12', items: [{ type: '新增', content: '图片引用：点击看原图。' }] };
+    const timeline = flatten(ReleaseTimeline({ releases: [release], currentVersion: release.version })).find(node => node.type === 'Timeline');
+    const elements = flatten(timeline.props.items[0].content);
+    assert.ok(elements.some(node => node.props.children === 'v2.0.0-beta.29'));
+    assert.ok(elements.some(node => node.type === 'Tag' && node.props.color === 'green'));
+    assert.ok(elements.some(node => node.props.children === release.items[0].content && node.props.className.includes('break-words')));
+    assert.equal(elements.some(node => ['h4', 'p', 'strong'].includes(node.type)), false);
+});
+
 test('设置页保留原最新发布说明的显示条件与操作，正文统一样式；版本弹窗保留完整历史', () => {
     const actions = [];
     const state = { open: true, currentVersion: '2.0.0-beta.27', latestVersion: '2.0.0-beta.27', releases,

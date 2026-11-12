@@ -4842,6 +4842,12 @@
       "目标": "web/src/components/layout/mobile-nav-drawer.tsx",
       "基线SHA256": "a1a7ff1683ae4926bdd0bd97c27c73fe43e0c72429af32558127b442b196bde7",
       "原SHA256": "a1a7ff1683ae4926bdd0bd97c27c73fe43e0c72429af32558127b442b196bde7"
+    },
+    {
+      "目标": "web/src/lib/release.ts",
+      "职责": "版本说明：品牌标题与原样式功能正文",
+      "基线SHA256": "ac6c0c5214dee71227db1754748432682566c9ff4c31c21a3c88e6a249473700",
+      "原SHA256": "ac6c0c5214dee71227db1754748432682566c9ff4c31c21a3c88e6a249473700"
     }
   ],
   "接入补丁": [
@@ -8612,6 +8618,14 @@
       "SHA256": "fffe9f4a1a90910b69179546c66cb57110d65f08e26cb0235df58f10d33802e7",
       "前态SHA256": "176ddfa12292583d4d111894194d8a08f48c840100978b597cae50ca3d425d21",
       "后态SHA256": "bf02142166d2782d1a6291271e5af616024c9e65c8c9b5d3ec9f55c70c21d3a0"
+    },
+    {
+      "文件": "上游适配/版本说明品牌标题与原样式正文接入.patch",
+      "目标": "web/src/lib/release.ts",
+      "职责": "版本说明品牌标题与原样式正文接入",
+      "SHA256": "944cb359cfbe3f4298ae382c6bbdbb7a89208c2605c2ce5a9522a981bf228ad8",
+      "前态SHA256": "ac6c0c5214dee71227db1754748432682566c9ff4c31c21a3c88e6a249473700",
+      "后态SHA256": "a3988b8e31b233b4c5fd2befa56421a6fc59398c277c31ca5a47838fe279bc3f"
     }
   ]
 }
