@@ -27,6 +27,9 @@
   background: rgb(250 204 21 / 38%);
   border-radius: 2px;
 }
+.referenceMirror, .referenceMirror mark {
+  color: inherit;
+}
 :global(.dark) .mirror mark {
   background: rgb(250 204 21 / 28%);
 }

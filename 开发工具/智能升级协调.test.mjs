@@ -156,7 +156,7 @@ test('真实HTTP操作到协调服务：授权页面保存齐全后安装，拒�
       req.end(JSON.stringify(input)); await service.handle(req, res);
       return { code, body };
     }
-    assert.equal((await request({ operation: 'preferences', preferences: { developerMode: true } })).code, 200);
+    assert.equal((await request({ operation: 'preferences', preferences: { developerMode: true, autoInstall: false } })).code, 200);
     assert.equal((await request({ operation: 'install' })).body.result.install.coordination.reason, 'upgrade_waiting_pages');
     assert.equal(approvals, 0);
     assert.equal((await request({ operation: 'activity', activity: { ...report(), pageId: 'forged' } })).code, 409);

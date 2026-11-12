@@ -18,6 +18,9 @@ import { BilingualPromptField, useBilingualPromptSync } from "./双语联动文�
 import type { BilingualAlignment } from "./双语片段对齐";
 import { TextTaskStatus, type TextTaskPhase } from "../主题/任务阶段反馈";
 import { AppleAntButton } from "../主题/苹果交互按钮";
+import { imageReferenceCatalog, projectImageReferences, type ImageReferenceLabel } from "../Excel画布/图片引用标签规则";
+import { ImageReferenceToken } from "../Excel画布/图片引用标签";
+import { promptDocument } from "../Excel画布/商品提示词规则";
 
 type Session = { source: PromptOptimizationSource; instruction: string; directions: string[]; result?: OptimizedPrompt; resultModel?: string };
 const errorText = (error: unknown) => {
@@ -119,6 +122,9 @@ export function usePromptOptimization({ productId, active, host, assertActive }:
     const optimizationTool = (node: CanvasNodeData): CanvasNodeToolbarItem[] => canOptimizePrompt(node) ? [{
         id: "optimize-prompt", title: "AI优化提示词", label: "AI优化", icon: <Sparkles className="size-4" />, onClick: () => open(node),
     }] : [];
+    const sourceNode = session ? host.getNode(session.source.id) : undefined;
+    const sourceDocument = promptDocument(sourceNode);
+    const references = imageReferenceCatalog(sourceDocument ? host.getNode(sourceDocument.parameterId)?.metadata : sourceNode?.metadata);
     const dialog = session ? <Modal open={active} centered title="AI优化提示词" width={960} onCancel={close} maskClosable={!saving}
         styles={{ body: { maxHeight: "calc(100dvh - 200px)", overflowY: "auto", padding: "4px 0" } }}
         footer={<div className="flex flex-wrap items-center justify-end gap-2">
@@ -177,9 +183,9 @@ export function usePromptOptimization({ productId, active, host, assertActive }:
         {error ? <p role="alert" className="mb-3 whitespace-pre-wrap text-sm text-red-600 dark:text-red-400">{error}</p> : null}
         <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
             <PromptComparison title="原提示词" kind={session.source.kind} text={session.source.text}
-                chinese={session.source.chinese} english={session.source.english} alignment={session.source.alignment} ready={session.source.englishCurrent} />
+                chinese={session.source.chinese} english={session.source.english} alignment={session.source.alignment} ready={session.source.englishCurrent} images={references} />
             <PromptComparison title="优化结果" kind={session.source.kind} text={session.result?.text}
-                chinese={session.result?.chinese} english={session.result?.english} alignment={session.result?.alignment} />
+                chinese={session.result?.chinese} english={session.result?.english} alignment={session.result?.alignment} images={references} />
         </div>
         {session.result?.changes.length ? <ul className="mt-4 list-disc space-y-1 pl-5 text-xs leading-6 opacity-75">
             {session.result.changes.map((change, index) => <li key={index}>{change}</li>)}
@@ -188,18 +194,25 @@ export function usePromptOptimization({ productId, active, host, assertActive }:
     return { optimizationTool, optimizationDialog: <AnimatePresence>{dialog}</AnimatePresence> };
 }
 
-function PromptComparison({ title, kind, text, chinese, english, alignment, ready = true }: {
+function PromptComparison({ title, kind, text, chinese, english, alignment, ready = true, images }: {
     title: string; kind: PromptOptimizationSource["kind"]; text?: string; chinese?: string; english?: string;
     alignment?: BilingualAlignment; ready?: boolean;
+    images: ImageReferenceLabel[];
 }) {
-    const bilingual = useBilingualPromptSync({ chinese: chinese || "", english: english || "", alignment, ready });
+    const views = { chinese: projectImageReferences(chinese || "", images), english: projectImageReferences(english || "", images) };
+    const bilingual = useBilingualPromptSync({ chinese: views.chinese.text, english: views.english.text,
+        alignment: alignment?.map(([a, b, c, d]) => [views.chinese.position(a), views.chinese.position(b),
+            views.english.position(c), views.english.position(d)]), ready });
+    const field = (language: "chinese" | "english") => ({ value: views[language].text,
+        inlineReferences: views[language].occurrences.map(item => ({ start: item.start, end: item.end,
+            content: <ImageReferenceToken image={item.image} label={item.label} /> })) });
     return <div className="min-w-0">
         <div className="mb-2 text-sm font-medium">{title}</div>
         {kind === "bilingual" ? <div className={styles.stack}>
             <label><span className={styles.language}>中文</span>
-                <BilingualPromptField link={bilingual} language="chinese" className={"guan-scroll-field " + (styles.field || "")} aria-label={`${title} · 中文`} readOnly value={chinese || ""} rows={7} /></label>
+                <BilingualPromptField link={bilingual} language="chinese" className={"guan-scroll-field " + (styles.field || "")} aria-label={`${title} · 中文`} readOnly {...field("chinese")} rows={7} /></label>
             <label><span className={styles.language}>英文</span>
-                <BilingualPromptField link={bilingual} language="english" className={"guan-scroll-field " + (styles.field || "")} aria-label={`${title} · 英文`} readOnly value={english || ""} rows={7} /></label>
-        </div> : <Input.TextArea className={"guan-scroll-field " + (styles.field || "")} aria-label={title} readOnly value={text || ""} rows={12} />}
+                <BilingualPromptField link={bilingual} language="english" className={"guan-scroll-field " + (styles.field || "")} aria-label={`${title} · 英文`} readOnly {...field("english")} rows={7} /></label>
+        </div> : <Input.TextArea className={"guan-scroll-field " + (styles.field || "")} aria-label={title} readOnly value={projectImageReferences(text || "", images).text} rows={12} />}
     </div>;
 }

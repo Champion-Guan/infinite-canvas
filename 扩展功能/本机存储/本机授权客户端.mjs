@@ -11,6 +11,7 @@ const requestErrors = Object.freeze({
   generation_capacity: '本机生成任务账本已满，未发送新的生成请求。',
   generation_not_found: '本机尚无这笔生成任务，请保留原任务记录。',
   generation_canvas_unconfirmed: '原产品画布保存尚未确认，生成结果仍保留在本机。',
+  generation_canvas_unsaved: '策划或生成结果已返回，原卡片及任务收据尚待确认保存，请继续保存原任务。',
   session_expired: '本机数据会话已过期，请恢复当前会话后继续原任务。',
   session_denied: '本机数据会话暂时不可用，请恢复当前会话后继续原任务。',
   authorization_busy: '本机授权入口暂时繁忙，请稍后重试。',

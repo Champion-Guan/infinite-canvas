@@ -1,0 +1,21 @@
+diff --git a/web/src/components/canvas/infinite-canvas.tsx b/web/src/components/canvas/infinite-canvas.tsx
+index 411fa6e..4b2fd8c 100644
+--- a/web/src/components/canvas/infinite-canvas.tsx
++++ b/web/src/components/canvas/infinite-canvas.tsx
+@@ -1,4 +1,4 @@
+-import { canvasPointerAction, ignoreCanvasShortcut } from "@/扩展功能/画布交互/快捷键边界";
++import { canvasPointerAction, focusCanvasFromPointer, ignoreCanvasShortcut } from "@/扩展功能/画布交互/快捷键边界";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+ import { createCanvasPanScheduler } from "@/扩展功能/画布布局/画布平移调度";
+@@ -334,8 +334,10 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+             ref={containerRef}
+             className="guan-canvas-viewport relative h-full w-full select-none overflow-clip"
+             data-panning={isPanning ? "true" : "false"}
++            tabIndex={-1}
+             style={{ background: theme.canvas.background, cursor }}
+             onPointerDownCapture={event => {
++                if (event.button === 0) focusCanvasFromPointer(event.target, event.currentTarget);
+                 pointerActionRef.current = event.button === 0 ? canvasPointerAction(event.target) : null;
+                 callbacksRef.current.onManualViewportStart?.();
+             }}

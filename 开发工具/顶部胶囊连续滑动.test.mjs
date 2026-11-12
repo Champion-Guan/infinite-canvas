@@ -108,6 +108,7 @@ function fixture(reduced = false) {
         return module.exports;
     };
     const slide = load(slideSource); imports['./胶囊滑动动效'] = slide;
+    imports['./胶囊鼠标拖动'] = { useCapsuleMouseDrag() {} };
     const module = load(source);
     const render = () => {
         cursor = 0; effects.length = 0;
@@ -260,6 +261,38 @@ test('同工作簿切换自动揭示目标，尺寸不变不打断平滑滚动�
     assert.ok(f.observers.at(-1).disconnected);
 });
 
+test('点击完全可见的产品仍滚至区域中心，左右切换以最新产品为准且首尾不越界', () => {
+    const f = fixture(); f.render(); f.effects();
+    f.tab('B').props.onClick(); f.render(); f.effects();
+    assert.deepEqual(f.scrolls.at(-1), { left: 65.5, behavior: 'smooth' });
+    assert.equal(f.tabs[1].parentElement.offsetLeft + 1 + 64 - f.container.scrollLeft, f.container.clientWidth / 2);
+    f.tab('C').props.onClick(); f.render(); f.effects();
+    assert.deepEqual(f.scrolls.at(-1), { left: 129, behavior: 'smooth' });
+    f.tab('B').props.onClick(); f.render(); f.effects();
+    assert.deepEqual(f.scrolls.at(-1), { left: 65.5, behavior: 'smooth' });
+    f.tab('A').props.onClick(); f.render(); f.effects();
+    assert.deepEqual(f.scrolls.at(-1), { left: 0, behavior: 'smooth' });
+    assert.deepEqual(f.calls, ['B', 'C', 'B', 'A']);
+    assert.deepEqual(f.writes, []);
+});
+
+test('自由浏览不自动拉回，显式定位才重新居中，减少动态效果直接完成定位', () => {
+    const f = fixture(true); f.select('B'); f.render(); f.effects();
+    assert.deepEqual(f.scrolls.at(-1), { left: 65.5, behavior: 'instant' });
+    const count = f.scrolls.length;
+    f.scroll(0); f.render();
+    assert.equal(f.container.scrollLeft, 0);
+    assert.equal(f.scrolls.length, count);
+    f.observers.at(-1).callback();
+    assert.equal(f.scrolls.length, count, '尺寸未变化的观测不干预自由浏览');
+    // 模拟更窄导航使当前项离屏，原边缘入口也使用相同中心定位。
+    f.container.clientWidth = 100; f.scroll(0); f.render();
+    all(f.hint('right')).find(item => item.type === 'ActionButton').props.onClick();
+    assert.deepEqual(f.scrolls.at(-1), { left: 148, behavior: 'instant' });
+    assert.deepEqual(f.focused.at(-1), { id: 'B', options: { preventScroll: true } });
+    assert.deepEqual(f.calls, []);
+});
+
 test('减少动态效果时选中状态即时更新，不共享位移动画；箭头切换不让删除按钮参与导航', () => {
     const f = fixture(true); f.render(); f.effects();
     assert.equal(f.frames.size, 0);
@@ -302,29 +335,25 @@ test('失败切换保留原选中背景，错误可见；CSS取消浏览器快�
     assert.doesNotMatch(css, /view-transition-name: guan-active-product-capsule/);
 });
 
-test('鼠标按下立即切换，不等松手；后续click不重复导航，连续按下以最新目标为准', () => {
+test('产品通过click切换，按下阶段保留给横向拖动判定，连续点击以最新目标为准', () => {
     const f = fixture(); f.render(); f.effects();
-    const down = { isPrimary: true, button: 0, pointerType: 'mouse' };
-    f.tab('B').props.onPointerDown(down);
-    assert.deepEqual(f.calls, ['B'], 'pointerup/click之前已经执行选择');
-    f.render(); f.effects(); f.tab('B').props.onClick({ detail: 1 });
+    assert.equal(f.tab('B').props.onPointerDown, undefined);
+    assert.deepEqual(f.calls, []);
+    f.tab('B').props.onClick({ detail: 1 });
     assert.deepEqual(f.calls, ['B']);
-    f.tab('C').props.onPointerDown(down); f.render(); f.effects();
-    f.tab('A').props.onPointerDown(down); f.render(); f.effects();
+    f.tab('C').props.onClick({ detail: 1 }); f.render(); f.effects();
+    f.tab('A').props.onClick({ detail: 1 }); f.render(); f.effects();
     assert.deepEqual(f.calls, ['B', 'C', 'A']);
     assert.equal(f.indicator().props['data-product-indicator'], 'A');
 });
 
 test('触摸滑动、右键、非主指针和禁用不在按下时切换，键盘及辅助点击保留', () => {
     const f = fixture(); f.render();
-    const down = { isPrimary: true, button: 0, pointerType: 'mouse' };
-    for (const event of [{ ...down, pointerType: 'touch' }, { ...down, button: 2 }, { ...down, isPrimary: false }, { ...down, metaKey: true }])
-        f.tab('B').props.onPointerDown(event);
+    assert.equal(f.tab('B').props.onPointerDown, undefined);
     assert.deepEqual(f.calls, []);
-    f.tab('B').props.onPointerDown({ ...down, pointerType: 'touch' });
     f.tab('B').props.onClick({ detail: 1 }); assert.deepEqual(f.calls, ['B']);
     f.render(); f.tab('C').props.onClick({ detail: 0 }); assert.deepEqual(f.calls, ['B', 'C']);
-    f.block(true); f.render(); f.tab('A').props.onPointerDown(down); f.tab('A').props.onClick({ detail: 0 });
+    f.block(true); f.render(); f.tab('A').props.onClick({ detail: 0 });
     assert.deepEqual(f.calls, ['B', 'C']);
 });
 

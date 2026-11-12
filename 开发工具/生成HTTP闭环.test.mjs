@@ -12,7 +12,14 @@ async function fixture() {
   const f = await generationFixture(); let handle, live = true, checks = 0;
   const capability = randomUUID(), server = createServer(async (req, res) => { if (!await handle(req, res)) { res.writeHead(404); res.end(); } });
   const origin = await listen(server);
-  handle = createGenerationHTTPHandler({ origin, gateway: f.gateway, tasks: f.tasks, authorize(req) { checks++; if (!live || req.headers.authorization !== 'Bearer ' + capability) throw new StorageError('authorization_denied', '合成页面授权已拒绝。', 401); } });
+  handle = createGenerationHTTPHandler({ origin, gateway: f.gateway, tasks: f.tasks,
+    async readCanvasCheckpoint(id) {
+      const job = f.tasks.get(id), document = f.workspace.readDocument('canvas', job.productId);
+      const checkpoint = { productId: job.productId, revision: document?.revision, hash: document?.hash };
+      if (!await f.verifyApplied(job, checkpoint)) throw new StorageError('generation_canvas_unsaved', '原卡片尚未保存', 409);
+      return checkpoint;
+    },
+    authorize(req) { checks++; if (!live || req.headers.authorization !== 'Bearer ' + capability) throw new StorageError('authorization_denied', '合成页面授权已拒绝。', 401); } });
   async function post(value, options = {}) {
     return fetch(origin + '/__guan-local/generation', { method: options.method || 'POST', headers: { Origin: origin, 'Content-Type': 'application/json', 'X-Guan-Generation-Protocol': GENERATION_PROTOCOL, Authorization: 'Bearer ' + capability, ...options.headers }, body: JSON.stringify(value) });
   }
@@ -68,6 +75,31 @@ test('保存失败不确认完成；重新交付同一结果可恢复，不重�
     await assert.rejects(f.client.deliver(input, { applyAndSave: async () => { throw Error('synthetic save failed'); } }));
     assert.equal(f.tasks.get(input.id).applied, false);
     assert.equal((await f.client.deliver(input, { applyAndSave: job => f.saveCanvas(job) })).applied, true); assert.equal(f.requests.length, 1);
+  } finally { await f.close(); }
+});
+test('真实HTTP与SQLite：并发自动保存使检查点过期时刷新证明，已出现的卡片只应用一次且只提交一次', async () => {
+  const f = await fixture();
+  try {
+    const bound = await f.bind(), input = f.submit(bound.binding);
+    await f.client.submit(input); await f.tasks.drain();
+    let applications = 0, appliedCalls = 0;
+    const client = createGenerationClient({ command: async value => {
+      if (value.operation === 'applied' && appliedCalls++ === 0) {
+        const before = f.workspace.readDocument('canvas', input.productId);
+        f.workspace.writeDocument({ collection: 'canvas', id: input.productId,
+          value: { ...before.value, viewportRevision: 2 }, mediaIds: [f.tasks.get(input.id).result.id],
+          expectedRevision: before.revision, operationId: randomUUID() });
+      }
+      const response = await f.post(value), result = await response.json();
+      if (!response.ok) throw new StorageError(result.error.code, result.error.message, response.status);
+      return result;
+    } });
+    const result = await client.deliver(input, { applyAndSave(job) { applications++; return f.saveCanvas(job); } });
+    assert.equal(result.applied, true);
+    assert.equal(applications, 1);
+    assert.equal(appliedCalls, 2);
+    assert.equal(f.requests.length, 1);
+    assert.equal(f.workspace.readDocument('canvas', input.productId).value.viewportRevision, 2);
   } finally { await f.close(); }
 });
 test('客户端拒绝跨产品/跨节点结果以及损坏响应体，不调用保存端口', async () => {

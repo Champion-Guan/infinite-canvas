@@ -1,7 +1,6 @@
 import {
   useLayoutEffect,
   useMemo,
-  useRef,
   useState,
   useSyncExternalStore,
   type KeyboardEvent,
@@ -22,6 +21,7 @@ import { ProductDeleteDialog, ProductTrashIcon } from "./产品回收面板";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { APPLE_CONTROL_SPRING } from "../主题/苹果动效";
 import { useCapsuleSlide } from "./胶囊滑动动效";
+import { useCapsuleMouseDrag } from "./胶囊鼠标拖动";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AppleActionButton } from "../主题/苹果交互按钮";
 
@@ -48,13 +48,13 @@ function createSummarySelector() {
       if (!cached || cached.connections !== project.connections) {
         cached = {
           connections: project.connections,
-          task: canvasTaskSummary(project.nodes, project.connections),
+          task: canvasTaskSummary(project.nodes, project.connections, true),
         };
         taskCache.set(project.nodes, cached);
       }
-      const { status, taskId, startedAt } = cached.task;
+      const { status, taskId, startedAt, events = [] } = cached.task;
       const title = productDisplayName(project, index),
-        fingerprint = JSON.stringify([status, taskId, startedAt]);
+        fingerprint = JSON.stringify([status, taskId, startedAt, events]);
       const old = previousById.get(project.id);
       return old &&
         old.title === title &&
@@ -89,8 +89,8 @@ function capsuleStorage(product: Summary) {
   return {
     getItem(key: string) {
       if (key === `guan-canvas-status:${product.id}`) {
-        const [status, taskId, startedAt] = JSON.parse(product.fingerprint);
-        return JSON.stringify({ status, taskId, startedAt });
+        const [status, taskId, startedAt, events] = JSON.parse(product.fingerprint);
+        return JSON.stringify({ status, taskId, startedAt, events });
       }
       return sqlitePreferences.getItem(key);
     },
@@ -116,15 +116,19 @@ export function ProductCapsules() {
     getVisibility,
   );
   const [error, setError] = useState("");
-  const pressedProduct = useRef<string | null>(null);
   const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
   const current = products.find((item) => item.id === activeId);
   const entering = lastSelectedId !== activeId;
   const { navigation, track, indicator, offscreen, revealSelected } = useCapsuleSlide(activeId, owner, ownership, reducedMotion);
+  useCapsuleMouseDrag(navigation, owner);
   const currentStatus = current ? readCanvasCapsuleStatus(current.id, true, { ...capsuleStorage(current), setItem() {} },
     visibility !== "hidden", entering) : "idle";
-  const select = (id: string) => {
-    if (busy || id === activeId) return;
+  const select = (id: string, acknowledgeCurrent = false) => {
+    if (busy) return;
+    if (id === activeId) {
+      if (acknowledgeCurrent) setLastSelectedId("");
+      return;
+    }
     setError("");
     void selectProduct(id).catch(reason => setError(reason instanceof Error ? reason.message : String(reason)));
   };
@@ -147,9 +151,9 @@ export function ProductCapsules() {
       if (!activeId) setLastSelectedId("");
       return;
     }
-    setLastSelectedId(activeId);
-    if (current.status === "loading" || visibility === "hidden") return;
-    // 与旧版相同：只在重新进入产品时确认通知；正在查看的任务结束仍显示成功/失败色。
+    if (visibility === "hidden") return;
+    // Entering acknowledges only completed events; running tasks stay yellow
+    // and their later completion still produces its own unread event.
     readCanvasCapsuleStatus(
       current.id,
       true,
@@ -157,6 +161,7 @@ export function ProductCapsules() {
       true,
       true,
     );
+    setLastSelectedId(activeId);
   }, [activeId, current, visibility, lastSelectedId]);
   return (
     <div className={styles.root}>
@@ -205,19 +210,7 @@ export function ProductCapsules() {
                 data-product-id={product.id}
                 title={label}
                 disabled={busy}
-                onPointerDown={event => {
-                  pressedProduct.current = null;
-                  if (!event.isPrimary || event.button !== 0 || event.pointerType === "touch"
-                    || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || busy) return;
-                  pressedProduct.current = product.id;
-                  select(product.id);
-                }}
-                onPointerCancel={() => { pressedProduct.current = null; }}
-                onClick={event => {
-                  const handled = event.detail !== 0 && pressedProduct.current === product.id;
-                  pressedProduct.current = null;
-                  if (!handled) select(product.id);
-                }}
+                onClick={() => select(product.id, true)}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <rect x="3.5" y="4.5" width="17" height="15" rx="2" />

@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
+import { platformState } from './全局平台规则夹具.mjs';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
 
 async function load(file, dependencies = {}) {
+    dependencies = { './平台规则全局状态': platformState, ...dependencies };
     const source = resolve(file);
     const { code } = await transformWithEsbuild(readFileSync(source, 'utf8'), source, { loader: source.endsWith('.js') ? 'js' : 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
     const module = { exports: {} };
@@ -23,16 +25,17 @@ test('新产品参数卡默认 Wildberries 与俄文，并带入对应规则', (
     const metadata = rules.buildPromptVariablesMetadata();
     assert.equal(metadata.productPlatform, rules.WILDBERRIES_PLATFORM);
     assert.equal(metadata.productLanguage, rules.WILDBERRIES_LANGUAGE);
-    assert.equal(metadata.productPlatformRules, [
+    assert.equal(metadata.productPlatformRules, undefined, '新卡只保存平台选择，不保存独立规则');
+    assert.equal(rules.productPlatformRules(metadata), [
         '主图/轮播图：共11张（主图1张、轮播图10张），1800 x 2400 px ，3 : 4 ，PNG ，单张小于10MB 。',
         '富内容：6张，800 x 500 px ，PNG ，单张最大5MB 。',
         '商品卡视频：3 : 4 ，MP4 ，小于50MB 。',
     ].join('\n'));
     const prompt = rules.productParameterSupplement(metadata);
-    assert.equal(prompt, `${metadata.productPlatformRules}\n\n富内容必须制作6张：800 x 500 px，PNG，单张最大5MB。`);
+    assert.equal(prompt, `${rules.productPlatformRules(metadata)}\n\n富内容必须制作6张：800 x 500 px，PNG，单张最大5MB。`);
 });
 
-test('已有参数卡的旧默认规则更新为新文案，保留用户自定义规则', () => {
+test('旧卡的规则字段不覆盖全局默认，历史自定义由首次启动统一迁移', () => {
     const metadata = { productPlatform: 'Wildberries', productPlatformRules: [
         '主图/轮播图：1800×2400，3:4，JPG/PNG/WEBP，单张小于10MB，最多30张，最低700×933。',
         '商品卡视频：3:4，MOV/MP4，单个小于50MB。',
@@ -51,7 +54,7 @@ test('已有参数卡的旧默认规则更新为新文案，保留用户自定�
         '商品卡视频：3 : 4 ，MP4 ，小于50MB 。',
     ].join('\n');
     assert.equal(rules.productPlatformRules({ ...metadata, productPlatformRules: previousCounts }), rules.WILDBERRIES_RULES_TEXT);
-    assert.equal(rules.productPlatformRules({ ...metadata, productPlatformRules: '自定义规则' }), '自定义规则');
+    assert.equal(rules.productPlatformRules({ ...metadata, productPlatformRules: '自定义规则' }), rules.WILDBERRIES_RULES_TEXT);
 });
 
 test('切换其他平台不会继续注入 Wildberries 规则', () => {

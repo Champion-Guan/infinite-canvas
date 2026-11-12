@@ -4,6 +4,7 @@ import { productMainImages, productMainImagesPatch, type ProductMainImage } from
 import { productVariants, type ProductVariant, type ProductVariantMetadata } from "./产品变体规则";
 import { normalizedPlanningSnapshot, productPlanningChanges, productPlanningParameterKeys, promptDocument,
     type ProductPlanningParameters, type ProductPromptMetadata } from "./商品提示词规则";
+import { productPlatformRules } from "./旧版参数规则";
 
 export function productPromptRestoreOps(nodes: CanvasNodeData[], connections: CanvasConnection[], nodeIds: string[]) {
     const targets = nodes.filter(node => nodeIds.includes(node.id) && promptDocument(node));
@@ -23,6 +24,8 @@ export function productPromptRestoreOps(nodes: CanvasNodeData[], connections: Ca
         const current = parameter.metadata as ProductVariantMetadata;
         if (!productPlanningChanges(current, fingerprint, { ignoreLanguage: true }).length) return [];
         const [facts, references] = normalizedPlanningSnapshot(fingerprint)!;
+        if (productPlatformRules({ productPlatform: String(facts.platform) }) !== facts.channelRequirements)
+            throw Error("该平台的全局规则已更新，请先在平台规则中恢复原全局设置，或重新使用“AI写提示词”。");
         const source = (parameter.metadata as ProductPromptMetadata).productImagePlan?.source;
         let patch: ProductPlanningParameters;
         if (source?.fingerprint === fingerprint) patch = JSON.parse(source.parameters) as ProductPlanningParameters;

@@ -153,6 +153,7 @@ const { CanvasConfigNodePanel } = await load('.运行/3100源/画布副本/web/s
   '@/扩展功能/主题/页签内容过渡': { TabContentTransition: 'TabContentTransition' },
   'react/jsx-runtime': { jsx, jsxs: jsx }, '@/扩展功能/产品配置/精简与离线策略': { isGenerationModeEnabled: () => true },
   '@/扩展功能/画布生成/配置节点状态显示': { configNodeGenerationStatus: () => '渠道 · 生成中' },
+  '@/扩展功能/画布生成/生成输入统计': { GenerationInputChips: 'GenerationInputChips' },
   'lucide-react': Object.fromEntries(['Image','LoaderCircle','MessageSquare','Music2','Play','Settings2','Square','Video'].map(name => [name,name])),
   antd: { Button: 'Button', Segmented: 'Segmented' }, 'react-i18next': { useTranslation: () => ({ t: key => key }) },
   '@/components/model-picker': { ModelPicker: 'ModelPicker' },

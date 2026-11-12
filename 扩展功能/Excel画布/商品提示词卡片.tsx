@@ -15,8 +15,12 @@ import { isPromptReady, productPromptTranslationError, promptDocument, promptPai
 import { compileConfirmationPair, editConfirmationTemplate, type ConfirmationCompilation } from "./商品待确认提示词";
 import { ProductConfirmationDialog } from "./商品待确认编辑";
 import { confirmationFields, type ConfirmationMetadata } from "./商品待确认规则";
+import { useGlobalPlatformRules } from "./平台规则订阅";
+import { imageReferenceCatalog, projectImageReferences, restoreImageReferences } from "./图片引用标签规则";
+import { ImageReferenceText, ImageReferenceToken } from "./图片引用标签";
 
 export function ProductPromptContent({ ctx }: { ctx: CanvasNodeContext }) {
+    useGlobalPlatformRules();
     const productId = useExcelProductId(), doc = promptDocument(ctx.node);
     const [translating, setTranslating] = useState(false);
     const latest = useRef(ctx); latest.current = ctx;
@@ -31,9 +35,13 @@ export function ProductPromptContent({ ctx }: { ctx: CanvasNodeContext }) {
     try { compilation = doc && pair ? compileConfirmationPair(pair, parameter?.metadata, doc.key, variantId, true) : undefined; }
     catch { /* 失效原因由productPromptProblems展示，保留原文可修复。 */ }
     const displayedPair = compilation?.pair || pair;
+    const references = imageReferenceCatalog(parameter?.metadata);
+    const views = { chinese: projectImageReferences(displayedPair?.chinese || "", references),
+        english: projectImageReferences(displayedPair?.english || "", references) };
     const chinese = pair?.chinese, translationError = pair?.translationError, translatedChinese = pair?.translatedChinese;
-    const bilingual = useBilingualPromptSync({ chinese: displayedPair?.chinese || "", english: displayedPair?.english || "",
-        alignment: displayedPair?.alignment, ready: isPromptReady(pair) });
+    const bilingual = useBilingualPromptSync({ chinese: views.chinese.text, english: views.english.text,
+        alignment: displayedPair?.alignment?.map(([a, b, c, d]) => [views.chinese.position(a), views.chinese.position(b),
+            views.english.position(c), views.english.position(d)]), ready: isPromptReady(pair) });
     useEffect(() => {
         if (!chinese?.trim() || chinese === translatedChinese || translationError) return;
         const job = new AbortController(); controller.current = job;
@@ -68,7 +76,8 @@ export function ProductPromptContent({ ctx }: { ctx: CanvasNodeContext }) {
     };
     const editField = (language: "chinese" | "english", value: string) => {
         try {
-            const text = compilation ? editConfirmationTemplate(displayedPair![language], value, compilation.sections[language]) : value;
+            const raw = restoreImageReferences(value, views[language], references);
+            const text = compilation ? editConfirmationTemplate(displayedPair![language], raw, compilation.sections[language]) : raw;
             setVariableError("");
             updatePair(language === "chinese" ? { chinese: text, translationError: undefined }
                 : { english: text, translatedChinese: pair.chinese, translationError: undefined });
@@ -78,6 +87,13 @@ export function ProductPromptContent({ ctx }: { ctx: CanvasNodeContext }) {
     const language = productImageTextLanguage((parameter?.metadata as ProductVariantMetadata | undefined)?.productLanguage);
     const failure = translationError ? productPromptTranslationError(translationError) : "";
     const style = { borderColor: ctx.theme.node.stroke, color: ctx.theme.node.text };
+    const referenceProps = (language: "chinese" | "english") => ({
+        value: views[language].text,
+        variableRanges: compilation?.ranges[language].map(item => ({ ...item,
+            start: views[language].position(item.start), end: views[language].position(item.end) })),
+        inlineReferences: views[language].occurrences.map(item => ({ start: item.start, end: item.end,
+            content: <ImageReferenceToken image={item.image} label={item.label} /> })),
+    });
     const fieldClass = "w-full min-w-0 max-w-full resize-y rounded-md border bg-transparent p-2 text-xs leading-5 outline-none focus:ring-2 focus:ring-stone-400/50";
     const fields = confirmationFields(parameter?.metadata as ConfirmationMetadata);
     const related = fields.filter(field => field.imageKeys.includes(doc.key));
@@ -103,8 +119,8 @@ export function ProductPromptContent({ ctx }: { ctx: CanvasNodeContext }) {
         <TabContentTransition transitionKey={`${ctx.node.id}:${variantId || "base"}`} className="min-h-0 min-w-0 flex-1">
         <div className="guan-scroll-region thin-scrollbar min-h-0 min-w-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto pr-1 [overflow-wrap:anywhere]">
             <label className="block min-w-0"><span className="mb-1 block font-medium">中文提示词</span>
-                <BilingualPromptField link={bilingual} language="chinese" aria-label="中文提示词" rows={7} className={"guan-scroll-field " + (fieldClass || "")} style={style} value={displayedPair!.chinese}
-                    variableRanges={compilation?.ranges.chinese} onVariableClick={setEditingFact} onChange={event => editField("chinese", event.target.value)} />
+                <BilingualPromptField link={bilingual} language="chinese" aria-label="中文提示词" rows={7} className={"guan-scroll-field " + (fieldClass || "")} style={style}
+                    {...referenceProps("chinese")} onVariableClick={setEditingFact} onChange={event => editField("chinese", event.target.value)} />
             </label>
             <div className="flex h-6 min-w-0 items-center gap-1 text-[10px]" role="status">
                 <Languages aria-hidden className="size-3.5 shrink-0" />
@@ -117,8 +133,8 @@ export function ProductPromptContent({ ctx }: { ctx: CanvasNodeContext }) {
                 <span className="shrink-0 opacity-60">图片文字：{language}</span>
             </div>
             <label className="block min-w-0"><span className="mb-1 block font-medium">英文生图提示词</span>
-                <BilingualPromptField link={bilingual} language="english" aria-label="英文生图提示词" rows={7} className={"guan-scroll-field " + (fieldClass || "")} style={style} value={displayedPair!.english}
-                    variableRanges={compilation?.ranges.english} onVariableClick={setEditingFact} onChange={event => editField("english", event.target.value)} />
+                <BilingualPromptField link={bilingual} language="english" aria-label="英文生图提示词" rows={7} className={"guan-scroll-field " + (fieldClass || "")} style={style}
+                    {...referenceProps("english")} onVariableClick={setEditingFact} onChange={event => editField("english", event.target.value)} />
             </label>
             {related.length ? <div className="space-y-1 border-t border-current/10 pt-2">
                 {related.map(field => <div key={field.id} className="flex flex-wrap items-baseline gap-1 text-[10px]">
@@ -133,7 +149,7 @@ export function ProductPromptContent({ ctx }: { ctx: CanvasNodeContext }) {
             <dl className="space-y-2 text-[11px] leading-5">
                 {([["买家问题", doc.buyerQuestion], ["商品事实与参考图", doc.evidence], ["画面与摄影", doc.composition],
                     ["禁止改动与生成错误", doc.constraints], ["文案与排版", doc.copyLayout], ["人工检查", doc.checks]] as const)
-                    .map(([label, text]) => <div key={label}><dt className="font-medium">{label}</dt><dd className="whitespace-pre-wrap opacity-70">{text}</dd></div>)}
+                    .map(([label, text]) => <div key={label}><dt className="font-medium">{label}</dt><dd className="whitespace-pre-wrap opacity-70"><ImageReferenceText text={text} images={references} /></dd></div>)}
             </dl>
         </div>
         </TabContentTransition>

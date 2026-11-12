@@ -1,0 +1,32 @@
+diff --git a/web/src/components/canvas/canvas-node-prompt-panel.tsx b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+index c047ca1..0d3c336 100644
+--- a/web/src/components/canvas/canvas-node-prompt-panel.tsx
++++ b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+@@ -20,6 +20,7 @@ import { CanvasTextSettingsPopover } from "./canvas-text-settings-popover";
+ import { CanvasNodeType, type CanvasGenerationMode, type CanvasNodeData } from "@/types/canvas";
+ import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
+ import { CanvasNodeReferenceBar } from "./canvas-node-reference-bar";
++import type { VariantImageCount } from "@/扩展功能/画布生成/生成张数规则";
+ 
+ export type CanvasNodeGenerationMode = CanvasGenerationMode;
+ 
+@@ -37,9 +38,10 @@ type CanvasNodePromptPanelProps = {
+     onStartReferenceSelection?: (nodeId: string) => void;
+     onImageSettingsOpenChange?: (open: boolean) => void;
+     modeOverride?: CanvasNodeGenerationMode; // Plugin nodes set their generation type through useBuiltinPanel.mode.
++    imageCountSummary?: VariantImageCount;
+ };
+ 
+-export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange, onConfigChange, onGenerate, onStop, mentionReferences = [], connectedNodes = [], onDisconnectReference, onStartReferenceSelection, onImageSettingsOpenChange, modeOverride }: CanvasNodePromptPanelProps) {
++export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange, onConfigChange, onGenerate, onStop, mentionReferences = [], connectedNodes = [], onDisconnectReference, onStartReferenceSelection, onImageSettingsOpenChange, modeOverride, imageCountSummary }: CanvasNodePromptPanelProps) {
+     const { t } = useTranslation();
+     const globalConfig = useEffectiveConfig();
+     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
+@@ -111,6 +113,7 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+                             <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="image" onMissingConfig={() => openConfigDialog(true)} className="max-w-[190px]" />
+                             <CanvasImageSettingsPopover
+                                 config={config}
++                                imageCountSummary={imageCountSummary}
+                                 placement="topLeft"
+                                 buttonClassName="!h-10 !max-w-[170px] !justify-start !rounded-full !px-3"
+                                 onConfigChange={(key, value) => onConfigChange(node.id, key === "count" ? { count: Number(value) || 1 } : { [key]: value })}

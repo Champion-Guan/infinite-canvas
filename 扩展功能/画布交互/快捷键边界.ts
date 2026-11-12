@@ -2,6 +2,13 @@
 const protectedTarget = 'input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"],[role="dialog"],[role="menu"],[role="listbox"],[data-canvas-shortcuts-ignore],.ant-modal,.ant-drawer,.ant-popover,.ant-select-dropdown,.ant-dropdown,[data-canvas-settings-popover]';
 const nativeSpaceControl = 'button,a[href],[role="button"],[role="checkbox"],[role="switch"],[role="tab"],[role="separator"]';
 
+export function focusCanvasFromPointer(target: EventTarget | null, surface: HTMLElement) {
+    if (!(target instanceof Element) || target.closest(protectedTarget)
+        || target.closest(`${nativeSpaceControl},[role="radio"]`)) return;
+    // 空白画布和非交互卡片不会自然获得焦点，显式接回快捷键且不滚动视区。
+    surface.focus({ preventScroll: true });
+}
+
 export function canvasPointerAction(target: EventTarget | null) {
     if (!(target instanceof Element) || target.closest(protectedTarget)) return null;
     const action = target.closest('button,[role="button"]');

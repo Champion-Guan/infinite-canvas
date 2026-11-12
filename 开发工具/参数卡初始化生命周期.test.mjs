@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { platformState } from './全局平台规则夹具.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
@@ -6,6 +7,7 @@ import { readFileSync } from 'node:fs';
 const require = createRequire(new URL('../.运行/3100源/画布副本/web/package.json', import.meta.url));
 const ts = require('typescript');
 function load(name, dependencies = {}) {
+    dependencies = { './平台规则全局状态': platformState, './平台规则订阅': { useGlobalPlatformRules() {} }, ...dependencies };
     const source = readFileSync(new URL('../扩展功能/' + name, import.meta.url), 'utf8');
     const javascript = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
     const module = { exports: {} };
@@ -45,6 +47,8 @@ test('参数卡记忆恢复和补齐一次提交；重复渲染不写入，明�
         './产品变体规则': { productVariants: metadata => metadata.productVariants || [] },
         './产品选项下拉': { ProductOptionSelect: 'ProductOptionSelect' },
         './商品策划按钮': { ProductPlanningButton: 'ProductPlanningButton', ProductPlanOverview: 'ProductPlanOverview' },
+        './商品策划流式预览': { ProductPlanningStreamPreview: 'ProductPlanningStreamPreview' },
+        './平台规则编辑': { ProductPlatformRuleEditor: 'ProductPlatformRuleEditor' },
     });
     let node = { id: 'parameter', metadata: {} };
     const render = () => {
@@ -95,24 +99,29 @@ test('Wildberries 默认俄文但允许修改；重复渲染与重新打开保�
         './产品变体规则': { productVariants: metadata => metadata.productVariants || [] },
         './产品选项下拉': { ProductOptionSelect: 'ProductOptionSelect' },
         './商品策划按钮': { ProductPlanningButton: 'ProductPlanningButton', ProductPlanOverview: 'ProductPlanOverview' },
+        './商品策划流式预览': { ProductPlanningStreamPreview: 'ProductPlanningStreamPreview' },
+        './平台规则编辑': { ProductPlatformRuleEditor: 'ProductPlatformRuleEditor' },
     });
     const render = () => {
         cursor = 0;
         const tree = PromptVariablesContent({ ctx: { node, getNode: () => node, getNodes: () => [node], updateMetadata } });
         while (effects.length) effects.shift()();
-        const selectors = [], texts = [];
+        const selectors = [], texts = [], ruleEditors = [];
         const visit = element => {
             if (typeof element === 'string') { texts.push(element); return; }
             if (!element || typeof element !== 'object') return;
             if (element.type === 'ProductOptionSelect') selectors.push(element.props);
+            if (element.type === 'ProductPlatformRuleEditor') ruleEditors.push(element.props);
             for (const child of [element.props?.children].flat(Infinity)) visit(child);
         };
         visit(tree);
-        return { platform: selectors[0], language: selectors[1], text: texts.join('\n') };
+        assert.equal(ruleEditors.length, 1, '平台规则由独立编辑组件展示');
+        return { platform: selectors[0], language: selectors[1], text: texts.join('\n'),
+            platformRules: productRules.productPlatformRules(ruleEditors[0].ctx.getNode(node.id).metadata) };
     };
     const first = render();
-    assert.match(first.text, /共11张（主图1张、轮播图10张）/);
-    assert.match(first.text, /富内容：6张/);
+    assert.match(first.platformRules, /共11张（主图1张、轮播图10张）/);
+    assert.match(first.platformRules, /富内容：6张/);
     assert.equal(node.metadata.productLanguage, '俄文');
     assert.equal(render().language.disabled, undefined);
     for (const language of productRules.PRODUCT_LANGUAGE_OPTIONS.map(option => option.value)) {
@@ -128,7 +137,7 @@ test('Wildberries 默认俄文但允许修改；重复渲染与重新打开保�
         render().platform.onChange(platform);
         assert.equal(render().platform.value, platform);
         assert.equal(node.metadata.productPlatform, platform);
-        assert.equal(node.metadata.productPlatformRules, platform === 'Wildberries' ? productRules.WILDBERRIES_RULES_TEXT : '');
+        assert.equal(render().platformRules, platform === 'Wildberries' ? productRules.WILDBERRIES_RULES_TEXT : '');
     }
     render().platform.onChange('Wildberries');
     assert.equal(render().language.value, '俄文', '重新选择 Wildberries 时自动选择俄文');

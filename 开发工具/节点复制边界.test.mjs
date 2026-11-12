@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { platformState } from './全局平台规则夹具.mjs';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -10,6 +11,7 @@ import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_m
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 async function load(name, dependencies = {}) {
+    dependencies = { './平台规则全局状态': platformState, ...dependencies };
     const file = resolve(root, '扩展功能', name), module = { exports: {} };
     const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file, { loader: 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
     new Function('require', 'module', 'exports', code)(id => {
@@ -99,6 +101,12 @@ test('未决视频与文本空槽复制后可编辑重试，不保留假运行�
     const [v, t] = copy([video, text]).nodes;
     assert.equal(v.metadata.status, 'idle'); assert.equal(v.metadata.videoTaskId, undefined); assert.equal(v.metadata.errorDetails, undefined);
     assert.equal(t.metadata.status, 'idle'); assert.deepEqual(t.metadata.texts.map(i => i.status), ['idle', 'success']);
+});
+test('复制参数卡不继承策划胶囊通知或运行状态，原任务保留', () => {
+    const parameter = node('parameter', { status: 'success', productPlanningTask: { id: 'planning', status: 'loading', startedAt: 100 } }, 'guan:prompt-variables');
+    const copied = copy([parameter]).nodes[0];
+    assert.equal(copied.metadata.productPlanningTask, undefined);
+    assert.equal(parameter.metadata.productPlanningTask.id, 'planning');
 });
 test('连续粘贴生成不同ID并各自深拷贝，位置居中且不累加Copy后缀', () => {
     const original = [node('a', { references: ['image:a'] }, 'text', 0, 0), node('b', {}, 'text', 200, 100)];

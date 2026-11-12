@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-08T09:43:02.925Z",
+  "date": "2026-11-12T05:59:33.711Z",
   "cpu": "Apple M1",
   "memoryGiB": 8,
   "runtime": "v24.16.0",
@@ -7,26 +7,26 @@
     {
       "nodes": 200,
       "bytes": 369106,
-      "stringifyMs": 1.37,
-      "encodeWriteAckMs": 37.16
+      "stringifyMs": 0.98,
+      "encodeWriteAckMs": 24
     },
     {
       "nodes": 1000,
       "bytes": 1846026,
-      "stringifyMs": 3.02,
-      "encodeWriteAckMs": 126.56
+      "stringifyMs": 1.94,
+      "encodeWriteAckMs": 79.7
     },
     {
       "nodes": 5000,
       "bytes": 9237026,
-      "stringifyMs": 15.95,
-      "encodeWriteAckMs": 633.99
+      "stringifyMs": 10.36,
+      "encodeWriteAckMs": 392.56
     },
     {
-      "databasePagesBefore": 267,
+      "databasePagesBefore": 271,
       "freedPages": 256,
-      "databasePagesAfter": 267,
-      "databaseBytes": 1093632,
+      "databasePagesAfter": 271,
+      "databaseBytes": 1110016,
       "queryPlan": [
         "SEARCH documents USING INDEX sqlite_autoindex_documents_1 (collection=? AND id=?)"
       ]

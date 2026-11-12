@@ -1,6 +1,6 @@
 import type { CanvasConnection, CanvasNodeData, Position } from "@/types/canvas";
 import type { ProductPromptMetadata } from "../Excel画布/商品提示词规则";
-import { expandChangedGroups, NODE_PLACEMENT_GAP, nodesOverlap } from "./卡片自动避让";
+import { alignSelectedGeneratedResults, expandChangedGroups, NODE_PLACEMENT_GAP, nodesOverlap } from "./卡片自动避让";
 import { planWorkflowRows } from "./画布流程分组排布";
 
 type Row = { source?: CanvasNodeData; prompt?: CanvasNodeData; translations: CanvasNodeData[]; config?: CanvasNodeData; orderNode: CanvasNodeData; outputs: Map<number, CanvasNodeData> };
@@ -250,6 +250,10 @@ function extraFlows(extras: CanvasNodeData[], index: ReturnType<typeof connectio
 /** 根据真实连线规划流程列和结果编号列，其余卡片按类型单独归列。 */
 export function layoutCanvas(nodes: CanvasNodeData[], connections: CanvasConnection[], selectedIds?: ReadonlySet<string>): CanvasNodeData[] {
     if (!nodes.length || (selectedIds && !selectedIds.size)) return nodes;
+    if (selectedIds) {
+        const aligned = alignSelectedGeneratedResults(nodes, connections, selectedIds);
+        if (aligned) return aligned;
+    }
     const normalized = uniformVariantResultWidths(nodes, selectedIds);
     if (normalized.some((node, index) => node !== nodes[index])) nodes = normalized;
     if (selectedIds) {

@@ -157,14 +157,34 @@ test('真实回调四种生成模式均使用批次同列，完成状态不被�
         assert.equal(result.metadata.generationBatchId, 'real-callback');
     }
 });
-test('真实单卡入口不传批次参数时保持原有定位与重试兼容', async () => {
+test('真实单卡入口不传批次参数时向右避让并与来源同高', async () => {
     const fixture = generatorFixture(), source = fixture.sources[0];
     await fixture.generate(source.id, 'image', source.metadata.prompt);
     assert.deepEqual(fixture.errors, []);
     const edge = fixture.connectionsRef.current.find(item => item.fromNodeId === source.id);
     const result = fixture.nodesRef.current.find(item => item.id === edge?.toNodeId);
     assert.equal(result.metadata.generationBatchId, undefined);
-    assert.ok(result.position.y > source.position.y, '普通单卡仍由原有逐卡避让处理');
+    assert.equal(result.position.y + result.height / 2, source.position.y + source.height / 2);
+    assert.ok(fixture.nodesRef.current.filter(node => node.id !== result.id).every(node => !layout.nodesOverlap(result, node, 48)));
+});
+test('真实单卡入口按配置当前尺寸对齐，多次生成向右延伸且旧图位置不变', async () => {
+    const fixture = generatorFixture(), source = fixture.sources[0];
+    source.width = 620; source.height = 360;
+    fixture.nodesRef.current = [...fixture.sources];
+    await fixture.generate(source.id, 'image', source.metadata.prompt);
+    const first = fixture.nodesRef.current.find(node => node.id === fixture.connectionsRef.current.find(edge => edge.fromNodeId === source.id)?.toNodeId);
+    assert.equal(first.position.x, source.position.x + source.width + 96);
+    assert.equal(first.position.y + first.height / 2, source.position.y + source.height / 2);
+    const oldPosition = { ...first.position };
+    await fixture.generate(source.id, 'image', source.metadata.prompt);
+    const outputs = fixture.connectionsRef.current.filter(edge => edge.fromNodeId === source.id)
+        .map(edge => fixture.nodesRef.current.find(node => node.id === edge.toNodeId));
+    assert.equal(outputs.length, 2);
+    assert.deepEqual(outputs[0].position, oldPosition);
+    assert.ok(outputs[1].position.x >= outputs[0].position.x + outputs[0].width + 48);
+    for (const output of outputs)
+        assert.equal(output.position.y + output.height / 2, source.position.y + source.height / 2);
+    assert.deepEqual(fixture.errors, []);
 });
 
 test('两轮真实图片回调在单行历史阻挡下整批另起列，异步完成顺序不改变列', async () => {

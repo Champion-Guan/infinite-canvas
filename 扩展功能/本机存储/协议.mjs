@@ -1,5 +1,8 @@
 export const PROTOCOL = 'guan-local-data.v1';
 export const APPLICATION_STORAGE_FORMAT = 'guan-app-storage.v1';
+export const MAX_APPLICATION_VALUE_DEPTH = 32;
+// 每层业务对象编码为[type, [[key, value]]]，最多增加3层；命名空间外壳占8层。
+export const MAX_APPLICATION_DOCUMENT_DEPTH = MAX_APPLICATION_VALUE_DEPTH * 3 + 8;
 export const APP_NAMESPACES = Object.freeze(['app_state', 'image_files', 'image_previews', 'image_generation_logs', 'video_generation_logs', 'media_files', 'prompt_cache', 'preferences']);
 export const SCHEMA_VERSION = 2;
 export const LEGACY_SCHEMA_VERSION = 1;
@@ -30,9 +33,12 @@ export function validHash(value) { return typeof value === 'string' && /^[0-9a-f
 export function serializeDocument(collection, id, value, mediaIds = []) {
   requireValue(COLLECTIONS.includes(collection) && validId(id), 'invalid_document', '不支持的业务集合或标识。');
   requireValue(value && typeof value === 'object' && !Array.isArray(value), 'invalid_document', '文档必须是对象。');
+  const encodedApplication = collection === 'extension' && value.format === APPLICATION_STORAGE_FORMAT
+    && APP_NAMESPACES.includes(value.namespace) && Array.isArray(value.entries) && id.startsWith('app-');
+  const maxDepth = encodedApplication ? MAX_APPLICATION_DOCUMENT_DEPTH : 40;
   const visiting = new Set();
   function inspect(item, depth = 0) {
-    requireValue(depth <= 40, 'invalid_document', '文档层级过深。');
+    requireValue(depth <= maxDepth, 'invalid_document', '文档层级过深。');
     if (item === null || typeof item === 'string' || typeof item === 'boolean') return;
     if (typeof item === 'number') return requireValue(Number.isFinite(item), 'invalid_document', '数值必须有限。');
     requireValue(typeof item === 'object' && !visiting.has(item), 'invalid_document', '文档含不可序列化值。');

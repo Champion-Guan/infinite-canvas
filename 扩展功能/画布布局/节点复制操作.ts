@@ -35,7 +35,9 @@ function copyContent(source: CanvasNodeData): CanvasNodeData {
     delete metadata.videoTaskId;
     delete metadata.videoTaskProvider;
     delete metadata.generationStartedAt;
+    delete (metadata as typeof metadata & { productPlanningTask?: unknown }).productPlanningTask;
     delete metadata.generationBatchId;
+    metadata.generationNotificationCopy = true;
     if (metadata.status === "loading" || hadPendingVideo) {
         metadata.status = metadata.content ? "success" : "idle";
         metadata.errorDetails = undefined;

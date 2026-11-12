@@ -4,7 +4,7 @@ import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { CanvasNodeContext } from "@/types/canvas-plugin";
 import type { CanvasNodeMetadata } from "@/types/canvas";
-import { promptVariableTokens, completePromptVariableValues, variableLabel, productVariableTokens, productPlatformRules, defaultProductLanguage, PRODUCT_LANGUAGE_OPTIONS, PRODUCT_PLATFORM_OPTIONS, WILDBERRIES_LANGUAGE, WILDBERRIES_PLATFORM, WILDBERRIES_RULES_TEXT } from "./旧版参数规则";
+import { promptVariableTokens, completePromptVariableValues, variableLabel, productVariableTokens, productPlatformChangePatch, defaultProductLanguage, PRODUCT_LANGUAGE_OPTIONS, PRODUCT_PLATFORM_OPTIONS, WILDBERRIES_LANGUAGE, WILDBERRIES_PLATFORM } from "./旧版参数规则";
 import { useExcelProductId, useExcelPromptContext } from "./Excel画布上下文";
 import { restoreProductParameterValues } from "./Excel参数记忆";
 import { useProductParameterEditing } from "./产品参数编辑操作";
@@ -15,11 +15,15 @@ import { ProductOptionSelect } from "./产品选项下拉";
 import { ProductVariantEditor } from "./产品变体编辑";
 import { productVariants } from "./产品变体规则";
 import { ProductPlanningButton, ProductPlanOverview } from "./商品策划按钮";
+import { ProductPlanningStreamPreview } from "./商品策划流式预览";
+import { ProductPlatformRuleEditor } from "./平台规则编辑";
+import { useGlobalPlatformRules } from "./平台规则订阅";
 
 type ProductCardMetadata = ProductParameterMetadata;
 
 export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
     const productId = useExcelProductId();
+    useGlobalPlatformRules();
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const context = useExcelPromptContext(productId);
     const metadata = ctx.node.metadata || {};
@@ -55,21 +59,16 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
     useEffect(() => {
         const platform = cardMetadata.productPlatform || WILDBERRIES_PLATFORM;
         const language = cardMetadata.productLanguage ?? defaultProductLanguage(platform);
-        const rules = productPlatformRules({ productPlatform: platform, productPlatformRules: cardMetadata.productPlatformRules } as CanvasNodeMetadata);
         const patch: ProductCardMetadata = {};
         if (cardMetadata.productPlatform !== platform) patch.productPlatform = platform;
         if (cardMetadata.productLanguage !== language) patch.productLanguage = language;
-        if (cardMetadata.productPlatformRules !== rules) patch.productPlatformRules = rules;
         if (Object.keys(patch).length) updateMetadata(patch);
-    }, [cardMetadata.productLanguage, cardMetadata.productPlatform, cardMetadata.productPlatformRules, updateMetadata]);
+    }, [cardMetadata.productLanguage, cardMetadata.productPlatform, updateMetadata]);
 
     const selectPlatform = (platform: string) => {
-        const language = defaultProductLanguage(platform);
-        updateMetadata({
-            productPlatform: platform,
-            productLanguage: language,
-            productPlatformRules: platform === WILDBERRIES_PLATFORM ? WILDBERRIES_RULES_TEXT : "",
-        } as CanvasNodeMetadata);
+        const current = ctx.getNode(ctx.node.id)?.metadata as ProductParameterMetadata | undefined;
+        if (!current || (current.productPlatform || WILDBERRIES_PLATFORM) === platform) return;
+        updateMetadata(productPlatformChangePatch(current, platform));
     };
 
     return (
@@ -104,10 +103,9 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
                         <ProductOptionSelect value={language === "俄语" ? WILDBERRIES_LANGUAGE : language} options={PRODUCT_LANGUAGE_OPTIONS} onChange={value => updateMetadata({ productLanguage: value } as CanvasNodeMetadata)} borderColor={theme.node.stroke} textColor={theme.node.text} label="语言" />
                     </div>
                 </div>
-                {(cardMetadata.productPlatform || WILDBERRIES_PLATFORM) === WILDBERRIES_PLATFORM ? (
-                    <div className="whitespace-pre-line rounded-lg bg-black/[.06] px-2.5 py-2 text-[10px] leading-5 opacity-75 dark:bg-white/[.08]">{productPlatformRules({ ...cardMetadata, productPlatform: platform })}</div>
-                ) : null}
+                <ProductPlatformRuleEditor key={`${ctx.node.id}:${platform}`} ctx={ctx} />
             </section>
+            <ProductPlanningStreamPreview node={ctx.node} />
             <ProductPlanOverview metadata={cardMetadata} ctx={ctx} productId={productId} />
             <ProductMainImageUploader ctx={ctx} productId={productId} />
             <ProductVariantEditor ctx={ctx} onChange={updateMetadata} tokens={tokens} />

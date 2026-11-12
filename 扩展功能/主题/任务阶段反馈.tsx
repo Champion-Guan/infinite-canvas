@@ -1,6 +1,6 @@
 import { LoaderCircle } from "lucide-react";
 
-export type TextTaskPhase = "preparing" | "checking" | "saving-task" | "requesting" | "saving-result" | "validating" | "applying" | "ready" | "needs-input" | "stopped";
+export type TextTaskPhase = "preparing" | "checking" | "saving-task" | "requesting" | "streaming" | "saving-result" | "validating" | "repairing" | "applying" | "ready" | "needs-input" | "stopped";
 export type TextTaskKind = "planning" | "optimization";
 
 export function textTaskPhaseLabel(phase: TextTaskPhase, kind: TextTaskKind) {
@@ -10,8 +10,10 @@ export function textTaskPhaseLabel(phase: TextTaskPhase, kind: TextTaskKind) {
         checking: `正在核对上次${action}任务…`,
         "saving-task": `正在保存${action}任务…`,
         requesting: `正在等待模型${action}结果…`,
+        streaming: `正在生成${action}内容…`,
         "saving-result": `已收到${action}结果，正在保存…`,
         validating: `正在检查${action}结果…`,
+        repairing: "正在修正已返回方案的格式与变量关联…",
         applying: "正在保存原卡片…",
         ready: kind === "planning" ? "提示词已更新并保存" : "优化结果已保存，等待应用",
         "needs-input": "策划已保存，请补齐待确认资料。",

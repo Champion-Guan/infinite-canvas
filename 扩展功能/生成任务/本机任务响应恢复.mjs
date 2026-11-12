@@ -24,6 +24,12 @@ function pause(milliseconds, signal) {
 }
 
 // 仅用于查询、取回响应及幂等确认；收费 submit 不得放入此重试循环。
+/**
+ * @template T
+ * @param {() => Promise<T> | T} operation
+ * @param {{signal?: AbortSignal, wait?: (milliseconds: number, signal?: AbortSignal) => Promise<unknown>}} [options]
+ * @returns {Promise<T>}
+ */
 export async function recoverGenerationResponse(operation, { signal, wait = pause } = {}) {
   let attempts = 0;
   for (;;) {

@@ -13,6 +13,7 @@ import { authorizeLocalStorage } from '../扩展功能/本机存储/本机授权
 import { StorageError } from '../扩展功能/本机存储/协议.mjs';
 import { GENERATION_PROTOCOL } from '../扩展功能/生成网关/生成协议.mjs';
 import { runCanvasImageTask } from '../扩展功能/画布生成/图片任务衔接.mjs';
+import { recoverGenerationResponse } from '../扩展功能/生成任务/本机任务响应恢复.mjs';
 import * as preview from '../扩展功能/画布生成/文本临时显示.mjs';
 import { generationFixture, listen, closeServer } from './生成网关隔离夹具.mjs';
 
@@ -213,6 +214,7 @@ test('原画布文本调用仅临时展示进度，最终保存一次，观察�
       '../产品配置/模型配置门禁': { requireModelConfigured() {} },
       '@/stores/use-config-store': configPort, './原画布图片调用': { bindGenerationChannel: async () => 'provider:' + 'a'.repeat(64) },
       './图片任务衔接.mjs': { runCanvasImageTask }, './文本生成协议': protocol, './文本临时显示.mjs': preview,
+      '../生成任务/本机任务响应恢复.mjs': { recoverGenerationResponse },
     });
     const previous = globalThis.window; globalThis.window = { __guanGenerationHost: host };
     try {

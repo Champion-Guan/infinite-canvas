@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
+import { platformState } from './全局平台规则夹具.mjs';
 import { test } from 'node:test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
 import { variantModules } from './产品变体生成夹具.mjs';
 
 async function load(file, dependencies = {}) {
+    dependencies = { './平台规则全局状态': platformState, ...dependencies };
     const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file, { loader: file.endsWith('.js') ? 'js' : 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
     const module = { exports: {} };
     new Function('require', 'module', 'exports', code)(id => {

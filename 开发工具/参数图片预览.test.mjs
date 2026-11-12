@@ -28,15 +28,17 @@ function fixture(read = async () => new Blob(["original"])) {
         "react/jsx-runtime": { jsx, jsxs: jsx },
         antd: { Image: "Image", Spin: "Spin" },
         "../媒体交付/媒体缩略图": { MediaThumbnail: "Thumbnail" },
-        "../产品/产品界面边界": { useProductActive: () => active },
+        "../产品/产品界面边界": { useProductActive: () => active, createProductPortal: node => node },
+        "../媒体交付/图片上传编号": { ImageUploadNumber: "ImageUploadNumber" },
+        "../主题/原生可关闭浮层": { OutsidePopover: "Popover" },
         "../画布迁移扩展/media-download": { readDownloadBlob: async media => { reads.push(media); return read(media); } },
     };
-    new Function("require", "module", "exports", "URL", code)(name => {
+    new Function("require", "module", "exports", "URL", "document", code)(name => {
         assert.ok(name in deps, name); return deps[name];
     }, module, module.exports, {
         createObjectURL(blob) { created.push(blob); return "blob:full-original-" + created.length; },
         revokeObjectURL(url) { revoked.push(url); },
-    });
+    }, { body: {} });
     const render = () => {
         cursor = 0;
         const tree = flatten(module.exports.ParameterImageThumbnail(props));
@@ -55,7 +57,7 @@ const event = () => ({ stopped: false, stopPropagation() { this.stopped = true; 
 test("未点击不读取原图；点击隔离画布事件并读取持久原图供缩放预览", async () => {
     const f = fixture(), initial = f.render();
     assert.equal(f.reads.length, 0);
-    assert.equal(initial.image.props.preview.open, false);
+    assert.equal(initial.image, undefined);
     const click = event(); initial.button.props.onClick(click); assert.equal(click.stopped, true);
     f.render();
     assert.deepEqual(f.reads, [{ kind: "image", storageKey: "image:original", url: "blob:stale" }]);

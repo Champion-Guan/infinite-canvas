@@ -96,7 +96,7 @@ function watchBuild(onBuilt, emit, log) {
   const watched = ['扩展功能', '界面资源', '上游适配', '开发文档'].map(name => watch(join(root, name), { recursive: true }, (_event, file) => {
     const path = String(file || '').replaceAll('\\', '/');
     if (path.split('/').some(part => ['node_modules', '__pycache__', '.DS_Store', '待审查'].includes(part))) return;
-    if (name === '开发文档' && !['画布开发规范.md', '画布变更记录.md', '画布待验收事项.mdx', '画布后续待办.mdx'].includes(path)) return;
+    if (name === '开发文档' && !['画布开发规范.md', '画布变更记录.md', '画布待验收事项.mdx', '画布后续待办.mdx', 'Web发布版本.json', 'Web更新说明.md', 'Web版本历史.json'].includes(path)) return;
     changed();
   }));
   for (const watcher of watched) watcher.on('error', error => emit({ phase: 'watch-failed', message: error.message }));

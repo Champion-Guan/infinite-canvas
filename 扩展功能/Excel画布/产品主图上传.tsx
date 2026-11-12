@@ -158,7 +158,7 @@ export function ProductMainImageUploader({ ctx, productId }: { ctx: CanvasNodeCo
                     return (
                         <div key={image.id} className="group/product-image relative aspect-square min-w-0 overflow-hidden rounded-lg border"
                             style={{ borderColor: theme.node.stroke, background: theme.toolbar.itemHover }}>
-                            <ParameterImageThumbnail image={image} name={`产品主图 ${label}`} className="block h-full min-h-0 w-full min-w-0" />
+                            <ParameterImageThumbnail image={image} number={index + 1} name={`产品主图 ${label}`} className="block h-full min-h-0 w-full min-w-0" />
                             <button type="button" aria-label={`移除产品主图 ${label}`} title="移除图片" disabled={pending}
                                 className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/95 text-stone-900 opacity-0 shadow-sm transition-opacity group-hover/product-image:opacity-100 group-focus-within/product-image:opacity-100 disabled:cursor-wait motion-reduce:transition-none [@media(hover:none)]:opacity-100"
                                 onClick={() => updateImages(current => current.filter(item => item.id !== image.id))}><X className="size-3" /></button>

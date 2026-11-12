@@ -1,0 +1,43 @@
+diff --git a/web/src/components/canvas/canvas-image-settings-popover.tsx b/web/src/components/canvas/canvas-image-settings-popover.tsx
+index 58f57f4..a294a76 100644
+--- a/web/src/components/canvas/canvas-image-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-image-settings-popover.tsx
+@@ -6,6 +6,8 @@ import { ImageSettingsPanel, imageQualityLabel, imageSizeLabel } from "@/compone
+ import { canvasThemes } from "@/lib/canvas-theme";
+ import { useThemeStore } from "@/stores/use-theme-store";
+ import type { AiConfig } from "@/stores/use-config-store";
++import { VariantImageCountSummary } from "@/扩展功能/画布生成/生成张数摘要";
++import { variantImageCountText, type VariantImageCount } from "@/扩展功能/画布生成/生成张数规则";
+ 
+ type CanvasImageSettingsPopoverProps = {
+     config: AiConfig;
+@@ -16,16 +18,26 @@ type CanvasImageSettingsPopoverProps = {
+     getPopupContainer?: (triggerNode: HTMLElement) => HTMLElement;
+     placement?: "topLeft" | "top" | "topRight" | "bottomLeft" | "bottom" | "bottomRight";
+     autoAdjustOverflow?: boolean;
++    imageCountSummary?: VariantImageCount;
+ };
+-export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChange, buttonClassName, placement = "topLeft" }: CanvasImageSettingsPopoverProps) {
++export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChange, buttonClassName, placement = "topLeft", imageCountSummary }: CanvasImageSettingsPopoverProps) {
+     const { t } = useTranslation();
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+     const count = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));
++    const settings = `${imageQualityLabel(config.quality || "auto")} · ${imageSizeLabel(config.size || "auto")}`;
++    const countLabel = imageCountSummary ? imageCountSummary.error ? "未选择生成变体"
++        : `共 ${imageCountSummary.total} 张 · ${imageCountSummary.perVariant === null ? "各变体不同" : `每变体 ${imageCountSummary.perVariant} 张`}`
++        : t("canvas.controls.images", { count });
+     return <NativeSettingsPopover label="图像生成设置" placement={placement} theme={theme} onOpenChange={onOpenChange}
+-        content={<ImageSettingsPanel config={config} onConfigChange={onConfigChange} theme={theme} className="space-y-4" />}>
++        content={<ImageSettingsPanel config={imageCountSummary?.perVariant ? { ...config, count: String(imageCountSummary.perVariant) } : config}
++            onConfigChange={onConfigChange} theme={theme} className="space-y-4"
++            countTitle={imageCountSummary ? "每个变体生成张数" : undefined}
++            mixedCount={imageCountSummary?.perVariant === null}
++            countSummary={imageCountSummary ? <VariantImageCountSummary summary={imageCountSummary} /> : null} />}>
+         <Button size="small" type="text" className={buttonClassName || "!h-8 !max-w-[180px] !justify-start !rounded-full !px-2.5"}
++            title={`${settings} · ${imageCountSummary ? variantImageCountText(imageCountSummary) : countLabel}`}
+             style={{ background: theme.node.fill, color: theme.node.text }} aria-label="图像生成设置" aria-haspopup="dialog" icon={<Settings2 className="size-3.5" />}>
+-            <span className="truncate">{imageQualityLabel(config.quality || "auto")} · {imageSizeLabel(config.size || "auto")} · {t("canvas.controls.images", { count })}</span>
++            <span className="truncate">{imageCountSummary ? `${countLabel} · ${settings}` : `${settings} · ${countLabel}`}</span>
+         </Button>
+     </NativeSettingsPopover>;
+ }

@@ -20,14 +20,28 @@ files.add('开发工具/更新开关初始状态.test.mjs');
 files.add('开发工具/分类系统提示词.test.mjs');
 files.add('开发工具/Web版本说明.test.mjs');
 files.add('开发工具/更新历史统一展示.test.mjs');
+files.add('开发工具/参数卡回收保存深度.test.mjs');
+files.add('开发工具/商品设计正文编译.test.mjs');
+files.add('开发工具/商品策划条件诊断.test.mjs');
+files.add('开发工具/商品策划协议恢复.test.mjs');
+files.add('开发工具/商品策划标识恢复.test.mjs');
+files.add('开发工具/商品待确认.test.mjs');
+files.add('开发工具/单卡结果水平定位.test.mjs');
+files.add('开发工具/生成输入统计.test.mjs');
+files.add('开发工具/存储保留与整理.test.mjs');
+files.add('开发工具/存储整理界面.test.mjs');
+for (const name of ['产品胶囊任务状态', '产品胶囊状态可读性', '全局平台规则存储', '原画布图片闭环', '参数图片预览',
+    '参考图与上游错误', '商品策划流式预览', '商品策划胶囊状态', '回收站容量与清理', '图片引用标签',
+    '小地图缩放保持', '平台规则编辑', '生成张数', '空格画布快捷键', '策划恢复入口',
+    '胶囊任务通知回归', '胶囊鼠标拖动', '跨电脑画布导入']) files.add('开发工具/' + name + '.test.mjs');
 const exclusive = ['内置网络代理', '异常退出写盘', 'Web构建缓存清理', 'SQLite分片存储', 'SQLite分片故障矩阵'].map(name => '开发工具/' + name + '.test.mjs');
 const directory = resolve(root, '开发文档/验收记录/M1苹果交互20261105');
 mkdirSync(directory, { recursive: true });
 const results = [];
 async function verify(file) {
     const result = await new Promise((done, reject) => {
-        // 每个文件已在独立进程；避免 Node 24 二次子进程的 V8 测试消息反序列化故障。
-        const child = spawn(process.execPath, ['--test', '--test-isolation=none', '--test-reporter=tap', resolve(root, file)], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+        // 直接执行各测试模块，模块加载失败须以非零退出；node:test自行输出TAP。
+        const child = spawn(process.execPath, ['--test-reporter=tap', resolve(root, file)], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
         const deadline = setTimeout(() => child.kill('SIGTERM'), 180_000);
         let output = '';
         const collect = chunk => { output = (output + chunk.toString()).slice(-1024 * 1024); };

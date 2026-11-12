@@ -23,58 +23,122 @@ export type ConditionalTemplate = {
 export const factToken = (id: string) => `{{fact:${id}}}`;
 export const factTokens = (text: string) => [...text.matchAll(/\{\{fact:([a-z][a-z0-9-]{0,63})\}\}/g)].map(match => match[1]);
 const validId = (value: unknown): value is string => typeof value === "string" && /^[a-z][a-z0-9-]{0,63}$/.test(value);
-const fail = () => { throw Error("待确认字段或条件提示词不完整，原方案已保留，请重试。"); };
-const str = (value: unknown, max = 2000) => typeof value === "string" && value.trim() && value.length <= max ? value.trim() : fail();
+export type ConfirmationProtocolProblem = "invalid_fields" | "invalid_field" | "invalid_text" | "invalid_scopes" |
+    "invalid_conditions" | "invalid_condition" | "unbound_fact" | "wrong_image" | "missing_fact_token" |
+    "missing_number_value" | "missing_choice_branch" | "wrong_branch" | "evidence_requires_review" |
+    "recursive_fact" | "unknown_placeholder" | "placeholder_in_fallback" | "placeholder_in_choice" | "duplicate_fact_token";
+export type ConfirmationProtocolIssue = { path: string; problem: ConfirmationProtocolProblem; factId?: string };
+export class ProductConfirmationProtocolError extends Error {
+    readonly code = "invalid_confirmation_protocol";
+    readonly issues: ConfirmationProtocolIssue[];
+    constructor(issues: ConfirmationProtocolIssue[]) {
+        super("待确认字段或条件提示词不完整，原方案已保留，请重试。");
+        this.name = "ProductConfirmationProtocolError";
+        this.issues = issues.slice(0, 32).map(issue => ({
+            path: /^[a-zA-Z0-9_.[\]-]{1,240}$/.test(issue.path) ? issue.path : "confirmations",
+            problem: issue.problem, ...(validId(issue.factId) ? { factId: issue.factId } : {}),
+        }));
+    }
+}
+const fail = (path = "confirmations", problem: ConfirmationProtocolProblem = "invalid_field", factId?: string): never => {
+    throw new ProductConfirmationProtocolError([{ path, problem, factId }]);
+};
+const str = (value: unknown, max = 2000, path = "confirmations") =>
+    typeof value === "string" && value.trim() && value.length <= max ? value.trim() : fail(path, "invalid_text");
 
 export function parseConfirmations(input: unknown, imageKeys: string[]): Confirmation[] | undefined {
     if (input === undefined) return;
-    if (!Array.isArray(input) || input.length > 32) return fail();
+    if (!Array.isArray(input) || input.length > 32) return fail("confirmations", "invalid_fields");
     const ids = new Set<string>();
-    return input.map(value => {
+    return input.map((value, index) => {
+        const path = `confirmations[${index}]`;
         if (!value || !validId(value.id) || ids.has(value.id) || !["number", "choice", "image", "supplement"].includes(value.kind)
             || !["shared", "variant"].includes(value.scope) || !Array.isArray(value.imageKeys)
-            || value.imageKeys.some((key: unknown) => typeof key !== "string" || !imageKeys.includes(key))) return fail();
+            || value.imageKeys.some((key: unknown) => typeof key !== "string" || !imageKeys.includes(key))) return fail(path);
         ids.add(value.id);
         const scopes = value.scopes ?? [];
-        if (!Array.isArray(scopes) || scopes.length > 8) return fail();
-        return { id: value.id, label: str(value.label, 80), question: str(value.question), kind: value.kind, scope: value.scope,
+        if (!Array.isArray(scopes) || scopes.length > 8) return fail(`${path}.scopes`, "invalid_scopes", value.id);
+        return { id: value.id, label: str(value.label, 80, `${path}.label`), question: str(value.question, 2000, `${path}.question`), kind: value.kind, scope: value.scope,
             unit: typeof value.unit === "string" && value.unit.length <= 24 ? value.unit.trim() : "",
-            scopes: scopes.map(item => ({ value: str(item?.value, 40), chinese: str(item?.chinese, 80), english: str(item?.english, 120) })),
-            imageKeys: [...new Set(value.imageKeys)] as string[], fallback: str(value.fallback) };
+            scopes: scopes.map((item, scopeIndex) => ({ value: str(item?.value, 40, `${path}.scopes[${scopeIndex}].value`),
+                chinese: str(item?.chinese, 80, `${path}.scopes[${scopeIndex}].chinese`),
+                english: str(item?.english, 120, `${path}.scopes[${scopeIndex}].english`) })),
+            imageKeys: [...new Set(value.imageKeys)] as string[], fallback: str(value.fallback, 2000, `${path}.fallback`) };
     });
 }
 
-export function parseConditionalTemplates(input: unknown): string | undefined {
+export function parseConditionalTemplates(input: unknown, path = "conditions"): string | undefined {
     if (input === undefined) return;
-    if (!Array.isArray(input) || input.length > 32) return fail();
+    if (!Array.isArray(input) || input.length > 32) return fail(path, "invalid_conditions");
     const ids = new Set<string>();
-    const templates: ConditionalTemplate[] = input.map(item => {
-        if (!item || !validId(item.factId) || ids.has(item.factId)) return fail();
+    const templates: ConditionalTemplate[] = input.map((item, index) => {
+        const itemPath = `${path}[${index}]`;
+        if (!item || !validId(item.factId) || ids.has(item.factId)) return fail(`${itemPath}.factId`, "invalid_condition");
         ids.add(item.factId);
-        const result: ConditionalTemplate = { factId: item.factId, unknown: { chinese: str(item.unknown?.chinese), english: str(item.unknown?.english) } };
+        const result: ConditionalTemplate = { factId: item.factId,
+            unknown: { chinese: str(item.unknown?.chinese, 2000, `${itemPath}.unknown.chinese`),
+                english: str(item.unknown?.english, 2000, `${itemPath}.unknown.english`) } };
         for (const branch of ["known", "yes", "no"] as const) if (item[branch] !== undefined)
-            result[branch] = { chinese: str(item[branch]?.chinese), english: str(item[branch]?.english) };
+            result[branch] = { chinese: str(item[branch]?.chinese, 2000, `${itemPath}.${branch}.chinese`),
+                english: str(item[branch]?.english, 2000, `${itemPath}.${branch}.english`) };
         return result;
     });
     return JSON.stringify(templates);
 }
 
 export function validateConditionalTemplates(chinese: string, english: string, serialized: string | undefined,
-    fields: Confirmation[], imageKey: string) {
-    const templates: ConditionalTemplate[] = serialized ? JSON.parse(serialized) : [];
+    fields: Confirmation[], imageKey: string, path = `images.${imageKey}.prompt`) {
+    let templates: ConditionalTemplate[];
+    try { templates = serialized ? JSON.parse(serialized) : []; }
+    catch { return fail(`${path}.conditions`, "invalid_conditions"); }
+    if (!Array.isArray(templates)) return fail(`${path}.conditions`, "invalid_conditions");
+    parseConditionalTemplates(templates, `${path}.conditions`);
+    const issues: ConfirmationProtocolIssue[] = [];
+    const issue = (at: string, problem: ConfirmationProtocolProblem, factId?: string) => issues.push({ path: at, problem, factId });
     const ids = new Set(templates.map(item => item.factId));
-    if ([...factTokens(chinese), ...factTokens(english)].some(id => !ids.has(id))) return fail();
-    for (const template of templates) {
-        const field = fields.find(item => item.id === template.factId && item.imageKeys.includes(imageKey));
-        if (!field || !chinese.includes(factToken(field.id)) || !english.includes(factToken(field.id))) return fail();
-        if (field.kind === "number" && (!template.known?.chinese.includes("{{value}}") || !template.known.english.includes("{{value}}"))) return fail();
-        if (field.kind === "choice" && (!template.yes || !template.no)) return fail();
-        // 图片和自由文字要经一次有实物/依据的策划核对，不能仅凭上传或非空输入就确认事实。
-        if (field.kind === "image" || field.kind === "supplement") return fail();
-        for (const branch of [template.unknown, template.known, template.yes, template.no].filter((item): item is ConditionalText => Boolean(item)))
-            for (const text of [branch.chinese, branch.english])
-                if (factTokens(text).length || /\{\{(?!value\}\}|unit\}\}|scope\}\})/.test(text)) return fail();
+    for (const language of ["chinese", "english"] as const) {
+        const source = language === "chinese" ? chinese : english;
+        if (/\{\{(?!fact:[a-z][a-z0-9-]{0,63}\}\})/.test(source)) issue(`${path}.${language}`, "unknown_placeholder");
+        for (const id of factTokens(source))
+            if (!ids.has(id)) issue(`${path}.${language}`, "unbound_fact", id);
     }
+    for (const [index, template] of templates.entries()) {
+        const itemPath = `${path}.conditions[${index}]`;
+        const field = fields.find(item => item.id === template.factId && item.imageKeys.includes(imageKey));
+        if (!field) { issue(`${itemPath}.factId`, "wrong_image", template.factId); continue; }
+        for (const language of ["chinese", "english"] as const) {
+            const count = factTokens(language === "chinese" ? chinese : english).filter(id => id === field.id).length;
+            if (!count) issue(`${path}.${language}`, "missing_fact_token", field.id);
+            else if (count > 1) issue(`${path}.${language}`, "duplicate_fact_token", field.id);
+        }
+        if (field.kind === "number") {
+            for (const language of ["chinese", "english"] as const)
+                if (!template.known?.[language]?.includes("{{value}}")) issue(`${itemPath}.known.${language}`, "missing_number_value", field.id);
+            for (const branch of ["yes", "no"] as const)
+                if (template[branch]) issue(`${itemPath}.${branch}`, "wrong_branch", field.id);
+        }
+        if (field.kind === "choice") {
+            for (const branch of ["yes", "no"] as const)
+                if (!template[branch]) issue(`${itemPath}.${branch}`, "missing_choice_branch", field.id);
+            if (template.known) issue(`${itemPath}.known`, "wrong_branch", field.id);
+        }
+        // 图片和自由文字要经一次有实物/依据的策划核对，不能仅凭上传或非空输入就确认事实。
+        if (field.kind === "image" || field.kind === "supplement") issue(itemPath, "evidence_requires_review", field.id);
+        for (const branch of ["unknown", "known", "yes", "no"] as const) {
+            const text = template[branch];
+            if (!text) continue;
+            for (const language of ["chinese", "english"] as const) {
+                const value = text[language];
+                if (factTokens(value).length) issue(`${itemPath}.${branch}.${language}`, "recursive_fact", field.id);
+                if (/\{\{(?!value\}\}|unit\}\}|scope\}\})/.test(value)) issue(`${itemPath}.${branch}.${language}`, "unknown_placeholder", field.id);
+                if (/\{\{(?:value|unit|scope)\}\}/.test(value)) {
+                    if (branch === "unknown") issue(`${itemPath}.${branch}.${language}`, "placeholder_in_fallback", field.id);
+                    else if (field.kind === "choice") issue(`${itemPath}.${branch}.${language}`, "placeholder_in_choice", field.id);
+                }
+            }
+        }
+    }
+    if (issues.length) throw new ProductConfirmationProtocolError(issues);
 }
 
 const stableId = (text: string) => {

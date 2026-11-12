@@ -10,6 +10,7 @@ import { 清理独占暂存文件 } from '../本机服务/中断文件清理.mjs
 import { 数据磁盘保留字节, 配置SQLite日志, 检查SQLite写入空间 } from './写入空间保护.mjs';
 import { readCategorizedUsage } from './分类容量统计.mjs';
 import { 复制独立备份文件, 复用相同数据库快照, 计算文件哈希 } from './备份节省空间.mjs';
+import { createStorageRetention } from './存储保留策略.mjs';
 
 const DB_NAME = '工作台.sqlite';
 const MARKER = '.工作区.json';
@@ -227,12 +228,13 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
           result.set(entry.id, { id: entry.id, mime: entry.mime, size: entry.bytes.length });
         }
       }
+      retention.uploaded(entries.keys());
       return result;
     });
     const now = Date.now();
     for (const entry of entries.values()) {
       verifiedMedia.add(entry.id);
-      if (!entry.existing) recentUploads.set(entry.id, now);
+      recentUploads.set(entry.id, now);
     }
     for (const [id, time] of recentUploads) if (now - time > 15_000) recentUploads.delete(id);
     for (const id of legacy) {
@@ -249,8 +251,15 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
     return prepared.map(entry => saved.get(entry.id));
   }
   function validDocumentKey(collection, id) { requireValue(COLLECTIONS.includes(collection) && validId(id), 'invalid_document', '集合或文档标识无效。'); }
+  const retention = createStorageRetention({ db, transaction, active, recentUploads, checkWriteSpace: bytes => space(bytes),
+    checkCompactionSpace: () => space(lstatSync(dbPath).size), removeExternal(id, validateOnly = false) {
+    const path = join(root, '媒体', id);
+    safePath(path, false, false);
+    if (!validateOnly && existsSync(path)) { unlinkSync(path); syncDirectory(join(root, '媒体')); }
+  } });
   const store = {
     dataRoot: root, workspaceId,
+    storageRetention: retention,
     readDetailedUsage() {
       active();
       // 同时打开多个容量面板只做一次扫描；结束后不缓存，不影响保存队列。
@@ -309,9 +318,11 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
         for (const mediaId of mediaIds) checkMediaReference(root, mediaReference.get(mediaId));
         const updatedAt = new Date().toISOString();
         db.prepare('INSERT INTO documents VALUES (?,?,?,?,?,?) ON CONFLICT(collection,id) DO UPDATE SET body=excluded.body,revision=excluded.revision,hash=excluded.hash,updated_at=excluded.updated_at').run(collection, id, body, revision + 1, hash, updatedAt);
+        const previousMedia = db.prepare('SELECT media_id FROM document_media WHERE collection=? AND document_id=?').all(collection, id).map(row => row.media_id);
         db.prepare('DELETE FROM document_media WHERE collection=? AND document_id=?').run(collection, id);
         const insertRef = db.prepare('INSERT INTO document_media VALUES (?,?,?)');
         for (const mediaId of mediaIds) insertRef.run(collection, id, mediaId);
+        retention.referencesChanged(previousMedia, mediaIds);
         const ack = { protocol: PROTOCOL, workspaceId, collection, id, operationId, revision: revision + 1, hash, updatedAt, persisted: true };
         db.prepare('INSERT INTO operations VALUES (?,?,?)').run(operationId, requestHash, JSON.stringify(ack));
         return ack;
@@ -383,7 +394,7 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
           if (db.prepare('SELECT 1 FROM document_media WHERE media_id=? LIMIT 1').get(id)) { retained.push(id); continue; }
           if (Date.now() - (recentUploads.get(id) ?? 0) < 15_000) { deferred.push(id); continue; }
           const row = db.prepare('SELECT content FROM media WHERE id=?').get(id);
-          if (!row) continue;
+          if (!row) { deleted.push(id); continue; }
           if (!isSQLiteBlob(row.content)) safePath(join(root, '媒体', id), false, false);
           db.prepare('DELETE FROM media WHERE id=?').run(id);
           result.push({ id, external: !isSQLiteBlob(row.content) });

@@ -4,6 +4,7 @@ import { variantModules, variantFixture } from './产品变体生成夹具.mjs';
 import { createValueCodec } from '../扩展功能/本机存储/应用值编码.mjs';
 import { buildFragmentPlan } from '../扩展功能/本机存储/分片值编码.mjs';
 import { serializeDocument } from '../扩展功能/本机存储/协议.mjs';
+import { designProtocolPlan } from './商品策划响应夹具.mjs';
 
 const fields = [
     { id: 'load', label: '实测承重', question: '请填写实测承重及范围。', kind: 'number', unit: 'kg', scope: 'shared',
@@ -258,7 +259,7 @@ test('只更新关联提示词保留其他卡片、配置、ID、位置及结果
         '@/stores/use-config-store': { useConfigStore: { getState: () => ({ config: { model: 'synthetic-text' } }) } },
         '../产品/产品操作': { saveProductCanvas: async id => { saves.push(id); return { persisted: true }; } },
         '../产品/画布驻留保护': { productCanvasResidency: { acquire: () => () => {} } },
-        '../画布生成/原画布文本调用': { requestCanvasText: async options => {
+        '../画布生成/原画布文本调用': { confirmSavedCanvasText: async () => {}, requestCanvasText: async options => {
             submitted = options.messages;
             const task = { taskId: `task-${saves.length}`, slotId: options.scope.slotId };
             await options.recordTask(task);
@@ -272,7 +273,7 @@ test('只更新关联提示词保留其他卡片、配置、ID、位置及结果
     const plan = outputPlan(f);
     plan.images = plan.images.slice(0, 1);
     plan.confirmations = plan.confirmations.map(item => ({ ...item, imageKeys: item.imageKeys.filter(key => key === 'load-view') }));
-    response = JSON.stringify(plan);
+    response = JSON.stringify(designProtocolPlan(plan));
     const beforeOther = structuredClone(f.prompts[1]), configs = structuredClone(f.configs);
     const { updateProductConfirmationImages } = f.loader.load('Excel画布/商品策划请求.ts');
     await updateProductConfirmationImages(f.ctx, 'product', 'load', new AbortController().signal);
@@ -297,7 +298,7 @@ test('完整AI策划只附已关联事项的照片；拒绝把待确认照片放
         '../产品/产品操作': { saveProductCanvas: async () => ({ persisted: true }) },
         '../产品/画布驻留保护': { productCanvasResidency: { acquire: () => () => {} } },
         './商品策划完成通知': { notifyProductPlanning() {} },
-        '../画布生成/原画布文本调用': { requestCanvasText: async options => {
+        '../画布生成/原画布文本调用': { confirmSavedCanvasText: async () => {}, requestCanvasText: async options => {
             submitted = options.messages;
             await options.recordTask({ taskId: 'full-plan', slotId: options.scope.slotId });
             return options.applyAndSave(response, { taskId: 'full-plan', responseHash: 'full-response' });
@@ -307,12 +308,12 @@ test('完整AI策划只附已关联事项的照片；拒绝把待确认照片放
     f.answer('back', '', 'red', { images: [{ id: 'red-back', name: '背面', storageKey: 'file:red-back' }] });
     const plan = outputPlan(f), api = f.loader.load('Excel画布/商品策划请求.ts');
     plan.images[1].confirmationImageIds = ['red-back'];
-    response = JSON.stringify(plan);
-    await assert.rejects(api.planProductImages(f.ctx, 'product', new AbortController().signal), /关联范围/);
+    response = JSON.stringify(designProtocolPlan(plan));
+    await assert.rejects(api.planProductImages(f.ctx, 'product', new AbortController().signal), /修正后仍未通过/);
     assert.match(JSON.stringify(submitted), /red-back/);
     plan.images[1].confirmationImageIds = [];
     plan.images[0].confirmationImageIds = ['red-back'];
-    response = JSON.stringify(plan);
+    response = JSON.stringify(designProtocolPlan(plan));
     await api.planProductImages(f.ctx, 'product', new AbortController().signal);
     assert.equal(f.parameter.metadata.productImagePlan.imageCount, 2);
 });

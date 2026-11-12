@@ -101,6 +101,11 @@ export function createRenewingDataClient({ url, host, origin = globalThis.locati
   }
   return Object.freeze({
     getStatus: status,
+    async storageMaintenance(input) {
+      const holder = await acquire();
+      try { return await holder.client.storageMaintenance(structuredClone(input)); }
+      finally { holder.active--; release(holder); }
+    },
     async ensureSession() {
       const holder = await acquire();
       holder.active--; release(holder);

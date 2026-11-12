@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { variantModules } from './产品变体生成夹具.mjs';
 
 const require = createRequire(new URL('../.运行/3100源/画布副本/web/package.json', import.meta.url));
 const ts = require('typescript');
@@ -67,6 +68,7 @@ test('工作簿内旧数字日期不使产品胶囊崩溃，排序和入口共�
 test('任务阶段不制造百分比，响应与真实保存分开，取消不冒充远端任务已取消', () => {
     assert.match(phaseModule.textTaskPhaseLabel('saving-task', 'planning'), /保存策划任务/);
     assert.match(phaseModule.textTaskPhaseLabel('requesting', 'optimization'), /等待模型优化结果/);
+    assert.match(phaseModule.textTaskPhaseLabel('streaming', 'planning'), /正在生成策划内容/);
     assert.match(phaseModule.textTaskPhaseLabel('saving-result', 'optimization'), /收到.*正在保存/);
     assert.match(phaseModule.textTaskPhaseLabel('stopped', 'optimization'), /停止本次等待.*原任务恢复/);
     const tree = phaseModule.TextTaskStatus({ phase: 'saving-result', kind: 'optimization' });
@@ -196,6 +198,9 @@ function optimizationFixture() {
         './双语联动文本框': { BilingualPromptField: 'Field', useBilingualPromptSync: () => ({}) },
         '../主题/任务阶段反馈': { TextTaskStatus: 'Status' },
         '../主题/苹果交互按钮': { AppleAntButton: 'Button' },
+        '../Excel画布/图片引用标签规则': variantModules().load('Excel画布/图片引用标签规则.ts'),
+        '../Excel画布/图片引用标签': { ImageReferenceToken: 'ImageToken' },
+        '../Excel画布/商品提示词规则': variantModules().load('Excel画布/商品提示词规则.ts'),
     });
     let active = true;
     const host = { getNode: id => nodes.find(node => node.id === id), getNodes: () => nodes, applyOps: ops => applied.push(ops) };

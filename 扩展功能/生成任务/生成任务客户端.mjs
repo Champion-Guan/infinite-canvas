@@ -3,6 +3,7 @@ import { GENERATION_PROTOCOL, validateSubmission, jobLike, terminalState, TASK_S
 import { readTextProgress } from './文本进度客户端.mjs';
 import { assertGenerationActive, recoverGenerationResponse } from './本机任务响应恢复.mjs';
 import { upstreamFailureMessage } from './上游失败原因.mjs';
+import { confirmGenerationCheckpoint } from './保存检查点确认.mjs';
 
 // 只接受已授权闭包，不接收URL、密钥导出端口或浏览器持久化实现。
 // 调用方必须保留同一id；传输失败不新建任务、不自动重发收费请求。
@@ -55,13 +56,16 @@ export function createGenerationClient({ command, observe } = {}) {
       return upstreamFailureMessage(bytes, job.result.status, job.result.contentType);
     },
     // 独立确认已保存结果：没有result/submit/bind，也不重写图片或新建任务。
-    async confirmSaved(task, { responseHash } = {}) {
+    async confirmSaved(task, { responseHash, signal, retryWait } = {}) {
       requireValue(/^[0-9a-f]{64}$/.test(responseHash), 'generation_receipt_invalid', '原任务收据摘要无效。', 409);
-      const job = match(await call({ operation: 'get', id: task.id }), task);
+      const recovery = { signal, wait: retryWait };
+      const job = match(await recoverGenerationResponse(() => call({ operation: 'get', id: task.id }), recovery), task);
       requireValue(job.state === 'succeeded' && job.result?.id === responseHash, 'generation_receipt_mismatch', '任务结果与原卡片收据不符，未确认完成。', 409);
       if (job.applied) return job;
-      const checkpoint = await call({ operation: 'checkpoint', id: task.id });
-      const applied = match(await call({ operation: 'applied', id: task.id, checkpoint }), task);
+      const applied = match(await confirmGenerationCheckpoint({
+        read: () => call({ operation: 'checkpoint', id: task.id }),
+        apply: checkpoint => call({ operation: 'applied', id: task.id, checkpoint }), signal, retryWait,
+      }), task);
       requireValue(applied.state === 'succeeded' && applied.applied && applied.result?.id === responseHash,
         'generation_ack_invalid', '任务完成确认尚未收到有效响应，请保留原任务。', 503);
       return applied;
@@ -80,7 +84,10 @@ export function createGenerationClient({ command, observe } = {}) {
         // 批量生成期间媒体已经可靠落盘，但画布快照由批量入口统一提交。
         // 暂不发送 applied，避免把延后的画布保存误判为失败。
         if (checkpoint?.deferred === true || deferConfirm()) return job;
-        return match(await recoverGenerationResponse(() => call({ operation: 'applied', id: task.id, checkpoint }), recovery), task);
+        return match(await confirmGenerationCheckpoint({ checkpoint,
+          read: () => call({ operation: 'checkpoint', id: task.id }),
+          apply: proof => call({ operation: 'applied', id: task.id, checkpoint: proof }), signal, retryWait,
+        }), task);
       });
     },
   });

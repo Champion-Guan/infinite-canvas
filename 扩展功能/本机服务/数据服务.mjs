@@ -4,6 +4,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { COLLECTIONS, MAX_DOCUMENT_BYTES, MAX_FRAGMENT_BATCH_BYTES, MAX_MEDIA_BYTES, MEDIA_TYPES, PROTOCOL, StorageError, requireValue, validHash, validId, validUUID } from '../本机存储/协议.mjs';
 import { MEDIA_BATCH_BODY_BYTES, MEDIA_BATCH_CONTENT_TYPE, parseMediaBatchBody } from '../本机存储/媒体批次协议.mjs';
 import { readNamespaceSnapshot } from '../本机存储/命名空间快照.mjs';
+import { createStorageMaintenance } from './存储整理服务.mjs';
 
 const MAX_JSON_BODY = MAX_DOCUMENT_BYTES + 1024 * 1024;
 const ALLOWED_HEADERS = ['authorization', 'content-type', 'x-guan-csrf'];
@@ -49,6 +50,7 @@ export async function startDataService({ workspace, allowedOrigins, port = 0, se
   requireValue(Number.isInteger(port) && port >= 0 && port <= 65535 && sessionTTL > 0 && sessionTTL <= 15 * 60_000 && Number.isInteger(rateLimit) && rateLimit >= 0, 'invalid_service_config', '服务配置无效。');
   const origins = new Set(allowedOrigins), sessions = new Map();
   const writeGate = createWriteCoordinator(writeOptions);
+  const maintenance = createStorageMaintenance({ workspace, runWrite: operation => writeGate.runWrite(operation) });
   let activeRequests = 0, stopping = false, closing;
   const server = createServer(async (request, response) => {
     let counted = false;
@@ -93,10 +95,19 @@ export async function startDataService({ workspace, allowedOrigins, port = 0, se
       }
       if (rawPath === '/health' && request.method === 'GET') { json(200, { protocol: PROTOCOL, workspaceId: workspace.workspaceId }); return; }
       if (rawPath === '/usage' && request.method === 'GET') { const usage = await workspace.readDetailedUsage(); requireValue(sessions.get(token) === session && session.expiresAt > now(), 'session_denied', '统计期间会话已失效，请重新授权。', 401); json(200, usage); return; }
-      const match = rawPath.match(/^\/v1\/workspaces\/([^/]+)\/(documents|media|namespace-snapshots|media-cleanup|fragments)(?:\/([^/]+))?(?:\/([^/]+))?$/);
+      const match = rawPath.match(/^\/v1\/workspaces\/([^/]+)\/(documents|media|namespace-snapshots|media-cleanup|fragments|storage-maintenance)(?:\/([^/]+))?(?:\/([^/]+))?$/);
       requireValue(match, 'route_not_found', '接口不存在。', 404);
       const [, workspaceId, resource, first, second] = match;
       requireValue(validUUID(workspaceId) && workspaceId === workspace.workspaceId, 'workspace_denied', '工作区未授权。', 403);
+      if (resource === 'storage-maintenance') {
+        requireValue(request.method === 'POST' && !first && !second && request.headers['content-type'] === 'application/json',
+          'method_denied', '存储整理需要授权的JSON提交。', 405);
+        let input;
+        try { input = JSON.parse((await readBody(request, 4096)).toString('utf8')); }
+        catch { throw new StorageError('invalid_json', '整理操作格式无效。'); }
+        // 每个实际写入独立进入既有队列；不在队列内再次等待任务账本的写队列。
+        json(200, await maintenance.command(input)); return;
+      }
       if (resource === 'fragments') {
         requireValue(request.method === 'POST' && !first && !second && request.headers['content-type'] === 'application/json',
           'method_denied', '分片批次只支持授权的JSON提交。', 405);
@@ -177,6 +188,7 @@ export async function startDataService({ workspace, allowedOrigins, port = 0, se
     revokeSession(token) { sessions.delete(token); },
     // 只有可信进程内入口；不新增HTTP备份/授权端点，不将队列排空等同于所有页面已保存。
     getWriteStatus: writeGate.getStatus,
+    connectGenerationMaintenance: generation => maintenance.connectGeneration(generation),
     runTrustedWrite(operation) { return writeGate.runWrite(() => { requireValue(!stopping, 'service_stopping', '本机服务正在停止。', 503); return operation(); }); },
     createBackup() { return writeGate.runBackup(() => { requireValue(!stopping, 'service_stopping', '本机服务正在停止。', 503); return workspace.createBackup(); }); },
     close() {

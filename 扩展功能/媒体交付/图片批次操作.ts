@@ -52,7 +52,7 @@ export function copyBatchImage(node: CanvasNodeData, imageId: string, id: string
         id, type: CanvasNodeType.Image, title: generatedImageName(node, imageId), ...size,
         position: { x: node.position.x + node.width * 2 + 96, y: node.position.y + (node.height - size.height) / 2 },
         metadata: {
-            ...imageFields(image), status: "success", prompt: metadata?.prompt,
+            ...imageFields(image), status: "success", prompt: metadata?.prompt, generationNotificationCopy: true,
             generationType: metadata?.generationType, model: metadata?.model, size: metadata?.size,
             quality: metadata?.quality, background: metadata?.background, references: metadata?.references?.slice(),
             requestedSize: image.requestedSize || metadata?.requestedSize, upstreamSize: image.upstreamSize || metadata?.upstreamSize,

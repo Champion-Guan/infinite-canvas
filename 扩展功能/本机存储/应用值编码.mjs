@@ -1,4 +1,4 @@
-import { MAX_MEDIA_BATCH_BYTES, MAX_MEDIA_BATCH_COUNT, MEDIA_TYPES, StorageError, requireValue, validHash } from './协议.mjs';
+import { MAX_APPLICATION_VALUE_DEPTH, MAX_MEDIA_BATCH_BYTES, MAX_MEDIA_BATCH_COUNT, MEDIA_TYPES, StorageError, requireValue, validHash } from './协议.mjs';
 import { isChannelBinding, sealedCredentialRef } from '../本机凭据/页面凭据引用.mjs';
 import { validCredentialRef } from '../本机凭据/凭据协议.mjs';
 
@@ -87,7 +87,7 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
       }
     }
     async function visit(item, depth = 0, key = '', parent) {
-      requireValue(depth <= 32, 'value_too_deep', '应用数据层级超过当前安全限制。');
+      requireValue(depth <= MAX_APPLICATION_VALUE_DEPTH, 'value_too_deep', '应用数据层级超过当前安全限制。');
       if (credentialKey.test(key) && item !== null && item !== undefined && item !== '') {
         requireValue(typeof item === 'string' && secretPort?.store && secretPort?.inspect, 'secret_port_required', '凭据保管尚未接入；未将密钥明文写入SQLite。');
         const sealed = sealedCredentialRef(item);
@@ -284,7 +284,7 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
       catch (error) { if (decodedMedia.get(identity) === pending) decodedMedia.delete(identity); throw error; }
     }
     async function visit(node, depth = 0, key = '', parent) {
-      requireValue(depth <= 32 && Array.isArray(node), 'invalid_value', '本机应用值格式无效。');
+      requireValue(depth <= MAX_APPLICATION_VALUE_DEPTH && Array.isArray(node), 'invalid_value', '本机应用值格式无效。');
       const [tag, value] = node;
       if (tag === 'null' && node.length === 1) return null;
       if (tag === 'undefined' && node.length === 1) return undefined;

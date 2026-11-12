@@ -1,0 +1,22 @@
+diff --git a/web/src/pages/image/index.tsx b/web/src/pages/image/index.tsx
+index 65d55be..20aa0b9 100644
+--- a/web/src/pages/image/index.tsx
++++ b/web/src/pages/image/index.tsx
+@@ -14,7 +14,7 @@ import { ModelPicker } from "@/components/model-picker";
+ import { PromptSelectDialog } from "@/components/prompts/prompt-select-dialog";
+ import { AssetPickerModal, type InsertAssetPayload } from "@/components/canvas/asset-picker-modal";
+ import { canvasThemes } from "@/lib/canvas-theme";
+-import { imageReferenceLabel } from "@/lib/image-reference-prompt";
++import { ImageUploadNumber } from "@/扩展功能/媒体交付/图片上传编号";
+ import { modelOptionLabel, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+ import { useThemeStore } from "@/stores/use-theme-store";
+ import { nanoid } from "nanoid";
+@@ -470,7 +470,7 @@ export default function ImagePage() {
+                                     {references.map((item, index) => (
+                                         <div key={item.id} className="group relative size-20 shrink-0 overflow-hidden rounded-md border border-stone-200 dark:border-stone-800">
+                                             <img src={previewUrlFor(item.storageKey) || item.dataUrl} alt={item.name} className="size-full object-cover" />
+-                                            <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">{imageReferenceLabel(index)}</span>
++                                            <ImageUploadNumber number={index + 1} />
+                                             <ReferenceOrderButtons index={index} total={references.length} onMove={(offset) => setReferences((value) => moveListItem(value, index, offset))} />
+                                             <button
+                                                 type="button"

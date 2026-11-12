@@ -63,6 +63,9 @@ const { SharedConnectionLayer: renderLayer } = moduleWith('扩展功能/画布�
     '@/lib/canvas-theme': { canvasThemes: { light: { canvas: { background: '#fff' }, node: {} } } },
     '@/stores/use-theme-store': { useThemeStore: select => select({ theme: 'light' }) },
 });
+const render = (props, state = []) => { hookState = state; hookIndex = 0; return renderLayer(props); };
+const g = route([{ id: 'ab', fromNodeId: 'a', toNodeId: 'b' }], new Map([node('a', 0, 0), node('b', 700, 300)].map(n => [n.id, n])));
+const props = { geometry: g, scale: 1, focusedIds: new Set(['ab']), dragging: false, onSelect() {} };
 test('缓存热画布保留原连线，但非当前产品卸下流动粒子，切回再恢复', () => {
     try {
         productActive = false;
@@ -73,9 +76,6 @@ test('缓存热画布保留原连线，但非当前产品卸下流动粒子，�
         assert.ok(elements(render(props)).some(element => element.props?.['data-flow-particle']));
     } finally { productActive = true; }
 });
-const render = (props, state = []) => { hookState = state; hookIndex = 0; return renderLayer(props); };
-const g = route([{ id: 'ab', fromNodeId: 'a', toNodeId: 'b' }], new Map([node('a', 0, 0), node('b', 700, 300)].map(n => [n.id, n])));
-const props = { geometry: g, scale: 1, focusedIds: new Set(['ab']), dragging: false, onSelect() {} };
 test('减少动态效果或浏览器后台时卸下粒子动画，原高亮路径与鼠标命中仍保留', () => {
     try {
         for (const [reduced, visible] of [[true, true], [false, false]]) {

@@ -1,0 +1,57 @@
+diff --git a/web/src/components/canvas/canvas-config-node-panel.tsx b/web/src/components/canvas/canvas-config-node-panel.tsx
+index 2389618..cd21340 100644
+--- a/web/src/components/canvas/canvas-config-node-panel.tsx
++++ b/web/src/components/canvas/canvas-config-node-panel.tsx
+@@ -1,6 +1,5 @@
+ import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
+ import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+-import type { CSSProperties } from "react";
+ import { Image as ImageIcon, LoaderCircle, MessageSquare, Music2, Play, Settings2, Square, Video } from "lucide-react";
+ import { Button, Segmented } from "antd";
+ import { useTranslation } from "react-i18next";
+@@ -15,11 +14,13 @@ import { CanvasVideoSettingsPopover } from "./canvas-video-settings-popover";
+ import { CanvasTextSettingsPopover } from "./canvas-text-settings-popover";
+ import type { CanvasGenerationMode, CanvasNodeData, CanvasNodeMetadata } from "@/types/canvas";
+ import type { VariantImageCount } from "@/扩展功能/画布生成/生成张数规则";
++import type { GenerationInputSummary } from "@/扩展功能/画布生成/生成输入规则";
++import { GenerationInputChips } from "@/扩展功能/画布生成/生成输入统计";
+ 
+ type CanvasConfigNodePanelProps = {
+     node: CanvasNodeData;
+     isRunning: boolean;
+-    inputSummary: { textCount: number; imageCount: number; videoCount: number; audioCount: number };
++    inputSummary: GenerationInputSummary;
+     onConfigChange: (nodeId: string, patch: Partial<CanvasNodeMetadata>) => void;
+     onGenerate: (nodeId: string) => void;
+     onStop: (nodeId: string) => void;
+@@ -92,10 +93,10 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
+             </div>
+ 
+             <div className="mb-2 flex flex-wrap gap-1.5">
+-                <InputChip label={t("canvas.configNode.prompt")} value={t("canvas.configNode.items", { count: inputSummary.textCount })} style={chipStyle} />
+-                <InputChip label={t("canvas.configNode.references")} value={t("canvas.configNode.images", { count: inputSummary.imageCount })} style={chipStyle} />
+-                <InputChip label={t("canvas.configNode.videoReferences")} value={t("canvas.configNode.items", { count: inputSummary.videoCount })} style={chipStyle} />
+-                <InputChip label={t("canvas.configNode.audioReferences")} value={t("canvas.configNode.items", { count: inputSummary.audioCount })} style={chipStyle} />
++                <GenerationInputChips summary={inputSummary} style={chipStyle} labels={{
++                    textCount: t("canvas.configNode.prompt"), imageCount: t("canvas.configNode.references"),
++                    videoCount: t("canvas.configNode.videoReferences"), audioCount: t("canvas.configNode.audioReferences"),
++                }} />
+                 <button type="button" data-composer-toggle className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-md border px-2 text-[11px]" style={chipStyle} onMouseDown={(event) => event.stopPropagation()} onClick={onComposerToggle}>
+                     <Settings2 className="size-3.5" />
+                     {t("canvas.configNode.compose")}
+@@ -144,15 +145,6 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
+     );
+ }
+ 
+-function InputChip({ label, value, style }: { label: string; value: string; style: CSSProperties }) {
+-    return (
+-        <div className="inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[11px]" style={style}>
+-            <span>{label}</span>
+-            <span className="font-medium">{value}</span>
+-        </div>
+-    );
+-}
+-
+ function buildNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mode: CanvasGenerationMode): AiConfig {
+     return {
+         ...globalConfig,

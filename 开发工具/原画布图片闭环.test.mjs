@@ -9,12 +9,11 @@ import { createCanvasCheckpointReader } from '../扩展功能/画布生成/画�
 import { createGenerationClient } from '../扩展功能/生成任务/生成任务客户端.mjs';
 import { createValueCodec } from '../扩展功能/本机存储/应用值编码.mjs';
 import { GENERATION_PROTOCOL } from '../扩展功能/生成网关/生成协议.mjs';
-import * as storageProtocol from '../扩展功能/本机存储/协议.mjs';
-import * as generationProtocol from '../扩展功能/生成网关/生成协议.mjs';
+import { createGenerationHTTPHandler } from '../扩展功能/生成网关/生成HTTP入口.mjs';
 import { StorageError } from '../扩展功能/本机存储/协议.mjs';
+import { bindChannelConfiguration } from '../扩展功能/本机凭据/页面凭据引用.mjs';
 import { ts } from './检查首批功能适配.mjs';
 import { 构建原版图片协议, 图片原来源 } from './构建原版图片协议.mjs';
-import { 构建原画布图片闭环候选 } from './预审原画布图片闭环.mjs';
 import { 根目录 } from './公共.mjs';
 
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -264,12 +263,14 @@ test('多参考图保留image[]字段，Gemini参考图与原版请求一致', a
 });
 function canvasAdapter(host, onRun) {
   const source = readFileSync(join(根目录, '扩展功能/画布生成/原画布图片调用.ts'), 'utf8');
-  return evaluateTS(source, { ...commonContext(), window: { __guanGenerationHost: host } }, {
+  const localHost = { bind: async () => ({ binding }), describe: async id => ({ binding: id, kind: 'openai', endpoint: baseConfig.baseUrl }),
+    createPlan: async () => ({ binding }), ...host };
+  return evaluateTS(source, { ...commonContext(), window: { __guanGenerationHost: localHost } }, {
     './原版图片协议': prepared,
     './图片任务衔接.mjs': { imageRequestHash, runCanvasImageTask: onRun },
     '../故障切换/图片路由请求': {
-      prepareRoutedImageRequest: async (config, _prompt, _references, bind) => ({
-        request: structuredClone(request),
+      prepareRoutedImageRequest: async (config, prompt, references, bind) => ({
+        request: await prepared.prepareOriginalImageRequest(config, prompt, references),
         plan: { mode: 'single', capability: 'image', revision: 0, candidates: [{ binding: await bind(config) }] },
       }),
       parseRoutedImageResponse: (_config, bytes) => {
@@ -279,13 +280,15 @@ function canvasAdapter(host, onRun) {
       },
     },
     '../生成网关/渠道绑定客户端': {
-      bindConfiguredChannel: (channelHost, config) => channelHost.bind({ kind: config.apiFormat, endpoint: config.baseUrl, value: config.apiKey }),
+      bindConfiguredChannel: bindChannelConfiguration,
     },
+    './参考图数量限制': evaluateTS(readFileSync(join(根目录, '扩展功能/画布生成/参考图数量限制.ts'), 'utf8')),
+    '../产品配置/模型配置门禁': { requireModelConfigured() {} },
   });
 }
 test('画布适配器只向本机bind交付当前渠道，缓存不跨密钥/地址/协议复用', async () => {
   const profiles = [], host = { bind: async profile => { profiles.push(profile); return { binding }; } };
-  const adapter = canvasAdapter(host, async value => value.bind());
+  const adapter = canvasAdapter(host, async value => { await value.prepare(); return value.bind(); });
   const options = { config: baseConfig, prompt: '测试', scope: { productId: 'A', nodeId: 'N', slotId: 'S' }, recordTask: async () => {}, applyAndSave: async () => {} };
   await adapter.requestCanvasImage(options); await adapter.requestCanvasImage(options);
   assert.equal(profiles.length, 1);
@@ -294,10 +297,12 @@ test('画布适配器只向本机bind交付当前渠道，缓存不跨密钥/地
   assert.equal(profiles.length, 4);
   assert.equal(profiles[0].value, baseConfig.apiKey); assert.equal(profiles[0].endpoint, baseConfig.baseUrl);
 });
-test('旧secret/provider/旧代理引用不能被当作真实API Key绑定或发送', async () => {
-  const adapter = canvasAdapter({ bind: async () => assert.fail('不得绑定凭据引用') }, async value => value.bind());
+test('旧secret与旧代理引用不能作为API Key；已绑定渠道引用不能跨地址使用', async () => {
+  const adapter = canvasAdapter({ bind: async () => assert.fail('不得绑定凭据引用'),
+    describe: async id => ({ binding: id, kind: 'openai', endpoint: 'https://other.example.com' }) },
+    async value => { await value.prepare(); return value.bind(); });
   for (const apiKey of ['secret:abc', binding, 'guan-vault:abc'])
-    await assert.rejects(adapter.requestCanvasImage({ config: { ...baseConfig, apiKey }, prompt: '测试', scope: { productId: 'A', nodeId: 'N', slotId: 'S' }, recordTask: async () => {}, applyAndSave: async () => {} }), /引用当作API Key/);
+    await assert.rejects(adapter.requestCanvasImage({ config: { ...baseConfig, apiKey }, prompt: '测试', scope: { productId: 'A', nodeId: 'N', slotId: 'S' }, recordTask: async () => {}, applyAndSave: async () => {} }), /旧凭据|渠道地址或协议已改变/);
 });
 test('适配器固定请求快照，外部修改配置不改变在途任务', async () => {
   let run;
@@ -311,28 +316,10 @@ test('远程URL保留为未应用任务，不能绕过受限媒体接入假装�
   await assert.rejects(adapter.requestCanvasImage({ config: baseConfig, prompt: '测试', scope: { productId: 'A', nodeId: 'N', slotId: 'S' }, recordTask: async () => {}, applyAndSave: async () => assert.fail('不能保存网址') }), /远程图片地址/);
 });
 
-test('完整10文件候选仅在内存构建；页内调用、任务槽位与保存ACK接入不改变CSS', async () => {
-  const preview = 构建原画布图片闭环候选();
-  assert.equal(preview.delta.size, 10);
-  for (const [path, item] of preview.delta) {
-    if (item.原文 !== null) assert.equal(readFileSync(join(preview.integration.组合包, path), 'utf8'), item.原文);
-    assert.ok(!/\.(?:css|scss)$/.test(path));
-  }
-  const project = preview.delta.get('画布副本/web/src/pages/canvas/project.tsx').产物;
-  assert.equal((project.match(/await requestCanvasImage\(/g) || []).length, 2);
-  assert.ok(project.includes('slotId: gatewaySlotId'));
-  assert.ok(project.includes('node.metadata?.images?.[0]?.id || node.id'));
-  assert.ok(project.includes('await saveProductCanvas(projectId)'));
-
-  // 在同一JS Realm执行候选HTTP代码，避免跨Realm原型差异干扰exactKeys。
-  const source = preview.delta.get('画布副本/扩展功能/生成网关/生成HTTP入口.mjs').产物;
-  const file = ts.createSourceFile('handler.mjs', source, ts.ScriptTarget.Latest, true);
-  const body = file.statements.filter(node => !ts.isImportDeclaration(node)).map(node => node.getText(file)).join('\n').replace('export async function', 'async function').replace('export function', 'function');
-  const dependencies = { ...storageProtocol, ...generationProtocol };
-  const make = new Function(...Object.keys(dependencies), body + '\nreturn createGenerationHTTPHandler;')(...Object.values(dependencies));
+test('当前HTTP检查点复用页面授权，仅交付真实保存证明并拒绝跨站和额外字段', async () => {
   let calls = 0, authorized = 0;
   const origin = 'http://localhost:53291', checkpoint = { rootRevision: 7, rootHash: 'f'.repeat(64) };
-  const handler = make({ origin, gateway: { bind() {} }, tasks: { submit() {} },
+  const handler = createGenerationHTTPHandler({ origin, gateway: { bind() {} }, tasks: { submit() {} },
     authorize(req) { authorized++; if (req.headers.authorization !== 'Bearer ' + 'synthetic-capability') throw new StorageError('authorization_denied', '合成拒绝', 401); },
     readCanvasCheckpoint: async () => { calls++; return checkpoint; },
   });

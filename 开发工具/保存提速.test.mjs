@@ -281,7 +281,8 @@ async function bridge({ verifiedBaseline = false, autoAck = false, failSynchrono
   const module = { exports: {} }, window = { __guanSQLiteHost: { initialize: async () => app }, dispatchEvent() {}, addEventListener() {} };
   new Function('module', 'exports', 'window', 'setTimeout', 'clearTimeout', 'performance', 'require', code)(module, module.exports, window,
     (run, delay) => { const key = ++id; timers.set(key, { run, at: time + delay }); return key; }, key => timers.delete(key), { now: () => time },
-    id => { assert.equal(id, '../软件更新/升级页面状态.mjs'); return upgradeState; });
+    id => { if (id === '../Excel画布/平台规则全局状态') return { globalPlatformRules: { initialize: async () => {} } };
+      assert.equal(id, '../软件更新/升级页面状态.mjs'); return upgradeState; });
   await module.exports.initializeSQLiteApplication();
   function advance(ms) {
     const until = time + ms;

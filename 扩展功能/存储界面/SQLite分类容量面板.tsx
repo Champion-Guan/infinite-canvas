@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 
 import { readLocalStorageUsage, type LocalStorageUsage } from "@/services/local-storage-usage";
 import { clearRecycleStorage, pendingRecycleCleanup, type RecycleStorageKind } from "./回收站存储操作";
+import { StorageMaintenancePanel } from "./存储整理面板";
+import { storageCategoryCopy } from "./存储分类文案";
 
 type Category = { name: string; label: string; records: number; files: number; blocks: number; documentBytes: number; mediaBytes: number; bytes: number };
 type DetailedUsage = Omit<LocalStorageUsage, "databases"> & {
@@ -32,7 +34,7 @@ export function ConfigLocalStorage({ active }: { active: boolean }) {
         setError("");
         try {
             const result = await readLocalStorageUsage() as DetailedUsage;
-            if (result.breakdown?.format !== "guan-sqlite-usage.v1") throw new Error("当前服务尚未接入 SQLite 分类统计，请完成服务接入后重试。");
+            if (result.breakdown?.format !== "guan-sqlite-usage.v1") throw new Error("当前服务尚未支持分类统计，请重启工作台后重试。");
             const pending = await pendingRecycleCleanup();
             if (id === request.current) { setUsage(result); setPendingCleanup(pending); }
         } catch (reason) {
@@ -64,11 +66,12 @@ export function ConfigLocalStorage({ active }: { active: boolean }) {
 
     return (
         <div className="space-y-3" aria-busy={loading}>
+            <StorageMaintenancePanel active={active} onCleaned={() => void refresh()} />
             <section className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <div className="flex items-center gap-2 text-sm font-semibold"><Database className="size-4" />本机 SQLite 存储</div>
-                        <div className="mt-1 text-xs text-stone-500">数据保存在本机数据库和媒体目录，不使用浏览器站点配额，仍受本机磁盘可用空间限制。</div>
+                        <div className="flex items-center gap-2 text-sm font-semibold"><Database className="size-4" />本机存储空间</div>
+                        <div className="mt-1 text-xs text-stone-500">产品、图片与设置保存在这台电脑上，实际可用空间以本机磁盘为准。</div>
                     </div>
                     <Button icon={<RefreshCw className="size-4" />} loading={loading} onClick={() => void refresh()}>刷新统计</Button>
                 </div>
@@ -77,12 +80,12 @@ export function ConfigLocalStorage({ active }: { active: boolean }) {
                 {usage ? (
                     <>
                         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                            <StorageMetric icon={<Database className="size-4" />} label="当前业务内容" value={formatBytes(usage.breakdown.currentContentBytes)} hint="当前记录及去重后的引用媒体，不含历史分片" />
-                            <StorageMetric icon={<HardDrive className="size-4" />} label="本机实际占用（采样）" value={formatBytes(usage.usage)} hint="SQLite、WAL、SHM 和媒体文件长度；不含备份" />
-                            <StorageMetric icon={<Layers3 className="size-4" />} label="历史与保留内容" value={formatBytes(usage.breakdown.retainedContentBytes)} hint="旧代/未发布分片和当前未引用媒体；不会自动清理" />
+                            <StorageMetric icon={<Database className="size-4" />} label="正在保留的内容" value={formatBytes(usage.breakdown.currentContentBytes)} hint="当前画布、素材与任务记录的内容大小" />
+                            <StorageMetric icon={<HardDrive className="size-4" />} label="磁盘实际占用" value={formatBytes(usage.usage)} hint="包含保存文件与工作台内部占用，不含备份" />
+                            <StorageMetric icon={<Layers3 className="size-4" />} label="旧记录与闲置文件" value={formatBytes(usage.breakdown.retainedContentBytes)} hint="可扫描核对，实际能清理的空间以预览为准" />
                         </div>
                         <div className="mt-3 text-[11px] leading-5 text-stone-500" role="status">
-                            统计时间：{new Date(usage.breakdown.sampledAt).toLocaleString()}。分类容量为数据正文与媒体大小，不等于 SQLite 文件大小，不能与实际占用再次相加。
+                            统计时间：{new Date(usage.breakdown.sampledAt).toLocaleString()}。内容大小与磁盘占用是两种统计方式，请勿相加。
                         </div>
                     </>
                 ) : null}
@@ -90,27 +93,27 @@ export function ConfigLocalStorage({ active }: { active: boolean }) {
             {usage?.databases.map(database => (
                 <section key={database.name} className="overflow-hidden rounded-lg border border-stone-200 dark:border-stone-800">
                     <div className="flex items-center justify-between gap-3 border-b border-stone-200 px-4 py-3 dark:border-stone-800">
-                        <div className="min-w-0"><div className="text-sm font-semibold">内容分类</div><div className="mt-0.5 text-[11px] text-stone-500">容量按存储块去重，共享部分单列；记录正文按逻辑内容分摊，文件数按媒体描述去重</div></div>
+                        <div className="min-w-0"><div className="text-sm font-semibold">空间用在哪里</div><div className="mt-0.5 text-[11px] text-stone-500">容量已去除重复占用；每类标明保留用途与清理影响。</div></div>
                         <div className="shrink-0 text-sm font-medium tabular-nums">{formatBytes(database.bytes)}</div>
                     </div>
                     <div className="divide-y divide-stone-200 dark:divide-stone-800">
-                        {database.stores.map(store => (
+                        {database.stores.map(store => { const copy = storageCategoryCopy(store.name, store.label); return (
                             <div key={store.name} className="px-4 py-3">
                                 <div className="flex items-start justify-between gap-4 text-sm">
-                                    <div className="min-w-0"><div className="flex items-center gap-2 font-medium"><span>{store.label}</span>{isRecycleCategory(store.name) ? <Button size="small" danger loading={recycleAction === store.name} disabled={!!recycleAction || store.bytes === 0 && store.records === 0 && pendingCleanup !== store.name} onClick={() => void clearRecycle(store.name as RecycleStorageKind, store.label)}>{pendingCleanup === store.name ? "重试删除" : "删除"}</Button> : null}</div><div className="mt-0.5 text-[11px] text-stone-500">{countLabel(store)}</div></div>
+                                    <div className="min-w-0"><div className="flex flex-wrap items-center gap-2 font-medium"><span>{copy.label}</span><span className="text-[11px] font-normal text-stone-500">{copy.status}</span>{isRecycleCategory(store.name) ? <Button size="small" danger loading={recycleAction === store.name} disabled={!!recycleAction || store.bytes === 0 && store.records === 0 && pendingCleanup !== store.name} onClick={() => void clearRecycle(store.name as RecycleStorageKind, copy.label)}>{pendingCleanup === store.name ? "重试删除" : "清空"}</Button> : null}</div><div className="mt-1 text-xs leading-5 text-stone-500">{copy.detail}</div>{countLabel(store) ? <div className="mt-0.5 text-[11px] text-stone-500">{countLabel(store)}</div> : null}</div>
                                     <div className="shrink-0 text-right font-medium tabular-nums">{formatBytes(store.bytes)}</div>
                                 </div>
-                                <Progress className="!mb-0 !mt-1" percent={database.bytes ? Math.min(100, store.bytes / database.bytes * 100) : 0} showInfo={false} size="small" aria-label={`${store.label}容量占比`} />
+                                <Progress className="!mb-0 !mt-1" percent={database.bytes ? Math.min(100, store.bytes / database.bytes * 100) : 0} showInfo={false} size="small" aria-label={`${copy.label}容量占比`} />
                             </div>
-                        ))}
+                        ); })}
                     </div>
                     {recycleNotice ? <Alert className="m-4" type="info" showIcon message={recycleNotice} /> : null}
                     {recycleError ? <Alert className="m-4" type="error" showIcon message="回收站删除失败" description={recycleError} /> : null}
                 </section>
             ))}
             {usage ? (
-                <section className="rounded-lg border border-stone-200 p-4 text-xs dark:border-stone-800">
-                    <div className="mb-3 font-semibold">实际占用明细</div>
+                <details className="rounded-lg border border-stone-200 p-4 text-xs dark:border-stone-800">
+                    <summary className="cursor-pointer font-semibold">技术明细</summary>
                     <dl className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 text-stone-500">
                         <dt>数据库文件</dt><dd className="text-right tabular-nums">{formatBytes(usage.breakdown.databaseFileBytes)}</dd>
                         <dt>写入日志（WAL）</dt><dd className="text-right tabular-nums">{formatBytes(usage.breakdown.walBytes)}</dd>
@@ -118,8 +121,8 @@ export function ConfigLocalStorage({ active }: { active: boolean }) {
                         <dt>媒体文件（已索引）</dt><dd className="text-right tabular-nums">{formatBytes(usage.breakdown.indexedMediaBytes)}</dd>
                         <dt>媒体文件（未索引/暂存）</dt><dd className="text-right tabular-nums">{formatBytes(usage.breakdown.unindexedMediaBytes)}</dd>
                     </dl>
-                    <p className="mb-0 mt-3 text-[11px] leading-5 text-stone-500">业务记录数不是画布卡片数，媒体块数不是文件数。实际占用包含索引、保存确认记录及数据库内部空间；并行保存时文件采样可能略有变化。回收站容量包含其中产品、画布及图片、视频、音频等资产；跨分类共用的媒体单列。点击分类旁“删除”可永久清空对应回收站并清理专属媒体。数据库已释放的内部空间供后续保存复用；统计不含备份。</p>
-                </section>
+                    <p className="mb-0 mt-3 text-[11px] leading-5 text-stone-500">数据库内部空闲空间供后续保存复用。文件数按内容去重；旧存储块数量不是用户文件数，统计不含备份。</p>
+                </details>
             ) : null}
         </div>
     );
@@ -130,11 +133,10 @@ function isRecycleCategory(value: string): value is RecycleStorageKind {
 }
 
 function countLabel(store: Category) {
-    if (store.name === "history") return `${store.blocks} 个存储分片（非业务记录）`;
-    const parts = store.records || (!store.files && !store.mediaBytes) ? [`${store.records} 项记录`] : [];
-    if (store.files) parts.push(`${store.files} 个去重媒体文件`);
-    if (store.blocks && store.mediaBytes) parts.push(`${store.blocks} 个媒体块`);
-    return parts.join(" · ");
+    if (["history", "retained_media", "other", "media_index"].includes(store.name)) return "";
+    if (store.name === "product_recycle" || store.name === "workbook_recycle") return `${store.records} 项可恢复内容`;
+    if (store.files) return `${store.files} 个文件`;
+    return "";
 }
 function StorageMetric({ icon, label, value, hint }: { icon: ReactNode; label: string; value: string; hint: string }) {
     return <div className="rounded-lg bg-stone-100/70 p-3 dark:bg-stone-900/70"><div className="flex items-center gap-2 text-xs text-stone-500">{icon}{label}</div><div className="mt-2 text-xl font-semibold tabular-nums">{value}</div><div className="mt-1 text-[11px] text-stone-500">{hint}</div></div>;

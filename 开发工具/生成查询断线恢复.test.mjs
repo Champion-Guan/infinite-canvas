@@ -72,6 +72,52 @@ test('提交ACK超时后自动查询原任务，不重发收费请求', async ()
   assert.equal(f.commands.filter(value => value.operation === 'submit').length, 1);
   assert.equal(f.commands.filter(value => value.operation === 'get').length, 2);
 });
+for (const operation of ['checkpoint', 'applied']) test(`${operation}遇到自动保存造成的过期检查点只刷新证明，不重新应用或提交`, async () => {
+  const f = fixture({ faults: { [operation]: [operation === 'checkpoint' ? 'generation_canvas_unsaved' : 'generation_canvas_unconfirmed'] } });
+  assert.equal((await runCanvasImageTask(f.options)).applied, true);
+  assert.equal(f.applications, 1);
+  assert.equal(f.commands.filter(value => value.operation === 'submit').length, 1);
+  assert.equal(f.commands.filter(value => value.operation === 'checkpoint').length, 2);
+});
+test('继续保存确认发生超时或applied回执丢失时自动恢复，不下载响应、不新建模型请求', async () => {
+  const f = fixture({ faults: { get: ['request_timeout'], applied: ['lost_ack'] } });
+  await runCanvasImageTask({ ...f.options, deferConfirm: () => true });
+  const before = f.commands.length, task = f.records[0], job = f.jobs.get(task.taskId);
+  assert.equal((await f.options.host.confirmSaved({ id: task.taskId, productId: 'product-A', nodeId: 'node-A' },
+    { responseHash: job.result.id, retryWait: async () => {} })).applied, true);
+  assert.ok(f.commands.slice(before).every(value => ['get', 'checkpoint', 'applied'].includes(value.operation)));
+  assert.equal(f.applications, 1);
+});
+test('仅查询恢复即使原任务已applied且retry为true也绝不创建另一笔收费请求', async () => {
+  const f = fixture(); await runCanvasImageTask(f.options);
+  const before = f.commands.length;
+  await runCanvasImageTask({ ...f.options, previous: f.records[0], recoverOnly: true, retry: true,
+    prepare: () => assert.fail('查询不能准备新请求'), bind: () => assert.fail('查询不能绑定新请求'),
+    applyAndSave: async () => ({ rootRevision: 1, rootHash: 'b'.repeat(64) }) });
+  assert.ok(!f.commands.slice(before).some(value => ['submit', 'bind', 'retire-prepared'].includes(value.operation)));
+});
+test('原任务记录缺失或本机尚未找到时，仅查询恢复拒绝补交，也不收口为新任务', async () => {
+  const f = fixture();
+  await assert.rejects(runCanvasImageTask({ ...f.options, recoverOnly: true }), { code: 'generation_recovery_missing' });
+  await runCanvasImageTask({ ...f.options, deferConfirm: () => true });
+  await assert.rejects(runCanvasImageTask({ ...f.options, previous: f.records[0], recoverOnly: true, retry: true,
+    host: { ...f.options.host, get: async () => { throw new StorageError('generation_not_found', 'missing', 404); },
+      retirePreparedTask: () => assert.fail('查询不能收口任务') },
+    prepare: () => assert.fail('查询不能准备新请求') }), { code: 'generation_recovery_missing' });
+  assert.equal(f.commands.filter(value => value.operation === 'submit').length, 1);
+});
+test('停止查询只停止等待，不取消原模型任务，也不补交请求', async () => {
+  const f = fixture(); await runCanvasImageTask({ ...f.options, deferConfirm: () => true });
+  const controller = new AbortController(), waiting = deferred(), release = deferred();
+  const flight = runCanvasImageTask({ ...f.options, previous: f.records[0], recoverOnly: true, signal: controller.signal,
+    host: { ...f.options.host, get: async id => ({ ...await f.options.host.get(id), state: 'running' }),
+      cancel: () => assert.fail('停止查询不能取消原任务') },
+    wait: async () => { waiting.resolve(); await release.promise; } });
+  await waiting.promise; controller.abort(); release.resolve();
+  await assert.rejects(flight, { name: 'AbortError' });
+  assert.equal(f.commands.filter(value => value.operation === 'submit').length, 1);
+  assert.equal(f.jobs.get(f.records[0].taskId).state, 'succeeded');
+});
 test('确认ACK丢失后重复确认，不重复保存或添加图片', async () => {
   const f = fixture({ faults: { applied: ['lost_ack'] } });
   assert.equal((await runCanvasImageTask(f.options)).applied, true);

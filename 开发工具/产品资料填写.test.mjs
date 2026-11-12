@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { platformState } from './全局平台规则夹具.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
@@ -6,6 +7,7 @@ import { readFileSync } from 'node:fs';
 const require = createRequire(new URL('../.运行/3100源/画布副本/web/package.json', import.meta.url));
 const ts = require('typescript');
 function load(name, dependencies = {}) {
+    dependencies = { './平台规则全局状态': platformState, './平台规则订阅': { useGlobalPlatformRules() {} }, ...dependencies };
     const source = readFileSync(new URL('../扩展功能/' + name, import.meta.url), 'utf8');
     const javascript = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
     const module = { exports: {} };
@@ -44,6 +46,8 @@ test('未识别提示词、无变量的提示词都显示资料表；已识别�
         './产品变体编辑': { ProductVariantEditor: 'ProductVariantEditor' },
         './产品变体规则': { productVariants: metadata => metadata?.productVariants || [] },
         './商品策划按钮': { ProductPlanningButton: 'ProductPlanningButton', ProductPlanOverview: 'ProductPlanOverview' },
+        './商品策划流式预览': { ProductPlanningStreamPreview: 'ProductPlanningStreamPreview' },
+        './平台规则编辑': { ProductPlatformRuleEditor: 'ProductPlatformRuleEditor' },
     });
     const render = () => elements(card.PromptVariablesContent({ ctx: { node, getNode: () => node, getNodes: () => [node] } }));
     assert.ok(!render().some(element => element.props?.['aria-label'] === '本次制作要求'));

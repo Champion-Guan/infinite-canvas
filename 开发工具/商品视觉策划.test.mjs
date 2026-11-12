@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { variantModules, variantFixture } from './产品变体生成夹具.mjs';
 import { createValueCodec } from '../扩展功能/本机存储/应用值编码.mjs';
 import { serializeDocument } from '../扩展功能/本机存储/协议.mjs';
+import { designProtocolPlan } from './商品策划响应夹具.mjs';
 
 const pair = color => ({
     english: `Photograph the actual ${color} travel bag from reference photos, preserving its shape, material, seams and included strap. Use soft daylight and show the complete sale contents.`,
@@ -74,7 +75,20 @@ function planned(loader = modules()) {
 test('通用角色不含平台规格，策划只使用所选平台规则，删除字段的旧值不再影响AI', () => {
     const loader = modules(), { PRODUCT_PLANNING_ROLE } = loader.load('Excel画布/商品视觉策划指令.ts');
     assert.doesNotMatch(PRODUCT_PLANNING_ROLE, /Wildberries|1800|2400|800|500|sunburst/);
-    assert.match(PRODUCT_PLANNING_ROLE, /每张提示词必须能够独立执行/);
+    assert.match(PRODUCT_PLANNING_ROLE, /每张提示词独立完整/);
+    assert.match(PRODUCT_PLANNING_ROLE, /商品事实 -> 可观察的画面证据 -> 对买家的使用价值/);
+    assert.match(PRODUCT_PLANNING_ROLE, /同一主版式不超过整套约三分之一，不连续三张重复/);
+    assert.match(PRODUCT_PLANNING_ROLE, /不把每张图都做成同一背景加同一标题/);
+    assert.match(PRODUCT_PLANNING_ROLE, /明确的极简、技术、奢华或其他风格要求优先/);
+    assert.match(PRODUCT_PLANNING_ROLE, /两部分共同构成最终生图正文/);
+    assert.match(PRODUCT_PLANNING_ROLE, /不把一个小标签当作完整趣味设计/);
+    assert.match(PRODUCT_PLANNING_ROLE, /趣味底板、语义图标和手绘装饰本身不等于促销承诺/);
+    assert.match(PRODUCT_PLANNING_ROLE, /每次重新判断品类，不继承上一商品模板/);
+    assert.match(PRODUCT_PLANNING_ROLE, /不得为了减少内容重复而擅自改换用户任务/);
+    assert.match(PRODUCT_PLANNING_ROLE, /无品牌纯色容器和空白标签/);
+    assert.match(PRODUCT_PLANNING_ROLE, /丰富趣味是默认交付要求/);
+    assert.match(PRODUCT_PLANNING_ROLE, /单纯加粗、放大、换颜色和改为左对齐不算完成标题设计/);
+    assert.match(PRODUCT_PLANNING_ROLE, /若整套看起来仍是照片加统一粗体文字，即使很整齐也不合格/);
     const rules = loader.load('Excel画布/商品提示词规则.ts');
     const task = loader.load('Excel画布/商品策划任务规则.ts');
     const platformRules = loader.load('Excel画布/旧版参数规则.ts');
@@ -214,7 +228,7 @@ test('真实策划入口传入关键词；套装图不展示关键词仍保留�
         '../画布生成/原画布文本调用': { requestCanvasText: async options => {
             incoming = options;
             await options.recordTask({ slotId: options.scope.slotId, taskId: 'keyword-task' });
-            return options.applyAndSave(JSON.stringify(data), { taskId: 'keyword-task' });
+            return options.applyAndSave(JSON.stringify(designProtocolPlan(data)), { taskId: 'keyword-task' });
         } },
     });
     const ctx = { node: fixture.parameter, getNode: id => fixture.nodes.find(node => node.id === id),
@@ -226,8 +240,8 @@ test('真实策划入口传入关键词；套装图不展示关键词仍保留�
     assert.equal(request.requirements.imageKeywordRequirement.text, fixture.parameter.metadata.productBrief.imageKeywords);
     assert.equal(request.facts.brief.imageKeywords, request.requirements.imageKeywordRequirement.text);
     assert.match(request.requirements.imageTextPlanning, /不展示用户关键词不等于无字/);
-    assert.match(incoming.messages[0].content, /不将全部关键词机械重复到每张图/);
-    assert.match(incoming.messages[0].content, /数量或套装图应优先清晰展示已确认的总数/);
+    assert.match(incoming.messages[0].content, /不把全部关键词重复到所有图片/);
+    assert.match(incoming.messages[0].content, /未选中图片不追加这些关键词，但仍可展示与用途相关的总数、尺寸、配件名称或说明/);
     const rules = loader.load('Excel画布/商品提示词规则.ts');
     const generator = loader.load('画布生成/商品提示词生成.ts');
     const configs = fixture.nodes.filter(node => node.type === 'config');
@@ -252,7 +266,7 @@ test('真实策划入口传入关键词；套装图不展示关键词仍保留�
     assert.deepEqual(restored.nodes.map(node => rules.promptDocument(node)), fixture.nodes.map(node => rules.promptDocument(node)));
 });
 
-test('完整中英方案校验；缺少变体、中文、有效尺寸或独立英文时不落地', () => {
+test('完整中英方案校验；缺少变体、中文、有效尺寸、独立英文或有效编号类型时不落地', () => {
     const loader = modules(), rules = loader.load('Excel画布/商品提示词规则.ts');
     const original = planData(['red', 'blue']);
     assert.equal(rules.parseProductImagePlan(JSON.stringify(original), ['red', 'blue']).images.length, 2);
@@ -261,7 +275,7 @@ test('完整中英方案校验；缺少变体、中文、有效尺寸或独立�
         value => value.images[0].prompt.chinese = 'english only',
         value => value.images[0].delivery.width = 0,
         value => value.images[0].prompt.english = 'same as before',
-        value => value.images[1].key = value.images[0].key,
+        value => value.images[1].key = { invalid: 'not-a-string' },
     ]) {
         const value = structuredClone(original); mutate(value);
         assert.throws(() => rules.parseProductImagePlan(JSON.stringify(value), ['red', 'blue']));
@@ -595,7 +609,9 @@ test('十个变体共用一对提示词与配置，单卡按勾选生成十张�
     assert.equal(jobs.length, 10);
     const generator = loader.load('画布生成/商品提示词生成.ts');
     assert.equal(generator.productPromptInputSummary(configs[0].id, fixture.nodes, fixture.connections,
-        { textCount: 1, imageCount: 0, videoCount: 0, audioCount: 0 }).imageCount, 11);
+        { textCount: 1, imageCount: 0, videoCount: 0, audioCount: 0 }).imageCount, 2, '每次只发送本变体独有图和共用图，不统计十个变体图片合集');
+    assert.equal(generator.productPromptInputSummary(configs[0].id, fixture.nodes, fixture.connections,
+        { textCount: 1, imageCount: 0, videoCount: 0, audioCount: 0 }).variants.length, 10);
     assert.deepEqual(jobs.map(job => job.placement.productVariant.snapshot.id).sort(), ids);
     assert.equal(batch.planProductGenerationJobs([configs[0]], fixture.nodes, fixture.connections, 'single').length, 10);
     fixture.parameter.metadata.productVariants[0].enabled = false;
@@ -647,7 +663,7 @@ test('策划服务记录并保存任务后落地，非法结果、旧资料与�
         '@/lib/canvas/canvas-generation-helpers': { buildGenerationConfig: () => ({ model: 'vision' }) },
         './商品策划完成通知': { notifyProductPlanning: (productId, parameterId, completed) => notifications.push({ productId, parameterId, completed, saves }) },
         '../产品/产品操作': { saveProductCanvas: async () => { saves++; return { persisted: !failSave && !(failFinalSave && saves % 2 === 0) }; } },
-        '../画布生成/原画布文本调用': { requestCanvasText: async options => {
+        '../画布生成/原画布文本调用': { confirmSavedCanvasText: async () => {}, requestCanvasText: async options => {
             incoming = options;
             await options.recordTask({ slotId: options.scope.slotId, taskId: 'mock-task' });
             if (cancelled) controller.abort();
@@ -655,7 +671,7 @@ test('策划服务记录并保存任务后落地，非法结果、旧资料与�
             const plan = wbPlanData(['red', 'blue']);
             if (wrongCount) plan.images.pop();
             if (noImages) { plan.images = []; plan.pendingFacts = ['销售数量待确认']; }
-            return options.applyAndSave(JSON.stringify(plan), { taskId: 'mock-task' });
+            return options.applyAndSave(JSON.stringify(designProtocolPlan(plan)), { taskId: 'mock-task' });
         } },
     });
     const ctx = { node: fixture.parameter, getNode: id => fixture.nodes.find(node => node.id === id),
@@ -666,12 +682,12 @@ test('策划服务记录并保存任务后落地，非法结果、旧资料与�
     const service = loader.load('Excel画布/商品策划请求.ts');
     const phases = [];
     await service.planProductImages(ctx, 'product', controller.signal, phase => phases.push({ phase, saves }));
-    assert.equal(ops, 1); assert.equal(saves, 2);
+    assert.equal(ops, 1); assert.equal(saves, 3);
     assert.deepEqual(phases.map(item => item.phase), ['preparing', 'requesting', 'saving-task', 'requesting', 'validating', 'saving-result', 'ready']);
-    assert.equal(phases.at(-1).saves, 2, '阶段成功也必须等最终保存ACK');
+    assert.equal(phases.at(-1).saves, 3, '阶段成功也必须等最终保存ACK');
     assert.deepEqual(notifications, [
         { productId: 'product', parameterId: fixture.parameter.id, completed: false, saves: 0 },
-        { productId: 'product', parameterId: fixture.parameter.id, completed: true, saves: 2 },
+        { productId: 'product', parameterId: fixture.parameter.id, completed: true, saves: 3 },
     ], '只有策划卡片和回执保存确认后才提示一键生图');
     assert.ok(fixture.nodes.filter(node => node.type === 'config').every(node => node.metadata.model === 'user-selected-image'));
     assert.doesNotMatch(incoming.messages[0].content, /Wildberries|1800|2400/);
@@ -684,8 +700,9 @@ test('策划服务记录并保存任务后落地，非法结果、旧资料与�
     const retainedNodes = structuredClone(fixture.nodes), retainedConnections = structuredClone(fixture.connections);
     await assert.rejects(service.planProductImages(ctx, 'product', controller.signal), /图片数量不符合要求/);
     assert.equal(ops, 1);
-    assert.deepEqual(fixture.nodes.map(node => ({ ...node, metadata: { ...node.metadata, gatewayGenerationTasks: undefined } })),
-        retainedNodes.map(node => ({ ...node, metadata: { ...node.metadata, gatewayGenerationTasks: undefined } })), '数量不符时不改原有策划卡片');
+    assert.equal(fixture.parameter.metadata.productPlanningTask.status, 'error');
+    assert.deepEqual(fixture.nodes.map(node => ({ ...node, metadata: { ...node.metadata, gatewayGenerationTasks: undefined, productPlanningTaskSources: undefined, productPlanningTask: undefined } })),
+        retainedNodes.map(node => ({ ...node, metadata: { ...node.metadata, gatewayGenerationTasks: undefined, productPlanningTaskSources: undefined, productPlanningTask: undefined } })), '数量不符时不改原有策划卡片');
     assert.deepEqual(fixture.connections, retainedConnections);
     wrongCount = false;
     failSave = true;
@@ -699,10 +716,15 @@ test('策划服务记录并保存任务后落地，非法结果、旧资料与�
     cancelled = false; controller = new AbortController(); failFinalSave = true; saves = 0;
     await assert.rejects(service.planProductImages(ctx, 'product', controller.signal), /保存尚未确认/);
     assert.equal(notifications.filter(item => item.completed).length, 1, '最后保存失败也不能提示成功');
-    failFinalSave = false; noImages = true;
+    failFinalSave = false;
+    const committedOps = ops;
+    await service.planProductImages(ctx, 'product', controller.signal);
+    assert.equal(ops, committedOps, '最终保存失败后先确认已应用的原任务，不重新策划');
+    assert.equal(notifications.filter(item => item.completed).length, 2);
+    noImages = true;
     const pendingPhases = [];
     await service.planProductImages(ctx, 'product', controller.signal, phase => pendingPhases.push(phase));
-    assert.equal(notifications.filter(item => item.completed).length, 1, '只有待确认问题时不能提供一键生图');
+    assert.equal(notifications.filter(item => item.completed).length, 2, '只有待确认问题时不能提供一键生图');
     assert.equal(pendingPhases.at(-1), 'needs-input', '仅待补资料不能停留在保存中的旋转状态');
 });
 
@@ -800,6 +822,7 @@ test('旧翻译错误可重试，失败仅更新错误说明，保留中英文�
         './Excel画布上下文': { useExcelProductId: () => 'product' },
         './商品策划请求': { translateProductPrompt: async () => { calls++; throw new Error(resourceError); } },
         './商品待确认编辑': { ProductConfirmationDialog: 'ProductConfirmationDialog' },
+        './图片引用标签': { ImageReferenceToken: 'ImageReferenceToken', ImageReferenceText: 'ImageReferenceText' },
         '../提示词/双语联动文本框': { useBilingualPromptSync: () => ({}), BilingualPromptField: 'textarea' },
         antd: { Segmented: 'Segmented' }, '../主题/页签内容过渡': { TabContentTransition: 'TabContentTransition' },
     });

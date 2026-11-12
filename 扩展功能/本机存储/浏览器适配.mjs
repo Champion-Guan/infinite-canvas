@@ -46,6 +46,9 @@ export function createDataClient({ url, session, fetchImpl = globalThis.fetch, o
   }
   return {
     getStatus: status,
+    storageMaintenance(input) {
+      return request(`${base}/storage-maintenance`, 'POST', JSON.stringify(input), 'application/json', 120_000, response => response.json());
+    },
     readNamespace(namespace) {
       return operation(`namespace:${namespace}`, async () => {
         requireValue(APP_NAMESPACES.includes(namespace), 'namespace_denied', '未声明的应用存储命名空间。');

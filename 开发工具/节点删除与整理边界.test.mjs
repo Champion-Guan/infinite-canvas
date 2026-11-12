@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { platformState } from './全局平台规则夹具.mjs';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -11,6 +12,7 @@ import typescript from '../.运行/3100源/画布副本/web/node_modules/typescr
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 async function load(name, dependencies = {}) {
+    dependencies = { './平台规则全局状态': platformState, ...dependencies };
     const file = resolve(root, '扩展功能', name);
     const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file, { loader: 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
     const module = { exports: {} };

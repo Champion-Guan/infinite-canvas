@@ -4,6 +4,8 @@ import { productVariants, variantImages, variantLabel, variantParameterMetadata,
 import { PRODUCT_BRIEF_FIELDS, PRODUCT_PLATFORM_OPTIONS, WILDBERRIES_PLATFORM, productPlatformRules } from "./旧版参数规则";
 import { readBilingualSegments, type BilingualAlignment } from "../提示词/双语片段对齐";
 import { baseConfirmationSupplement, parseConditionalTemplates, parseConfirmations, validateConditionalTemplates, type Confirmation } from "./商品待确认规则";
+import { compileProductDesignSegments, requireProductPlanDesignProtocol } from "./商品设计片段";
+import { normalizeProductPlanImageKeys } from "./商品策划标识规则";
 
 export const PRODUCT_PROMPT_NODE_TYPE = "guan:product-prompt";
 export type BilingualPrompt = { english: string; chinese: string; translatedChinese: string; translationError?: string; alignment?: BilingualAlignment; conditionalTemplate?: string };
@@ -21,14 +23,15 @@ export type ProductImagePlan = {
 export type ProductPromptDocument = ProductImageBrief & {
     parameterId: string; generatedSignature: string; planIndex?: number; variantId?: string; variantName?: string; planName?: string;
 };
-export type ProductPlanningParameters = Pick<ProductVariantMetadata, "productPlatform" | "productPlatformRules" | "productBrief" |
+export type ProductPlanningParameters = Pick<ProductVariantMetadata, "productPlatform" | "productPlatformRules" | "productPlatformRuleOverrides" | "productBrief" |
     "promptVariableValues" | "promptVariableSupplement" | "productMainImages" | "productMainImageStorageKey" | "productMainImageUrl" |
     "productMainImageWidth" | "productMainImageHeight" | "productMainImageBytes" | "productMainImageMimeType" | "productVariants" | "productSharedImageIds">;
-export const productPlanningParameterKeys = ["productPlatform", "productPlatformRules", "productBrief", "promptVariableValues",
+export const productPlanningParameterKeys = ["productPlatform", "productPlatformRules", "productPlatformRuleOverrides", "productBrief", "promptVariableValues",
     "promptVariableSupplement", "productMainImages", "productMainImageStorageKey", "productMainImageUrl", "productMainImageWidth",
     "productMainImageHeight", "productMainImageBytes", "productMainImageMimeType", "productVariants", "productSharedImageIds"] as const;
 export const productPlanningParameters = (metadata: ProductVariantMetadata): string =>
-    JSON.stringify(Object.fromEntries(productPlanningParameterKeys.map(key => [key, metadata[key]])), (key, value) =>
+    JSON.stringify({ ...Object.fromEntries(productPlanningParameterKeys.map(key => [key, metadata[key]])),
+        productPlatformRules: productPlatformRules({ ...metadata, productPlatform: metadata.productPlatform || WILDBERRIES_PLATFORM }) }, (key, value) =>
         key === "url" && typeof value === "string" && value.startsWith("blob:") ? undefined : value);
 export type ProductPromptMetadata = CanvasNodeMetadata & {
     productImagePrompt?: ProductPromptDocument;
@@ -82,28 +85,29 @@ export function validateEnglishPrompt(value: unknown) {
     if (latin < 30 || chinese > latin / 5) throw Error("英文提示词不完整或主要内容不是英文，请重新生成。");
     return result;
 }
-function bilingual(value: unknown): BilingualPrompt {
-    const aligned = readBilingualSegments(value);
+function bilingual(value: unknown, path: string, requireDesign: boolean) {
+    const design = compileProductDesignSegments(value, path, requireDesign);
+    const aligned = design?.prompt || readBilingualSegments(value);
     const item = aligned || value as { english?: unknown; chinese?: unknown } | null;
     const chinese = text(item?.chinese, "中文对照");
     if (!/[\u3400-\u9fff]/.test(chinese)) throw Error("策划结果缺少中文对照，请重新生成。");
-    const conditionalTemplate = parseConditionalTemplates((value as { conditions?: unknown } | null)?.conditions);
-    return { english: validateEnglishPrompt(item?.english), chinese, translatedChinese: chinese, ...(aligned ? { alignment: aligned.alignment } : {}),
+    const conditionalTemplate = parseConditionalTemplates((value as { conditions?: unknown } | null)?.conditions, `${path}.conditions`);
+    const pair: BilingualPrompt = { english: validateEnglishPrompt(item?.english), chinese, translatedChinese: chinese, ...(aligned ? { alignment: aligned.alignment } : {}),
         ...(conditionalTemplate ? { conditionalTemplate } : {}) };
+    return { pair, copyLayout: design?.copyLayout };
 }
 
-export function parseProductImagePlan(response: string, variantIds: string[]): ProductImagePlan {
+export function parseProductImagePlan(response: string, variantIds: string[], options: { requireDesign?: boolean } = {}): ProductImagePlan {
     let input;
     try { input = JSON.parse(response.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")); }
     catch { throw Error("AI 返回的策划格式不完整，请重试；原有卡片已保留。"); }
     if (!input || !Array.isArray(input.images) || !Array.isArray(input.pendingFacts) || !Array.isArray(input.assumptions)
         || (!input.images.length && !input.pendingFacts.length))
         throw Error("策划结果缺少图片方案或待确认项，原有卡片已保留。");
-    const keys = new Set<string>();
-    const images: ProductImageBrief[] = input.images.map((item: Record<string, unknown>) => {
+    const requireDesign = requireProductPlanDesignProtocol(input.protocolVersion, options.requireDesign === true);
+    normalizeProductPlanImageKeys(input);
+    const images: ProductImageBrief[] = input.images.map((item: Record<string, unknown>, index: number) => {
         const key = text(item?.key, "图片标识");
-        if (!/^[a-z0-9][a-z0-9-]{0,79}$/.test(key) || keys.has(key)) throw Error("策划中的图片标识无效或重复，请重试。");
-        keys.add(key);
         if (!["main", "carousel", "rich"].includes(String(item.kind))) throw Error("策划包含不支持的图片类型。");
         const delivery = item.delivery as ProductImageBrief["delivery"] | undefined;
         if (!delivery || !Number.isSafeInteger(delivery.width) || delivery.width < 1
@@ -111,20 +115,27 @@ export function parseProductImagePlan(response: string, variantIds: string[]): P
             || !["png", "jpeg", "webp"].includes(delivery.format)
             || (delivery.maxMB !== null && !(Number.isFinite(delivery.maxMB) && delivery.maxMB > 0)))
             throw Error("策划缺少有效的交付尺寸、格式或文件大小要求。");
+        const prompt = bilingual(item.prompt, `images[${index}].prompt`, requireDesign);
         return {
             key, kind: item.kind as ProductImageBrief["kind"], name: text(item.name, "图片名称"),
             buyerQuestion: text(item.buyerQuestion, "买家问题"), evidence: text(item.evidence, "展示依据"),
             composition: text(item.composition, "构图与拍摄角度"), constraints: text(item.constraints, "禁止改动项"),
-            copyLayout: text(item.copyLayout, "文案与排版建议（无文字时应说明）"),
-            delivery, checks: text(item.checks, "人工检查项"), prompt: bilingual(item.prompt),
-            variants: Object.fromEntries(variantIds.map(id => [id, bilingual((item.variants as Record<string, unknown> | undefined)?.[id])])),
+            copyLayout: prompt.copyLayout ?? text(item.copyLayout, "文案与排版建议（无文字时应说明）"),
+            delivery, checks: text(item.checks, "人工检查项"), prompt: prompt.pair,
+            variants: Object.fromEntries(variantIds.map((id, variantIndex) => [id, bilingual(
+                (item.variants as Record<string, unknown> | undefined)?.[id], `images[${index}].variants[${variantIndex}]`, requireDesign).pair])),
             ...(Array.isArray(item.confirmationImageIds) && item.confirmationImageIds.every(id => typeof id === "string" && id.length < 100)
                 ? { confirmationImageIds: [...new Set(item.confirmationImageIds)] as string[] } : {}),
         };
     });
     const confirmations = parseConfirmations(input.confirmations, images.map(image => image.key));
-    for (const image of images) for (const pair of [image.prompt, ...Object.values(image.variants)])
-        validateConditionalTemplates(pair.chinese, pair.english, pair.conditionalTemplate, confirmations || [], image.key);
+    for (const [index, image] of images.entries()) {
+        validateConditionalTemplates(image.prompt.chinese, image.prompt.english, image.prompt.conditionalTemplate,
+            confirmations || [], image.key, `images[${index}].prompt`);
+        for (const [variantIndex, pair] of Object.values(image.variants).entries())
+            validateConditionalTemplates(pair.chinese, pair.english, pair.conditionalTemplate,
+                confirmations || [], image.key, `images[${index}].variants[${variantIndex}]`);
+    }
     const overview = Object.fromEntries(["buyers", "sellingPoints", "concerns", "consistency", "sequence"]
         .map(key => [key, text(input.overview?.[key], "整套策划概览")])) as ProductImagePlan["overview"];
     return { overview, style: text(input.style, "统一视觉风格"),
@@ -211,6 +222,8 @@ export function productPlanningChangeDetails(metadata: ProductVariantMetadata, p
             const platform = (value: unknown) => PRODUCT_PLATFORM_OPTIONS.find(option => option.value === value)?.label || display(value);
             changedValue("上架平台", "上架平台", platform(old[0][key]), platform(current[0][key]));
         } else if (key === "channelRequirements" && old[0].platform !== current[0].platform) continue;
+        else if (key === "channelRequirements") changes.push({ label: "平台规则",
+            reason: "该平台的全局规则已更新，请重新使用“AI写提示词”，或在平台规则中恢复策划时的全局设置。" });
         else if (key === "brief" || key === "variables") {
             const before = old[0][key] as Record<string, unknown> || {}, after = current[0][key] as Record<string, unknown> || {};
             for (const field of new Set([...Object.keys(before), ...Object.keys(after)])) {

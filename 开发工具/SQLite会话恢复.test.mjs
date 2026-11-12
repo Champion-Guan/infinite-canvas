@@ -26,7 +26,8 @@ function loadStorageBridge() {
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const module = { exports: {} };
   new Function('module', 'exports', 'require', js)(module, module.exports,
-    id => { assert.equal(id, '../软件更新/升级页面状态.mjs'); return upgradeState; });
+    id => { if (id === '../Excel画布/平台规则全局状态') return { globalPlatformRules: { initialize: async () => {} } };
+      assert.equal(id, '../软件更新/升级页面状态.mjs'); return upgradeState; });
   return module.exports;
 }
 const roots = [];

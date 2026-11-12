@@ -1,4 +1,4 @@
-import { WILDBERRIES_IMAGE_COUNTS, WILDBERRIES_PLATFORM, productPlatformRules, type ProductParameterMetadata } from "./旧版参数规则";
+import { WILDBERRIES_IMAGE_COUNTS, WILDBERRIES_PLATFORM, productPlatformRules, usesDefaultProductPlatformRules, type ProductParameterMetadata } from "./旧版参数规则";
 import type { ProductImagePlan } from "./商品提示词规则";
 import { productImageLanguageRequirement } from "./商品图片语言";
 
@@ -13,23 +13,24 @@ export function productPlanningRequirements(metadata: ProductParameterMetadata) 
         imageKeywordRequirement: keywords ? {
             text: keywords,
             selection: "由AI根据整套图片分工、买家问题、构图留白和渠道要求选择适合展示关键词的图片，不要求每张图片都展示，也不把全部关键词重复堆到每张图。未选中关键词的图片仍可按用途添加总数、尺寸等必要文字。",
-            rendering: "关键词是要在图片中实际显示的文字，不只是策划主题或隐藏描述。为选中图片在完整中英文生图提示词中写明具体上图文字、字体风格与字重、字号层级、颜色对比、构图位置、对齐与安全留白；copyLayout与提示词保持一致，不能仅留作后期排版建议。",
+            rendering: "关键词是要在图片中实际显示的文字，不只是策划主题或隐藏描述。为选中图片在双语designSegments中写明具体上图文字、字体风格与字重、字号层级、颜色对比、构图位置、对齐与安全留白；程序将其直接拼入实际生图正文并生成排版说明，不能仅留作后期排版建议。",
             language: "普通关键词按本次图片文字语言准确表达，不改变原意；未指定语言时保留原文。品牌名、产品名、型号、数字和单位保留。中英文提示词引用相同的实际上图文字。",
         } : null,
         channelRules: productPlatformRules({ ...metadata, productPlatform: platform }),
-        production: platform === WILDBERRIES_PLATFORM ? {
+        production: platform === WILDBERRIES_PLATFORM && usesDefaultProductPlatformRules({ ...metadata, productPlatform: platform }) ? {
             mainAndCarousel: { count: WILDBERRIES_IMAGE_COUNTS.main + WILDBERRIES_IMAGE_COUNTS.carousel,
                 mainCount: WILDBERRIES_IMAGE_COUNTS.main, carouselCount: WILDBERRIES_IMAGE_COUNTS.carousel,
                 width: 1800, height: 2400, format: "png", maxMB: 10, overlayText: "as-needed", promotionalLabels: false },
             rich: { required: true, count: WILDBERRIES_IMAGE_COUNTS.rich, width: 800, height: 500, format: "png", maxMB: 5, video: false },
             main: "完整展示实际销售商品或套装；细节图可按需要展示局部，不误导整体结构和数量。",
         } : null,
-        instructions: "本次任务的 production 如明确规定图片分类与数量，必须按规定输出完整方案，每个选中变体沿用同一套图片分工；否则根据商品事实智能决定图片类型和数量。未给出的渠道规格不得套用其他平台规则；必要制作假设列入 assumptions。每个变体使用其专属照片与事实，共用图片分工和风格，不能混用颜色、尺寸、数量或款式。输出格式及文件大小需要导出后检查。",
+        instructions: "channelRules 是该平台统一保存的全局规则，按其中明确的分类、数量、尺寸和格式制作，不套用旧卡片或旧默认规则。production 非空时按其结构化规格输出完整方案；production 为空时优先使用 channelRules，未指定的类型与数量再根据商品事实决定。每个选中变体沿用同一套图片分工。未给出的渠道规格不得套用其他平台规则；必要制作假设列入 assumptions。每个变体使用其专属照片与事实，共用图片分工和风格，不能混用颜色、尺寸、数量或款式。输出格式及文件大小需要导出后检查。",
     };
 }
 
 export function validateProductPlanRequirements(plan: ProductImagePlan, metadata: ProductParameterMetadata) {
-    if ((metadata.productPlatform || WILDBERRIES_PLATFORM) !== WILDBERRIES_PLATFORM || !plan.images.length) return;
+    if ((metadata.productPlatform || WILDBERRIES_PLATFORM) !== WILDBERRIES_PLATFORM
+        || !usesDefaultProductPlatformRules({ ...metadata, productPlatform: metadata.productPlatform || WILDBERRIES_PLATFORM }) || !plan.images.length) return;
     if (!plan.images.some(image => image.kind === "main") || !plan.images.some(image => image.kind === "rich"))
         throw Error("本次 Wildberries 制作需求包含主图和富内容，请重新策划。");
     for (const image of plan.images) {

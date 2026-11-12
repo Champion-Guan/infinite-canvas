@@ -12,6 +12,7 @@ import { DEFAULT_VARIANT_ATTRIBUTES, groupVariantImagesByFilename, newProductVar
 import { generationProductParameters, generationPromptVariantId } from "../画布生成/产品变体生成";
 import type { ProductPromptMetadata } from "./商品提示词规则";
 import { getGenerationCount } from "@/lib/canvas/canvas-generation-helpers";
+import { ImageUploadNumber } from "../媒体交付/图片上传编号";
 
 export function ProductVariantEditor({ ctx, onChange, tokens }: {
     ctx: CanvasNodeContext; onChange: (patch: CanvasNodeMetadata) => void; tokens: string[];
@@ -154,11 +155,12 @@ export function ProductVariantEditor({ ctx, onChange, tokens }: {
             <Modal title={picking === "shared" ? "共用图片" : `${target ? variantLabel(target) : ""} · 分配图片`} open={Boolean(picking)} onCancel={() => setPicking(null)}
                 footer={null} destroyOnHidden width={640}>
                 <div className="guan-scroll-region max-h-[60vh] space-y-3 overflow-y-auto">
-                    {!images.length ? <p>请先上传产品主图。</p> : <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">{images.map(image => {
+                    {!images.length ? <p>请先上传产品主图。</p> : <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">{images.map((image, index) => {
                         const checked = selectedIds.includes(image.id);
                         return <div key={image.id} className="min-w-0 space-y-1">
                             <button type="button" aria-label={`选择图片 ${image.name}`} aria-pressed={checked} onClick={() => choose(image.id, !checked)} className={`relative grid aspect-square w-full overflow-hidden rounded-lg border-2 transition-colors motion-reduce:transition-none ${checked ? "border-blue-500 bg-blue-500/10" : "border-transparent bg-black/[.04]"}`}>
                                 <MediaThumbnail storageKey={image.storageKey} fallback={image.url} alt={image.name} className="h-full min-h-0 w-full object-contain" />
+                                <ImageUploadNumber number={index + 1} />
                                 <span aria-hidden="true" className={`pointer-events-none absolute right-1 top-1 grid size-5 place-items-center rounded border ${checked ? "border-blue-500 bg-blue-500 text-white" : "border-black/20 bg-white"}`}>{checked ? <Check className="size-3.5" /> : null}</span>
                             </button>
                             <p className="truncate text-xs" title={image.name}>{image.name}</p>

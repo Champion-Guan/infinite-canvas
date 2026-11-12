@@ -11,9 +11,14 @@ import * as ownership from '../扩展功能/本机存储/回收站归属.mjs';
 import { openWorkspace } from '../扩展功能/本机存储/SQLite工作区.mjs';
 import { createRecoverableShardedApplicationStorage } from '../扩展功能/本机存储/可恢复分片应用存储.mjs';
 import { startDataService } from '../扩展功能/本机服务/数据服务.mjs';
+import { DatabaseSync } from 'node:sqlite';
 import { createDataClient } from '../扩展功能/本机存储/浏览器适配.mjs';
 
 const source = path => readFileSync(join(根目录, path), 'utf8');
+function hasMedia(workspace, id) {
+  try { workspace.readMedia(id); return true; }
+  catch (error) { if (error.code !== 'media_not_found') throw error; return false; }
+}
 function load(text, imports = {}) {
   const context = vm.createContext({ exports: {}, require(name) { if (!(name in imports)) throw Error('未知测试导入：' + name); return imports[name]; }, console });
   vm.runInContext(ts.transpileModule(text, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText, context);
@@ -124,15 +129,15 @@ test('清空产品回收站实删专属文件和日志，保护活跃共享图�
   const result = await f.api.clearRecycleStorage('product_recycle'); assert.equal(result.pending, false);
   assert.equal(f.canvas().deletedProjects.length, 0); assert.equal(f.canvas().guanWorkbooks.contract.products.length, 0);
   assert.equal(f.canvas().guanWorkbooks.contract.productSets.length, 1); assert.equal(f.canvas().guanWorkbooks.recycledWorkbooks.length, 1);
-  for (const [key, id] of Object.entries(f.ids)) assert.equal(existsSync(join(f.root, '媒体', id)), ['image:shared', 'video:book'].includes(key), key);
+  for (const [key, id] of Object.entries(f.ids)) assert.equal(hasMedia(f.workspace, id), ['image:shared', 'video:book'].includes(key), key);
   assert.equal(await f.app.createInstance({ storeName: 'image_generation_logs' }).getItem('log'), null);
   assert.equal(row(await f.workspace.readDetailedUsage(), 'product_recycle').records, 0);
   assert.equal(await f.api.pendingRecycleCleanup(), null);
   await f.api.clearRecycleStorage('workbook_recycle');
-  assert.equal(existsSync(join(f.root, '媒体', f.ids['video:book'])), false);
-  assert.equal(existsSync(join(f.root, '媒体', f.ids['image:shared'])), true);
+  assert.equal(hasMedia(f.workspace, f.ids['video:book']), false);
+  assert.equal(hasMedia(f.workspace, f.ids['image:shared']), true);
   await f.app.createInstance({ storeName: 'image_files' }).setItem('image:delivery', f.blobs['image:delivery']);
-  assert.equal(existsSync(join(f.root, '媒体', f.ids['image:delivery'])), true, '重新导入同一Blob对象也会重传已删除内容');
+  assert.equal(hasMedia(f.workspace, f.ids['image:delivery']), true, '重新导入同一Blob对象也会重传已删除内容');
 }));
 
 test('committed阶段逻辑索引保存失败，重试先恢复原队列再完成媒体清理', t => fixture(t, async f => {
@@ -142,7 +147,7 @@ test('committed阶段逻辑索引保存失败，重试先恢复原队列再完�
   f.controls.failNamespace = '';
   await f.api.clearRecycleStorage('product_recycle');
   assert.equal(await f.api.pendingRecycleCleanup(), null);
-  assert.equal(existsSync(join(f.root, '媒体', f.ids['image:delivery'])), false);
+  assert.equal(hasMedia(f.workspace, f.ids['image:delivery']), false);
 }));
 
 test('两类回收站共用媒体时先清其中一类保留，最后一个所有者删除后才释放', t => fixture(t, async f => {
@@ -150,9 +155,19 @@ test('两类回收站共用媒体时先清其中一类保留，最后一个所�
   f.setCanvas({ ...s, guanWorkbooks: { ...s.guanWorkbooks, recycledWorkbooks: s.guanWorkbooks.recycledWorkbooks.map(book => ({ ...book, projects: [...book.projects, { id: 'second', nodes: [mediaNode('image:delivery')] }] })) } });
   await f.flush();
   await f.api.clearRecycleStorage('product_recycle');
-  assert.equal(existsSync(join(f.root, '媒体', f.ids['image:delivery'])), true);
+  assert.equal(hasMedia(f.workspace, f.ids['image:delivery']), true);
   await f.api.clearRecycleStorage('workbook_recycle');
-  assert.equal(existsSync(join(f.root, '媒体', f.ids['image:delivery'])), false);
+  assert.equal(hasMedia(f.workspace, f.ids['image:delivery']), false);
+}));
+test('按到期清单只移除指定回收项，较新回收项及其同图引用保持可恢复', t => fixture(t, async f => {
+  const s = f.canvas();
+  f.setCanvas({ ...s, deletedProjects: [...s.deletedProjects, { id: 'younger', deletedAt: '2026-11-10',
+    project: { id: 'younger', nodes: [mediaNode('image:delivery')] } }] });
+  await f.flush();
+  await f.api.clearRecycleStorage('product_recycle', ['deleted:2026-10-27']);
+  assert.deepEqual(f.canvas().deletedProjects.map(entry => entry.id), ['younger']);
+  assert.equal(hasMedia(f.workspace, f.ids['image:delivery']), true);
+  assert.ok(await f.app.createInstance({ storeName: 'image_files' }).getItem('image:delivery'));
 }));
 
 test('物理清理失败有持久重试清单；重试保留后来恢复产品引用的图', t => fixture(t, async f => {
@@ -162,7 +177,7 @@ test('物理清理失败有持久重试清单；重试保留后来恢复产品�
   const s = f.canvas(); f.setCanvas({ ...s, projects: [...s.projects, { id: 'restored', nodes: [mediaNode('image:result')] }] });
   await f.app.createInstance({ storeName: 'image_files' }).setItem('image:result', new Blob(['image:result'], { type: 'image/png' }));
   f.controls.failPurge = false; await f.api.clearRecycleStorage('product_recycle');
-  assert.equal(existsSync(join(f.root, '媒体', f.ids['image:result'])), true);
+  assert.equal(hasMedia(f.workspace, f.ids['image:result']), true);
   assert.equal(await f.api.pendingRecycleCleanup(), null);
 }));
 
@@ -190,7 +205,9 @@ test('后端近期上传延后、SQL引用保护、幂等重试及链接拒绝',
   assert.deepEqual(f.workspace.purgeMedia([free.id]).deleted, [free.id]);
   const linked = f.workspace.writeMedia(Buffer.from('linked'), 'image/png'); t.mock.timers.tick(16_000);
   const target = join(f.root, 'outside'); writeFileSync(target, 'keep', { mode: 0o600 });
-  rmSync(join(f.root, '媒体', linked.id)); symlinkSync(target, join(f.root, '媒体', linked.id));
+  const legacy = new DatabaseSync(join(f.root, '工作台.sqlite'));
+  try { legacy.prepare('UPDATE media SET content=NULL WHERE id=?').run(linked.id); } finally { legacy.close(); }
+  symlinkSync(target, join(f.root, '媒体', linked.id));
   assert.throws(() => f.workspace.purgeMedia([linked.id])); assert.equal(readFileSync(target, 'utf8'), 'keep');
   rmSync(join(f.root, '媒体', linked.id));
 }));

@@ -1,0 +1,47 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index 7a405db..efe4aa6 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -1,6 +1,7 @@
+ import { isAudioFile } from "@/lib/canvas/canvas-generation-helpers";
+ import { MediaThumbnail } from "@/扩展功能/媒体交付/媒体缩略图";
+ import { ASSET_DRAG_TYPE, assetDragData } from "@/扩展功能/素材/上传资产规则";
++import { ImageUploadNumber } from "@/扩展功能/媒体交付/图片上传编号";
+ import { hasHeicNameOrType } from "@/扩展功能/媒体交付/HEIC格式识别.mjs";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { panelTransition, useHiddenPanelExit } from "@/扩展功能/主题/侧栏动效";
+@@ -477,6 +478,8 @@ const CanvasAssetsTab = memo(function CanvasAssetsTab({ projectId, onInsert, the
+     const fileInputRef = useRef<HTMLInputElement>(null);
+ 
+     const scopedAssets = useMemo(() => assets.filter(asset => assetInScope(asset, projectId, "product")), [assets, projectId]);
++    const imageNumbers = useMemo(() => new Map(scopedAssets.filter(asset => asset.kind === "image").slice().reverse()
++        .sort((a, b) => a.createdAt.localeCompare(b.createdAt)).map((asset, index) => [asset.id, index + 1])), [scopedAssets]);
+     const allTags = useMemo(() => Array.from(new Set(scopedAssets.flatMap((asset) => asset.tags || []))).slice(0, 20), [scopedAssets]);
+ 
+     const filtered = useMemo(() => {
+@@ -563,7 +566,7 @@ const CanvasAssetsTab = memo(function CanvasAssetsTab({ projectId, onInsert, the
+                                     {isCollapsed ? null : (
+                                         <div className="grid grid-cols-2 gap-2 px-1 pb-2 pt-1">
+                                             {group.items.map((asset) => (
+-                                                <AssetCard key={asset.id} asset={asset} projectId={projectId} theme={theme} onInsert={() => onInsert(buildInsertPayload(asset))} onRemove={() => (removeAsset(asset.id), message.success(t("canvas.sidePanel.assetRemoved")))} />
++                                                <AssetCard key={asset.id} asset={asset} number={imageNumbers.get(asset.id)} projectId={projectId} theme={theme} onInsert={() => onInsert(buildInsertPayload(asset))} onRemove={() => (removeAsset(asset.id), message.success(t("canvas.sidePanel.assetRemoved")))} />
+                                             ))}
+                                         </div>
+                                     )}
+@@ -663,7 +666,7 @@ function recycleBinImagePreview(node: CanvasNodeData) {
+     return previewUrlFor(storageKey) || primaryImage?.content || node.metadata?.content || "";
+ }
+ 
+-function AssetCard({ asset, projectId, theme, onInsert, onRemove }: { asset: Asset; projectId: string; theme: CanvasTheme; onInsert: () => void; onRemove: () => void }) {
++function AssetCard({ asset, number, projectId, theme, onInsert, onRemove }: { asset: Asset; number?: number; projectId: string; theme: CanvasTheme; onInsert: () => void; onRemove: () => void }) {
+     const { t } = useTranslation();
+     return (
+         <div draggable tabIndex={0} role="group" aria-label={`${asset.title}，可拖入画布`} title={`${asset.title} · 拖入画布添加`}
+@@ -672,6 +675,7 @@ function AssetCard({ asset, projectId, theme, onInsert, onRemove }: { asset: Ass
+             onDragStart={event => { event.stopPropagation(); event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData(ASSET_DRAG_TYPE, assetDragData(asset.id, projectId)); }}
+             className="guan-card-surface group relative aspect-square cursor-grab overflow-hidden rounded-xl border active:cursor-grabbing" style={{ borderColor: theme.node.stroke, background: theme.node.panel }}>
+             <div className="pointer-events-none size-full"><AssetCover asset={asset} /></div>
++            <ImageUploadNumber number={number} />
+             <div className="absolute inset-0 flex items-center justify-center gap-2.5 opacity-0 transition duration-200 group-hover:opacity-100">
+                 <button
+                     type="button"

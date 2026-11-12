@@ -3,11 +3,13 @@ import { requireValue, validHash, validId } from '../本机存储/协议.mjs';
 import { GENERATION_PROTOCOL, TASK_STATES, terminalState, validateSubmission, jobLike, exactKeys, bindingLike } from '../生成网关/生成协议.mjs';
 import { createTransientTextProgress } from './文本临时进度.mjs';
 import { createPreparedTaskRetirement } from './未提交任务重试收口.mjs';
+import { persistResponseMedia, readResponseMedia, responseMediaIds, RESPONSE_IMAGE_ENCODING } from './响应图片共用存储.mjs';
 
 const ledgerId = 'guan-generation-ledger-v1', format = 'guan-generation-ledger.v1';
 const hash = value => createHash('sha256').update(value).digest('hex');
 const publicJob = job => ({ id: job.id, productId: job.productId, nodeId: job.nodeId, state: job.state, applied: job.applied, createdAt: job.createdAt, updatedAt: job.updatedAt,
-  result: job.result && { ...job.result }, reason: job.reason });
+  result: job.result && { id: job.result.originalHash || job.result.id, status: job.result.status, contentType: job.result.contentType,
+    size: job.result.originalSize || job.result.size }, reason: job.reason });
 
 // 请求正文只在进程内使用；账本只存摘要、归属、状态和已消毒响应的媒体引用。
 // running提交后才允许发出请求。重启不重发，succeeded不等于画布已保存。
@@ -31,14 +33,19 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
       requireValue(exactKeys(job, ['id', 'productId', 'nodeId', 'binding', 'requestHash', 'state', 'applied', 'createdAt', 'updatedAt', 'result', 'reason']) &&
         jobLike(job.id) && !ids.has(job.id) && validId(job.productId) && validId(job.nodeId) && bindingLike(job.binding) && validHash(job.requestHash) && TASK_STATES.includes(job.state) && typeof job.applied === 'boolean' &&
         Number.isSafeInteger(job.createdAt) && job.createdAt >= 0 && Number.isSafeInteger(job.updatedAt) && job.updatedAt >= job.createdAt && typeof job.reason === 'string' && /^[a-z_]{0,64}$/.test(job.reason) &&
-        (!job.applied || job.state === 'succeeded') && (job.result === null || exactKeys(job.result, ['id', 'status', 'contentType', 'size']) && validHash(job.result.id) &&
+        (!job.applied || job.state === 'succeeded') && (job.reason !== 'result_expired' || job.applied && job.state === 'succeeded') &&
+        (job.result === null || (exactKeys(job.result, ['id', 'status', 'contentType', 'size']) ||
+          exactKeys(job.result, ['id', 'status', 'contentType', 'size', 'encoding', 'mediaIds', 'originalHash', 'originalSize']) && job.result.encoding === RESPONSE_IMAGE_ENCODING &&
+          validHash(job.result.originalHash) && Number.isSafeInteger(job.result.originalSize) && job.result.originalSize > 0 && job.result.originalSize <= 32 * 1024 ** 2 &&
+          Array.isArray(job.result.mediaIds) && job.result.mediaIds.length <= 256 && job.result.mediaIds.every(validHash) &&
+          new Set(job.result.mediaIds).size === job.result.mediaIds.length) && validHash(job.result.id) &&
           Number.isInteger(job.result.status) && job.result.status >= 200 && job.result.status <= 599 && typeof job.result.contentType === 'string' && job.result.contentType.length <= 256 && !/[\r\n\0]/.test(job.result.contentType) &&
           Number.isSafeInteger(job.result.size) && job.result.size > 0 && job.result.size <= 32 * 1024 * 1024) &&
         (!['succeeded', 'failed'].includes(job.state) || (job.state === 'succeeded'
-          ? job.result?.status < 300
+          ? job.result?.status < 300 || job.applied && job.result === null && job.reason === 'result_expired'
           : job.result ? job.result.status >= 400 : ['upstream_result_missing', 'interrupted_before_dispatch'].includes(job.reason))),
       'generation_ledger_invalid', '任务记录不完整或状态冲突。', 409);
-      ids.add(job.id); if (job.result) refs.add(job.result.id);
+      ids.add(job.id); if (job.reason !== 'result_expired') for (const id of responseMediaIds(job.result)) refs.add(id);
     }
     requireValue([...refs].sort().join(',') === [...doc.mediaIds].sort().join(','), 'generation_ledger_invalid', '任务结果媒体引用不完整。', 409);
     return { revision: doc.revision, jobs: doc.value.jobs };
@@ -48,7 +55,7 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
       const before = ledger(), jobs = structuredClone(before.jobs), result = operation(jobs);
       const value = { format, workspaceId: workspace.workspaceId, jobs }, operationId = randomUUID(), expectedHash = hash(JSON.stringify(value));
       try {
-        const ack = workspace.writeDocument({ collection: 'extension', id: ledgerId, value, expectedRevision: before.revision, operationId, mediaIds: [...new Set(jobs.flatMap(job => job.result ? [job.result.id] : []))].sort() });
+        const ack = workspace.writeDocument({ collection: 'extension', id: ledgerId, value, expectedRevision: before.revision, operationId, mediaIds: [...new Set(jobs.flatMap(job => job.reason === 'result_expired' ? [] : responseMediaIds(job.result)))].sort() });
         requireValue(ack.persisted === true && ack.workspaceId === workspace.workspaceId && ack.collection === 'extension' && ack.id === ledgerId && ack.operationId === operationId && ack.revision === before.revision + 1 && ack.hash === expectedHash,
           'generation_save_unconfirmed', '任务状态保存未确认，不会重新发送上游请求。', 503);
       } catch (error) {
@@ -76,12 +83,13 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
   async function persistResult(id) {
     const result = pendingResults.get(id);
     requireValue(result, 'generation_result_unavailable', '本进程没有可重试保存的结果；不会重新请求上游。', 409);
-    const media = await coordinator.runWrite(() => workspace.writeMedia(result.bytes, 'application/octet-stream'));
-    requireValue(media.id === hash(result.bytes) && media.size === result.bytes.length, 'generation_result_invalid', '任务结果落盘核验未通过。', 503);
+    const media = await coordinator.runWrite(() => persistResponseMedia(workspace, result.bytes));
+    requireValue(media.encoding || media.id === hash(result.bytes) && media.size === result.bytes.length, 'generation_result_invalid', '任务结果落盘核验未通过。', 503);
     await mutate(jobs => {
       const job = find(jobs, id);
       requireValue(job.state === 'running' || job.state === 'uncertain' && job.reason === 'result_save_unconfirmed', 'generation_state_conflict', '任务状态已变化，没有覆盖。', 409);
-      job.result = { id: media.id, status: result.status, contentType: result.contentType, size: media.size };
+      job.result = { id: media.id, status: result.status, contentType: result.contentType, size: media.size,
+        ...(media.encoding ? { encoding: media.encoding, mediaIds: media.mediaIds, originalHash: hash(result.bytes), originalSize: result.bytes.length } : {}) };
       job.state = result.status >= 200 && result.status < 300 ? 'succeeded' : 'failed'; job.reason = job.state === 'failed' ? 'upstream_http_error' : ''; job.updatedAt = Math.max(clock(), job.updatedAt);
     });
     pendingResults.delete(id); return publicJob(read(id));
@@ -136,18 +144,35 @@ export async function openGenerationTasks({ workspace, gateway, coordinator, ver
     textProgress(id) { return { job: publicJob(read(id)), progress: textProgress.read(id) }; },
     waitTextProgress(id, revision, signal) { read(id); return textProgress.wait(id, revision, signal, 1000); },
     list(productId) { return ledger().jobs.filter(job => job.productId === productId).map(publicJob); },
+    retentionPreview(cutoff) {
+      const current = ledger(), selected = current.jobs.filter(job => job.applied && job.result && job.reason !== 'result_expired' && job.updatedAt <= cutoff);
+      return { signature: hash(JSON.stringify(selected)), ids: selected.map(job => job.id),
+        mediaIds: [...new Set(selected.flatMap(job => responseMediaIds(job.result)))],
+        bytes: [...new Map(selected.map(job => [job.result.id, job.result.size])).values()].reduce((sum, size) => sum + size, 0) };
+    },
+    async expireAppliedResults({ cutoff, signature }) {
+      const selected = ledger().jobs.filter(job => job.applied && job.result && job.reason !== 'result_expired' && job.updatedAt <= cutoff);
+      requireValue(hash(JSON.stringify(selected)) === signature, 'cleanup_preview_changed', '任务状态已变化，请重新扫描。', 409);
+      if (!selected.length) return { tasks: 0, mediaIds: [] };
+      return mutate(jobs => {
+        const candidates = jobs.filter(job => job.applied && job.result && job.reason !== 'result_expired' && job.updatedAt <= cutoff);
+        requireValue(hash(JSON.stringify(candidates)) === signature, 'cleanup_preview_changed', '任务状态已变化，请重新扫描。', 409);
+        const mediaIds = [...new Set(candidates.flatMap(job => responseMediaIds(job.result)))];
+        for (const job of candidates) { job.result = publicJob(job).result; job.reason = 'result_expired'; }
+        return { tasks: candidates.length, mediaIds };
+      });
+    },
     result(id) {
-      const job = read(id); requireValue(job.result && ['succeeded', 'failed'].includes(job.state), 'generation_result_unavailable', '任务结果尚未持久保存。', 409);
-      const saved = workspace.readMedia(job.result.id);
-      requireValue(saved.bytes.length === job.result.size && hash(saved.bytes) === job.result.id, 'generation_result_invalid', '任务结果损坏，未交付。', 409);
-      return { ...publicJob(job), bytes: Buffer.from(saved.bytes) };
+      const job = read(id);
+      requireValue(job.reason !== 'result_expired', 'generation_result_expired', '该任务原始响应已按保留策略清理，画布中保存的结果不受影响。', 410);
+      requireValue(job.result && ['succeeded', 'failed'].includes(job.state), 'generation_result_unavailable', '任务结果尚未持久保存。', 409);
+      return { ...publicJob(job), bytes: readResponseMedia(workspace, job.result) };
     },
     async confirmApplied(id, checkpoint) {
       const job = read(id);
       requireValue(job.state === 'succeeded', 'generation_not_successful', '上游尚无成功结果，不能确认画布完成。', 409);
       if (job.applied) return publicJob(job);
-      const media = workspace.readMedia(job.result.id);
-      requireValue(media.bytes.length === job.result.size && hash(media.bytes) === job.result.id, 'generation_result_invalid', '任务结果损坏，不能确认保存完成。', 409);
+      readResponseMedia(workspace, job.result);
       // 此回调只能由可信装配方提供；不能接受浏览器一句saved:true。
       requireValue(await verifyApplied(Object.freeze(publicJob(job)), structuredClone(checkpoint)) === true, 'generation_canvas_unconfirmed', '原产品画布尚未核验保存，任务结果保留。', 409);
       await mutate(jobs => { const current = find(jobs, id); requireValue(current.state === 'succeeded' && current.result.id === job.result.id, 'generation_state_conflict', '任务结果已变化。', 409); current.applied = true; current.updatedAt = Math.max(clock(), current.updatedAt); });

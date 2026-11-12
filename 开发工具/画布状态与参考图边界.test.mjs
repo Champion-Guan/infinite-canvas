@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { platformState } from './全局平台规则夹具.mjs';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -11,6 +12,7 @@ import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_m
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const names = ['画布生成/画布节点事务.ts', '产品/画布保存接线.ts', '画布生成/全局参考图操作.ts'];
 async function load(name, dependencies = {}, globals = {}) {
+    dependencies = { './平台规则全局状态': platformState, ...dependencies };
     const file = resolve(root, '扩展功能', name);
     const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file,
         { loader: file.endsWith('.tsx') ? 'tsx' : 'ts', jsx: 'automatic', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });

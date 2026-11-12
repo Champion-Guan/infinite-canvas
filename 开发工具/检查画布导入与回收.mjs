@@ -24,8 +24,8 @@ async function load(path) {
     new Function('require', 'module', 'exports', code)(id => imports.has(id) ? imports.get(id) : nativeRequire(id), module, module.exports);
     return module.exports;
 }
-const { prepareCanvasContentImport: prepare } = await load(resolve(root, 'src/lib/canvas/画布内容导入.ts'));
-const { recycleCanvasNodes: recycle, restoreCanvasNodes: restore, withoutDeletedNodes: prune } = await load(resolve(root, 'src/lib/canvas/画布节点回收.ts'));
+const { prepareCanvasContentImport: prepare } = await load(resolve(root, 'src/扩展功能/画布导入/画布内容导入.ts'));
+const { recycleCanvasNodes: recycle, restoreCanvasNodes: restore, withoutDeletedNodes: prune } = await load(resolve(root, 'src/扩展功能/画布回收/画布节点回收.ts'));
 const node = (id, metadata = {}, type = 'text') => ({ id, type, title: id, position: { x: 10, y: 20 }, width: 100, height: 80, metadata });
 const edge = (id, fromNodeId, toNodeId) => ({ id, fromNodeId, toNodeId });
 const document = (nodes, connections = [], files = []) => ({ app: 'infinite-canvas', version: 3, projects: [{ project: { nodes, connections }, files }] });

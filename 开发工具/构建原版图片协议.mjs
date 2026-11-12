@@ -5,8 +5,10 @@ import { ts } from './检查首批功能适配.mjs';
 import { 哈希 } from './检查运行副本.mjs';
 
 const 历史来源 = '/Users/guanchengbin/CodexProjects/guan-ai-workbench-projects/guan-ai-workbench';
-// 项目迁移后从保留的历史发布来源读取；仍逐文件核验原指纹。
-export const 图片原来源 = existsSync(join(历史来源, 'src/canvas/services/api/image.ts')) ? 历史来源 :
+const 当前来源 = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// 发布检出已有锁定旧版源码；开发目录继续兼容保留来源，均逐文件核验原指纹。
+export const 图片原来源 = existsSync(join(当前来源, 'src/canvas/services/api/image.ts')) ? 当前来源 :
+  existsSync(join(历史来源, 'src/canvas/services/api/image.ts')) ? 历史来源 :
   resolve(dirname(fileURLToPath(import.meta.url)), '../.运行/GitHub发布');
 export const 图片来源指纹 = Object.freeze({
   'src/canvas/services/api/image.ts': '671f45c36a23e312047cb15d85db6b802454e759a342fc99ab763da8500f70eb',

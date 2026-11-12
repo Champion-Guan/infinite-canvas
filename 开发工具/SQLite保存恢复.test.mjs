@@ -221,6 +221,7 @@ test('升级准备调用真实画布检查点后等待SQLite回执，丢失回�
       const js = ts.transpileModule(current, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
       const module = { exports: {} };
       new Function('require', 'module', 'exports', js)(id => {
+        if (id === '../Excel画布/平台规则全局状态') return { globalPlatformRules: { initialize: async () => {} } };
         assert.equal(id, '../软件更新/升级页面状态.mjs'); return upgradePage;
       }, module, module.exports);
       const b = module.exports;

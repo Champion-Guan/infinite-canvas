@@ -50,6 +50,8 @@ export async function assembleGenerationService({ workspace, vault, runTrustedWr
     return { total: results.length, completed: results.filter(result => result.ok).length, failures: results.filter(result => !result.ok) };
   };
   return Object.freeze({ handle, getStatus: tasks.getStatus,
+    retentionPreview: cutoff => tasks.retentionPreview(cutoff),
+    expireAppliedResults: input => tasks.expireAppliedResults(input),
     // stop前先检查；业务未决时不得先拆其他服务/密钥再把close失败吞掉。
     assertCanClose: assertGenerationIdle,
     // 升级停机阶段会继续由 close() 检查正在发送的请求和进程内未落盘结果。

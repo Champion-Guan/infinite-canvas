@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/infinite-canvas.tsx b/web/src/components/canvas/infinite-canvas.tsx
+index 4b2fd8c..0e0f405 100644
+--- a/web/src/components/canvas/infinite-canvas.tsx
++++ b/web/src/components/canvas/infinite-canvas.tsx
+@@ -308,6 +308,8 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+         }
+         liveViewportRef.current = live || viewport;
+         scaleRef.current = (live || viewport).k;
++        // Keep idle gesture state in sync with zoom controls and restored views.
++        if (!live) schedulerRef.current?.begin(viewport);
+         callbacksRef.current.onViewportPreview?.(live || viewport);
+     }, [viewport]);
+ 

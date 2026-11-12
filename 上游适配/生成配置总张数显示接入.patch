@@ -1,0 +1,51 @@
+diff --git a/web/src/components/canvas/canvas-config-node-panel.tsx b/web/src/components/canvas/canvas-config-node-panel.tsx
+index ac6b83d..2389618 100644
+--- a/web/src/components/canvas/canvas-config-node-panel.tsx
++++ b/web/src/components/canvas/canvas-config-node-panel.tsx
+@@ -14,6 +14,7 @@ import { CanvasAudioSettingsPopover, type CanvasAudioSettingKey } from "./canvas
+ import { CanvasVideoSettingsPopover } from "./canvas-video-settings-popover";
+ import { CanvasTextSettingsPopover } from "./canvas-text-settings-popover";
+ import type { CanvasGenerationMode, CanvasNodeData, CanvasNodeMetadata } from "@/types/canvas";
++import type { VariantImageCount } from "@/扩展功能/画布生成/生成张数规则";
+ 
+ type CanvasConfigNodePanelProps = {
+     node: CanvasNodeData;
+@@ -23,9 +24,10 @@ type CanvasConfigNodePanelProps = {
+     onGenerate: (nodeId: string) => void;
+     onStop: (nodeId: string) => void;
+     onComposerToggle: () => void;
++    imageCountSummary?: VariantImageCount;
+ };
+ 
+-export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigChange, onGenerate, onStop, onComposerToggle }: CanvasConfigNodePanelProps) {
++export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigChange, onGenerate, onStop, onComposerToggle, imageCountSummary }: CanvasConfigNodePanelProps) {
+     const { t } = useTranslation();
+     const globalConfig = useEffectiveConfig();
+     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
+@@ -106,7 +108,7 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
+                 {mode === "video" ? (
+                     <CanvasVideoSettingsPopover config={config} placement="topRight" buttonClassName="canvas-compact-control !h-10 !w-full !justify-start !rounded-lg !px-2" onConfigChange={(key, value) => onConfigChange(node.id, videoConfigPatch(key, value))} />
+                 ) : mode === "image" ? (
+-                    <CanvasImageSettingsPopover config={config} placement="topRight" autoAdjustOverflow={false} buttonClassName="canvas-compact-control !h-10 !w-full !justify-start !rounded-lg !px-2" onConfigChange={(key, value) => onConfigChange(node.id, key === "count" ? { count: Number(value) || 1 } : { [key]: value })} />
++                    <CanvasImageSettingsPopover config={config} imageCountSummary={imageCountSummary} placement="topRight" autoAdjustOverflow={false} buttonClassName="canvas-compact-control !h-10 !w-full !justify-start !rounded-lg !px-2" onConfigChange={(key, value) => onConfigChange(node.id, key === "count" ? { count: Number(value) || 1 } : { [key]: value })} />
+                 ) : mode === "audio" ? (
+                     <CanvasAudioSettingsPopover config={config} placement="topRight" buttonClassName="canvas-compact-control !h-10 !w-full !justify-start !rounded-lg !px-2" onConfigChange={(key, value) => onConfigChange(node.id, audioConfigPatch(key, value))} />
+                 ) : (
+@@ -119,7 +121,7 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
+                 type="primary"
+                 className="mt-auto !h-9 !w-full !cursor-pointer !rounded-lg"
+                 danger={isRunning}
+-                disabled={!isRunning && (!isGenerationModeEnabled(mode) || !canGenerate)}
++                disabled={!isRunning && (!isGenerationModeEnabled(mode) || !canGenerate || mode === "image" && Boolean(imageCountSummary?.error))}
+                 onMouseDown={(event) => event.stopPropagation()}
+                 onClick={() => (isRunning ? onStop(node.id) : onGenerate(node.id))}
+             >
+@@ -133,7 +135,7 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
+                     ) : (
+                         <>
+                             <Play className="size-4" />
+-                            <span>{t("canvas.configNode.generate")}</span>
++                            <span>{t("canvas.configNode.generate")}{mode === "image" && imageCountSummary && !imageCountSummary.error ? ` · 共 ${imageCountSummary.total} 张` : ""}</span>
+                         </>
+                     )}
+                 </span>

@@ -1,0 +1,30 @@
+diff --git a/web/src/components/agent/agent-chat-message.tsx b/web/src/components/agent/agent-chat-message.tsx
+index ef3810b..0f643c8 100644
+--- a/web/src/components/agent/agent-chat-message.tsx
++++ b/web/src/components/agent/agent-chat-message.tsx
+@@ -1,5 +1,6 @@
+ import { useEffect, useId, useState, type ReactNode } from "react";
+ import { App, Button, Image } from "antd";
++import { ImageUploadNumber } from "@/扩展功能/媒体交付/图片上传编号";
+ import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { OutsidePopover as Popover } from "@/扩展功能/主题/原生可关闭浮层";
+ import { Brain, CheckCircle2, ChevronDown, ChevronRight, Circle, CircleAlert, Copy, ExternalLink, FilePenLine, FileText, FolderOpen, ListChecks, LoaderCircle, Search, ShieldAlert, TerminalSquare, Wrench, XCircle } from "lucide-react";
+@@ -500,7 +501,8 @@ function AgentMessageAttachments({ attachments, alignRight }: { attachments: Age
+     return (
+         <>
+             <div className={`mt-1.5 flex flex-wrap gap-1.5 ${alignRight ? "justify-end" : "justify-start"}`}>
+-                {attachments.map((item) => (
++                {attachments.map((item, index) => (
++                    <span key={item.id} className="relative inline-block size-10">
+                     <img
+                         key={item.id}
+                         src={item.url}
+@@ -510,6 +512,8 @@ function AgentMessageAttachments({ attachments, alignRight }: { attachments: Age
+                         draggable={false}
+                         onClick={() => setPreviewUrl(item.url)}
+                     />
++                    <ImageUploadNumber number={index + 1} />
++                    </span>
+                 ))}
+             </div>
+             {previewUrl ? (

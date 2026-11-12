@@ -59,7 +59,8 @@ export function mountAutomaticWorkbench({ root, origin = location.origin, loadAp
       await fallback.read();
       Object.defineProperty(view, '__guanFallbackHost', { value: fallback, configurable: false, writable: false });
       Object.defineProperty(view, '__guanGenerationHost', { value: authorization.generationPort, configurable: false, writable: false });
-      Object.defineProperty(view, '__guanSQLiteHost', { value: Object.freeze({ initialize: async () => app, reconnect: options => client.reconnect(options) }), configurable: false, writable: false });
+      Object.defineProperty(view, '__guanSQLiteHost', { value: Object.freeze({ initialize: async () => app, reconnect: options => client.reconnect(options),
+        storageMaintenance: input => client.storageMaintenance(input) }), configurable: false, writable: false });
       started = true;
       status.textContent = '正在加载工作台界面…';
       // 保留启动面板到React真正提交首屏，避免动态模块加载期间出现空白页。

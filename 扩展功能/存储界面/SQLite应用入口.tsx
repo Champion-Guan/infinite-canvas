@@ -3,6 +3,7 @@ import { LocalStatusRegion } from "./状态通知区";
 import { SQLiteSaveStatus } from "./保存状态条";
 import { InterfaceErrorBoundary } from "./界面异常恢复";
 import { MissingModelConfigurationNotice } from "./模型配置提示";
+import { AutomaticStorageCleanup } from "./存储整理面板";
 import { createRoot } from "react-dom/client";
 import "antd/dist/reset.css";
 import "streamdown/styles.css";
@@ -24,6 +25,7 @@ createRoot(document.getElementById("root")!).render(
         <AppProviders>
             <LocalStatusRegion>
                 <MissingModelConfigurationNotice />
+                <AutomaticStorageCleanup />
                 <RouterProvider router={router} />
                 <SQLiteSaveStatus />
             </LocalStatusRegion>

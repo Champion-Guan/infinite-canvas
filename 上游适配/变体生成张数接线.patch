@@ -1,0 +1,54 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 41b3120..e9404e0 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -28,6 +28,7 @@ import { useCanvasBatchGeneration } from "@/扩展功能/画布生成/批量生
+ import { useProductVariantGeneration } from "@/扩展功能/画布生成/产品变体执行";
+ import { canStartVariantGeneration, productVariantResult } from "@/扩展功能/画布生成/产品变体生成";
+ import { productVariantConfigNode } from "@/扩展功能/Excel画布/共用商品提示词";
++import { sharedImageCountPatch, variantImageCount } from "@/扩展功能/画布生成/生成张数规则";
+ import { buildProductGenerationContext, productPromptInputSummary } from "@/扩展功能/画布生成/商品提示词生成";
+ import { assertImageReferenceLimit, imageGenerationReferences } from "@/扩展功能/画布生成/参考图数量限制";
+ import { pulseProductPromptWarning } from "@/扩展功能/Excel画布/商品提示词阻止反馈";
+@@ -1809,7 +1810,7 @@ function InfiniteCanvasPage() {
+     }, []);
+ 
+     const handleConfigNodeChange = useCallback((nodeId: string, patch: Partial<CanvasNodeData["metadata"]>) => {
+-        setNodes((prev) => prev.map((node) => (node.id === nodeId ? applyNodeConfigPatch(node, patch) : node)));
++        setNodes((prev) => prev.map((node) => (node.id === nodeId ? applyNodeConfigPatch(node, sharedImageCountPatch(node, patch)) : node)));
+     }, []);
+ 
+     const { downloadNodeImage, downloadBatchImage } = useCanvasMediaDownloads(message);
+@@ -3113,6 +3114,7 @@ function InfiniteCanvasPage() {
+             ) : (
+                 <CanvasNodePromptPanel
+                     node={panelNode}
++                    imageCountSummary={variantImageCount(panelNode, contentNodes, connections, effectiveConfig.canvasImageCount || effectiveConfig.count)}
+                     nodes={contentNodes}
+                     isRunning={runningNodeIds.has(panelNode.id)}
+                     mentionReferences={mentionReferencesByNodeId.get(panelNode.id) || EMPTY_REFERENCES}
+@@ -3130,13 +3132,14 @@ function InfiniteCanvasPage() {
+                     }}
+                 />
+             )}</OutsidePanelBoundary>,
+-        [configInputsById, confirmStopGeneration, connectedNodesByNodeId, disconnectNodeReference, handleConfigNodeChange, handleGenerateNode, handleNodePromptChange, mentionReferencesByNodeId, contentNodes, renderPluginPanel, runningNodeIds, startNodeReferenceSelection],
++        [configInputsById, confirmStopGeneration, connectedNodesByNodeId, disconnectNodeReference, handleConfigNodeChange, handleGenerateNode, handleNodePromptChange, mentionReferencesByNodeId, contentNodes, connections, effectiveConfig.canvasImageCount, effectiveConfig.count, renderPluginPanel, runningNodeIds, startNodeReferenceSelection],
+     );
+ 
+     const renderNodeContentPanel = useCallback(
+         (contentNode: CanvasNodeData) => (
+             <CanvasConfigNodePanel
+                 node={contentNode}
++                imageCountSummary={variantImageCount(contentNode, contentNodes, connections, effectiveConfig.canvasImageCount || effectiveConfig.count)}
+                 isRunning={runningNodeIds.has(contentNode.id)}
+                 inputSummary={productPromptInputSummary(contentNode.id, nodesRef.current, connectionsRef.current,
+                     getInputSummary(configInputsById.get(contentNode.id) || []))}
+@@ -3149,7 +3152,7 @@ function InfiniteCanvasPage() {
+                 }}
+             />
+         ),
+-        [configInputsById, confirmStopGeneration, handleConfigNodeChange, handleGenerateNode, runningNodeIds],
++        [configInputsById, confirmStopGeneration, handleConfigNodeChange, handleGenerateNode, runningNodeIds, contentNodes, connections, effectiveConfig.canvasImageCount, effectiveConfig.count],
+     );
+ 
+     const hoverPreviewNode = hoverPreviewNodeId ? nodeById.get(hoverPreviewNodeId) || null : null;

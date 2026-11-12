@@ -1,15 +1,20 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Image, Spin } from "antd";
 import { MediaThumbnail } from "../媒体交付/媒体缩略图";
 import { readDownloadBlob } from "../画布迁移扩展/media-download";
-import { useProductActive } from "../产品/产品界面边界";
+import { createProductPortal, useProductActive } from "../产品/产品界面边界";
 import type { ProductImageSource } from "./产品主图规则";
+import { ImageUploadNumber } from "../媒体交付/图片上传编号";
+import { OutsidePopover } from "../主题/原生可关闭浮层";
 
-export function ParameterImageThumbnail({ image, name, className, style }: {
+export function ParameterImageThumbnail({ image, name, className, style, number, children, hoverPreview = false }: {
     image: ProductImageSource;
     name: string;
     className?: string;
     style?: CSSProperties;
+    number?: number;
+    children?: ReactNode;
+    hoverPreview?: boolean;
 }) {
     const active = useProductActive();
     const [open, setOpen] = useState(false);
@@ -33,21 +38,26 @@ export function ParameterImageThumbnail({ image, name, className, style }: {
     useEffect(() => {
         if (!active) { setOpen(false); setRequested(false); }
     }, [active]);
+    const button = <button type="button" aria-label={`放大查看 ${name}`} title={hoverPreview ? undefined : "放大查看"} className={className}
+        style={{ ...style, position: "relative", cursor: "zoom-in" }}
+        onPointerDown={event => event.stopPropagation()}
+        onMouseDown={event => event.stopPropagation()}
+        onClick={event => { event.stopPropagation(); setRequested(true); setOpen(true); }}>
+        {children || <MediaThumbnail storageKey={image.storageKey} fallback={image.url} alt={name}
+            className="h-full min-h-0 w-full min-w-0 object-contain"
+            style={{ gridTemplateRows: "minmax(0, 1fr)", gridTemplateColumns: "minmax(0, 1fr)" }} />}
+        <ImageUploadNumber number={number} />
+    </button>;
     return (
-        <div style={{ display: "contents" }} data-canvas-shortcuts-ignore
+        <span style={{ display: "contents" }} data-canvas-shortcuts-ignore
             onPointerDown={event => event.stopPropagation()}
             onMouseDown={event => event.stopPropagation()}
             onClick={event => event.stopPropagation()}>
-            <button type="button" aria-label={`放大查看 ${name}`} title="放大查看" className={className}
-                style={{ ...style, cursor: "zoom-in" }}
-                onPointerDown={event => event.stopPropagation()}
-                onMouseDown={event => event.stopPropagation()}
-                onClick={event => { event.stopPropagation(); setRequested(true); setOpen(true); }}>
-                <MediaThumbnail storageKey={image.storageKey} fallback={image.url} alt={name}
-                    className="h-full min-h-0 w-full min-w-0 object-contain"
-                    style={{ gridTemplateRows: "minmax(0, 1fr)", gridTemplateColumns: "minmax(0, 1fr)" }} />
-            </button>
-            <Image src={current?.url} alt={name} styles={{ root: { display: "none" } }}
+            {hoverPreview ? <OutsidePopover trigger={["hover", "focus"]} content={<div className="w-56">
+                <MediaThumbnail storageKey={image.storageKey} fallback={image.url} alt={name} className="aspect-square w-full object-contain" />
+                <p className="mt-1 break-words text-xs">{name}</p>
+            </div>}>{button}</OutsidePopover> : button}
+            {requested ? createProductPortal(<Image src={current?.url} alt={name} styles={{ root: { display: "none" } }}
                 preview={{
                     open: active && open,
                     onOpenChange: next => setOpen(next),
@@ -58,7 +68,7 @@ export function ParameterImageThumbnail({ image, name, className, style }: {
                         </div>
                     ),
                     actionsRender: original => current?.url ? original : null,
-                }} />
-        </div>
+                }} />, document.body) : null}
+        </span>
     );
 }

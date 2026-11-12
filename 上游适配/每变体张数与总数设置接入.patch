@@ -1,0 +1,53 @@
+diff --git a/web/src/components/image-settings-panel.tsx b/web/src/components/image-settings-panel.tsx
+index f1f6df9..09cfc27 100644
+--- a/web/src/components/image-settings-panel.tsx
++++ b/web/src/components/image-settings-panel.tsx
+@@ -50,9 +50,12 @@ type ImageSettingsPanelProps = {
+     maxCount?: number;
+     quickCount?: number;
+     model?: string;
++    countTitle?: string;
++    countSummary?: ReactNode;
++    mixedCount?: boolean;
+ };
+ 
+-export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 10, model }: ImageSettingsPanelProps) {
++export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 10, model, countTitle, countSummary, mixedCount = false }: ImageSettingsPanelProps) {
+     const { t } = useTranslation();
+     const [snapDimensionToStep, setSnapDimensionToStep] = useState(false);
+     const dimensionAnchor = useRef<{ key: "width" | "height"; value: number } | null>(null);
+@@ -175,15 +178,16 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle =
+                     </span>
+                 </div>
+                 <div className="space-y-2.5">
+-                    <SettingTitle color={theme.node.muted}>{t("settingsPanels.image.count")}</SettingTitle>
++                    <SettingTitle color={theme.node.muted}>{countTitle || t("settingsPanels.image.count")}</SettingTitle>
+                     <div className="grid grid-cols-4 gap-2.5">
+                         {Array.from({ length: quickCount }, (_, index) => index + 1).map((value) => (
+-                            <OptionPill key={value} selected={count === value} theme={theme} onClick={() => onConfigChange("count", String(value))}>
++                            <OptionPill key={value} selected={!mixedCount && count === value} theme={theme} onClick={() => onConfigChange("count", String(value))}>
+                                 {t("settingsPanels.image.images", { count: value })}
+                             </OptionPill>
+                         ))}
+-                        <CountInput value={count} max={maxCount} theme={theme} onChange={(value) => onConfigChange("count", String(value || 1))} />
++                        <CountInput value={mixedCount ? undefined : count} label={countTitle || t("settingsPanels.image.count")} max={maxCount} theme={theme} onChange={(value) => onConfigChange("count", String(value || 1))} />
+                     </div>
++                    {countSummary}
+                 </div>
+             </div>
+         </ImageSettingsTheme>
+@@ -268,11 +272,13 @@ function DimensionInput({ prefix, value, disabled, theme, alignToStep, onChange
+     );
+ }
+ 
+-function CountInput({ value, max, theme, onChange }: { value: number; max: number; theme: CanvasTheme; onChange: (value: number | null) => void }) {
++function CountInput({ value, label, max, theme, onChange }: { value: number | undefined; label: string; max: number; theme: CanvasTheme; onChange: (value: number | null) => void }) {
+     return (
+         <label className="col-span-2 flex h-9 overflow-hidden rounded-full border text-sm" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
+             <input
+                 type="number"
++                aria-label={label}
++                placeholder={value === undefined ? "各变体不同" : undefined}
+                 min={1}
+                 max={max}
+                 className="min-w-0 flex-1 bg-transparent px-3 text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"

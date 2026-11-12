@@ -167,6 +167,7 @@ test('滚轮及捕获阶段指针按下先交还手动控制，层内卡片停�
     }, { Element: class {}, setTimeout: fn => { timers.set(1, fn); return 1; }, clearTimeout: id => timers.delete(id) });
     const tree = InfiniteCanvas({ containerRef: { current: { getBoundingClientRect: () => ({ left: 0, top: 0 }) } },
         viewport: { x: 0, y: 0, k: 1 }, tool: 'pan', onViewportChange() {}, onManualViewportStart: () => calls.push('manual'), children: null });
+    assert.deepEqual(calls.splice(0), ['begin'], '初次渲染只同步空闲视区');
     tree.props.onPointerDownCapture({}); assert.deepEqual(calls.splice(0), ['manual']);
     tree.props.onWheel({ target: null, deltaY: 10, clientX: 20, clientY: 30 });
     assert.deepEqual(calls.splice(0), ['manual', 'begin', 'move']);

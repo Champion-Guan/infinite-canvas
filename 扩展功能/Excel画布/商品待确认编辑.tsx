@@ -9,6 +9,7 @@ import { ProductOptionSelect } from "./产品选项下拉";
 import { confirmationAnswer, confirmationAnswered, confirmationAnswerPatch, confirmationEvidence, confirmationFields, factTokens,
     type Confirmation, type ConfirmationAnswer, type ConfirmationMetadata } from "./商品待确认规则";
 import { promptDocument, type ProductPromptMetadata } from "./商品提示词规则";
+import { imageReferenceCatalog } from "./图片引用标签规则";
 
 function ConfirmationImages({ ctx, productId, field, variantId }: {
     ctx: CanvasNodeContext; productId: string; field: Confirmation; variantId?: string;
@@ -17,6 +18,7 @@ function ConfirmationImages({ ctx, productId, field, variantId }: {
     const alive = useRef<AbortController | null>(null), running = useRef(false);
     const [busy, setBusy] = useState(false), [error, setError] = useState("");
     const answer = confirmationAnswer(ctx.node.metadata as ConfirmationMetadata, field, variantId);
+    const references = imageReferenceCatalog(ctx.node.metadata);
     useEffect(() => {
         const controller = new AbortController(); alive.current = controller;
         return () => { controller.abort(); };
@@ -45,7 +47,7 @@ function ConfirmationImages({ ctx, productId, field, variantId }: {
         <Button size="small" icon={<ImagePlus size={14} />} loading={busy} onClick={() => input.current?.click()}>上传对应参考图</Button>
         {answer?.images.length ? <div className="flex flex-wrap gap-2">{answer.images.map(image => <div key={image.id}
             className="relative size-16 overflow-hidden rounded-md border border-current/15">
-            <ParameterImageThumbnail image={image} name={image.name} className="block size-full" />
+            <ParameterImageThumbnail image={image} number={references.find(item => item.id === image.id)?.number} name={image.name} className="block size-full" />
             <button type="button" title="移除本项引用" aria-label={`移除本项参考图 ${image.name}`}
                 className="absolute right-0 top-0 grid size-5 place-items-center rounded bg-white/90 text-black"
                 onClick={() => change(images => images.filter(item => item.id !== image.id))}><X size={12} /></button>

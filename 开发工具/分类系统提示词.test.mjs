@@ -18,7 +18,7 @@ test('旧系统提示词继续作用于图片和文本，视频及音频保持�
     assert.equal(rules.systemPromptForCapability({ ...legacy, imageSystemPrompt: '' }, 'image'), '');
     assert.equal(rules.systemPromptForCapability({ ...legacy, imageSystemPrompt: null }, 'image'), '旧的角色');
     assert.equal(rules.imagePlanningSystemPrompt({ imagePlanningSystemPrompt: '' }), '');
-    assert.match(rules.imagePlanningSystemPrompt({}), /^你是一名电商商品视觉策划总监/);
+    assert.match(rules.imagePlanningSystemPrompt({}), /^你是一名对商品点击吸引力、信息理解效率和购买说服力负责/);
 });
 
 test('四类系统提示词隔离，多次解析渠道不会把上一个能力的指令带到另一个能力', () => {
@@ -67,13 +67,22 @@ test('AI写提示词实际请求使用用户角色并保留固定输出约定，
         '../画布生成/原画布文本调用': { requestCanvasText: async options => { captured = options; throw stop; } },
     });
     const ctx = { node: fixture.parameter, getNode: id => fixture.nodes.find(node => node.id === id),
-        getNodes: () => fixture.nodes, getConnections: () => fixture.connections };
+        getNodes: () => fixture.nodes, getConnections: () => fixture.connections,
+        updateMetadata: patch => { fixture.parameter.metadata = { ...fixture.parameter.metadata, ...patch }; } };
     await assert.rejects(loader.load('Excel画布/商品策划请求.ts').planProductImages(ctx, 'product', new AbortController().signal), error => error === stop);
     assert.match(captured.messages[0].content, /^用户自定义商品摄影策划背景\n\n输出约定/);
     assert.match(captured.messages[0].content, /仅输出 JSON 对象/);
     assert.equal(captured.config.systemPrompt, '');
     assert.equal(captured.config.textSystemPrompt, '');
     assert.equal(config.textSystemPrompt, '普通文本背景');
+    config.imagePlanningSystemPrompt = null;
+    await assert.rejects(loader.load('Excel画布/商品策划请求.ts').planProductImages(ctx, 'product', new AbortController().signal), error => error === stop);
+    assert.equal(captured.messages[0].content, `${rules.imagePlanningSystemPrompt(config)}\n\n${loader.load('Excel画布/商品视觉策划指令.ts').PRODUCT_PLANNING_OUTPUT}`);
+    assert.match(captured.messages[0].content, /不把一个小标签当作完整趣味设计/);
+    assert.match(captured.messages[0].content, /空产品要求只适用于需要它的图片/);
+    assert.match(captured.messages[0].content, /不得为了减少内容重复而擅自改换用户任务/);
+    assert.match(captured.messages[0].content, /主视觉必须同时落实这四个方面，其他设计图至少组合其中三类/);
+    assert.match(captured.messages[0].content, /默认主视觉四方面的趣味组合、其他设计图至少三类组合必须进入实际正文/);
 });
 
 test('视频与音频的协议输入保留原文，系统背景进入对应指令位置', async () => {
@@ -135,7 +144,7 @@ test('分类编辑界面保留各自内容，AI写提示词默认原文可编辑
     assert.equal(tree.find(node => node.type === 'Segmented').props.options.length, 4);
     assert.equal(tree.filter(node => node.type === 'Textarea').length, 1);
     const role = tree.find(node => node.props['aria-label'] === '生图系统提示词');
-    assert.match(role.props.value, /^你是一名电商商品视觉策划总监/);
+    assert.match(role.props.value, /^你是一名对商品点击吸引力、信息理解效率和购买说服力负责/);
     role.props.onChange({ target: { value: '自定义角色' } });
     tree = render(); tree.find(node => node.type === 'Segmented').props.onChange('video');
     tree = render(); tree.find(node => node.props['aria-label'] === '视频系统提示词').props.onChange({ target: { value: '镜头角色' } });
@@ -145,5 +154,5 @@ test('分类编辑界面保留各自内容，AI写提示词默认原文可编辑
     tree.find(node => node.type === 'Segmented').props.onChange('image');
     tree = render(); tree.find(node => node.type === 'Button').props.onClick();
     assert.equal(config.imagePlanningSystemPrompt, null);
-    assert.match(render().find(node => node.props['aria-label'] === '生图系统提示词').props.value, /^你是一名电商商品视觉策划总监/);
+    assert.match(render().find(node => node.props['aria-label'] === '生图系统提示词').props.value, /^你是一名对商品点击吸引力、信息理解效率和购买说服力负责/);
 });

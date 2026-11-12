@@ -1,0 +1,18 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index e9404e0..ee3db94 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -2454,11 +2454,11 @@ function InfiniteCanvasPage() {
+                         type: CanvasNodeType.Image,
+                         title: effectivePrompt.slice(0, 32) || "Generated Image",
+                         position: reuseImageNode ? parentPosition : batchPlacement ? batchResultPosition(batchPlacement, imageConfig) : nextGenerationResultPosition(
+-                            { position: parentPosition, width: parentConfig.width, height: parentConfig.height },
++                            { position: parentPosition, width: sourceNode?.width || parentConfig.width, height: sourceNode?.height || parentConfig.height },
+                             imageConfig,
+                             resultIndex,
+                             48,
+-                            32,
++                            96,
+                         ),
+                         width: reuseImageNode ? sourceNode?.width || imageConfig.width : imageConfig.width,
+                         height: reuseImageNode ? sourceNode?.height || imageConfig.height : imageConfig.height,

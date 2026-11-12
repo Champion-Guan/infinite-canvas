@@ -12,7 +12,17 @@ const entryKey = (entry: { id: string; deletedAt: string }) => `${entry.id}:${en
 const pendingKey = "guan-recycle-cleanup:v1";
 let flight: Promise<unknown> | null = null;
 const snapshotFor = (state: ReturnType<typeof useCanvasStore.getState>, kind: RecycleStorageKind) => kind === "product_recycle" ? state.deletedProjects : state.guanWorkbooks?.recycledWorkbooks ?? [];
-const manifestStore = () => sqliteForage.createInstance({ storeName: "preferences" });
+const manifestStore = () => {
+  const store = sqliteForage.createInstance({ storeName: "preferences" });
+  return {
+    async getItem<T>(key: string): Promise<T | null> {
+      const value = await store.getItem<T | string>(key);
+      return typeof value === "string" ? JSON.parse(value) as T : value;
+    },
+    setItem(key: string, value: Cleanup) { return store.setItem(key, JSON.stringify(value)); },
+    removeItem(key: string) { return store.removeItem(key); },
+  };
+};
 
 export async function pendingRecycleCleanup(): Promise<RecycleStorageKind | null> {
   return (await manifestStore().getItem<Cleanup>(pendingKey))?.kind ?? null;
@@ -89,7 +99,7 @@ async function finishCleanup(job: Cleanup) {
   return { removed: job.removed, pending: false };
 }
 
-async function clear(kind: RecycleStorageKind) {
+async function clear(kind: RecycleStorageKind, targets?: string[]) {
   // 无论上次在哪个阶段中断，都先恢复原保存队列，再读取清单和继续清理。
   await retrySQLiteStorage();
   await flushSQLiteStorage();
@@ -101,9 +111,11 @@ async function clear(kind: RecycleStorageKind) {
   await flushSQLiteStorage();
   const before = useCanvasStore.getState(), assetState = useAssetStore.getState();
   if (!before.hydrated || !assetState.hydrated) throw new Error("产品或素材尚未加载完成，暂不能清理回收站。");
-  const snapshot = snapshotFor(before, kind);
+  const snapshot = snapshotFor(before, kind).filter(entry => !targets || targets.includes(entryKey(entry)));
   if (!snapshot.length) return { removed: 0, pending: false };
-  const ownership = recycleOwnership(before);
+  const selected = new Set(snapshot.map(entryKey));
+  const ownership = recycleOwnership({ ...before, deletedProjects: kind === "product_recycle" ? snapshot : [],
+    guanWorkbooks: before.guanWorkbooks ? { ...before.guanWorkbooks, recycledWorkbooks: kind === "workbook_recycle" ? snapshot : [] } : null });
   const images = collectImageStorageKeys(snapshot), media = collectMediaStorageKeys(snapshot);
   const removedAssets = assetState.assets.filter(asset => recycleCategory(asset, ownership) === kind);
   collectImageStorageKeys(removedAssets, images); collectMediaStorageKeys(removedAssets, media);
@@ -116,8 +128,8 @@ async function clear(kind: RecycleStorageKind) {
     collectImageStorageKeys(removed, images); collectMediaStorageKeys(removed, media);
     (nextBooks.contract as unknown as Record<string, unknown>)[key] = rows.filter(row => !removed.includes(row));
   }
-  if (kind === "workbook_recycle" && nextBooks) nextBooks.recycledWorkbooks = [];
-  const nextDeleted = kind === "product_recycle" ? [] : before.deletedProjects;
+  if (kind === "workbook_recycle" && nextBooks) nextBooks.recycledWorkbooks = (nextBooks.recycledWorkbooks || []).filter(entry => !selected.has(entryKey(entry)));
+  const nextDeleted = kind === "product_recycle" ? before.deletedProjects.filter(entry => !selected.has(entryKey(entry))) : before.deletedProjects;
   const protectedData = [before.projects, nextDeleted, nextBooks, keptAssets];
   const protectedImages = collectImageStorageKeys(protectedData), protectedMedia = collectMediaStorageKeys(protectedData);
   const groups: KeyGroups = {};
@@ -150,8 +162,8 @@ async function clear(kind: RecycleStorageKind) {
   await manifestStore().setItem(pendingKey, { ...job, phase: "committed" });
   return finishCleanup({ ...job, phase: "committed" });
 }
-export async function clearRecycleStorage(kind: RecycleStorageKind): Promise<{ removed: number; pending: boolean }> {
+export async function clearRecycleStorage(kind: RecycleStorageKind, targets?: string[]): Promise<{ removed: number; pending: boolean }> {
   if (flight) throw new Error("回收站正在删除，请等待完成。");
-  const operation = clear(kind); flight = operation;
+  const operation = clear(kind, targets); flight = operation;
   try { return await operation; } finally { flight = null; }
 }

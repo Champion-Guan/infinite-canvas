@@ -6,7 +6,7 @@ export type PlacementBounds = { x: number; y: number; width: number; height: num
 export function nextGenerationResultPosition(source: Pick<CanvasNodeData, "position" | "width" | "height">,
     result: Pick<CanvasNodeData, "width" | "height">, existingOutputCount: number, gap = NODE_PLACEMENT_GAP, sourceGap = 96): Position {
     const index = Number.isSafeInteger(existingOutputCount) && existingOutputCount > 0 ? existingOutputCount : 0;
-    return { x: source.position.x + source.width + sourceGap + index * (result.width + gap),
+    return { x: source.position.x + source.width + Math.max(sourceGap, gap) + index * (result.width + gap),
         y: source.position.y + (source.height - result.height) / 2 };
 }
 
@@ -16,6 +16,19 @@ function valid(node: CanvasNodeData) {
 
 export function nodesOverlap(a: CanvasNodeData, b: CanvasNodeData, gap = 0) {
     return valid(a) && valid(b) && a.position.x < b.position.x + b.width + gap && a.position.x + a.width + gap > b.position.x && a.position.y < b.position.y + b.height + gap && a.position.y + a.height + gap > b.position.y;
+}
+
+/** 生成结果只向右避让，保留调用方按来源卡片计算的垂直中心。 */
+export function placeGeneratedCanvasNode(node: CanvasNodeData, occupied: CanvasNodeData[]): CanvasNodeData {
+    if (node.type === "group" || !valid(node)) return node;
+    const obstacles = occupied.filter(other => other.id !== node.id && other.type !== "group" && valid(other));
+    let x = node.position.x;
+    for (let attempt = 0; attempt <= obstacles.length; attempt++) {
+        const hits = obstacles.filter(other => nodesOverlap({ ...node, position: { x, y: node.position.y } }, other, NODE_PLACEMENT_GAP));
+        if (!hits.length) break;
+        x = Math.max(...hits.map(other => other.position.x + other.width + NODE_PLACEMENT_GAP));
+    }
+    return x === node.position.x ? node : { ...node, position: { x, y: node.position.y } };
 }
 
 /** Positions here are top-left canvas coordinates, independent of browser zoom. */
@@ -85,12 +98,43 @@ export function placeNewCanvasNodes(previous: CanvasNodeData[], next: CanvasNode
         if (!candidates.has(node.id)) return node;
         // 整批结果已共同预留列，不能逐卡向下避让而打散与配置卡的对齐。
         if (node.metadata?.generationBatchId && (previousById.has(node.id) || (node.metadata.status === "loading" && node.metadata.generationStartedAt))) { occupied.push(node); return node; }
-        const placed = placeCanvasNode(node, occupied);
+        const generated = node.metadata?.generationStartedAt && ["image", "video", "audio", "text"].includes(node.type)
+            && (previousById.has(node.id) || node.metadata.status === "loading");
+        const placed = generated ? placeGeneratedCanvasNode(node, occupied) : placeCanvasNode(node, occupied);
         occupied.push(placed);
         if (placed !== node) moved.add(node.id);
         return placed;
     });
     return moved.size ? expandChangedGroups(result, moved) : next;
+}
+
+/** 显式整理选中的生成图片时，仅归位这些结果，来源与其他卡片保持原位。 */
+export function alignSelectedGeneratedResults(nodes: CanvasNodeData[], connections: CanvasConnection[], selectedIds: ReadonlySet<string>) {
+    const selected = nodes.filter(node => selectedIds.has(node.id));
+    if (!selected.length || selected.some(node => node.type !== "image" || !valid(node) || !node.metadata?.generationStartedAt
+        || node.metadata.groupId && !selectedIds.has(node.metadata.groupId))) return undefined;
+    const byId = new Map(nodes.map(node => [node.id, node]));
+    const sources = new Map<string, CanvasNodeData>();
+    for (const node of selected) {
+        const parents = [...new Set(connections.filter(edge => edge.toNodeId === node.id).map(edge => edge.fromNodeId))];
+        const source = parents.length === 1 ? byId.get(parents[0]) : undefined;
+        if (!source || source.type !== "config" || !valid(source) || connections.some(edge => edge.fromNodeId === node.id)) return undefined;
+        sources.set(node.id, source);
+    }
+    const occupied = nodes.filter(node => !selectedIds.has(node.id));
+    const replacements = new Map<string, CanvasNodeData>();
+    const ordered = [...selected].sort((a, b) => sources.get(a.id)!.position.y - sources.get(b.id)!.position.y
+        || a.position.x - b.position.x || a.id.localeCompare(b.id));
+    for (const node of ordered) {
+        const source = sources.get(node.id)!;
+        const position = { x: Math.max(node.position.x, source.position.x + source.width + 96),
+            y: source.position.y + (source.height - node.height) / 2 };
+        const candidate = node.position.x === position.x && node.position.y === position.y ? node : { ...node, position };
+        const placed = placeGeneratedCanvasNode(candidate, occupied);
+        if (placed !== node) replacements.set(node.id, placed);
+        occupied.push(placed);
+    }
+    return replacements.size ? expandChangedGroups(nodes.map(node => replacements.get(node.id) || node), new Set(replacements.keys())) : nodes;
 }
 
 function connectionPorts(nodes: CanvasNodeData[], connections: CanvasConnection[]) {

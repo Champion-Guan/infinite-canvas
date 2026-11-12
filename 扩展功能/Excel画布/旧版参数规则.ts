@@ -4,6 +4,8 @@ import type { CanvasNodeData, CanvasNodeMetadata } from "@/types/canvas";
 import { promptVariableTokens, resolvePromptVariables, completePromptVariableValues } from "../提示词/变量使用规则";
 import type { ProductMainImage } from "./产品主图规则";
 import { baseConfirmationSupplement, type ConfirmationAnswer } from "./商品待确认规则";
+import { globalPlatformRules, WILDBERRIES_PLATFORM, WILDBERRIES_RULES_TEXT } from "./平台规则全局状态";
+export { defaultProductPlatformRules, WILDBERRIES_PLATFORM, WILDBERRIES_IMAGE_COUNTS, WILDBERRIES_RULES_TEXT } from "./平台规则全局状态";
 export { promptVariableTokens, resolvePromptVariables, completePromptVariableValues } from "../提示词/变量使用规则";
 export const PROMPT_VARIABLES_NODE_TYPE = "guan:prompt-variables";
 
@@ -30,7 +32,6 @@ export type ExcelPromptContext = {
     templates: ExcelPromptTemplate[];
 };
 
-export const WILDBERRIES_PLATFORM = "Wildberries";
 export const WILDBERRIES_LANGUAGE = "俄文";
 export function defaultProductLanguage(platform: string) {
     if (platform === WILDBERRIES_PLATFORM || platform === "Ozon") return WILDBERRIES_LANGUAGE;
@@ -51,26 +52,6 @@ export const PRODUCT_LANGUAGE_OPTIONS: ProductOption[] = [
     { value: "中文", label: "中文" },
     { value: "", label: "未指定" },
 ];
-export const WILDBERRIES_IMAGE_COUNTS = { main: 1, carousel: 10, rich: 6 } as const;
-export const WILDBERRIES_RULES_TEXT = [
-    `主图/轮播图：共${WILDBERRIES_IMAGE_COUNTS.main + WILDBERRIES_IMAGE_COUNTS.carousel}张（主图${WILDBERRIES_IMAGE_COUNTS.main}张、轮播图${WILDBERRIES_IMAGE_COUNTS.carousel}张），1800 x 2400 px ，3 : 4 ，PNG ，单张小于10MB 。`,
-    `富内容：${WILDBERRIES_IMAGE_COUNTS.rich}张，800 x 500 px ，PNG ，单张最大5MB 。`,
-    "商品卡视频：3 : 4 ，MP4 ，小于50MB 。",
-].join("\n");
-
-const LEGACY_WILDBERRIES_RULES_TEXT = new Set([[
-    "主图/轮播图：1800×2400，3:4，JPG/PNG/WEBP，单张小于10MB，最多30张，最低700×933。",
-    "商品卡视频：3:4，MOV/MP4，单个小于50MB。",
-    "富内容：仅图片，800×500，JPG/PNG，单张最大5MB。",
-].join("\n"), [
-    "主图/轮播图：1800 x 2400 px ，3 : 4 ，PNG ，单张小于10MB 。",
-    "富内容：800 x 500 px ，PNG ，单张最大5MB 。",
-    "商品卡视频：3 : 4 ，MP4 ，小于50MB 。",
-].join("\n"), [
-    "主图/轮播图：共10张（主图1张、轮播图9张），1800 x 2400 px ，3 : 4 ，PNG ，单张小于10MB 。",
-    "富内容：6张，800 x 500 px ，PNG ，单张最大5MB 。",
-    "商品卡视频：3 : 4 ，MP4 ，小于50MB 。",
-].join("\n")]);
 
 export const PRODUCT_BRIEF_FIELDS = [
     { key: "nameCategory", label: "商品名称／品类", kind: "text", help: "填写这是什么商品、属于什么品类，以及具体用途。" },
@@ -98,7 +79,9 @@ export type ProductParameterMetadata = CanvasNodeMetadata & {
     productBrief?: ProductBriefValues;
     productPlatform?: string;
     productLanguage?: string;
+    // Legacy card data is retained for one-time global migration only.
     productPlatformRules?: string;
+    productPlatformRuleOverrides?: Record<string, string>;
     productMainImageStorageKey?: string;
     productMainImageUrl?: string;
     productMainImageWidth?: number;
@@ -108,17 +91,25 @@ export type ProductParameterMetadata = CanvasNodeMetadata & {
 };
 
 export function productPlatformRules(metadata?: ProductParameterMetadata) {
-    const value = metadata;
-    if (value?.productPlatform !== WILDBERRIES_PLATFORM) return "";
-    const rules = String(value.productPlatformRules || "").trim();
-    return !rules || LEGACY_WILDBERRIES_RULES_TEXT.has(rules) ? WILDBERRIES_RULES_TEXT : rules;
+    if (!metadata?.productPlatform) return "";
+    return globalPlatformRules.read(metadata.productPlatform);
+}
+
+export function usesDefaultProductPlatformRules(metadata?: ProductParameterMetadata) {
+    if (!metadata?.productPlatform) return true;
+    return productPlatformRules(metadata) === (metadata.productPlatform === WILDBERRIES_PLATFORM ? WILDBERRIES_RULES_TEXT : "");
+}
+
+export function productPlatformChangePatch(_metadata: ProductParameterMetadata, platform: string): ProductParameterMetadata {
+    return { productPlatform: platform, productLanguage: defaultProductLanguage(platform) };
 }
 
 export function productParameterSupplement(metadata?: CanvasNodeMetadata) {
     const value = metadata as ProductParameterMetadata | undefined;
     const user = baseConfirmationSupplement(String(metadata?.promptVariableSupplement || ""));
     const rules = productPlatformRules(metadata);
-    const richContentRequirement = value?.productPlatform === WILDBERRIES_PLATFORM ? "富内容必须制作6张：800 x 500 px，PNG，单张最大5MB。" : "";
+    const richContentRequirement = value?.productPlatform === WILDBERRIES_PLATFORM && usesDefaultProductPlatformRules(value)
+        ? "富内容必须制作6张：800 x 500 px，PNG，单张最大5MB。" : "";
     return [productBriefSupplement(metadata), user, rules, richContentRequirement].filter(Boolean).join("\n\n");
 }
 
@@ -406,7 +397,6 @@ export function buildPromptVariablesMetadata(context: ExcelPromptContext = { fil
         promptVariableResolvedPrompt: resolvePromptVariables(prompt, values),
         productPlatform: WILDBERRIES_PLATFORM,
         productLanguage: WILDBERRIES_LANGUAGE,
-        productPlatformRules: WILDBERRIES_RULES_TEXT,
     } as ProductParameterMetadata;
 }
 

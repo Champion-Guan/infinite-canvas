@@ -13,6 +13,7 @@ const parameterChanged = (before: CanvasNodeData | undefined, current: CanvasNod
     return old?.promptVariableValues !== next?.promptVariableValues || old?.promptVariableSupplement !== next?.promptVariableSupplement ||
         old?.productBrief !== next?.productBrief || old?.productLanguage !== next?.productLanguage ||
         old?.productPlatform !== next?.productPlatform || old?.productPlatformRules !== next?.productPlatformRules ||
+        old?.productPlatformRuleOverrides !== next?.productPlatformRuleOverrides ||
         old?.productMainImages !== next?.productMainImages ||
         old?.productMainImageStorageKey !== next?.productMainImageStorageKey || old?.productMainImageUrl !== next?.productMainImageUrl;
 };

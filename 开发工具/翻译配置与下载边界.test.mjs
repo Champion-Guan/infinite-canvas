@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { platformState } from './全局平台规则夹具.mjs';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -7,6 +8,7 @@ import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_m
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 async function load(name, dependencies = {}, extra = {}) {
+    dependencies = { './平台规则全局状态': platformState, './平台规则订阅': { useGlobalPlatformRules() {} }, ...dependencies };
     const file = resolve(root, '扩展功能', name);
     const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file, {
         loader: name.endsWith('.tsx') ? 'tsx' : name.endsWith('.js') ? 'js' : 'ts', jsx: 'automatic', format: 'cjs', target: 'es2022', tsconfigRaw: '{}',
@@ -178,6 +180,8 @@ test('参数卡启用独立AI入口后，填写仍同步原卡和关联预览，
         './产品变体规则': { productVariants: metadata => metadata.productVariants || [] },
         './产品选项下拉': { ProductOptionSelect: 'ProductOptionSelect' },
         './商品策划按钮': { ProductPlanningButton: 'ProductPlanningButton', ProductPlanOverview: 'ProductPlanOverview' },
+        './商品策划流式预览': { ProductPlanningStreamPreview: 'ProductPlanningStreamPreview' },
+        './平台规则编辑': { ProductPlatformRuleEditor: 'ProductPlatformRuleEditor' },
         '@/types/canvas': {}, '@/services/image-storage': { uploadImage: async () => { throw Error('测试不应上传主图'); }, resolveImageUrl: async (_key, fallback) => fallback },
         './Excel参数记忆': { readProductParameterValues: () => ({}), saveProductParameterValues: (...args) => remembered.push(args) },
     });

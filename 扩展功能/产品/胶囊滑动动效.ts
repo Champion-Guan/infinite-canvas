@@ -143,8 +143,7 @@ export function useCapsuleSlide(activeId: string, owner: string | null, ownershi
     const scrollToSelected = (immediate: boolean) => {
       if (!selection) return;
       const { x: start, width: size } = selection.frame;
-      const offset = start < container.scrollLeft + 4 ? start - 4
-        : start + size > container.scrollLeft + container.clientWidth - 4 ? start + size - container.clientWidth + 4 : container.scrollLeft;
+      const offset = start + size / 2 - container.clientWidth / 2;
       const scrollLeft = Math.max(0, Math.min(container.scrollWidth - container.clientWidth, offset));
       if (scrollLeft !== container.scrollLeft) container.scrollTo({ left: scrollLeft, behavior: immediate ? "instant" : "smooth" });
       updateDirection();

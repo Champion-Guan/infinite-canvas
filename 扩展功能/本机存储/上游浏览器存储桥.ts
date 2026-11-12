@@ -1,4 +1,5 @@
 import { canPreparePageUpgrade, flushPageUpgrade } from "../软件更新/升级页面状态.mjs";
+import { globalPlatformRules } from "../Excel画布/平台规则全局状态";
 // 根目录唯一维护来源；画布和失败通知共用本页保存状态与恢复队列。
 function shouldSkipStorageWrite(cache: ReadonlyMap<string, string>, failed: ReadonlyMap<string, unknown>, cacheKey: string, value: string, failureKey: string) {
     return cache.get(cacheKey) === value && !failed.has(failureKey);
@@ -92,10 +93,29 @@ export async function initializeSQLiteApplication() {
         if (!parsed || typeof parsed !== "object" || !("state" in parsed) || !parsed.state || typeof parsed.state !== "object") throw new Error("应用状态结构错误，停止初始化。");
         nextState.set(key, value);
     });
-    await prefs.iterate<unknown, void>((value, key) => { if (typeof value !== "string") throw new Error("偏好设置格式错误，停止初始化。"); nextPreferences.set(key, value); });
+    await prefs.iterate<unknown, void>((value, key) => {
+        // 兼容早期中断删除留下的对象清单；恢复入口读取原清单，不把工作台启动为默认空数据。
+        if (key === "guan-recycle-cleanup:v1" && value && typeof value === "object") value = JSON.stringify(value);
+        if (typeof value !== "string") throw new Error("偏好设置格式错误，停止初始化。");
+        nextPreferences.set(key, value);
+    });
     for (const [key, value] of nextState) stateCache.set(key, value);
     for (const [key, value] of nextPreferences) preferencesCache.set(key, value);
     appState = app; preferencesStore = prefs; runtime = candidate;
+    const projects = [...stateCache.values()].flatMap(raw => {
+        const value = JSON.parse(raw);
+        return Array.isArray(value.state?.projects) ? value.state.projects : [];
+    });
+    try {
+        await globalPlatformRules.initialize({
+            getItem: key => sqlitePreferences.getItem(key),
+            setItem: (key, value) => sqlitePreferences.setItem(key, value),
+            flush: async () => {
+                if (failed.size) await retrySQLiteStorage();
+                await flushSQLiteStorage();
+            },
+        }, projects);
+    } catch (error) { runtime = null; throw error; }
     Object.defineProperty(window, "__guanReadUpdateState", { value: () => ({ ready: canPreparePageUpgrade() && !storageStatus().conflict && !reconnecting }) });
     Object.defineProperty(window, "__guanPrepareUpdate", { value: async () => {
         try { await flushPageUpgrade(); await flushSQLiteStorage(); }
