@@ -1,0 +1,51 @@
+diff --git a/web/src/components/model-picker.tsx b/web/src/components/model-picker.tsx
+index 2d26530..b8cff86 100644
+--- a/web/src/components/model-picker.tsx
++++ b/web/src/components/model-picker.tsx
+@@ -22,9 +22,10 @@ type ModelPickerProps = {
+     placeholder?: string;
+     onMissingConfig?: () => void;
+     onReasoningEffortChange?: (model: string, effort: TextReasoningEffort) => void;
++    active?: boolean;
+ };
+ 
+-export function ModelPicker({ config, value, onChange, capability, className, fullWidth = false, placeholder, onMissingConfig, onReasoningEffortChange }: ModelPickerProps) {
++export function ModelPicker({ config, value, onChange, capability, className, fullWidth = false, placeholder, onMissingConfig, onReasoningEffortChange, active = true }: ModelPickerProps) {
+     const { t } = useTranslation();
+     const pickerId = useId();
+     const [open, setOpen] = useState(false);
+@@ -43,21 +44,23 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
+         window.addEventListener("model-picker-open", closeOtherPicker);
+         return () => window.removeEventListener("model-picker-open", closeOtherPicker);
+     }, [pickerId]);
++    useEffect(() => { if (!active) setOpen(false); }, [active]);
+ 
+     const changeOpen = (nextOpen: boolean) => {
+-        if (nextOpen && !options.length) { showMissingModelConfiguration(capability || "image"); setOpen(false); return; }
++        if (nextOpen && !active) return;
+         if (nextOpen) window.dispatchEvent(new CustomEvent("model-picker-open", { detail: pickerId }));
++        if (nextOpen && !options.length) { setOpen(false); if (onMissingConfig) onMissingConfig(); else showMissingModelConfiguration(capability || "image"); return; }
+         setOpen(nextOpen);
+     };
+     if (capability === "text" && onReasoningEffortChange) return <TextModelReasoningMenu config={config} options={options}
+-        value={current} open={open} onOpenChange={changeOpen} onSelect={onReasoningEffortChange}
++        value={current} open={active && open} onOpenChange={changeOpen} onSelect={onReasoningEffortChange}
+         renderModel={(model, compact) => <ModelLabel config={config} model={model} compact={compact} />} placeholder={pickerPlaceholder}
+         className={cn("canvas-composer-model-picker flex h-10 min-h-10 max-w-full items-center gap-2 rounded-full border border-input bg-transparent px-3 py-1 text-sm font-normal shadow-sm transition-colors",
+             fullWidth ? "w-full min-w-0 justify-start" : "w-fit min-w-[9rem] justify-start", className)} />;
+ 
+     return (
+         <Select
+-            open={open}
++            open={active && open}
+             value={current}
+             onOpenChange={changeOpen}
+             onValueChange={onChange}
+@@ -106,6 +109,7 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
+                 onKeyDown={(event) => { if (event.key !== "Escape") pointerInteraction.current = false; }}
+                 onMouseDown={(event) => event.stopPropagation()}
+                 onCloseAutoFocus={(event) => {
++                    if (!active) { event.preventDefault(); return; }
+                     // 鼠标操作画布模型后不把焦点留在按钮上，空格继续用于临时移动。
+                     if (pointerInteraction.current && trigger.current?.closest("[data-node-id]")) {
+                         event.preventDefault();

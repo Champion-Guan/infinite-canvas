@@ -1,0 +1,1595 @@
+{
+  "日期": "2026-10-20",
+  "状态": "扩大整批候选，待具体隔离接入批准；未装配或切换3100",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "凭据网关任务-qD9PwY",
+  "前置差异SHA256": "723841e0f57b5fb3bd21d9071b9223706833d4532ca3b3a463633e409eb1fb05",
+  "文件数": 67,
+  "差异SHA256": "009444d584648f349318edd6edd06e59edab70d98e13c89647ce920a2be3958e",
+  "完整虚拟类型检查通过": true,
+  "类型检查依赖": {
+    "临时目录": "/var/folders/kz/mjz6y1q970lfz57ldzrpyfnw0000gn/T/guan-type-dependencies-H64ifo",
+    "锁文件": [
+      {
+        "文件": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/凭据网关任务-qD9PwY/组合包/画布副本/web/node_modules/.pnpm/lock.yaml",
+        "SHA256": "3904f54c8433ecf5be03e16c883b08215ac99b72c698fadc17be6a3daa0493e3"
+      },
+      {
+        "文件": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/3a6b64b602ad062b29fac66902ed18a7ef5fd9dc/web/node_modules/.pnpm/lock.yaml",
+        "SHA256": "3904f54c8433ecf5be03e16c883b08215ac99b72c698fadc17be6a3daa0493e3"
+      },
+      {
+        "文件": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/node_modules/.pnpm/lock.yaml",
+        "SHA256": "268f9072e5453582d61ffb5392d0fbf0dbf97d86fc14cb406ec9f1efdc1541ec"
+      }
+    ],
+    "声明与元数据文件数": 2764,
+    "包": [
+      {
+        "name": "react",
+        "version": "19.2.5",
+        "integrity": "sha512-llUJLzz1zTUBrskt2pwZgLq59AemifIftw4aB7JxOqf1HY2FDaGDxgwpAPVzHU1kdWabH7FauP4i1oEeer2WCA=="
+      },
+      {
+        "name": "@types/react",
+        "version": "19.1.12",
+        "integrity": "sha512-cMoR+FoAf/Jyq6+Df2/Z41jISvGZZ2eTlnsaJRptmZ76Caldwy1odD4xTr/gNV9VLj0AWgg/nmkevIyUfIIq5w=="
+      },
+      {
+        "name": "@vitejs/plugin-react",
+        "version": "5.2.0",
+        "integrity": "sha512-YmKkfhOAi3wsB1PhJq5Scj3GXMn3WvtQ/JC0xoopuHoXSdmtdStOpFrYaT1kie2YgFBcIe64ROzMYRjCrYOdYw=="
+      },
+      {
+        "name": "vite",
+        "version": "7.3.7",
+        "integrity": "sha512-AHEzTORMbi7/7aXp7w7KZ5+DCUdSeLsJz0grY8xHpc9DHdYb0vQu6DqJfm2tOw3gDExNgPgnJTXxM6syYFHaCA=="
+      },
+      {
+        "name": "@types/node",
+        "version": "20.19.43",
+        "integrity": "sha512-6oYBAi5ikg4Pl+kGsoYtawUMBT2zZMCvPNF7pVLnHZfd1zf38DRiWn/gT01RYCdUqkv7Fhr+C9ot4/tb+2sVvA=="
+      },
+      {
+        "name": "jiti",
+        "version": "2.7.0",
+        "integrity": "sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ=="
+      },
+      {
+        "name": "lightningcss",
+        "version": "1.32.0",
+        "integrity": "sha512-NXYBzinNrblfraPGyrbPoD19C1h9lfI/1mzgWYvXUTe414Gz/X1FD2XBZSZM7rRTrMA8JL3OtAaGifrIKhQ5yQ=="
+      },
+      {
+        "name": "csstype",
+        "version": "3.2.3",
+        "integrity": "sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ=="
+      },
+      {
+        "name": "@babel/core",
+        "version": "7.29.7",
+        "integrity": "sha512-RgHBCvtjbOK2gXSNBNIkNoEc9qoVEtau3hj8gEqKQuL3HZAibKarWFEI3Lfm6EYKkLalOh8eSrj9b+ch9H/VBA=="
+      },
+      {
+        "name": "@types/babel__core",
+        "version": "7.20.5",
+        "integrity": "sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA=="
+      },
+      {
+        "name": "undici-types",
+        "version": "6.21.0",
+        "integrity": "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="
+      },
+      {
+        "name": "typescript",
+        "version": "5.9.3",
+        "integrity": "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="
+      },
+      {
+        "name": "rollup",
+        "version": "4.64.3",
+        "integrity": "sha512-iIMWbptLYsZdGTJMH8ngApXdsCatE6bCMv2eqGIfGE1++kwh7TCWBdWKK0FKC0yx++196vGK5VdagzRXSLMa8A=="
+      },
+      {
+        "name": "esbuild",
+        "version": "0.28.2",
+        "integrity": "sha512-HKVLS8dvII+xoKW9kmqxbRKrnWEXfJJr/FZhhJmiqIB0e053QNYFqOBouTMO/k5sID4MvCiUCvv8b9M4h32wIA=="
+      },
+      {
+        "name": "postcss",
+        "version": "8.5.29",
+        "integrity": "sha512-49cGhUbXj8Qenv0iTMxA1cFBzxXoctpC9Ujd77t1WcbJIr6nF/eI7g/8MgxrYldFRuAXvja7xQRwavoW7kgrxQ=="
+      },
+      {
+        "name": "@types/estree",
+        "version": "1.0.9",
+        "integrity": "sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg=="
+      },
+      {
+        "name": "source-map-js",
+        "version": "1.2.2",
+        "integrity": "sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw=="
+      },
+      {
+        "name": "@types/babel__generator",
+        "version": "7.27.0",
+        "integrity": "sha512-ufFd2Xi92OAVPYsy+P4n7/U7e68fex0+Ee8gSG9KX7eo084CWiQ4sdxktvdl0bOPupXtVJPY19zk6EwWqUQ8lg=="
+      },
+      {
+        "name": "@babel/parser",
+        "version": "7.29.9",
+        "integrity": "sha512-CjXrNHTnvqBVqHgdBysY3vk2T8tpJHb5/RMeHJBTyVa9xgugCB0CJTx/3oO8RV2QRQP391RWpB7D6hLjm8V9uA=="
+      },
+      {
+        "name": "@types/babel__template",
+        "version": "7.4.4",
+        "integrity": "sha512-h/NUaSyG5EyxBIp8YRxo4RMe2/qQgvyowRwVMzhYhBCONbW8PUsg4lkFMrhgZhUe5z3L3MiLDuvyJ/CaPa2A8A=="
+      },
+      {
+        "name": "@types/babel__traverse",
+        "version": "7.28.0",
+        "integrity": "sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q=="
+      },
+      {
+        "name": "@babel/types",
+        "version": "7.29.8",
+        "integrity": "sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg=="
+      },
+      {
+        "name": "zustand",
+        "version": "5.0.15",
+        "integrity": "sha512-MpSEjRiBkA9crSYeOUH32rJC7SVqAbm0Fqcqge/bUi2PPoLcBWKOsG+C8mevmpr8TwXHBVkChbbJiyvkE+i/3A=="
+      },
+      {
+        "name": "use-sync-external-store",
+        "version": "1.7.0",
+        "integrity": "sha512-6L+EeigHMQhdaIPNIFUKwfWJSwWFQ8gJbJ2DLOs5sDIegTwR9fRxvnM3uciHKjIZhFz+KAv2emhWMRvDmMcY8A=="
+      },
+      {
+        "name": "i18next",
+        "version": "26.4.2",
+        "integrity": "sha512-RX+R0VLg13IbvRuJSxnqykUFS9vQZTl8wYpWPCIUDWVrSGjsQywB5Y+pjzrkboxGAuYfJZVH1InFTdgBdxq6ug=="
+      },
+      {
+        "name": "react-i18next",
+        "version": "17.0.16",
+        "integrity": "sha512-7uImVD9hG5yUOaP5KHVied1x0A004Di/KU031ULR35Ma+9e9H5GdnNZHgQEIByyAz+IAXBkRDTedNVzjPUH8ZA=="
+      },
+      {
+        "name": "nanoid",
+        "version": "5.1.16",
+        "integrity": "sha512-kVrnsrJqMR8+oLJnGEmSWw9BivK5mt7H3FZatVRjrc5wGqFYuBxX1yG7+A7Gi5AefkX6t/oCkizcQgpu0cY1dQ=="
+      },
+      {
+        "name": "react-router-dom",
+        "version": "7.18.4",
+        "integrity": "sha512-yrfmJHIpDG7taCpqKjT1G5B6q3O2K+RN8/fgNf0lTjCwiPbQ0ei6vXX9ZjQR+7ld8Tr7Z5xmyMnZ8YJrphWQUw=="
+      },
+      {
+        "name": "react-dom",
+        "version": "19.2.5",
+        "integrity": "sha512-J5bAZz+DXMMwW/wV3xzKke59Af6CHY7G4uYLN1OvBcKEsWOs4pQExj86BBKamxl/Ik5bx9whOrvBlSDfWzgSag=="
+      },
+      {
+        "name": "react-router",
+        "version": "7.18.4",
+        "integrity": "sha512-PUPQcMhMGRAslLcvtlPz/kmzBEWPhLdgLFrL7pLNepBL6dX0lWj4WD2cUYVgYCuT3jxvghYFg81cDTj44DhetQ=="
+      },
+      {
+        "name": "cookie",
+        "version": "1.1.1",
+        "integrity": "sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ=="
+      },
+      {
+        "name": "antd",
+        "version": "6.6.5",
+        "integrity": "sha512-biJB/aORNU2lvZZCX783S/g8atfE8akrEKRjRrsXVttoMtJbSHLf/Z29niv0blzt6H3BgKvhkQgHoUn5MgCx7w=="
+      },
+      {
+        "name": "@rc-component/input",
+        "version": "1.3.1",
+        "integrity": "sha512-iFvTUT9W+JC/MSin2aGAk8NqsVlTzcExNC9DZariON1IWirju9NoNeEk47an4Q8iHazkoVI/y1LnDi88+CPcig=="
+      },
+      {
+        "name": "@rc-component/util",
+        "version": "1.13.0",
+        "integrity": "sha512-IXf2zBfZrbQGT+G8LxnoICDBGnMHIPIiq5HCRn3EDfKUx28x1rnbZBj46ULJf4sM8ImTG1SepqfNBdxZziqQ4w=="
+      },
+      {
+        "name": "@types/react-dom",
+        "version": "19.1.9",
+        "integrity": "sha512-qXRuZaOsAdXKFyOhRBg6Lqqc0yay13vN7KrIg4L7N4aaHN68ma9OK3NE1BoDFgFOTfM7zg+3/8+2n8rLUH3OKQ=="
+      },
+      {
+        "name": "@rc-component/dialog",
+        "version": "1.10.0",
+        "integrity": "sha512-eDukNlz9vNszAGv7i3zKXdxEd3wgVmNxuJijYt8zvTh17QwTu8KK/bdURRd/lU4qaMzhO1HKKmMrwOnkaw0BvQ=="
+      },
+      {
+        "name": "@rc-component/form",
+        "version": "1.8.6",
+        "integrity": "sha512-1EXVsSKPZC6kGrIqxVck7kAWM6T65b6et/n5wIcyiaIa41VrDshD0nVLHoBDEIZr2ATQsOP6icb4XQkNFMLBAw=="
+      },
+      {
+        "name": "@rc-component/picker",
+        "version": "1.12.2",
+        "integrity": "sha512-ZB1A+tzTQkgtR4flPrAMvxIAOelIIOOOsp22fU2Nad6PbZcJacnyGJUJqUH7ZS9mwxeUwurf1pLMKXrVsK1tlA=="
+      },
+      {
+        "name": "dayjs",
+        "version": "1.11.23",
+        "integrity": "sha512-QDTCU0M0MxR3hQfnlDJfwekQiaanm1ubOD231u73WBckQ/fsamwRLiE2GBz6D3a/xF1NgfiDLJjXBa1hYOYTtQ=="
+      },
+      {
+        "name": "@rc-component/trigger",
+        "version": "3.10.1",
+        "integrity": "sha512-mXlDN0IXdtV8Yqqm8195ECCyrbmfvvfKvwVvSlH0+qvKD6BUF8gRhEjSy0FOcD1+CcDRHgTiX99LoxfQrmh3Cw=="
+      },
+      {
+        "name": "@rc-component/motion",
+        "version": "1.3.3",
+        "integrity": "sha512-Xh3IszxvlSv3/PLYFyC2UZi9LNB83yOnkB/LNmRzaypZLvkhqUIPS7MQpGZcCMWrNsXV2p6YTSWbSGvFpEle9A=="
+      },
+      {
+        "name": "@rc-component/resize-observer",
+        "version": "1.1.2",
+        "integrity": "sha512-t/Bb0W8uvL4PYKAB3YcChC+DlHh0Wt5kM7q/J+0qpVEUMLe7Hk5zuvc9km0hMnTFPSx5Z7Wu/fzCLN6erVLE8Q=="
+      },
+      {
+        "name": "@rc-component/portal",
+        "version": "2.2.1",
+        "integrity": "sha512-ck+r1kW/JSv0wxPji3KN2ss9K6Z0qqwusw/mf/0JobXhZ8hC2ejZwCJObW/SvDi0uhA0VzmCnx0CaCci95tcmA=="
+      },
+      {
+        "name": "@rc-component/tooltip",
+        "version": "1.5.2",
+        "integrity": "sha512-VLq4BclU3LgRe46g2hTr2bdsM8tFYs7dVwpuD88rPNNg4lCGe8mBSS4FiRzYzS+ffnZ46y4SI8KYKo9K7qBnhw=="
+      },
+      {
+        "name": "@ant-design/cssinjs",
+        "version": "2.1.2",
+        "integrity": "sha512-2Hy8BnCEH31xPeSLbhhB2ctCPXE2ZnASdi+KbSeS79BNbUhL9hAEe20SkUk+BR8aKTmqb6+FKFruk7w8z0VoRQ=="
+      },
+      {
+        "name": "@ant-design/cssinjs-utils",
+        "version": "2.1.2",
+        "integrity": "sha512-5fTHQ158jJJ5dC/ECeyIdZUzKxE/mpEMRZxthyG1sw/AKRHKgJBg00Yi6ACVXgycdje7KahRNvNET/uBccwCnA=="
+      },
+      {
+        "name": "scroll-into-view-if-needed",
+        "version": "3.1.0",
+        "integrity": "sha512-49oNpRjWRvnU8NyGVmUaYG4jtTkNonFZI86MmGRDqBphEK2EXT9gdEUoQPZhuBM8yWHxCWbobltqYO5M4XrUvQ=="
+      },
+      {
+        "name": "compute-scroll-into-view",
+        "version": "3.1.1",
+        "integrity": "sha512-VRhuHOLoKYOy4UbilLbUzbYg93XLjv2PncJC50EuTWPA3gaja1UjBsUP/D/9/juV3vQFr6XBEzn9KCAHdUvOHw=="
+      },
+      {
+        "name": "@rc-component/pagination",
+        "version": "1.4.0",
+        "integrity": "sha512-CW1g7P9V8u+e8JQdUsl2RWg+GCsoee0mtJjZUCCxn/vb3jzOwDKm6hAdwddHCVBfWJ58eGUBZz3IvnU8rRktjw=="
+      },
+      {
+        "name": "@rc-component/select",
+        "version": "1.10.1",
+        "integrity": "sha512-H+yQsl+qED9NilQ3g6zdpsMwUgwVjrcMTkNHAWRVU/MoNCYgTbDgU+MIMgZDK+rVdd2JUfI/MkysMcZZ0cyQKw=="
+      },
+      {
+        "name": "@rc-component/virtual-list",
+        "version": "1.5.2",
+        "integrity": "sha512-igfe7NP9cOmDAhLy5z+Juz8fhjOMzMbF7TRoR/yqXIsbU6XZm4TU7ogcm5O553P0rLF6n0j5F6J+n15Izb1tqg=="
+      },
+      {
+        "name": "@rc-component/table",
+        "version": "1.11.1",
+        "integrity": "sha512-OWdS6DMmeWb7bJBGqPxYZpQbzBlBiXZUu2sqo6Ii7Sjs9GeK1IsrXrWk26SL2c6KEseabswdxrRj7WUm9LdECw=="
+      },
+      {
+        "name": "@rc-component/checkbox",
+        "version": "2.0.0",
+        "integrity": "sha512-3CXGPpAR9gsPKeO2N78HAPOzU30UdemD6HGJoWVJOpa6WleaGB5kzZj3v6bdTZab31YuWgY/RxV3VKPctn0DwQ=="
+      },
+      {
+        "name": "@rc-component/menu",
+        "version": "1.5.0",
+        "integrity": "sha512-RjvzPsZkwVEg3xu+/jDDqDeUCBJAnWylONFlGeQgg5enlNAnlpybqhaMGE/UPEIvr6hL90PGhjFBguJqj0Qb2Q=="
+      },
+      {
+        "name": "@rc-component/tour",
+        "version": "2.4.0",
+        "integrity": "sha512-aui4r4TqmTzwaBgcQxHYep8kM8PTjZFufjokObpy35KfFeZ0k9ArquWFZqegQlH24P14t+F0qO0mGTgzlav1yg=="
+      },
+      {
+        "name": "@rc-component/upload",
+        "version": "1.1.1",
+        "integrity": "sha512-GvYWSKeaJTOxxC5p6+nOSadzfvXA1h8C/iHFPFZX+szH3JUXrvs+DLiW8YUTBgvMh8m63mJeHrlYlJzAlg+pDA=="
+      },
+      {
+        "name": "@rc-component/tabs",
+        "version": "1.13.0",
+        "integrity": "sha512-3FXr+9ZII8tFLWuDWrgjRaxZd2mazkKJAGRFEfVmp4r1qnBglOlxQ78l54Td1aj6/iFaaEReKSAF2HToztU5uw=="
+      },
+      {
+        "name": "@rc-component/dropdown",
+        "version": "1.0.3",
+        "integrity": "sha512-YTST/N6kpqpDz3IMuM/PSSZnrDpSOA6dgHv12gPA90ZTSLv2CoqkZ0+9NtwTY6BeO7dstPblSic2QJg7dSFy/g=="
+      },
+      {
+        "name": "@rc-component/cascader",
+        "version": "1.22.0",
+        "integrity": "sha512-SffrA57aS9oub3VuI7ajPhJTPtaNxngSvtRhD40Rd8dwJ5vfWPSrVanWgeepdWFGBt7EHftIK5RUU0u3rCTwWw=="
+      },
+      {
+        "name": "@rc-component/collapse",
+        "version": "1.2.0",
+        "integrity": "sha512-ZRYSKSS39qsFx93p26bde7JUZJshsUBEQRlRXPuJYlAiNX0vyYlF5TsAm8JZN3LcF8XvKikdzPbgAtXSbkLUkw=="
+      },
+      {
+        "name": "@rc-component/color-picker",
+        "version": "3.1.1",
+        "integrity": "sha512-OHaCHLHszCegdXmIq2ZRIZBN/EtpT6Wm8SG/gpzLATHbVKc/avvuKi+zlOuk05FTWvgaMmpxAko44uRJ3M+2pg=="
+      },
+      {
+        "name": "@ant-design/fast-color",
+        "version": "3.0.1",
+        "integrity": "sha512-esKJegpW4nckh0o6kV3Tkb7NPIZYbPnnFxmQDUmL08ukXZAvV85TZBr70eGuke/CIArLaP6aw8lt9KILjnWuOw=="
+      },
+      {
+        "name": "@rc-component/drawer",
+        "version": "1.4.2",
+        "integrity": "sha512-1ib+fZEp6FBu+YvcIktm+nCQ+Q+qIpwpoaJH6opGr4ofh2QMq+qdr5DLC4oCf5qf3pcWX9lUWPYX652k4ini8Q=="
+      },
+      {
+        "name": "@rc-component/image",
+        "version": "1.10.0",
+        "integrity": "sha512-BjeZCRQ+hw+4WAhvrw8rJvy5fckA2xpf/X2XQEOABUHvLTNB9inB98X3Mp54jYQ7g10DfWERQWHXeC4ylxp1Uw=="
+      },
+      {
+        "name": "@rc-component/input-number",
+        "version": "1.6.2",
+        "integrity": "sha512-Gjcq7meZlCOiWN1t1xCC+7/s85humHVokTBI7PJgTfoyw5OWF74y3e6P8PHX104g9+b54jsodFIzyaj6p8LI9w=="
+      },
+      {
+        "name": "@rc-component/mini-decimal",
+        "version": "1.1.4",
+        "integrity": "sha512-xiuXcaCwyOWpD8a8scdExFl+bntNphAW8XeenL1ig2en0AAZY0Pcp4pC0dI22qJ+NvxKn9RoNIoRdqYU3BLH4w=="
+      },
+      {
+        "name": "@rc-component/listy",
+        "version": "1.2.3",
+        "integrity": "sha512-IXiMjV5s0rczLBlfh7G5nB4M3365mrEeedjwKtf5I+Ns3PqRUsebR2h5u8CeFarsVfLUPC2I5p0h09TNoOWyvQ=="
+      },
+      {
+        "name": "@rc-component/mentions",
+        "version": "1.12.0",
+        "integrity": "sha512-v5MBx8zDcqCT+uybJgKpcx3Fgrvj0m3u+A/15RlSBaMx12lLoJZTTYggC3pbYYfohcKujWWUyBz6O6Gp2vGiNA=="
+      },
+      {
+        "name": "@rc-component/notification",
+        "version": "2.0.9",
+        "integrity": "sha512-jQT5IVSWSHPTNFXQM2YQONPptjiKXZa4A4Kzwh2xkh3MkL31gRzyjb98N3QHBzLxsyGGJK1aNpn9j9aSO/O0dg=="
+      },
+      {
+        "name": "@rc-component/qrcode",
+        "version": "2.0.0",
+        "integrity": "sha512-aAv3QhPP1xyafuTZOxub6a54pCeBnN3IwQkpETrBtthq4BL5IgxnCbuoBWPDpdLw1y1j6BgBUCAKV92+yX06Dw=="
+      },
+      {
+        "name": "@ant-design/icons",
+        "version": "6.3.4",
+        "integrity": "sha512-kDoUlppczVyCUTFthF6cHmPzMBYqNZQhu9j6EyIX/YIdM9j9CZNZoJUjzVw7/1v1VO8WwVMmPp15r/uwIAS0AQ=="
+      },
+      {
+        "name": "@ant-design/icons-svg",
+        "version": "4.6.0",
+        "integrity": "sha512-PRomU725ABMf/lnQp5HiB7my1kjEbFY0D10N4lXYxK6TIB1gKjIVD5MRThpDaezLgw1D774J8eOeeDB0M6wHrQ=="
+      },
+      {
+        "name": "@rc-component/segmented",
+        "version": "1.4.0",
+        "integrity": "sha512-NZlpKGSplOYlmF5ukUF1fCLr0ns5WfjNoqMlMkf4AHP0iu90wyiP7hn2qZKRHEuRlG4CvEEz/lF9qRiYnLTofQ=="
+      },
+      {
+        "name": "@rc-component/slider",
+        "version": "1.1.1",
+        "integrity": "sha512-LSzgWGYDgeCDgR4r1XlU29gbYws6HpLnvJd/uMhLeW/vQgxldeR+Wb4uzHDCHiYEbr1bnEHWdjkPxjJRHxuiig=="
+      },
+      {
+        "name": "@rc-component/steps",
+        "version": "1.2.3",
+        "integrity": "sha512-/b9gHcvDGjTDWJZW7+1kKFvzs0jrEeQ8mFvvIgX+h7xNT0FsOYODJYKjyJR4fPbvMBCfCOEqaBK66HBxov5BQA=="
+      },
+      {
+        "name": "@rc-component/switch",
+        "version": "1.0.3",
+        "integrity": "sha512-Jgi+EbOBquje/XNdofr7xbJQZPYJP+BlPfR0h+WN4zFkdtB2EWqEfvkXJWeipflwjWip0/17rNbxEAqs8hVHfw=="
+      },
+      {
+        "name": "@rc-component/tree",
+        "version": "1.4.0",
+        "integrity": "sha512-dGsJGDJQedA0BqqVgj3F8BvHXTSZijyhTXdbAdkcx8lynzZkty/CV3Z3LOm/fxz+BCfl3dfGiAQpb7Q5XNvl0Q=="
+      },
+      {
+        "name": "@rc-component/tree-select",
+        "version": "1.16.1",
+        "integrity": "sha512-a1Oi6EJhqAhdOxxupdJi6fP0RPHMKn5TcfkX2+llaQ4lF4nwfH7b6SCHcnsybaa2s+pk1yZYwVyeOYkDnEBRdg=="
+      },
+      {
+        "name": "@ant-design/react-slick",
+        "version": "2.0.0",
+        "integrity": "sha512-HMS9sRoEmZey8LsE/Yo6+klhlzU12PisjrVcydW3So7RdklyEd2qehyU6a7Yp+OYN72mgsYs3NFCyP2lCPFVqg=="
+      },
+      {
+        "name": "@rc-component/rate",
+        "version": "1.0.1",
+        "integrity": "sha512-bkXxeBqDpl5IOC7yL7GcSYjQx9G8H+6kLYQnNZWeBYq2OYIv1MONd6mqKTjnnJYpV0cQIU2z3atdW0j1kttpTw=="
+      },
+      {
+        "name": "clsx",
+        "version": "2.1.1",
+        "integrity": "sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA=="
+      },
+      {
+        "name": "tailwind-merge",
+        "version": "3.7.0",
+        "integrity": "sha512-XPPUyAc+cvspz3lHTcR/QgPfW2A0lv/xQNIjX3HGhLR+Nq2lHaLq5MtTesHn8GUr3W3DguT2KT5x3NVgRtYwmA=="
+      },
+      {
+        "name": "lucide-react",
+        "version": "1.53.0",
+        "integrity": "sha512-OxJ7elNku+iqVzOolk5caxq2LM8Mck6lhA6uZx3g2PlZ53+FvBnT6PlJxGCukCa6oF5wQwgSatn9cH1b4olWmQ=="
+      },
+      {
+        "name": "streamdown",
+        "version": "2.7.0",
+        "integrity": "sha512-SHYTCveHpRJfcIC8r+5EANczK21R0iNYo4i7wNaLeLeQjEnaVk4xMFhgV4E/mix69BpFSBui1NOESEXKlZfReA=="
+      },
+      {
+        "name": "remend",
+        "version": "1.4.0",
+        "integrity": "sha512-mHiYhhwphs1IgIZmkToKLwJn0U99IjPXuutkA2acrNcG0vlEq2G4TGnd2eT0saIHwh2KjaCpvleHcsd5SAz96A=="
+      },
+      {
+        "name": "unified",
+        "version": "11.0.5",
+        "integrity": "sha512-xKvGhPWw3k84Qjh8bI3ZeJjqnyadK+GEFtazSfZv/rKeTkTjOJho6mFqh2SM96iIcZokxiOpg78GazTSg8+KHA=="
+      },
+      {
+        "name": "@types/hast",
+        "version": "3.0.5",
+        "integrity": "sha512-rp/ezSWaD1m44dPKICGhiskI13nVr7qTloFwDa/IYkhhf5nzwP+zIQcIJh3WIFSBOy/H1PzB40jPjMDksN4F+g=="
+      },
+      {
+        "name": "remark-rehype",
+        "version": "11.1.2",
+        "integrity": "sha512-Dh7l57ianaEoIpzbp0PC9UKAdCSVklD8E5Rpw7ETfbTl3FqcOOgq5q2LVDhgGCkaBv7p24JXikPdvhhmHvKMsw=="
+      },
+      {
+        "name": "vfile",
+        "version": "6.0.3",
+        "integrity": "sha512-KzIbH/9tXat2u30jf+smMwFCsno4wHVdNmzFyL+T/L3UGqqk6JKfVqOFOZEpZSHADH1k40ab6NUIXZq422ov3Q=="
+      },
+      {
+        "name": "vfile-message",
+        "version": "4.0.3",
+        "integrity": "sha512-QTHzsGd1EhbZs4AsQ20JX1rC3cOlt/IWJruk893DfLRr57lcnOeMaWG4K0JrRta4mIJZKth2Au3mM3u03/JWKw=="
+      },
+      {
+        "name": "@types/unist",
+        "version": "3.0.3",
+        "integrity": "sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q=="
+      },
+      {
+        "name": "trough",
+        "version": "2.2.0",
+        "integrity": "sha512-tmMpK00BjZiUyVyvrBK7knerNgmgvcV/KLVyuma/SC+TQN167GrMRciANTz09+k3zW8L8t60jWO1GpfkZdjTaw=="
+      },
+      {
+        "name": "mdast-util-to-hast",
+        "version": "13.2.1",
+        "integrity": "sha512-cctsq2wp5vTsLIcaymblUriiTcZd0CwWtCbLvrOzYCDZoWyMNV8sZ7krj09FSnsiJi3WVsHLM4k6Dq/yaPyCXA=="
+      },
+      {
+        "name": "@types/mdast",
+        "version": "4.0.4",
+        "integrity": "sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA=="
+      },
+      {
+        "name": "copy-to-clipboard",
+        "version": "4.0.2",
+        "integrity": "sha512-gklSft7IuhriZKHKpuoA1fpJSLPNgvUMWMo5BlnzAJm0zNKnznoSv23IjtNqclx8eKi6ZcdvFFzYEER/+U1LoQ=="
+      },
+      {
+        "name": "axios",
+        "version": "1.20.0",
+        "integrity": "sha512-r8aOh8j9cGKpgQAqpzrUHnSIc6a59Y3Xf/cv8sy1DrHCkZHzQGEuoq1tARk6qSyDdtQGSDgpb9kFlruzPvrgwg=="
+      },
+      {
+        "name": "@tanstack/react-query",
+        "version": "5.104.1",
+        "integrity": "sha512-Zz70EgjahNI7aCz8BZxM3vUGU44ycxEAzMuCUjLeA7SVhhOkg3ZgPjPJPvHjs6Rmky/dtmnu1WzjGHNHmhCoZQ=="
+      },
+      {
+        "name": "@tanstack/query-core",
+        "version": "5.104.1",
+        "integrity": "sha512-TiRghcrGkUTE+M4JBxvpPSpBhxvIzQairw+cksrHYGr+2uwC77yW1SY9nYxnYRYOppvucf8rEg6b5byoz4rTpw=="
+      },
+      {
+        "name": "embla-carousel-react",
+        "version": "8.6.0",
+        "integrity": "sha512-0/PjqU7geVmo6F734pmPqpyHqiM99olvyecY7zdweCw+6tKEXnrE90pBiBbMMU8s5tICemzpQ3hi5EpxzGW+JA=="
+      },
+      {
+        "name": "react",
+        "version": "19.3.1",
+        "integrity": "sha512-QNhWdt7nrgVWWQG58QuGsAR3jv3Hbe4mb4vz7w2csnHavciZJgda1CPNaldF6eVxv90ud3jUXpKlHL69gO38yw=="
+      },
+      {
+        "name": "embla-carousel-autoplay",
+        "version": "8.6.0",
+        "integrity": "sha512-OBu5G3nwaSXkZCo1A6LTaFMZ8EpkYbwIaH+bPqdBnDGQ2fh4+NbzjXjs2SktoPNKCtflfVMc75njaDHOYXcrsA=="
+      },
+      {
+        "name": "embla-carousel",
+        "version": "8.6.0",
+        "integrity": "sha512-SjWyZBHJPbqxHOzckOfo8lHisEaJWmwd23XppYFYVh10bU66/Pn5tkVkbkCMZVdbUE5eTCI2nD8OyIP4Z+uwkA=="
+      },
+      {
+        "name": "fflate",
+        "version": "0.8.3",
+        "integrity": "sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA=="
+      },
+      {
+        "name": "file-saver",
+        "version": "2.0.5",
+        "integrity": "sha512-P9bmyZ3h/PRG+Nzga+rbdI4OEpNDzAVyy74uVO9ATgzLK6VtAsYybF/+TOCvrc0MO793d6+42lLyZTw7/ArVzA=="
+      },
+      {
+        "name": "@types/file-saver",
+        "version": "2.0.7",
+        "integrity": "sha512-dNKVfHd/jk0SkR/exKGj2ggkB45MAkzvWCaqLUUgkyjITkGNzH8H+yUwr+BLJUBjZOe9w8X3wgmXhZDRg1ED6A=="
+      },
+      {
+        "name": "radix-ui",
+        "version": "1.7.0",
+        "integrity": "sha512-x+z5TV2v6u0QpAQ4dQfNMcvtIdSQ1Op2oqBEyfDXjNldRZbMTP+hcjr5Iie31bep81Axeioa+70Ww7pZDzTEQQ=="
+      },
+      {
+        "name": "@radix-ui/react-accessible-icon",
+        "version": "1.1.16",
+        "integrity": "sha512-I+T/Hc6SY3WbFVZ9Ne1o0DJbpjQpTpLIBZcVzYiHCQ9z1yGUd/G88u5SKyM6eJ223txAOS7bp7bb9k0Ocfkjwg=="
+      },
+      {
+        "name": "@radix-ui/react-accordion",
+        "version": "1.2.21",
+        "integrity": "sha512-2fmc6COuKLq2k3P7JZrOt9Zf8HT9nTQhHN5V+A3ih7ftqoyDcoEUrPoLq8ngr7QwTd7hpQ2xoUKWtvy1Xw9RAQ=="
+      },
+      {
+        "name": "@radix-ui/react-alert-dialog",
+        "version": "1.1.24",
+        "integrity": "sha512-dRvB59HhcjIWcCPKzK5Px1yQ8pIULQQrxqgyepCqin7tNXi/xvmC86WkyMOKhuCbjz3+v9Q6oE7/tUN5NQ9dCg=="
+      },
+      {
+        "name": "@radix-ui/react-aspect-ratio",
+        "version": "1.1.16",
+        "integrity": "sha512-w2u6oiTzb7WkWwV3ZClX/llYYlTbilUOkHIKkwb+PWWytQ/IdEVRNLIChjbcXy/mkqcKKM3wEhrOilJW+uPHDg=="
+      },
+      {
+        "name": "@radix-ui/react-avatar",
+        "version": "1.2.7",
+        "integrity": "sha512-6AizCpbU3Zngojp9vQak8Lt4AXwdKJ2lkRYAfpoETraT+qKVNeRqytiADzneHetFEB0Wu4+qeSfmZEq0PiVDmQ=="
+      },
+      {
+        "name": "@radix-ui/react-checkbox",
+        "version": "1.3.12",
+        "integrity": "sha512-gNOS2lLrpQxNLWHhCX0sayfVRiyB5gQp7nQIzpl+PM1Hkab52utsKtD27alAr78uqhpvX51kwqDp71hM5hNSwg=="
+      },
+      {
+        "name": "@radix-ui/react-collapsible",
+        "version": "1.1.21",
+        "integrity": "sha512-IzkusZHCZBnED5skW+b+syl8d+e3+zelvxZ2Ed9lfawqEBfa5osPj53sTJ+q/uNmGAj9e7wMYgyzwPu/luWJ4Q=="
+      },
+      {
+        "name": "@radix-ui/react-context-menu",
+        "version": "2.3.8",
+        "integrity": "sha512-s8ABBkEuAOyhDub0Y99f8lVRlVsd28mUnOHtuqGg8LuHnefkmPN5rYzA2g8MAPLjAZMisnDHhN4dBHUM7ZF7Rg=="
+      },
+      {
+        "name": "@radix-ui/react-dialog",
+        "version": "1.2.0",
+        "integrity": "sha512-l5CX8HdNL+9cc4s7HkNyplumSA3FIx68sg9dttBHKr286fRBwq1MBniDVTeI/tkof92/APntMQvC1YG1Khb0Cg=="
+      },
+      {
+        "name": "@radix-ui/react-direction",
+        "version": "1.1.5",
+        "integrity": "sha512-/NlO/rOqQabmg+GGr86vCmbJVhqTv85NfM9g6Gknf/JVygXeZ6e6HM/RW1omerW9HsFtecwNqgEAKV6UqDsvpA=="
+      },
+      {
+        "name": "@radix-ui/react-dropdown-menu",
+        "version": "2.1.25",
+        "integrity": "sha512-45QO76jn/a+cRl6OPgZKCKnIMdfYZaOa6SuAJeKHFiM3orX6bnscuFQJDx3qS4Agp/RE+eKv+9gmUL8t3Ma7bw=="
+      },
+      {
+        "name": "@radix-ui/react-form",
+        "version": "0.2.0",
+        "integrity": "sha512-5ELeC+bQUHXEjU51svw11DynjGFlaUjo5QOUCr5hptvLLtBiqWtva2O3IWdjrFWQwitw6k6KpHHEyI61/kCVeg=="
+      },
+      {
+        "name": "@radix-ui/react-hover-card",
+        "version": "1.1.24",
+        "integrity": "sha512-0w/tZHRo1fv4WsfcyaOdi5eDftFA8wQkr8WCOOuxw7fx9S2ERfshQioM269aFZsmyAHd0X1LWoZ2BQTlA/JYUw=="
+      },
+      {
+        "name": "@radix-ui/react-label",
+        "version": "2.1.16",
+        "integrity": "sha512-2vTQj72YFmeoTxWKJEMbO/9uQt6zzLgbzi0+nWBffq49oo6KhIDP/D+fA2im0wsxBCAX7QfaF3xgsYBVdDbNFQ=="
+      },
+      {
+        "name": "@radix-ui/react-menubar",
+        "version": "1.1.25",
+        "integrity": "sha512-JIQiKcXsgl6BtwcMe7BMLvCGH2p9Czgcmxl6Ie9Zoi+MW1mmitkcm5We01m/ndLYVI8PpRJnM/RcLV0eOCxaJQ=="
+      },
+      {
+        "name": "@radix-ui/react-navigation-menu",
+        "version": "1.3.0",
+        "integrity": "sha512-hZqTqDwc8Z5aI4rGIyPqCSJ2JoSNorqX/F1/gqNHkZzWJO6JuYzL7hn5sWOZJjpkfT+cbxWWRbKVU/IeiOM9ag=="
+      },
+      {
+        "name": "@radix-ui/react-one-time-password-field",
+        "version": "0.1.17",
+        "integrity": "sha512-+6jmOqjSNBr7F1uSc7HSDqD3XL54A2qA99I9rIH4JoOD/jDScw8tUmDz6HCAkjytbrE/cdL66i+QkeDyZ0WNyw=="
+      },
+      {
+        "name": "@radix-ui/react-password-toggle-field",
+        "version": "0.1.12",
+        "integrity": "sha512-+SWSgf3HRpE4zUira+p6t5KUR473PSqewtQgj9qzl3znZPRWPCGycwXNTfHwkiRTD3tEXwNIXJg0i1NTteiULw=="
+      },
+      {
+        "name": "@radix-ui/react-popover",
+        "version": "1.2.0",
+        "integrity": "sha512-e70Nh+0iQ+hRAIM2nAGib5BhaDL2Rjlzxw9kIzsU2nz+t3/t82Z5qtPhY5nTnfj8FbmrU6RRIKH8RF3ynCe+vw=="
+      },
+      {
+        "name": "@radix-ui/react-portal",
+        "version": "1.1.18",
+        "integrity": "sha512-ygFIJ+QXNKf72AAq8x3hd22+ws7pYpmc1S0E4kW0Je+qD4qEb3FvxeKVQRGrVDMOkQaYfsB+Qs+KDh81a1gAOw=="
+      },
+      {
+        "name": "@radix-ui/react-progress",
+        "version": "1.1.17",
+        "integrity": "sha512-A+RfMARd9u+UaVbLQDmysGlAGuaFQrF+uxF3v+7+xU8tkKoYxtCSs+6HHnIKJVgam2sGZ7c0hLRPWSnmnFyGJQ=="
+      },
+      {
+        "name": "@radix-ui/react-radio-group",
+        "version": "1.4.8",
+        "integrity": "sha512-MaOOZ1TlaYoOeSDnHeVIONss0rp5ngOTY5HJY+Xkq16PAopnj21iU9r9m0O/77cBYu8Ksaq3BcjlaOdpbfbzzg=="
+      },
+      {
+        "name": "@radix-ui/react-scroll-area",
+        "version": "1.3.0",
+        "integrity": "sha512-1WSuAXaahfeLmFX/dfYo/ftg1filMfaWjVye2d40VlgtWMMq/NOVocfukZEXkG+dwrAoNI+qpo9bjhNSJ/XC8g=="
+      },
+      {
+        "name": "@radix-ui/react-select",
+        "version": "2.3.8",
+        "integrity": "sha512-Tz9xOpV9Rbca5WTk7pzmfAECV3zb++uScT9mP3Px7ziAhH7SlK53b0uwMw8VubPhRK4x7uDKCy5fwevT8I0fAg=="
+      },
+      {
+        "name": "@radix-ui/react-separator",
+        "version": "1.1.16",
+        "integrity": "sha512-vugPjGQBXbJVVkftKqv/BVeZ108SyRGT3FR1oa14az6qyLgX8jPhnZYHgdSB7Gw8UJusqwb9eaK6mluOnsn/Vg=="
+      },
+      {
+        "name": "@radix-ui/react-slider",
+        "version": "1.5.0",
+        "integrity": "sha512-ZOBLK7KZvGL02V+4VwVbj8NYM4vPrAtyZdrgHSv+AMS9VL+5yAdnQF3DZT4Y8cbCp1Yn4xdp92orvez8fJa77w=="
+      },
+      {
+        "name": "@radix-ui/react-slot",
+        "version": "1.4.0",
+        "integrity": "sha512-IuMVHZ+Ah5fkctu3X3qeFrV/ZrBcuWuDTFUUPfS/L5hvoTjzhp/HdWGE14CsQombPdEidsa33HVlYZXi49PZ1Q=="
+      },
+      {
+        "name": "@radix-ui/react-switch",
+        "version": "1.3.8",
+        "integrity": "sha512-rr+zuoAeHWK3m6H4HgjOUiu3VsrQ/9JkjwY/uMnTgHJGPe9WNzDP/MOuIV7S+65p42DIxjGL0hAHktqBq82+2A=="
+      },
+      {
+        "name": "@radix-ui/react-tabs",
+        "version": "1.1.22",
+        "integrity": "sha512-GmVH+P3wx1ZPMuH7WajQzygZIbqgnsb5h8z4Ow3sQMuDqgcqISSBNom6MLVNJvfrkuJTtqfXc3ZolHjX+w0CHg=="
+      },
+      {
+        "name": "@radix-ui/react-toast",
+        "version": "1.2.24",
+        "integrity": "sha512-XR9pDEz9CH0ez98zPXQZOpF46anvbarkoOpjXpPSX7gm21vEl5Tzoe1PSQd3EY1OTOHac4lNq+TPx/2Z7jObdQ=="
+      },
+      {
+        "name": "@radix-ui/react-toggle",
+        "version": "1.1.19",
+        "integrity": "sha512-l7FQHtuZjUJ0vKLdhKu5LzZ8Jw6K60QEC1tC22QNLuXN2PkydSoqEhKTCqwxBFZJ52NTCjzudDvl9sUsZeUbPw=="
+      },
+      {
+        "name": "@radix-ui/react-toggle-group",
+        "version": "1.1.20",
+        "integrity": "sha512-O+Sjiv64DfnByHYtnKEXmn63uUskU/X61vjf69X1v8JFn/ZvuNNLdJTBfYurVTSDv4/RJnJGtGgb/uvuS/rRJw=="
+      },
+      {
+        "name": "@radix-ui/react-toolbar",
+        "version": "1.1.20",
+        "integrity": "sha512-5gyzL6B5/zjBwU3ATBWAVZ4xXQC5F8E9CB4BmYC1UvZ08pN2OJQoooeIwJtZZ/2rz4sTiQmbGfdDvmU73wRJCQ=="
+      },
+      {
+        "name": "@radix-ui/react-tooltip",
+        "version": "1.3.0",
+        "integrity": "sha512-4HM4b1Cft1CBXCGDRDG3S/fh8GedBuVOMNh145wMIfTbVqcuv+tyj03nZqYgFevWJMYo58H0s+8P6s6NaUHWtA=="
+      },
+      {
+        "name": "@radix-ui/react-visually-hidden",
+        "version": "1.2.12",
+        "integrity": "sha512-/iPLVHRBzKWvekN+5xaDmXw80f+nleYYceomVORrGjuJe0LF2SCbSH4f/LG4hu32q92QSuPZx4hmSACYBVBfzQ=="
+      },
+      {
+        "name": "@radix-ui/react-context",
+        "version": "1.2.2",
+        "integrity": "sha512-RHCUGwKHDr0hDGg4X7ma4JG4/+12qxw8rkh5QKdDldlCvtja6nUx1Ef/8HVrJze81lEsgLQlqjzjGNHantgnQA=="
+      },
+      {
+        "name": "@radix-ui/react-primitive",
+        "version": "2.1.11",
+        "integrity": "sha512-RzcaSw5aKl0OPhBJ1wbolKSF6nVvN+0o/QLeIVq+09npiPdnCkPggy2k6gI6yetxl4ZyrlBPYFgCB8BQJZwXcQ=="
+      },
+      {
+        "name": "@radix-ui/react-dismissable-layer",
+        "version": "1.1.20",
+        "integrity": "sha512-35WHRrycfnj2m4LvPiKMKHGLM3Y2WvUA744CkRdxjs1BGDX1c8PVMfmiSGTUwnHRbqdtIoxveYTXvcJSt7VfgQ=="
+      },
+      {
+        "name": "@radix-ui/react-focus-scope",
+        "version": "1.2.0",
+        "integrity": "sha512-I5S7vsAOozx2lWSBAyuXjWIJ/A8qx4fjbv6115WoaRYQSb1yZDaeNHonUAQzXyE8oD+0whJHbQRl4HIE2gQ0Xw=="
+      },
+      {
+        "name": "@radix-ui/react-menu",
+        "version": "2.1.25",
+        "integrity": "sha512-e8JaQc0ijBbTx37YVI09Nfq8ThUWJ4L1rvZ3Hvaufehco9/ug9+U3PHz9ue6w3gKd91UcKf9fgDWejeSO+VSKQ=="
+      },
+      {
+        "name": "@radix-ui/react-popper",
+        "version": "1.3.8",
+        "integrity": "sha512-y92/9iIdG1FyNvow0Y0qP5WJZ7oRTAKDVKCy9kJnhZfItwIKYtt0KKQeOhBKfXz0ETizduKwDRbrQHrTQScs5A=="
+      },
+      {
+        "name": "@radix-ui/react-roving-focus",
+        "version": "1.1.20",
+        "integrity": "sha512-+ZjbkU21fTSJdn4nq/IFKUdKS+JSZHORBZ8ma1f6YpOMNzRt0xf3sVAWVK/+ktHCajPy4HYDsyHXZIZmOMxzIA=="
+      },
+      {
+        "name": "@radix-ui/react-arrow",
+        "version": "1.1.16",
+        "integrity": "sha512-nXPI1tzJsnQw8oXvB2r49rO9TIbbJ8VFeaWDiBsqY8+iwO5xb7WjUsrXDagjAgPKTdhW8WODQnAltUhBx8I+sg=="
+      },
+      {
+        "name": "@radix-ui/rect",
+        "version": "1.1.3",
+        "integrity": "sha512-JtyZR+mqgBibTo8xea3B6ZRmzZiM/YeVBtUkas6zMuXjAlfIFIW2FgqeM9eLyvEaYX66vr6DJMK+4U6LV0KhNw=="
+      },
+      {
+        "name": "@ant-design/pro-components",
+        "version": "3.0.0-beta.3",
+        "integrity": "sha512-ehdIGlDcy4J5kv6E3fZ8e4YLQY4+7S3ZsIZnZ//vtfd+s0Qkv13hQ65CepoMiC/x6gNBlDnHozKANNi7JOtJAw=="
+      },
+      {
+        "name": "@ant-design/cssinjs",
+        "version": "1.24.0",
+        "integrity": "sha512-K4cYrJBsgvL+IoozUXYjbT6LHHNt+19a9zkvpBPxLjFHas1UpPM2A5MlhROb0BT8N8WoavM5VsP9MeSeNK/3mg=="
+      },
+      {
+        "name": "safe-stable-stringify",
+        "version": "2.5.0",
+        "integrity": "sha512-b3rppTKm9T+PsVCBEOUR46GWI7fdOs00VKZ1+9c1EWDaDMvjQc6tUwuFyIprgGgTcWoVHSKrU8H31ZHA2e0RHA=="
+      },
+      {
+        "name": "rc-field-form",
+        "version": "2.7.1",
+        "integrity": "sha512-vKeSifSJ6HoLaAB+B8aq/Qgm8a3dyxROzCtKNCsBQgiverpc4kWDQihoUwzUj+zNWJOykwSY4dNX3QrGwtVb9A=="
+      },
+      {
+        "name": "rc-steps",
+        "version": "6.0.1",
+        "integrity": "sha512-lKHL+Sny0SeHkQKKDJlAjV5oZ8DwCdS2hFhAkIjuQt1/pB81M0cA0ErVFdHq9+jmPmFw1vJB2F5NBzFXLJxV+g=="
+      },
+      {
+        "name": "@umijs/route-utils",
+        "version": "4.0.3",
+        "integrity": "sha512-zPEcYhl1cSfkSRDzzGgoD1mDvGjxoOTJFvkn55srfgdQ3NZe2ZMCScCU6DEnOxuKP1XDVf8pqyqCDVd2+RCQIw=="
+      },
+      {
+        "name": "rc-table",
+        "version": "7.55.1",
+        "integrity": "sha512-mtZkOHQ+474hxw6usr5rrT6tTZvFlv7jRqao/oG4Y4mwOaXU7ZL1OZ3Vp7xO+zPhB2PPKLFnKr53EitryoLJyQ=="
+      },
+      {
+        "name": "motion",
+        "version": "12.43.0",
+        "integrity": "sha512-BQgQbSa9Hn3/mtbib0MK53y6JSANa+YKUKlaYnWzAVDH424RYQ5LVpV3pNiWH00BA2z4ojsSdMzqT7g2FQwjuQ=="
+      },
+      {
+        "name": "framer-motion",
+        "version": "12.43.0",
+        "integrity": "sha512-1eaL3RvR/kAlbG7UYcpMptEyzPoENO0c6w7ZnB3/hh2vSAz/6uGAFn6fdoqTBguNstf3MsFhJHsD/0DHiclG+g=="
+      },
+      {
+        "name": "motion-dom",
+        "version": "12.43.0",
+        "integrity": "sha512-azKON4d9S65PEoFUiQTMTgPheEmzf2QngdRc50AKfJp9Q9mmcBVw22c8eMq9k8kxOFHdL7+WZY7N/5F/lwiDag=="
+      },
+      {
+        "name": "motion-utils",
+        "version": "12.39.0",
+        "integrity": "sha512-8nadJAJjTtqRkmRF36FoJTrywK9nnFmnPwnSMyxaOCU7GDjN9RTMJIxx9De8ErM+vpPhMccr/6fo5WciyQLnMQ=="
+      },
+      {
+        "name": "@codemirror/lang-javascript",
+        "version": "6.2.5",
+        "integrity": "sha512-zD4e5mS+50htS7F+TYjBPsiIFGanfVqg4HyUz6WNFikgOPf2BgKlx+TQedI1w6n/IqRBVBbBWmGFdLB/7uxO4A=="
+      },
+      {
+        "name": "@uiw/react-codemirror",
+        "version": "4.25.12",
+        "integrity": "sha512-RE0Gj/QesD7/JWPnJREG8Kq8brGv2NAH17iUECcBrLkqXzzEAgsj/4Qqvz/OlK8XWKmzlsenLRkObT9H+gYQ0w=="
+      },
+      {
+        "name": "@babel/runtime",
+        "version": "8.0.7",
+        "integrity": "sha512-k0hagDDq/6w4v+0Sp4wFvIz/yswH5O7Va6aRTnD7N62Tnborp4X+YB+H3XUcWVSR4aE47WPEXiIIZchBs0GmYg=="
+      },
+      {
+        "name": "@codemirror/state",
+        "version": "6.7.6",
+        "integrity": "sha512-kAz+AncRtKuIknedxT1bq4XwXv4UowhbkHU1myPrtVb/jZtImWuV5BXzv5vK6i3kYACsdiZiQKFQQ5Mq7elW8w=="
+      },
+      {
+        "name": "@codemirror/theme-one-dark",
+        "version": "6.1.3",
+        "integrity": "sha512-NzBdIvEJmx6fjeremiGp3t/okrLPYT0d9orIc7AFun8oZcRk58aejkqhv6spnz4MLAevrKNPMQYXEWMg4s+sKA=="
+      },
+      {
+        "name": "@codemirror/view",
+        "version": "6.43.14",
+        "integrity": "sha512-hC45YnmJNR1rz42OF57BLoQNFMV12/13drnvibDsR2quNDmldcb4WvYVV81hFQg56i9lcqQMEDqilhX2QDcGQQ=="
+      },
+      {
+        "name": "codemirror",
+        "version": "6.0.2",
+        "integrity": "sha512-VhydHotNW5w1UGK0Qj96BwSk/Zqbp9WbnyK2W/eVMv4QyF41INRGpjUhFJY7/uDNuudSc33a/PKr4iDqRduvHw=="
+      },
+      {
+        "name": "@codemirror/language",
+        "version": "6.13.1",
+        "integrity": "sha512-zfvU2r3TyylQLMj/te+5CnQ0rSqZi8B1oTCBbQkagcLW4Xc6imab6qN+pEJhsuNOLaJqiRyBXp9UhWA1DhVvDw=="
+      },
+      {
+        "name": "@codemirror/autocomplete",
+        "version": "6.20.3",
+        "integrity": "sha512-tlosUqb+3BbxCxZdu4tKeRghPFC+QM7q4X5YhKV2eCmPG+1r2F3f4AaSz5sCrFqUtX4Jh20VFTKecl16MgiV9g=="
+      },
+      {
+        "name": "@codemirror/lint",
+        "version": "6.9.7",
+        "integrity": "sha512-28/+iWLYxKxsvGYhSYL7zaCZqLz5+FFFDq9tVsvGv9kv8RY4fFAchJ5WX9M3YrrRlTIsECjsXPqeNgnSmNP2dg=="
+      },
+      {
+        "name": "@lezer/common",
+        "version": "1.5.3",
+        "integrity": "sha512-H0iErY4e43LpXbYDyBci5W4v/RwTgGV3YzYOlJPiGZ8RY8w51kVE+xLn1tg3Z6UmSfyETvtsUK3r7YsgDQEI7Q=="
+      },
+      {
+        "name": "@lezer/lr",
+        "version": "1.4.11",
+        "integrity": "sha512-UwgZcl1R66H2hDzBrA7kWyYmX6s8p5TQ+e/t7CuvgCtBEPxbEPaHYHu+pJBvTvDotEJpuQkJjbXuHiw5Cixxgw=="
+      },
+      {
+        "name": "@lezer/highlight",
+        "version": "1.2.5",
+        "integrity": "sha512-O1GMVKgtf5YspFaRzpmqkVgMtIk2HG9uMAbH6wdAIdNh3TVzCsch/+cRi+6l2//UGDKe6NB9BW3cvuR5ezMQ0w=="
+      },
+      {
+        "name": "style-mod",
+        "version": "4.1.4",
+        "integrity": "sha512-XXWIQt633/EpAFx8aZDOTjBzrCaGmhvEQlQo6MVPfa2OzO2cWo+4hV9h+6UkHYlXGfy+ODXKUdP7Pthmcu5ATw=="
+      },
+      {
+        "name": "@codemirror/streamparser",
+        "version": "6.0.0",
+        "integrity": "sha512-JTFPF6xrfjt0mnfGPgzcLiMwYmvIyNaoizp8BYzv8FE8KrT6GBGDZ190rtt+O7Wke3gG/MFHyiY9YGNeimof4w=="
+      },
+      {
+        "name": "@uiw/codemirror-extensions-basic-setup",
+        "version": "4.25.12",
+        "integrity": "sha512-wR5lz7jbVcBGyiiLEObAmDikcc39KNqrrd4bdUhav85WZu48ttgnSf1YV+grHuMsj5l/WCw6u+r9ZuSfURJgiA=="
+      },
+      {
+        "name": "@codemirror/commands",
+        "version": "6.11.1",
+        "integrity": "sha512-O/4hG3SC1YwcmQ0d2UVNDs+AsaNWd1iHVxbTeEBuqH+6bExAiPK3iS/BvpY6rZGURALv4ZD3sIgcCmRvw3ehBg=="
+      },
+      {
+        "name": "@codemirror/search",
+        "version": "6.7.2",
+        "integrity": "sha512-gUYkYhT2+n/+VGZ+8EzE5WFkYZUZYm1VOKDudIsNqh42uRVQJ0a6Yss9sdKT3MeOYfuL1N6AZA57oza0Oyr0LA=="
+      }
+    ],
+    "说明": "从现有pnpm实路径取得精确版本，经公开npmmirror注册表核对包名/版本，并逐包匹配原pnpm锁文件SHA512后读取临时副本。未更换任何原有依赖文件或跳过类型声明。"
+  },
+  "组成": {
+    "安全批量": 14,
+    "代理Fallback图片任务": 49,
+    "同前态合并": [
+      "画布副本/web/src/pages/canvas/project.tsx",
+      "画布副本/web/src/types/canvas.ts"
+    ]
+  },
+  "冻结输入": [
+    {
+      "文件": "上游适配/待审查/安全与批量迁移.patch",
+      "SHA256": "bf3ca4807a964c13ea82e858c62b8b0410a109a90aac712cdb79b62978fa23d6"
+    },
+    {
+      "文件": "上游适配/待审查/安全与批量迁移.json",
+      "SHA256": "a591feec59fd04c1b9fdb74be076a0c9b0214dbe52076f0758a850d053381710"
+    },
+    {
+      "文件": "上游适配/待审查/原画布图片闭环.json",
+      "SHA256": "fe894e9a5bef278e2257374ff98adf089975d345517eaf788bd0ea8481a11b33"
+    },
+    {
+      "文件": "上游适配/待审查/原画布图片闭环.patch",
+      "SHA256": "f76be5a2930dea4346817309f3bd1026e31951dbd57ad05309f88f199b52ac12"
+    },
+    {
+      "文件": "上游适配/待审查/内置网络代理基础.json",
+      "SHA256": "ad87a5c7e9e3601acb50477ad41ce171f78878ff8fb7df77d16f6d0b592bb2bd"
+    },
+    {
+      "文件": "上游适配/待审查/内置网络代理基础.patch",
+      "SHA256": "b023f9e8bdb1b6f2681d3d428fd063abd3d13ea9a6ffbd28cacb7f6e89ed8695"
+    }
+  ],
+  "旧来源": {
+    "src/canvas/pages/canvas/project.tsx": "1fa007d1bdac287c1bee26ac1e186d5a69e544d89b7c57907843bfc8678e0bfb",
+    "src/canvas/components/canvas/canvas-node.tsx": "0f7b67ca9219893da2c3c0b15027019255c82a219ef518c94a4c2484e90285a1",
+    "src/canvas/components/canvas/canvas-node-hover-toolbar.tsx": "139aa4eed6a53f7510a7ad97ee3b18a4779b052ffb8f999735c930cbd51f3e89",
+    "src/canvas/components/canvas/canvas-image-toolbar-tools.tsx": "c22201101f96dddec46319ebb34ff50a2f7e0cb8b5060e681072de9ec37e429a",
+    "src/canvas/lib/canvas/canvas-generation-helpers.ts": "0fcfa8d1c4297e738db1c5a3b7013d38fdad9bb54077f9294a9288045c3db2e0",
+    "src/canvas/lib/canvas/prompt-variable-highlight.js": "ccd969879532208fd442919d307c91be6dd9fe67934db656e99511f375be5a62",
+    "src/canvas/lib/canvas/prompt-theme-labels.js": "ba69d3869675a05a3a1d3aea36820d6e892dd354ec9cdd8ebbf383b9e3b441a7",
+    "src/canvas/services/media-download.ts": "a4e5c60338a84b14d45e964bf26041002a591450278eab027fa193fb90e7f196"
+  },
+  "继承旧来源": {
+    "安全批量": {
+      "src/canvas/services/config-file.ts": "b778666823951ebe597a0a443b3ca6b58097f43d3ad6318bdb2dcd639bdff1bf",
+      "src/canvas/lib/config-portability.ts": "c30486f832bfd5018c928a85ca66a492dd4ff440f01e102055bf212b78d64c47",
+      "src/canvas/lib/recovery-read-gate.ts": "dda24b04617e8849b714217d3aca2f2aa5941f60b9eadc59251233ab4167ac82",
+      "src/canvas/lib/persistence-checkpoint.ts": "4ea8db7b50699adcf3b96450c2d9bfc7e82418979e94d129ecce67952b090edb",
+      "src/canvas/lib/update-activity.ts": "1512cf30a4ee4ae369b80548b62d36b83576591de7a250d5d6bca95d5c4a5ffb",
+      "src/canvas/lib/settle-activity-group.ts": "cf6f772980dbd9f48d63c840c9dda750a0ae6c36262de87a7b30f6806c2ad327",
+      "src/canvas/lib/canvas/prompt-generation-mode.ts": "2af4914578fcf360406e39e08d2c3ccaa1cd11882f078d589d886604fab3d3f5",
+      "src/canvas/services/file-storage.ts": "332b7a04acce97dc7437028d7be1e5823b2abb402a5f4015ac6d5a3d4037d3d3",
+      "src/canvas/services/image-storage.ts": "1c4fb9464264f33510f54284b21aa42eaa2da05a63a4c71d7fbdf032e7c298b7",
+      "src/canvas/services/api/video.ts": "32126f385f83abf151021a8021d5d82cb8ba9ab342963ce0686b153b54fe789d",
+      "src/canvas/stores/use-asset-store.ts": "1838a6ea55da2d0833f88020202940cab7fd8ef35cf9b922c824c2cddf86f62c",
+      "src/canvas/pages/canvas/project.tsx": "1fa007d1bdac287c1bee26ac1e186d5a69e544d89b7c57907843bfc8678e0bfb",
+      "src/canvas/components/canvas/canvas-toolbar.tsx": "dadf9b13c4c91bb7e5066882accf3f794454cdf4d28d56572a8d841a83e7f45b",
+      "src/canvas/types/canvas.ts": "fb02101c01e2d028075270606ce809129b972a3ac3b7165b1c0f92a12c67cf95"
+    },
+    "Fallback": {
+      "src/server/index.mjs": "8938c9968dbf3149dfb632cf75bf0743b44272a32378e02b50f42e8004d40710",
+      "src/canvas/stores/use-config-store.ts": "79f9121c5cd6ec7dc54f1ceec2f55c94123221a047dc2785cda147ebfffc4c41",
+      "src/canvas/components/model-picker.tsx": "16dbc246d886a3126330cffa3780ff7a597625e118b0f0e1644cc462bfd73203",
+      "src/canvas/lib/canvas/canvas-generation-helpers.ts": "0fcfa8d1c4297e738db1c5a3b7013d38fdad9bb54077f9294a9288045c3db2e0",
+      "src/canvas/components/canvas/canvas-config-node-panel.tsx": "063fc9c0b2038a84b043c50ad8edcc8b7e296cf4fc1eb888afc96603e30e0ae3",
+      "src/canvas/components/canvas/canvas-node-prompt-panel.tsx": "94f377ba0b458f339f48d19f88f5b5520f09adb4a59ded211a9ecf4e60ccff82"
+    }
+  },
+  "自有来源与工具": [
+    {
+      "文件": "开发工具/代理与Fallback闭环.test.mjs",
+      "SHA256": "4b518b0c3dbd8822338c12df62702d987d8e32263055da4bae05d32bb2c0ffda"
+    },
+    {
+      "文件": "开发工具/公共.mjs",
+      "SHA256": "93a51b1da7feb20ea5e11251657a4a66fb4c87af566959c34adf0e3fd5556b15"
+    },
+    {
+      "文件": "开发工具/内置代理模拟核心.mjs",
+      "SHA256": "cc54808ba9758da57fd5d487c339c3391442d3faa2607b2a4c5b146185fb7183"
+    },
+    {
+      "文件": "开发工具/内置网络代理.test.mjs",
+      "SHA256": "632e2032e27f7876d461ef678fbc20510c86c0849bcb2dc33f7466c05dfb47c8"
+    },
+    {
+      "文件": "开发工具/原画布图片闭环.test.mjs",
+      "SHA256": "2f4f52947deddfe34089b11d14e7827cb4a3a825bf5719b20a14107c0562844c"
+    },
+    {
+      "文件": "开发工具/安全与批量迁移.test.mjs",
+      "SHA256": "9ccd66eaebd9f3a5cbc52c99cacdd77b05ddfafe00d0199700a9f582bfcc81c9"
+    },
+    {
+      "文件": "开发工具/执行内置代理基础预审.mjs",
+      "SHA256": "c3d7093653def7ec7f6ba565897ca354ffd7c9bc5ec4e3266d8d78140d595c86"
+    },
+    {
+      "文件": "开发工具/构建原版图片协议.mjs",
+      "SHA256": "87dbfd730698d1a48325ee08c5d9011ac2d36c60aca00eada204535faa94807b"
+    },
+    {
+      "文件": "开发工具/检查安全与批量迁移代码.mjs",
+      "SHA256": "80bea9856538a4937b921bcefec8f007944e81b15d56e416b2fbe1a5ffac18b8"
+    },
+    {
+      "文件": "开发工具/检查迁移扩大整批代码.mjs",
+      "SHA256": "43d2a3c00712f76c813b00381dfe035812192eae402c2c757114a5d9bc6b7aab"
+    },
+    {
+      "文件": "开发工具/检查运行副本.mjs",
+      "SHA256": "2f4ffc4a3d620ffda92d99d6fa4c6816bca159a21319f3245f74d4608667f311"
+    },
+    {
+      "文件": "开发工具/检查配置文件安全代码.mjs",
+      "SHA256": "49719c7c0ebdaa3ff58b1d232fb5e84311c18c302071fd1bbe40808ae939b3fa"
+    },
+    {
+      "文件": "开发工具/检查首批功能适配.mjs",
+      "SHA256": "90d4174ebfb89f53e8417c1730dac2bd4ead2329bcee25f6ece4abb0eadd7867"
+    },
+    {
+      "文件": "开发工具/类型依赖只读镜像.mjs",
+      "SHA256": "8a5ed40faa0d62e45b22e68df9779e36d48d1560a51abe7526fbd52b61e4d05f"
+    },
+    {
+      "文件": "开发工具/迁移扩大整批.test.mjs",
+      "SHA256": "a06bd814b9447b89625b3ac9f843447e568fd2f96ef11241e51ce8e6936668bc"
+    },
+    {
+      "文件": "开发工具/配置文件安全.test.mjs",
+      "SHA256": "d44817ea1adaf5f12811ba0dc5b4bb843ccb5ca5a46efc36010c6d1a34f1ad30"
+    },
+    {
+      "文件": "开发工具/预审代理与Fallback闭环.mjs",
+      "SHA256": "21351d108494db836b8f0ce1e380292e12be7a396008aae7ed9366c79e957b37"
+    },
+    {
+      "文件": "开发工具/预审内置网络代理.mjs",
+      "SHA256": "e16a67007cb7ed0fd7379b03d55ccd4133844a9b0808e9941f1ac835b452576e"
+    },
+    {
+      "文件": "开发工具/预审原画布图片闭环.mjs",
+      "SHA256": "1aa983bf8ac8028f16ae6af0e51a07c4fdb09d800d70bda1d5d7b08012168731"
+    },
+    {
+      "文件": "开发工具/预审安全与批量迁移.mjs",
+      "SHA256": "f6b0e758813340c6d1e601a08db4b4a6a54167dc538ac7c4e5260a3e4b897a98"
+    },
+    {
+      "文件": "开发工具/预审迁移扩大整批.mjs",
+      "SHA256": "82c2e8f1179e0d0f31439e6e8bdc4ca302ca8b377ac54a56785d854d8d22baa6"
+    },
+    {
+      "文件": "开发工具/预审配置文件安全.mjs",
+      "SHA256": "ecc0bd52c0237b2dc0eefb03e83901dd5bfc557b910869f9db6316a44470618a"
+    },
+    {
+      "文件": "扩展功能/安全与批量/persistence-checkpoint.ts",
+      "SHA256": "4ea8db7b50699adcf3b96450c2d9bfc7e82418979e94d129ecce67952b090edb"
+    },
+    {
+      "文件": "扩展功能/安全与批量/prompt-generation-mode.ts",
+      "SHA256": "2af4914578fcf360406e39e08d2c3ccaa1cd11882f078d589d886604fab3d3f5"
+    },
+    {
+      "文件": "扩展功能/安全与批量/recovery-read-gate.ts",
+      "SHA256": "dda24b04617e8849b714217d3aca2f2aa5941f60b9eadc59251233ab4167ac82"
+    },
+    {
+      "文件": "扩展功能/安全与批量/settle-activity-group.ts",
+      "SHA256": "cf6f772980dbd9f48d63c840c9dda750a0ae6c36262de87a7b30f6806c2ad327"
+    },
+    {
+      "文件": "扩展功能/安全与批量/update-activity.ts",
+      "SHA256": "1512cf30a4ee4ae369b80548b62d36b83576591de7a250d5d6bca95d5c4a5ffb"
+    },
+    {
+      "文件": "扩展功能/故障切换/SQLite切换配置.mjs",
+      "SHA256": "d4d96d792af06091f3e819c6e354b09aaa6d6847966127c8463302f91ca521b1"
+    },
+    {
+      "文件": "扩展功能/故障切换/切换客户端.mjs",
+      "SHA256": "65ed5ff3ca743785835d7dc72c3f9ec32616d4844a718539470243be0b698e72"
+    },
+    {
+      "文件": "扩展功能/故障切换/原版Fallback面板.tsx",
+      "SHA256": "7f28023053faa6460ce611a5f81615858698f9cab878e49e9eba9441f6f475c6"
+    },
+    {
+      "文件": "扩展功能/故障切换/原版策略.mjs",
+      "SHA256": "2f3765c5f724df43441dd424b85ae43f75695191cc61b993d346af48773a7068"
+    },
+    {
+      "文件": "扩展功能/故障切换/受限代理传输.mjs",
+      "SHA256": "2543fddf8be219ad65e04f011f795df7c0237aea02acb76734acf3e1344fc809"
+    },
+    {
+      "文件": "扩展功能/故障切换/图片路由请求.ts",
+      "SHA256": "bbd0183c967b599f90a37626570d56f1fe0689c60b88ed0703a65ce5e75253bd"
+    },
+    {
+      "文件": "扩展功能/故障切换/浏览器状态.ts",
+      "SHA256": "79fac9ff51527862f2ea5b0e87238f7c124ed00d1d7317e2fcd49b0d7c784b1a"
+    },
+    {
+      "文件": "扩展功能/故障切换/渠道切换网关.mjs",
+      "SHA256": "c0100708635aa0619db66a1c9727619bd36f5c19966cab9912600611225972b6"
+    },
+    {
+      "文件": "扩展功能/画布生成/原画布图片调用.ts",
+      "SHA256": "9617b238800d92b0984aac461c1392afe876a04321a1a4a318fc1dd350d86222"
+    },
+    {
+      "文件": "扩展功能/画布生成/图片任务衔接.mjs",
+      "SHA256": "38b8dae11381c3a07bc4b955654c23584915f82e90c38e592256f7acc4ef78c7"
+    },
+    {
+      "文件": "扩展功能/画布生成/画布检查点.mjs",
+      "SHA256": "ffd465f83b59e12d9cd43be70cd3f53297cf0d92e5aea5eef522dab6b916a49a"
+    },
+    {
+      "文件": "扩展功能/画布迁移扩展/media-download.ts",
+      "SHA256": "a4e5c60338a84b14d45e964bf26041002a591450278eab027fa193fb90e7f196"
+    },
+    {
+      "文件": "扩展功能/画布迁移扩展/prompt-theme-labels.js",
+      "SHA256": "ba69d3869675a05a3a1d3aea36820d6e892dd354ec9cdd8ebbf383b9e3b441a7"
+    },
+    {
+      "文件": "扩展功能/画布迁移扩展/prompt-variable-highlight.js",
+      "SHA256": "ccd969879532208fd442919d307c91be6dd9fe67934db656e99511f375be5a62"
+    },
+    {
+      "文件": "扩展功能/网络代理/package-lock.json",
+      "SHA256": "25a3847f9d340c2b36cc40b7c7deb4c1683e33060db534720317d189d15893fc"
+    },
+    {
+      "文件": "扩展功能/网络代理/package.json",
+      "SHA256": "24433ee1d8213aa47077be4c67d2628c1d5bf56cf21648d628fa1dc277b7fb81"
+    },
+    {
+      "文件": "扩展功能/网络代理/代理HTTP入口.mjs",
+      "SHA256": "90e51bb6f4c9bd27e43f61f154a68e0e4c17b6d124ba28de3a6d1ba691ccc222"
+    },
+    {
+      "文件": "扩展功能/网络代理/代理客户端.mjs",
+      "SHA256": "9a768b04c8ba8eb407d97aea132b76f55836547e384f1d79154e3ab7802ec96c"
+    },
+    {
+      "文件": "扩展功能/网络代理/代理服务.mjs",
+      "SHA256": "68982d79696d6ab9f9806ec6b83407e39cdabac7dd34f67c71c9f1028b963333"
+    },
+    {
+      "文件": "扩展功能/网络代理/代理服务装配.mjs",
+      "SHA256": "7b48368d1565be84bbd2feb8b4afd091bfb63a223bbe34bf2808b6dd4025a91b"
+    },
+    {
+      "文件": "扩展功能/网络代理/代理配置存储.mjs",
+      "SHA256": "d2374b7dc2470f55960f693922a193a18562a9944015a4148c5a10d25e3dd75c"
+    },
+    {
+      "文件": "扩展功能/网络代理/内置代理运行.mjs",
+      "SHA256": "77572b4eb0dcd1ad98b5e0c533457a9d1c592352aa93f2f4f2a26c2c9ffcfb94"
+    },
+    {
+      "文件": "扩展功能/网络代理/原版网络代理.css",
+      "SHA256": "57b67e7ac882398a373986c9eeaf429eb3f7fa7fe470a1b616cb0ef4d5a7f3e7"
+    },
+    {
+      "文件": "扩展功能/网络代理/原版网络代理面板.tsx",
+      "SHA256": "67c9cffb5db9b1cceee73625e5eb322ae41580d34bceeb72e5f8d78d9f6f818e"
+    },
+    {
+      "文件": "扩展功能/网络代理/原项目MIT许可.txt",
+      "SHA256": "4a3ea42531a7fc18b11471baa1676b11ef6c8badee4e02711392d9fdc8f59d58"
+    },
+    {
+      "文件": "扩展功能/网络代理/旧版进程守护.mjs",
+      "SHA256": "b1609942df17bf6a3ac3a7b8d3f9577944db5a893edd9c6a9a65d980cd9d5184"
+    },
+    {
+      "文件": "扩展功能/网络代理/旧版进程管理.mjs",
+      "SHA256": "c55457f675dc0301e0814a0e616f46745a0c60d99e59401e3ebbafd2f44309c0"
+    },
+    {
+      "文件": "扩展功能/网络代理/旧版配置转换.mjs",
+      "SHA256": "57a6e8ed1f8bc24293230aa51ee8fa471a1d3a442740d191a85b0edaa0c57665"
+    },
+    {
+      "文件": "扩展功能/网络代理/订阅读取.mjs",
+      "SHA256": "7aa02efae2cc70722a3cc7bf7dd227d7fe49697a119e4332ee0bf1a52dd70bfd"
+    },
+    {
+      "文件": "扩展功能/网络代理/配置边界.mjs",
+      "SHA256": "a92406fe73a2e0e5a8ee8668e3b78d32e0ebcca236f37294c80b1f90768c22ab"
+    },
+    {
+      "文件": "扩展功能/配置文件/配置文件安全.ts",
+      "SHA256": "f703e850d553a23e83a0c51922db19a3f96128c70e9bf0c41836630f7ea69b50"
+    }
+  ],
+  "文件": [
+    {
+      "文件": "画布副本/扩展功能/网络代理/package.json",
+      "原始SHA256": null,
+      "候选SHA256": "24433ee1d8213aa47077be4c67d2628c1d5bf56cf21648d628fa1dc277b7fb81"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/package-lock.json",
+      "原始SHA256": null,
+      "候选SHA256": "25a3847f9d340c2b36cc40b7c7deb4c1683e33060db534720317d189d15893fc"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/原项目MIT许可.txt",
+      "原始SHA256": null,
+      "候选SHA256": "4a3ea42531a7fc18b11471baa1676b11ef6c8badee4e02711392d9fdc8f59d58"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/旧版配置转换.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "57a6e8ed1f8bc24293230aa51ee8fa471a1d3a442740d191a85b0edaa0c57665"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/旧版进程管理.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "c55457f675dc0301e0814a0e616f46745a0c60d99e59401e3ebbafd2f44309c0"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/旧版进程守护.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "b1609942df17bf6a3ac3a7b8d3f9577944db5a893edd9c6a9a65d980cd9d5184"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/配置边界.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "a92406fe73a2e0e5a8ee8668e3b78d32e0ebcca236f37294c80b1f90768c22ab"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/代理配置存储.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "d2374b7dc2470f55960f693922a193a18562a9944015a4148c5a10d25e3dd75c"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/订阅读取.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "7aa02efae2cc70722a3cc7bf7dd227d7fe49697a119e4332ee0bf1a52dd70bfd"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/内置代理运行.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "77572b4eb0dcd1ad98b5e0c533457a9d1c592352aa93f2f4f2a26c2c9ffcfb94"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/代理服务.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "bea1df63c938609e484cfae1d4eea87ba71c4af74b346cf6a24c517fd068b2a8"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/代理HTTP入口.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "90e51bb6f4c9bd27e43f61f154a68e0e4c17b6d124ba28de3a6d1ba691ccc222"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/代理服务装配.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "88f2027f3d1ba4a995a4932623f9ac1ad11b40965b129cda9d723cea1e593ea9"
+    },
+    {
+      "文件": "画布副本/web/src/guan/network-proxy/代理客户端.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "9a768b04c8ba8eb407d97aea132b76f55836547e384f1d79154e3ab7802ec96c"
+    },
+    {
+      "文件": "画布副本/web/src/guan/network-proxy/原版网络代理面板.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "67c9cffb5db9b1cceee73625e5eb322ae41580d34bceeb72e5f8d78d9f6f818e"
+    },
+    {
+      "文件": "画布副本/web/src/guan/network-proxy/原版网络代理.css",
+      "原始SHA256": null,
+      "候选SHA256": "57b67e7ac882398a373986c9eeaf429eb3f7fa7fe470a1b616cb0ef4d5a7f3e7"
+    },
+    {
+      "文件": "服务包/扩展功能/本机服务/数据服务.mjs",
+      "原始SHA256": "8081721ec24b4591e0725c71b12d9d941e92b04ce84cb643e7ca8145937be7df",
+      "候选SHA256": "e0342edba18b2ac9638177efc9e11b6c9d22a08cc77460f2347c92ed90777a70"
+    },
+    {
+      "文件": "画布副本/扩展功能/本机服务/受限工作台启动器.mjs",
+      "原始SHA256": "ba2171d147715a1fe195515d5d3fb00faded4cce55fd574ad89171183b8277c0",
+      "候选SHA256": "60079a21d3e655715669397babf2226955ae01a0b9f09f1d112581056f43fd87"
+    },
+    {
+      "文件": "画布副本/web/src/guan/sqlite/本机授权客户端.mjs",
+      "原始SHA256": "91039f9323c368f906fa578436584f97e489640ad5e4edb09f232eb1b8840d6c",
+      "候选SHA256": "224a10fa7646a1a654ddc15d984ba6ea8e5ff49532967ddf4d240d06462d7094"
+    },
+    {
+      "文件": "画布副本/web/src/guan/sqlite/工作台自动入口.mjs",
+      "原始SHA256": "e0dd70adba6ee42e39861a46aa1a0e7277940e813feb8466b88d41b22adff9c4",
+      "候选SHA256": "b9d196efff6897a44a3348846a4d235dd62ffa563b4dcc17ca851b9bbc7084be"
+    },
+    {
+      "文件": "画布副本/web/src/components/layout/config-local-proxy.tsx",
+      "原始SHA256": "88506bb2da3905a81d805c860c6231849b8e6e80fb182226bd49f4ee409a626f",
+      "候选SHA256": "0c6ede060731100b7b447626fccd51a804d36d352d1a8ef6e0a0fba2f7128ff4"
+    },
+    {
+      "文件": "画布副本/web/src/guan/generation/原版图片协议.ts",
+      "原始SHA256": null,
+      "候选SHA256": "ee632349971edae2ab5730e0d2b1d18035f38fbd975d11b1ef32746190acdd5c"
+    },
+    {
+      "文件": "画布副本/web/src/guan/generation/图片任务衔接.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "75f55153545ce92b3140de4900aeca43d4fd17571da79ad91a65604219738726"
+    },
+    {
+      "文件": "画布副本/web/src/guan/generation/原画布图片调用.ts",
+      "原始SHA256": null,
+      "候选SHA256": "62521202567655b7e40019b3870e0c2acf5f0547726de8c1ba571e64d2548fe4"
+    },
+    {
+      "文件": "画布副本/扩展功能/画布生成/画布检查点.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "ffd465f83b59e12d9cd43be70cd3f53297cf0d92e5aea5eef522dab6b916a49a"
+    },
+    {
+      "文件": "画布副本/扩展功能/生成网关/生成HTTP入口.mjs",
+      "原始SHA256": "feaaaaec74d679680a4ee6b0f677e2c6cb8e35fe38f8c03bfaaedbdfc4fa6b36",
+      "候选SHA256": "bf791e855ee37a53e457ddd07489efe3df51cb0fb68fa67c74d16aa6420adaad"
+    },
+    {
+      "文件": "画布副本/扩展功能/生成网关/生成服务装配.mjs",
+      "原始SHA256": "bfdbe962aaf162f2097d6ab688ec58cf7afa23092aa58870a6be198f73f4fc67",
+      "候选SHA256": "2d5ee1b63ed1ce91a7ffd9469bc1fc6600480885ad99ddcc216959fd2347548d"
+    },
+    {
+      "文件": "画布副本/web/src/guan/generation/生成任务客户端.mjs",
+      "原始SHA256": "6f7f7538591acd0b0af5ca6d57f69d87c40a66819ca9f0fedf65237b985e2194",
+      "候选SHA256": "3006181131de3747485e1955704813287e484948bb819b6a417bf81313d38262"
+    },
+    {
+      "文件": "画布副本/web/src/guan/产品操作.ts",
+      "原始SHA256": "50a872e4309d12b0a75fe04c0d56aa69778e8031a978b7c9b2d8ea1fee88f45b",
+      "候选SHA256": "9d97fe2d7aa62d5f64620a2ca6b25c4c106ee1390faaa343d836acf38802f107"
+    },
+    {
+      "文件": "画布副本/web/src/types/canvas.ts",
+      "原始SHA256": "a062284b21c5a942721ea3356b5aed65de0dc8cb63a88014367b27ff0feeb93a",
+      "候选SHA256": "8942522c0ab72766d6626b5a676a202beee9fb036a597957b29f7dd8cc324241"
+    },
+    {
+      "文件": "画布副本/web/src/pages/canvas/project.tsx",
+      "原始SHA256": "8d38ae979a2ab6ca0c0c4f738564e5fcd466893057acd19b9610f403ade5c88b",
+      "候选SHA256": "91d12254b25919b4bba91fe626e677afbc2d095b047b0207467aa348daf73bd1"
+    },
+    {
+      "文件": "画布副本/扩展功能/故障切换/原版策略.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "2f3765c5f724df43441dd424b85ae43f75695191cc61b993d346af48773a7068"
+    },
+    {
+      "文件": "画布副本/扩展功能/故障切换/SQLite切换配置.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "d4d96d792af06091f3e819c6e354b09aaa6d6847966127c8463302f91ca521b1"
+    },
+    {
+      "文件": "画布副本/扩展功能/故障切换/受限代理传输.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "2543fddf8be219ad65e04f011f795df7c0237aea02acb76734acf3e1344fc809"
+    },
+    {
+      "文件": "画布副本/扩展功能/故障切换/渠道切换网关.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "c0100708635aa0619db66a1c9727619bd36f5c19966cab9912600611225972b6"
+    },
+    {
+      "文件": "画布副本/web/src/guan/fallback/原版策略.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "2f3765c5f724df43441dd424b85ae43f75695191cc61b993d346af48773a7068"
+    },
+    {
+      "文件": "画布副本/web/src/guan/fallback/切换客户端.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "65ed5ff3ca743785835d7dc72c3f9ec32616d4844a718539470243be0b698e72"
+    },
+    {
+      "文件": "画布副本/web/src/guan/fallback/浏览器状态.ts",
+      "原始SHA256": null,
+      "候选SHA256": "79fac9ff51527862f2ea5b0e87238f7c124ed00d1d7317e2fcd49b0d7c784b1a"
+    },
+    {
+      "文件": "画布副本/web/src/guan/fallback/原版Fallback面板.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "7f28023053faa6460ce611a5f81615858698f9cab878e49e9eba9441f6f475c6"
+    },
+    {
+      "文件": "画布副本/web/src/guan/fallback/图片路由请求.ts",
+      "原始SHA256": null,
+      "候选SHA256": "bbd0183c967b599f90a37626570d56f1fe0689c60b88ed0703a65ce5e75253bd"
+    },
+    {
+      "文件": "画布副本/web/src/guan/fallback/原版Fallback.css",
+      "原始SHA256": null,
+      "候选SHA256": "f905792b8d9ee792d088e21eddd734aa8b146e2f8658ed7d4cf393545b5d6154"
+    },
+    {
+      "文件": "画布副本/扩展功能/生成网关/渠道凭据网关.mjs",
+      "原始SHA256": "6dfc68847cc1744ec58e24e794ece1fe6647f7cbb505106a1eea790f172c7896",
+      "候选SHA256": "14efb44b9a2adbe3913e80d2772673ffd966bd55d312cb43eba18da3d83ecad7"
+    },
+    {
+      "文件": "画布副本/扩展功能/生成任务/SQLite生成任务.mjs",
+      "原始SHA256": "93aff81485bca544160419d99038e5cf867ca6c4e73fd2f57ea026e920439f3d",
+      "候选SHA256": "8077f3cccc170d0a3509ea6a12ac2a7d513f6f799f853e748537c879ec49115e"
+    },
+    {
+      "文件": "画布副本/web/src/stores/use-config-store.ts",
+      "原始SHA256": "2ef75f078aa7b3539a87d421bf32268862ca42843f1599155125cf165660fad3",
+      "候选SHA256": "df2dc46c2cc42da75c40283d5bf8f60897d87b36bd0d844599dc0014a8b1a492"
+    },
+    {
+      "文件": "画布副本/web/src/components/model-picker.tsx",
+      "原始SHA256": "9ba938049a9be2b9f6ae27666bd6b7565c4cebb53d310538c32d84b0691142fb",
+      "候选SHA256": "64daa43959010ec1565a183dae7c54ad93f582ca51e6a308393186ed35a92fdf"
+    },
+    {
+      "文件": "画布副本/web/src/lib/canvas/canvas-generation-helpers.ts",
+      "原始SHA256": "57a94ed93ae51009730e5eeab86a764e3ab25b97704bfee741010ae17c1a8d1b",
+      "候选SHA256": "95a0c1889df8922c08ebdd85c20144e076667b50037e51e421846307f2d63903"
+    },
+    {
+      "文件": "画布副本/web/src/components/canvas/canvas-config-node-panel.tsx",
+      "原始SHA256": "e2e5aefe4a231f94a514b471bd7b824530114211ba5ea1e10cf60d3e458abdf4",
+      "候选SHA256": "d69493be7301ca3564bd83f7c2b1f47e1afde16f8d5d008a3c6064cf0e2a82c9"
+    },
+    {
+      "文件": "画布副本/web/src/components/canvas/canvas-node-prompt-panel.tsx",
+      "原始SHA256": "4619765fdca7de3e0194aa1e2557630d95359bee4d34fdeb4e168cc5a7e528d2",
+      "候选SHA256": "ced0fde84f8e5f97be876e0aa3891da8390f50c6e50f251f19489d42001b89be"
+    },
+    {
+      "文件": "画布副本/web/src/components/layout/app-config-modal.tsx",
+      "原始SHA256": "41d0c4f0dade16b6ffec4afa66799fedbc7339900483718e5442aeb55b583960",
+      "候选SHA256": "6ed735cd21e7b7642db80771791ce2c896e02021ce1597359b2e9b37e623e4aa"
+    },
+    {
+      "文件": "画布副本/web/src/guan/config/配置文件安全.ts",
+      "原始SHA256": null,
+      "候选SHA256": "f703e850d553a23e83a0c51922db19a3f96128c70e9bf0c41836630f7ea69b50"
+    },
+    {
+      "文件": "画布副本/web/src/services/config-file.ts",
+      "原始SHA256": "d2cf5f0c0f7bc06b483ace9dee627f17a0d714fc5d92415c64bc8b3dcd9df65f",
+      "候选SHA256": "c68b067cfda7c9042dc5efc7be2fe3149cfd6374572cd9c223d2c73a249adcb8"
+    },
+    {
+      "文件": "画布副本/web/src/guan/recovery/recovery-read-gate.ts",
+      "原始SHA256": null,
+      "候选SHA256": "dda24b04617e8849b714217d3aca2f2aa5941f60b9eadc59251233ab4167ac82"
+    },
+    {
+      "文件": "画布副本/web/src/guan/recovery/persistence-checkpoint.ts",
+      "原始SHA256": null,
+      "候选SHA256": "4ea8db7b50699adcf3b96450c2d9bfc7e82418979e94d129ecce67952b090edb"
+    },
+    {
+      "文件": "画布副本/web/src/guan/recovery/update-activity.ts",
+      "原始SHA256": null,
+      "候选SHA256": "1512cf30a4ee4ae369b80548b62d36b83576591de7a250d5d6bca95d5c4a5ffb"
+    },
+    {
+      "文件": "画布副本/web/src/guan/recovery/settle-activity-group.ts",
+      "原始SHA256": null,
+      "候选SHA256": "cf6f772980dbd9f48d63c840c9dda750a0ae6c36262de87a7b30f6806c2ad327"
+    },
+    {
+      "文件": "画布副本/web/src/guan/recovery/prompt-generation-mode.ts",
+      "原始SHA256": null,
+      "候选SHA256": "2af4914578fcf360406e39e08d2c3ccaa1cd11882f078d589d886604fab3d3f5"
+    },
+    {
+      "文件": "画布副本/web/src/stores/use-asset-store.ts",
+      "原始SHA256": "d715877830d624b5070c584e81218e95721b976e54c64af87f54d7fe1cdea525",
+      "候选SHA256": "552ac4db25480a6e6113609d5882d201811c9f4dccad2435f965472b1ebf5e25"
+    },
+    {
+      "文件": "画布副本/web/src/services/file-storage.ts",
+      "原始SHA256": "ce93d52de423bd69db70d91b0748b2232be71540684a97d6b3767ec575ec25a7",
+      "候选SHA256": "16830a09559729e7ee9ce20fdfbd596cecf48fecd7b5d2c72c72c98e8c601fc4"
+    },
+    {
+      "文件": "画布副本/web/src/services/api/video.ts",
+      "原始SHA256": "1760b253ec42ce3520d6ae90c0a6c9f7af97c5d9134c669bbcc89857aac13414",
+      "候选SHA256": "41abca18df5299966a58d45f36e26da2816b1e78d6f35400bb874c58e817cdea"
+    },
+    {
+      "文件": "画布副本/web/src/services/image-storage.ts",
+      "原始SHA256": "eacb130b7da127eda2dd73b7a93b5464cdbec9034c4130e08e2cab96cddb31cb",
+      "候选SHA256": "3a443fb06547cc7235a602d3ff68e9f14c3a7af96c83bb4dee6899c933cdac88"
+    },
+    {
+      "文件": "画布副本/web/src/components/canvas/canvas-toolbar.tsx",
+      "原始SHA256": "4ca2eb587cc94eea527193e683e1dfb7ea60e5925fa033fed98c6f84286032ed",
+      "候选SHA256": "cda2da9e9c90254b90f92c9953fc34e560bb7166ea5820786192487be68f1d99"
+    },
+    {
+      "文件": "画布副本/web/src/guan/prompt/prompt-variable-highlight.js",
+      "原始SHA256": null,
+      "候选SHA256": "ccd969879532208fd442919d307c91be6dd9fe67934db656e99511f375be5a62"
+    },
+    {
+      "文件": "画布副本/web/src/guan/prompt/prompt-theme-labels.js",
+      "原始SHA256": null,
+      "候选SHA256": "ba69d3869675a05a3a1d3aea36820d6e892dd354ec9cdd8ebbf383b9e3b441a7"
+    },
+    {
+      "文件": "画布副本/web/src/services/media-download.ts",
+      "原始SHA256": null,
+      "候选SHA256": "a4e5c60338a84b14d45e964bf26041002a591450278eab027fa193fb90e7f196"
+    },
+    {
+      "文件": "画布副本/web/src/components/canvas/canvas-node-hover-toolbar.tsx",
+      "原始SHA256": "3810b5b5e1a0c80e17fb482a50727f6774c85d2e3e51d6938968b204a69e74df",
+      "候选SHA256": "26943c310e08ce70253a116b8dc755b3e20850efd2d3bdb4d5e3660bff8dc43a"
+    },
+    {
+      "文件": "画布副本/web/src/components/canvas/canvas-image-toolbar-tools.tsx",
+      "原始SHA256": "8b8308d2a55afdbe2668f5e8261076f2b6a963fe75686e45614245a5d83bd1b4",
+      "候选SHA256": "d73804dc342959340f021ce07b6b7f54a6894b13f43d321864db5f768585f43d"
+    },
+    {
+      "文件": "画布副本/web/src/components/canvas/canvas-node.tsx",
+      "原始SHA256": "ff4af1293f4a1812b0342c91b7d48409da8739a7597b270c3036d37b148a6930",
+      "候选SHA256": "6afe5a857250f7a4ecb61b8b81c65eeae194526ee8c322c4f67c0614eae0f8b5"
+    }
+  ],
+  "新增覆盖": [
+    "代理基础、四类Fallback设置和图片自动切换与安全批量候选整合",
+    "普通图片及参考图生成、单槽重试接持久任务账本与保存ACK",
+    "单条提示词创建配置、拖连创建及已有卡连线的类型/尺寸识别",
+    "全局参考图工具和重复连线保护",
+    "Excel及最终提示词变量高亮、主题说明，编辑正文保持",
+    "节点/批次图片及音视频下载优先持久Blob、去重缓存和真实MIME后缀"
+  ],
+  "未完成": [
+    "真实Mihomo核心分发/运行、完整节点诊断及线路持久记忆",
+    "历史页签、分类排序、历史ZIP、失败批次重试和稳定业务编号",
+    "节点回收站、按产品素材隔离与ZIP合并导入",
+    "原图/交付图双份保存、尺寸适配及完整详情",
+    "视频未决远端任务保护、文本/视频/音频安全网关、翻译及AI校准"
+  ],
+  "边界": [
+    "本批仅内存候选、自动专项和完整类型检查；未做磁盘隔离装配、浏览器或视觉验收",
+    "Fallback四类设置均保留；本轮自动切换仅接普通图片，其他类型不冒充已接线",
+    "仅明确401/403/404/429自动切换；未知结果不自动重复收费；全链锁定网络租约",
+    "代理核心仍用模拟核心验收，CONNECT/TLS为真实loopback测试；不使用真实订阅或收费渠道",
+    "下载沿用旧兼容网络边界，未宣称所有媒体下载已由受限凭据网关代理",
+    "保留现行稳定节点ID文件名；未迁业务分类命名GAP-26",
+    "兼容凭据read和页内明文边界仍存在；自动媒体清理保持保守保留",
+    "未迁应用全域停机门禁；局部批量锁/活动计数不能替代持久任务准入"
+  ],
+  "已隔离接入": false,
+  "已切换3100": false,
+  "已访问正式数据或真实凭据": false
+}

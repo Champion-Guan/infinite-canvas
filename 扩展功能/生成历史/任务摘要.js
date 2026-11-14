@@ -1,3 +1,5 @@
+import { imageSizeRetryBlocked } from "../媒体交付/生成图片尺寸交付.mjs";
+
 // Aggregate all tasks, not just the most recently started task.
 function representedConfigIds(nodes, connections) {
     const nodeById = new Map(nodes.map(node => [node.id, node]));
@@ -26,7 +28,7 @@ export function failedTaskTargets(nodes, connections = []) {
         if (representedConfigs.has(node.id) || !["image", "video", "audio", "text", "config"].includes(node.type)) return [];
         if (node.metadata?.status === "loading" || node.metadata?.images?.some(image => image.status === "loading")) return [];
         const failedImages = node.metadata?.images?.filter(image => image.status === "error") || [];
-        if (failedImages.length) return failedImages.map(image => ({ node, imageId: image.id }));
-        return node.metadata?.status === "error" ? [{ node }] : [];
+        if (failedImages.length) return failedImages.filter(image => !imageSizeRetryBlocked(image)).map(image => ({ node, imageId: image.id }));
+        return node.metadata?.status === "error" && !imageSizeRetryBlocked(node.metadata) ? [{ node }] : [];
     });
 }

@@ -9,8 +9,11 @@ import {
   useCanvasStore,
   type CanvasProject,
 } from "@/stores/canvas/use-canvas-store";
-import { sqlitePreferences } from "../本机存储/上游浏览器存储桥";
-import { orderedWorkbookProjects, visibleWorkbookId } from "../Excel/Excel产品归属";
+import { sqlitePreferences, storageStatus } from "../本机存储/上游浏览器存储桥";
+import { reportSaveFailure } from "../存储界面/保存错误通知";
+import { StatusDetails } from "../主题/状态详情";
+import { navigationOwner, navigationProducts } from "./产品导航范围";
+import { productFeatures } from "../产品配置/功能开关";
 import { orderedProducts } from "./产品规则";
 import { useProductNavigation } from "./产品操作";
 import { canvasTaskSummary } from "./产品任务摘要.js";
@@ -37,6 +40,7 @@ function createSummarySelector() {
   const taskCache = new WeakMap<
     CanvasProject["nodes"],
     {
+      productId: string;
       connections: CanvasProject["connections"];
       task: ReturnType<typeof canvasTaskSummary>;
     }
@@ -45,10 +49,11 @@ function createSummarySelector() {
     const previousById = new Map(previous.map((item) => [item.id, item]));
     const next = orderedProducts(state.projects).map((project, index) => {
       let cached = taskCache.get(project.nodes);
-      if (!cached || cached.connections !== project.connections) {
+      if (!cached || cached.productId !== project.id || cached.connections !== project.connections) {
         cached = {
+          productId: project.id,
           connections: project.connections,
-          task: canvasTaskSummary(project.nodes, project.connections, true),
+          task: canvasTaskSummary(project.nodes, project.connections, true, project.id),
         };
         taskCache.set(project.nodes, cached);
       }
@@ -105,8 +110,8 @@ export function ProductCapsules() {
   const selector = useMemo(createSummarySelector, []);
   const { activeId, busy, selectProduct } = useProductNavigation();
   const allProducts = useCanvasStore(selector);
-  const owner = useCanvasStore(state => visibleWorkbookId(state, activeId));
-  const ownership = useCanvasStore(state => orderedWorkbookProjects(state.projects, visibleWorkbookId(state, activeId), state.guanWorkbooks?.contract.products).map(project => project.id).join("\n"));
+  const owner = useCanvasStore(state => navigationOwner(state, activeId));
+  const ownership = useCanvasStore(state => navigationProducts(state, activeId).map(project => project.id).join("\n"));
   const byId = new Map(allProducts.map(product => [product.id, product]));
   const products = ownership.split("\n").flatMap(id => byId.get(id) ? [byId.get(id)!] : []);
   const [lastSelectedId, setLastSelectedId] = useState("");
@@ -130,7 +135,11 @@ export function ProductCapsules() {
       return;
     }
     setError("");
-    void selectProduct(id).catch(reason => setError(reason instanceof Error ? reason.message : String(reason)));
+    void selectProduct(id).catch(reason => {
+      const text = reason instanceof Error ? reason.message : String(reason);
+      if (storageStatus().state === "error" || /保存|未确认编辑|未确认分片/.test(text)) reportSaveFailure(text);
+      else setError(text);
+    });
   };
   const navigateTabs = (event: KeyboardEvent<HTMLDivElement>) => {
     if (busy || event.altKey || event.ctrlKey || event.metaKey || !(event.target instanceof HTMLElement)
@@ -169,7 +178,7 @@ export function ProductCapsules() {
         ref={navigation}
         className="guan-dc-product-nav"
         role="tablist"
-        aria-label="当前工作表产品"
+        aria-label={productFeatures.excel ? "当前工作表产品" : "产品画布"}
         aria-busy={busy}
         onKeyDown={navigateTabs}
       >
@@ -252,9 +261,7 @@ export function ProductCapsules() {
       </div>
       <AnimatePresence>{deleting ? <ProductDeleteDialog key={deleting.id} id={deleting.id} name={deleting.name} onClose={() => setDeleting(null)} /> : null}</AnimatePresence>
       {error ? (
-        <span role="alert" className={styles.error}>
-          {error}
-        </span>
+        <StatusDetails label="切换失败" failed><p>{error}</p></StatusDetails>
       ) : null}
     </div>
   );

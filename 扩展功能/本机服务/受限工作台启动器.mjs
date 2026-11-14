@@ -41,7 +41,11 @@ function readStaticBundle(directory) {
       if (!/\bsrc\s*=/i.test(match[1]) && match[2].trim()) hashes.add("'sha256-" + createHash('sha256').update(match[2]).digest('base64') + "'");
     }
   }
-  return { files, scriptHashes: [...hashes].join(' ') };
+  const version = createHash('sha256');
+  for (const [path, { bytes }] of [...files].sort(([a], [b]) => a.localeCompare(b))) {
+    version.update(JSON.stringify([path, bytes.length])); version.update(bytes);
+  }
+  return { files, scriptHashes: [...hashes].join(' '), version: version.digest('hex') };
 }
 function resolveStaticFile(files, route) {
   const exact = files.get(route);
@@ -57,7 +61,7 @@ function resolveStaticFile(files, route) {
 
 // 日常入口从3000顺延；保留旧客户管理器要求的固定3100兼容入口。
 // storage由可信启动工具装配同一个已批准的四文件包，避免跨模块StorageError身份漂移。
-export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, initialize = false, storage, credentialKeyProvider, endpoint = { hostname: '127.0.0.1', port: 0 }, networkProxyOptions = {}, proxyResourceUpdateOptions, initialProxyConfiguration, softwareUpdateOptions = {}, deferActivation = false, onWorkspaceReady } = {}) {
+export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, initialize = false, storage, credentialKeyProvider, endpoint = { hostname: '127.0.0.1', port: 0 }, networkProxyOptions = {}, proxyResourceUpdateOptions, initialProxyConfiguration, softwareUpdateOptions = {}, deferActivation = false, onWorkspaceReady, developmentReload = false } = {}) {
   requireValue(typeof webRoot === 'string' && typeof dataRoot === 'string' && isAbsolute(dataRoot) && typeof initialize === 'boolean' &&
     typeof storage?.openWorkspace === 'function' && typeof storage?.startDataService === 'function' && typeof credentialKeyProvider?.read === 'function' && typeof credentialKeyProvider?.create === 'function', 'invalid_launcher_config', '必须明确传入静态产物、独立数据根及完整存储装配。');
   requireValue(endpoint && typeof endpoint === 'object' && !Array.isArray(endpoint) &&
@@ -67,7 +71,9 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
     'invalid_launcher_endpoint', '只允许本机临时入口或受支持的localhost工作台入口。');
   // 复制值，避免等待期间调用方修改endpoint导致Host/Origin错配；监听始终仅127.0.0.1。
   const { hostname, port } = endpoint;
-  let { files, scriptHashes } = readStaticBundle(webRoot);
+  let { files, scriptHashes, version } = readStaticBundle(webRoot);
+  const developmentPages = new Set();
+  const notifyDevelopmentPage = res => res.write('data: ' + JSON.stringify({ version }) + '\n\n');
   let ready = false, gateway, controller, service, workspace, backup, credentialPort, generation, networkProxy, updates, mediaConversion, closing = null;
   const server = createServer(async (req, res) => {
     res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'no-referrer');
@@ -91,6 +97,13 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
     let path;
     try { path = decodeURIComponent(req.url); } catch { res.writeHead(400); res.end(); return; }
     if (!['GET', 'HEAD'].includes(req.method) || path.includes('?') || path.includes('\\') || path.split('/').includes('..')) { res.writeHead(404); res.end(); req.resume(); return; }
+    // 只由源码开发启动器启用；不暴露数据或授权材料，也不写磁盘缓存。
+    if (developmentReload === true && path === '/__guan_dev/events' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' });
+      developmentPages.add(res); notifyDevelopmentPage(res);
+      res.on('close', () => developmentPages.delete(res));
+      return;
+    }
     const route = path === '/' || /^\/canvas\/[A-Za-z0-9_-]+$/.test(path) ? '/index.html' : path;
     const value = resolveStaticFile(files, route);
     if (!value) { res.writeHead(404); res.end(); return; }
@@ -104,7 +117,8 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
         const html = bytes.toString('utf8');
         requireValue(html.split('</head>').length === 2 && !html.includes('guan-local-bootstrap'), 'invalid_web_bundle', '静态包不兼容自动入口。');
         const ticket = gateway.issueTicket();
-        bytes = Buffer.from(html.replace('</head>', '<meta name="guan-local-bootstrap" content="' + ticket.code + '"></head>'));
+        const development = developmentReload === true ? '<meta name="guan-development-version" content="' + version + '">' : '';
+        bytes = Buffer.from(html.replace('</head>', '<meta name="guan-local-bootstrap" content="' + ticket.code + '">' + development + '</head>'));
       } catch { res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8', 'Retry-After': '1' }); res.end('本机启动暂时不可用；数据未改动，请稍后重新打开。'); return; }
     }
     res.writeHead(200, { 'Content-Type': value.type + (['text/', 'application/json'].some(type => value.type.startsWith(type)) ? '; charset=utf-8' : ''), 'Content-Length': bytes.length });
@@ -127,6 +141,8 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
       throw error;
     }
     const errors = [];
+    for (const page of developmentPages) page.end();
+    developmentPages.clear();
     for (const action of [() => mediaConversion?.close(), () => networkProxy?.close(), () => generation?.close(), () => backup?.stop(), () => gateway?.close(), () => controller?.close(),
       () => server.listening ? closeHTTP() : undefined, () => service?.close(), () => credentialPort?.close(), () => workspace?.close()]) {
       try { await action(); } catch (error) { errors.push(error); }
@@ -163,8 +179,10 @@ export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, init
       // 开发版在构建成功后一次替换静态快照，保留当前会话和SQLite连接。
       reloadWebBundle() {
         const next = readStaticBundle(webRoot);
-        files = next.files; scriptHashes = next.scriptHashes;
-        return { files: files.size };
+        const changed = version !== next.version;
+        files = next.files; scriptHashes = next.scriptHashes; version = next.version;
+        if (changed) for (const page of developmentPages) notifyDevelopmentPage(page);
+        return { changed, version };
       },
       activate() { requireValue(!closing && service && workspace, 'launcher_stopping', '工作台尚未就绪。', 503); ready = true; },
       issueTicket() { requireValue(ready, 'launcher_stopping', '入口正在停止。', 503); return gateway.issueTicket(); },

@@ -25,8 +25,10 @@ export function productPlanningRecoveryError(error: unknown, kind?: "save" | "qu
     const code = (error as { code?: string } | null)?.code;
     const temporary = ["request_timeout", "generation_connection_unknown", "generation_canvas_unsaved",
         "generation_canvas_unconfirmed", "generation_http_busy", "generation_unavailable", "generation_ack_invalid"].includes(code || "");
-    if (temporary && kind === "save") return "提示词卡片已生成，保存确认尚未完成。请点“继续保存”，不会重新策划。";
+    if (temporary && kind === "save") return "提示词卡片已生成，自动保存尚未确认；系统会有限重试，也可点击“重试保存”，不会重新策划。";
     if (temporary && kind === "query") return "原任务状态暂未确认。请点“查询原任务”继续，不会重复提交策划。";
+    if (kind === "query" && code === "generation_not_found")
+        return "本机找不到此卡保留的策划任务。若这是复制后要重新制作的新商品，请复制此参数卡为独立新卡，再使用“AI写提示词”；原卡任务记录保留，不会自动重提。";
     if (kind === "repair" && ["invalid_product_plan_keys", "invalid_confirmation_protocol", "product_plan_repair_incomplete"].includes(code || ""))
         return "图片编号或待确认条件尚需修正，返回方案和原卡片均已保留。请点“继续修正”，不会重做整套策划。";
     return error instanceof Error ? error.message : "策划未完成，请查询原任务后继续。";

@@ -1,0 +1,223 @@
+{
+  "日期": "2026-10-18",
+  "状态": "待具体差异单独批准；未接入隔离副本或3100",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/新建卡片视区跟随-nQKQLs/视区跟随接入记录.json",
+  "前置差异SHA256": "9577c812b3296b9f881e84c7c8b9286b1f4f21bf00e20d0a651da0bdfc55f9cb",
+  "旧来源目录": "/Users/guanchengbin/CodexProjects/guan-ai-workbench-projects/guan-ai-workbench",
+  "旧来源SHA256": {
+    "src/shared/data-contract/index.js": "1b14b228241b07fa1a4f6fea8956c7f60112ef61bbfc8c33ec151bce5de7bb22",
+    "src/shared/data-contract/index.css": "169d3c6de95793d5648e1f673e92307d804a9599010522941e932378d1baccff",
+    "src/shared/data-contract/workbook-canvas-products.js": "8bb43e6bf44f74e3c6c18bacc46e2d9135a6170bc05eaead8922f79dccfb61bb",
+    "src/canvas/services/product-recycle-bridge.ts": "f774657e2d22c7863ac025c3c0b8383d75706827e09642928abfdda4aaf5e66a",
+    "src/canvas/lib/canvas/task-summary.js": "d7b665601ae5ebffd3d259092a6abd1bc906b5733f05b84ffc9aad09b6b74f6a",
+    "src/canvas/lib/render-commit-checkpoint.ts": "5554e368fc3c95828fdf4effa2b9481f02246f3cbbffdaa4863de1ca8b1580fc",
+    "public/assets/local-canvas/canvas.js": "b0c9863c11a7dc51b7a86b94426ca8b515cfd54afb526d9b8da0b312aa3e757f",
+    "src/canvas/services/canvas-visibility.ts": "9648251ff389731853f20216eb59d5e392e2a432ad6bc7d20b707590b33e38fa",
+    "src/canvas/stores/canvas/use-canvas-store.ts": "7c842cb39e73702686378c99d94abb5cc186d57e437c4083ccc0ab207ffcd9e4",
+    "src/canvas/pages/canvas/project.tsx": "1fa007d1bdac287c1bee26ac1e186d5a69e544d89b7c57907843bfc8678e0bfb"
+  },
+  "片段SHA256": {
+    "displayName": "e9abdd6f473c5b908e66081991e3a8d89637e93f55c79e920fec454f7656fb9e",
+    "capsuleStatus": "bfe024fb83a8d806b04bee680ccece1f36850a1781f86ac9afab2cb3bbd96668",
+    "updateProject": "674d28dfcbd6b9e8c9565acc85b98995890b8ac5bd6fe419c314aa81961f9556",
+    "saveEffect": "f3b72ccff3b95837b8478d4bca60875523249be48f4c2365af493390abe7cdf7",
+    "checkpoint": "655d52b362fe037cb525a00d1d334c1a5369f7caf4bbf1459c3cc12a7bd9ecd4"
+  },
+  "自有来源": [
+    {
+      "文件": "扩展功能/产品/产品规则.ts",
+      "SHA256": "e3a53fe6a8725c43f8d73216cf3cada5129ad68a7e89590a98eb82500b65105f"
+    },
+    {
+      "文件": "扩展功能/产品/产品保存检查点.ts",
+      "SHA256": "998b2c2690c601858aef7878a736e118f09c624bbcda0657ab915fa07275c244"
+    },
+    {
+      "文件": "扩展功能/产品/产品操作.ts",
+      "SHA256": "31c1ab53a8c76ce982d4d0d445d5c62b4396ba037c77b44d5f97df42e7565745"
+    },
+    {
+      "文件": "扩展功能/产品/产品界面边界.tsx",
+      "SHA256": "49a408268c751f66e61ed961b35aabef5780dc56e5d87afbee3f3406a17c762e"
+    },
+    {
+      "文件": "扩展功能/产品/产品工作区.tsx",
+      "SHA256": "7de4ded3f5021f38b78de58900becbee1b128e3aa3f9d2f93f02f2fe0d11660e"
+    },
+    {
+      "文件": "扩展功能/产品/顶部产品胶囊.tsx",
+      "SHA256": "5940f5a473ab9af82f3e4713c0dba7ed3e67b05f02b2500f62d038a2d5396d73"
+    },
+    {
+      "文件": "扩展功能/产品/产品胶囊.module.css",
+      "SHA256": "d0f30316f5d18d64a2d15338a7159a680eecdd6db4eec84564451a5cf0c82933"
+    }
+  ],
+  "差异SHA256": "4143370262ebf7425c4bc59e1b980ee80ad843ccd8bbf5b144c0a4e7896f170a",
+  "完整候选类型检查通过": true,
+  "真实浏览器验收": false,
+  "已修改作者仓库": false,
+  "已接管或重启3100": false,
+  "已读取旧用户数据或Keychain": false,
+  "文件": [
+    {
+      "文件": "web/src/guan/产品规则.ts",
+      "原始SHA256": null,
+      "候选SHA256": "e3a53fe6a8725c43f8d73216cf3cada5129ad68a7e89590a98eb82500b65105f"
+    },
+    {
+      "文件": "web/src/guan/产品保存检查点.ts",
+      "原始SHA256": null,
+      "候选SHA256": "998b2c2690c601858aef7878a736e118f09c624bbcda0657ab915fa07275c244"
+    },
+    {
+      "文件": "web/src/guan/产品操作.ts",
+      "原始SHA256": null,
+      "候选SHA256": "31c1ab53a8c76ce982d4d0d445d5c62b4396ba037c77b44d5f97df42e7565745"
+    },
+    {
+      "文件": "web/src/guan/产品界面边界.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "49a408268c751f66e61ed961b35aabef5780dc56e5d87afbee3f3406a17c762e"
+    },
+    {
+      "文件": "web/src/guan/产品工作区.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "7de4ded3f5021f38b78de58900becbee1b128e3aa3f9d2f93f02f2fe0d11660e"
+    },
+    {
+      "文件": "web/src/guan/顶部产品胶囊.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "5940f5a473ab9af82f3e4713c0dba7ed3e67b05f02b2500f62d038a2d5396d73"
+    },
+    {
+      "文件": "web/src/guan/产品胶囊.module.css",
+      "原始SHA256": null,
+      "候选SHA256": "d0f30316f5d18d64a2d15338a7159a680eecdd6db4eec84564451a5cf0c82933"
+    },
+    {
+      "文件": "web/src/guan/旧版产品显示名.js",
+      "原始SHA256": null,
+      "候选SHA256": "5bf883a63f5bb6f35a50becdab01ee6105869aa4f91718644fb08620b895922b"
+    },
+    {
+      "文件": "web/src/guan/旧版产品胶囊状态.js",
+      "原始SHA256": null,
+      "候选SHA256": "c191bf2e46e8e70c4aee3209d074833408fac10def86cc7e73379008428e69d3"
+    },
+    {
+      "文件": "web/src/guan/产品任务摘要.js",
+      "原始SHA256": null,
+      "候选SHA256": "d7b665601ae5ebffd3d259092a6abd1bc906b5733f05b84ffc9aad09b6b74f6a"
+    },
+    {
+      "文件": "web/src/router.tsx",
+      "原始SHA256": "e1afdc4f6b57dbffd161bf5cbef30e0387b8065e0325ba650fb98b334eab98dc",
+      "候选SHA256": "d68103d3aaf64a1badafeb44a9af9368513108997454e315cb7d9121c6404dc9"
+    },
+    {
+      "文件": "web/src/guan/旧版首页顶栏.tsx",
+      "原始SHA256": "9c143b3f69ae6bac6c32df6a7e65748be97234ee95e88b6ce621760c114f2f79",
+      "候选SHA256": "20a329a0bd038b7039be0bf5902ea9cbd69cabc7de8ce1e19576772b71dc6e76"
+    },
+    {
+      "文件": "web/src/guan/画布入口.tsx",
+      "原始SHA256": "3562c46388e3c8d0b0706f3190912dda507f1edea60c0a5434a2f377ff44e667",
+      "候选SHA256": "8ee3a14a6e63d0c474dcf532a4b5db247369ad1d3ab3ffd6dae06b3ee4b37114"
+    },
+    {
+      "文件": "web/src/stores/canvas/use-canvas-store.ts",
+      "原始SHA256": "f89bc2f968429f397159f8faeb9f16526b9acbff976f878a460eb0f2b9f77548",
+      "候选SHA256": "2dc8c7523e666e53e9970443443052fdb1f59c064c33b85c0ebe43bc82ef8b22"
+    },
+    {
+      "文件": "web/src/pages/canvas/project.tsx",
+      "原始SHA256": "b06c14e3d1632a9f2750c52521a78d00fbd26a295aa7fc7dd8b37f50ac857cf3",
+      "候选SHA256": "01b8654db2806d4aaa1df8b46976e1827f3f0f78833eea509b1c8bedfbb8af49"
+    },
+    {
+      "文件": "web/src/components/canvas/infinite-canvas.tsx",
+      "原始SHA256": "745d3f5664c8cdf5b460b553a02db77e6c9f47b06cdd88f213f9f1a917f376df",
+      "候选SHA256": "f19aee733b94b98d415760a1f9fc782221b94f2bd11ce9cca7a425335ea8a440"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-audio-settings-popover.tsx",
+      "原始SHA256": "d29f0394e00e919eaee2af3c3695db7870c55047edf4cd06a75746cce6a0d10b",
+      "候选SHA256": "fd024af35fa62b2281ffb1d917cf29211aa4206a7b5f9c52cf5b3b547a03d34e"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-image-settings-popover.tsx",
+      "原始SHA256": "3ff9ac5e3a2ff9d38da8b1ad41af18139d8a84e44a5980db14a7afdeac78d373",
+      "候选SHA256": "e7ef066164306c0a3ce0c0204f57920774d5279cf11fce68868c90ce5efb096b"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-text-settings-popover.tsx",
+      "原始SHA256": "7befe5bc93919bf6c5f4a26ca197e5fa4a1e33c15e545d4003ead8ae5ab45bc3",
+      "候选SHA256": "5b249cdfc0c3bd20d8f2adbf7f77b95e22b3fcbeceb194d7c68541e973fdb60a"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-video-settings-popover.tsx",
+      "原始SHA256": "9a3c56da5d3097db8e44299532d7034508725f7ce2e4358a4a47acd5fa71dab9",
+      "候选SHA256": "bb64d99125edcfe9922e3a6c62cb294d3a55123dff40ef029b4167923a8d4819"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-node-mask-edit-dialog.tsx",
+      "原始SHA256": "6e18bfa513917e98a63c471f42858f8c47eeb4a255d0c971366f43157f7f439c",
+      "候选SHA256": "6071bedb72b32b5908cf36636b446ad70a956c0333d2d2e5d1c541d2432aa055"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-prompt-chip-input.tsx",
+      "原始SHA256": "c95e6bd0c0fd41b4cdaeb853c7a3f76f148ee77e3479e447d64efa3dd21b8dbd",
+      "候选SHA256": "45997e5154bc163d389d4a7c51ded30cf1ef6c6be28bf0afb445ba79cdfaeca9"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-resource-mention-textarea.tsx",
+      "原始SHA256": "39f0aa7111ea504bc98b31bc7d2cf9972744bddac7ecbb92ecb451f0ca3e610e",
+      "候选SHA256": "24592b23fc2ab48f7436fdd37b5882bc96c7d4708dd2a190ee8a61f42530db61"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-config-composer.tsx",
+      "原始SHA256": "fef423cca283c055cc7a94bb0720999969b93aba7c88cbfe71b69ff8ac398fca",
+      "候选SHA256": "6876d1886674b34bf398e02566c6460fbcca1bcce6b79c551c8f7714226f50f5"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-side-panel.tsx",
+      "原始SHA256": "9b99e29adbfe1ae53b65285dff243d00fa65748c623308a81cac74cd592ad2be",
+      "候选SHA256": "29d284a3f32458dcc9d8dd2b13c6ece4b4629425f949e0b27289046a82735b21"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-node-prompt-panel.tsx",
+      "原始SHA256": "5c248d62b96fe59cad5e5b192bf7f7a6eaccdcb9efd9d1a0268ee52418a63451",
+      "候选SHA256": "4619765fdca7de3e0194aa1e2557630d95359bee4d34fdeb4e168cc5a7e528d2"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-zoom-controls.tsx",
+      "原始SHA256": "b3f380eaf67aafe8dd2e3e8c5b4d0d54ea4e497a402ea78b142dd86372b91818",
+      "候选SHA256": "fcdf7c803b06b43fff33d29cd3beb644fdbd426a1b2129157af7b8bf951d4402"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-top-bar.tsx",
+      "原始SHA256": "abd33135ee9b85d4f5b6a2d2668a8e42f7233a9d474b004238c1ef7dee24981c",
+      "候选SHA256": "3007d38cfb18a1bc17a34f3065052508c0a3f9c8fd479661da6eea8a39dbb744"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-prompt-library.tsx",
+      "原始SHA256": "97f6ee3600cee2bac7f95f50e2b06e7c5560aec64c08e352e0e5a43146873c0c",
+      "候选SHA256": "a72823cab6210c733b20810e2f1dfb95fff997556e44352b3ed86867cb3398c0"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-node-hover-toolbar.tsx",
+      "原始SHA256": "3e92413e2a9c84c05eee4fee0e5c50578605cd2972dfc764864742bff00a340e",
+      "候选SHA256": "3810b5b5e1a0c80e17fb482a50727f6774c85d2e3e51d6938968b204a69e74df"
+    }
+  ],
+  "范围": [
+    "旧未命名产品N、显示名、胶囊SVG/尺寸/颜色及任务状态；入口统一命名，按创建顺序排列",
+    "保留访问过的产品实例、视区、选择、撤销历史及后台任务；不迁旧iframe或浏览器数据",
+    "复用现有唯一Zustand/SQLite分片保存，切换前真实React提交/SQLite确认，失败留当前产品",
+    "隐藏产品不接收全局键鼠事件，Portal及弹窗按产品收容，不做DOM/CSS猴子补丁",
+    "Excel、导入、回收站、旧数据迁移、桌面入口、更新/发布不在本批",
+    "批准后另建完整后继保护器和事务隔离包；真实浏览器/视觉验收及3100切换尚未完成"
+  ]
+}

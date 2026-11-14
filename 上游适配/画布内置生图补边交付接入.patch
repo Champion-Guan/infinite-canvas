@@ -1,0 +1,13 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 75cb6a4..a9d7315 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -2393,7 +2393,7 @@ function InfiniteCanvasPage() {
+                     const image = refs.length
+                         ? await requestEdit({ ...generationConfig, count: "1" }, context.prompt, refs, { signal: controller.signal }).then((items) => items[0])
+                         : await requestGeneration({ ...generationConfig, count: "1" }, context.prompt, { signal: controller.signal }).then((items) => items[0]);
+-                    const uploaded = await uploadGeneratedImage(image.dataUrl, { signal: controller.signal, targetSize: generationConfig.size });
++                    const uploaded = await uploadGeneratedImage(image.dataUrl, { signal: controller.signal, targetSize: generationConfig.size, padding: image.padding });
+                     setNodes((prev) =>
+                         prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, ...generationChannel, ...imageMetadata(uploaded), prompt: scene, model: generationConfig.model, status: NODE_STATUS_SUCCESS, errorDetails: undefined } } : node)),
+                     );

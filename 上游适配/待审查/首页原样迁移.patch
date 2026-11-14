@@ -1,0 +1,512 @@
+--- a/web/src/guan/工作台首页.tsx
++++ b/web/src/guan/工作台首页.tsx
+@@ -1,147 +1,81 @@
+-import { useState } from "react";
++import { useCallback, useEffect, useMemo, useRef, useState } from "react";
++import useEmblaCarousel from "embla-carousel-react";
++import Autoplay from "embla-carousel-autoplay";
+ import styles from "./首页.module.css";
+ 
+-const templates = [
+-  { title: "游戏手柄" },
+-  { title: "运动鞋" },
+-  { title: "智能手表" },
+-] as const;
+-const imageUrl = (group: number, kind: string, index: number) =>
+-  `/guan/首页轮播/第${group}组-${kind}${index}.webp`;
++// 来源：旧 canvas.js/showEmptyProducts 和 9803 chunk/45199 的 M/T/E/V。
++// 保留原 DOM 层次、尺寸、图片框、叠加标签和 Embla 协议；只适配资源路径与事件出口。
++const groups = ["游戏手柄", "运动鞋", "智能手表"];
++const imageUrl = (group: number, kind: string, index: number) => `/guan/首页轮播/第${group}组-${kind}${index}.webp`;
++const sourceCorners = ["flex-1 rounded-t-[16px]", "flex-1", "flex-1 rounded-b-[16px]"];
++const resultCorners = ["rounded-tl-[16px]", "rounded-tr-[16px]", "", "", "rounded-bl-[16px]", "rounded-br-[16px]"];
+ 
++function PreviewImage({ src, alt, className = "", contain = false }: { src: string; alt: string; className?: string; contain?: boolean }) {
++  return <div className={`relative min-h-0 min-w-0 overflow-hidden ${className}`}>
++    <img src={src} alt={alt} draggable={false} decoding="async" className={`absolute inset-0 size-full ${contain ? "object-contain" : "object-cover"}`} />
++  </div>;
++}
++function Label({ children }: { children: string }) {
++  return <span data-slot="badge" className="absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-full border-0 px-1.5 py-0.5 text-xs leading-4 font-normal whitespace-nowrap">{children}</span>;
++}
++function DetailPageTemplate({ group }: { group: number }) {
++  return <div data-slot="card" aria-label="详情页轮播模板" className="bg-surface-muted flex w-full max-w-172 aspect-688/368 flex-col items-center justify-center overflow-hidden rounded-[32px] border-0 p-4 shadow-none ring-0 max-[760px]:aspect-auto">
++    <div data-slot="card-content" className="grid w-full grid-cols-[104px_40px_94px_382px] items-center justify-center gap-3 p-0 max-[760px]:grid-cols-1 max-[760px]:gap-4">
++      <div className="relative aspect-104/336 w-[104px] shrink-0 overflow-hidden rounded-[16px] border-0 bg-transparent p-0 shadow-none ring-0 max-[760px]:mx-auto max-[760px]:w-[30%]">
++        <div className="flex size-full flex-col gap-1">{[1, 2, 3].map((number) => <PreviewImage key={number} src={imageUrl(group, "商品图", number)} alt={`产品图 ${number}`} className={sourceCorners[number - 1]} />)}</div>
++        <Label>产品图</Label>
++      </div>
++      <div className="flex h-full items-center justify-center max-[760px]:h-10 max-[760px]:rotate-90"><img src="/guan/首页原样资源/轮播箭头.svg" alt="" aria-hidden="true" className="h-6 w-10 shrink-0" /></div>
++      <div className="relative aspect-94/336 w-[94px] shrink-0 overflow-hidden rounded-[16px] border-0 p-0 shadow-none ring-0 max-[760px]:mx-auto max-[760px]:w-[28%]">
++        <PreviewImage src={imageUrl(group, "详情长图", 1)} alt="电商长图" className="absolute inset-0 size-full" /><Label>电商长图</Label>
++      </div>
++      <div className="flex h-full w-[382px] items-start pl-6 max-[760px]:w-full max-[760px]:justify-center max-[760px]:pl-0">
++        <div className="relative aspect-358/336 w-full shrink-0 overflow-hidden rounded-[16px] border-0 bg-transparent p-0 shadow-none ring-0 max-[760px]:mx-auto">
++          <div className="grid size-full grid-cols-2 grid-rows-3 gap-x-2 gap-y-1.5">{[1, 2, 3, 4, 5, 6].map((number) => <PreviewImage key={number} src={imageUrl(group, "效果图", number)} alt={`平台规范图 ${number}`} className={resultCorners[number - 1]} contain />)}</div><Label>符合多电商平台规范</Label>
++        </div>
++      </div>
++    </div>
++  </div>;
++}
+ type Props = { theme: "light" | "dark"; onCreate: () => void };
+-
+-// 恢复旧版两列首页与获用户确认的原轮播图片；不加载旧归档页面或DOM脚本。
+ export function WorkbenchHome({ theme, onCreate }: Props) {
++  const root = useRef<HTMLDivElement>(null);
++  const plugins = useMemo(() => [Autoplay({ delay: 5000, stopOnInteraction: false })], []);
++  const [carouselRef, api] = useEmblaCarousel({ loop: true, watchResize: false }, plugins);
+   const [index, setIndex] = useState(0);
+-  const template = templates[index];
+-
+-  return (
+-    <main className={styles.page} data-theme={theme} aria-label="工作台首页">
+-      <div className={styles.columns}>
+-        <section className={styles.preview} aria-labelledby="guan-home-title">
+-          <div>
+-            <h1 id="guan-home-title">A+ 详情页</h1>
+-            <p>上传商品图，AI 即刻生成符合多电商平台规范的高转化率商品图。</p>
+-          </div>
+-          <div
+-            className={styles.carousel}
+-            role="region"
+-            aria-label="轮播模板预览"
+-            aria-roledescription="轮播"
+-          >
+-            <div
+-              className={styles.template}
+-              role="group"
+-              aria-roledescription="幻灯片"
+-              aria-label={`${index + 1} / ${templates.length}：${template.title}`}
+-            >
+-              <div className={styles.collage}>
+-                <figure className={styles.sourceImages}>
+-                  <figcaption>商品图</figcaption>
+-                  <div>
+-                    {[1, 2, 3].map((number) => (
+-                      <img
+-                        key={number}
+-                        src={imageUrl(index + 1, "商品图", number)}
+-                        alt={`${template.title}商品图${number}`}
+-                        decoding="async"
+-                      />
+-                    ))}
+-                  </div>
+-                </figure>
+-                <span className={styles.direction} aria-hidden="true">
+-                  →
+-                </span>
+-                <figure className={styles.longPage}>
+-                  <figcaption>详情长图</figcaption>
+-                  <img
+-                    src={imageUrl(index + 1, "详情长图", 1)}
+-                    alt={`${template.title}详情长图`}
+-                    decoding="async"
+-                  />
+-                </figure>
+-                <figure className={styles.resultImages}>
+-                  <figcaption>模块效果图</figcaption>
+-                  <div>
+-                    {[1, 2, 3, 4, 5, 6].map((number) => (
+-                      <img
+-                        key={number}
+-                        src={imageUrl(index + 1, "效果图", number)}
+-                        alt={`${template.title}效果图${number}`}
+-                        decoding="async"
+-                      />
+-                    ))}
+-                  </div>
+-                </figure>
+-              </div>
+-              <span className={styles.sample} aria-live="polite">
+-                {template.title} · A+ 详情页示例
+-              </span>
+-            </div>
+-            <div className={styles.carouselControls}>
+-              <button
+-                type="button"
+-                className={styles.arrow}
+-                aria-label="上一组模板"
+-                onClick={() =>
+-                  setIndex(
+-                    (value) =>
+-                      (value + templates.length - 1) % templates.length,
+-                  )
+-                }
+-              >
+-                ‹
+-              </button>
+-              <div className={styles.dots} aria-label="轮播图导航">
+-                {templates.map((item, itemIndex) => (
+-                  <button
+-                    type="button"
+-                    key={item.title}
+-                    aria-label={`查看${item.title}模板`}
+-                    aria-current={index === itemIndex ? "true" : undefined}
+-                    onClick={() => setIndex(itemIndex)}
+-                  />
+-                ))}
+-              </div>
+-              <button
+-                type="button"
+-                className={styles.arrow}
+-                aria-label="下一组模板"
+-                onClick={() =>
+-                  setIndex((value) => (value + 1) % templates.length)
+-                }
+-              >
+-                ›
+-              </button>
+-            </div>
+-          </div>
+-        </section>
+-
+-        <section
+-          className={styles.actions}
+-          aria-labelledby="guan-home-products"
+-        >
+-          <div>
+-            <h2 id="guan-home-products">暂无产品</h2>
+-            <p>从一个新产品开始，整理图片、提示词和画布。</p>
+-          </div>
+-          <div className={styles.buttons}>
+-            <button type="button" className={styles.primary} onClick={onCreate}>
+-              <span aria-hidden="true">＋</span>新建产品
+-            </button>
+-            <button type="button" disabled aria-describedby="guan-home-pending">
+-              导入产品
+-            </button>
+-            <button type="button" disabled aria-describedby="guan-home-pending">
+-              产品回收站
+-            </button>
+-          </div>
+-          <p id="guan-home-pending" className={styles.note}>
+-            产品导入与回收站尚未接入新基线。本页不会读取旧版数据。
+-          </p>
+-        </section>
+-      </div>
+-    </main>
+-  );
++  const select = useCallback(() => { if (api) setIndex(api.selectedScrollSnap()); }, [api]);
++  useEffect(() => {
++    if (!api) return;
++    api.on("select", select).on("reInit", select);
++    return () => { api.off("select", select).off("reInit", select); };
++  }, [api, select]);
++  useEffect(() => {
++    const element = root.current;
++    if (!api || !element) return;
++    let width = element.getBoundingClientRect().width;
++    let timer: ReturnType<typeof setTimeout>;
++    const observer = new ResizeObserver(([entry]) => {
++      if (entry.contentRect.width === width) return;
++      width = entry.contentRect.width;
++      clearTimeout(timer);
++      timer = setTimeout(() => api.reInit(), 150);
++    });
++    observer.observe(element);
++    return () => { observer.disconnect(); clearTimeout(timer); };
++  }, [api]);
++  const pending = "旧版业务尚未迁入；不会读取旧数据。";
++  return <main className={styles.page} data-theme={theme} aria-label="工作台首页">
++    <div className="guan-product-empty">
++      <section className="guan-product-landing-preview" aria-labelledby="guan-home-title">
++        <div className="guan-product-landing-introduction"><h1 id="guan-home-title">A+ 详情页</h1><p>上传商品图，AI 即刻生成符合多电商平台规范的高转化率商品图。</p></div>
++        <div ref={root} role="region" aria-roledescription="carousel" aria-label="轮播模板预览" className="relative w-full" onKeyDownCapture={(event) => {
++          if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); if (event.key === "ArrowLeft") api?.scrollPrev(); else api?.scrollNext(); }
++        }}>
++          <div ref={carouselRef} className="overflow-hidden" data-slot="carousel-content"><div className="flex ml-0 items-center">{groups.map((name, i) => <div key={name} data-slot="carousel-item" role="group" aria-roledescription="slide" aria-label={`${i + 1} / 3：${name}`} className="min-w-0 shrink-0 grow-0 basis-full flex justify-center pl-0"><DetailPageTemplate group={i + 1} /></div>)}</div></div>
++        </div>
++        <div aria-label="轮播图导航">{groups.map((name, i) => <button key={name} type="button" aria-label={`切换到第 ${i + 1} 个轮播模板`} aria-current={index === i ? "true" : undefined} onClick={() => { api?.scrollTo(i); api?.plugins().autoplay?.reset(); }} />)}</div>
++      </section>
++      <section className="guan-product-landing-actions" aria-labelledby="guan-home-products"><h2 id="guan-home-products">暂无产品</h2><p>新建、导入产品，或从产品回收站恢复，开始使用画布。</p><div className="guan-product-landing-buttons"><button type="button" data-empty-action="new" onClick={onCreate}>新建产品</button><button type="button" data-empty-action="import" disabled title={pending}>导入产品</button><button type="button" data-empty-action="trash" disabled title={pending}>产品回收站</button></div></section>
++    </div>
++  </main>;
+ }
+--- a/web/src/guan/首页.module.css
++++ b/web/src/guan/首页.module.css
+@@ -1,242 +1,30 @@
++/* 旧 canvas.css 第49–97行迁入，选择器限制在自有首页，不覆盖作者画布或弹窗。 */
++@font-face { font-family: "Guan Home Geist"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/guan/首页原样资源/Geist拉丁.woff2") format("woff2"); unicode-range: u+00??,u+0131,u+0152-0153,u+02bb-02bc,u+02c6,u+02da,u+02dc,u+0304,u+0308,u+0329,u+2000-206f,u+20ac,u+2122,u+2191,u+2193,u+2212,u+2215,u+feff,u+fffd; }
++@font-face { font-family: "Guan Home Geist Fallback"; src: local("Arial"); ascent-override: 95.94%; descent-override: 28.16%; line-gap-override: 0%; size-adjust: 104.76%; }
+ .page {
+-  --home-background: #fff;
+-  --home-text: #17181a;
+-  --home-muted: #72757a;
+-  --home-preview: #f5f5f5;
+-  --home-card: #fff;
+-  --home-border: #ddd;
+-  --home-dot: #e5e5e5;
+-  box-sizing: border-box;
+-  height: 100%;
+-  overflow: auto;
+-  color: var(--home-text);
+-  background: var(--home-background);
+-}
+-
+-.page[data-theme="dark"] {
+-  --home-background: #171717;
+-  --home-text: #f5f5f5;
+-  --home-muted: #a3a3a3;
+-  --home-preview: #262626;
+-  --home-card: #202020;
+-  --home-border: #404040;
+-  --home-dot: #404040;
+-}
+-
+-.page * {
+-  box-sizing: border-box;
+-}
+-.columns {
+-  display: grid;
+-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+-  align-items: center;
+-  gap: 32px;
+-  width: 100%;
+-  min-height: 100%;
+-  padding: clamp(24px, 3vw, 56px);
+-  text-align: center;
+-}
+-.preview,
+-.actions {
+-  display: flex;
+-  flex-direction: column;
+-  align-items: center;
+-  justify-content: center;
+-  gap: 24px;
+-  min-width: 0;
+-}
+-.page h1 {
+-  margin: 0 0 12px;
+-  font-size: clamp(28px, 2.5vw, 48px);
+-  line-height: 1.25;
+-  font-weight: 600;
+-}
+-.page h2 {
+-  margin: 0 0 16px;
+-  font-size: clamp(24px, 2vw, 36px);
+-  line-height: 1.3;
+-  font-weight: 500;
+-}
+-.page p {
+-  margin: 0;
+-  max-width: 560px;
+-  color: var(--home-muted);
+-  font-size: clamp(14px, 1.15vw, 20px);
+-  line-height: 1.7;
+-}
+-.carousel {
+-  width: 100%;
+-  max-width: 660px;
+-}
+-.template {
+-  padding: clamp(14px, 2vw, 26px);
+-  border-radius: 20px;
+-  background: var(--home-preview);
+-}
+-.collage {
+-  display: grid;
+-  grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1.15fr) minmax(0, 2fr);
+-  align-items: start;
+-  gap: 12px;
+-}
+-.collage figure {
+-  display: flex;
+-  flex-direction: column;
+-  gap: 12px;
+-  min-width: 0;
+-  margin: 0;
+-}
+-.collage figcaption {
+-  color: var(--home-muted);
+-  font-size: 12px;
+-  white-space: nowrap;
+-}
+-.collage img {
+-  display: block;
+-  width: 100%;
+-  border-radius: 7px;
+-  background: var(--home-card);
+-}
+-.sourceImages > div {
+-  display: grid;
+-  gap: 10px;
+-}
+-.sourceImages img {
+-  aspect-ratio: 1;
+-  object-fit: contain;
+-}
+-.longPage img {
+-  height: auto;
+-}
+-.resultImages > div {
+-  display: grid;
+-  grid-template-columns: repeat(2, minmax(0, 1fr));
+-  gap: 8px;
+-}
+-.resultImages img {
+-  aspect-ratio: 1;
+-  object-fit: cover;
+-}
+-.direction {
+-  align-self: center;
+-  color: var(--home-muted);
+-}
+-.sample {
+-  color: var(--home-muted);
+-  font-size: 12px;
+-}
+-.sample {
+-  display: block;
+-  margin-top: 22px;
+-}
+-.carouselControls {
+-  display: flex;
+-  justify-content: center;
+-  align-items: center;
+-  gap: 20px;
+-  margin-top: 16px;
+-}
+-.arrow {
+-  width: 28px;
+-  height: 28px;
+-  border: 0;
+-  border-radius: 6px;
+-  color: var(--home-text);
+-  background: transparent;
+-  font-size: 26px;
+-  line-height: 1;
+-  cursor: pointer;
+-}
+-.arrow:hover {
+-  background: var(--home-preview);
+-}
+-.dots {
+-  display: flex;
+-  align-items: center;
+-  gap: 8px;
+-}
+-.dots button {
+-  position: relative;
+-  width: 26px;
+-  height: 28px;
+-  padding: 0;
+-  border: 0;
+-  background: transparent;
+-  cursor: pointer;
+-}
+-.dots button::after {
+-  position: absolute;
+-  inset: 11px 5px;
+-  content: "";
+-  border-radius: 6px;
+-  background: var(--home-dot);
+-}
+-.dots button[aria-current="true"]::after {
+-  background: var(--home-text);
+-}
+-.buttons {
+-  display: flex;
+-  flex-wrap: wrap;
+-  justify-content: center;
+-  gap: 14px;
+-}
+-.buttons button {
+-  display: inline-flex;
+-  align-items: center;
+-  justify-content: center;
+-  gap: 7px;
+-  padding: 12px 20px;
+-  border: 1px solid var(--home-border);
+-  border-radius: 12px;
+-  color: var(--home-text);
+-  background: var(--home-background);
+-  font: inherit;
+-  font-size: clamp(15px, 1.2vw, 20px);
+-  cursor: pointer;
+-}
+-.buttons .primary {
+-  color: var(--home-background);
+-  background: var(--home-text);
+-  border-color: var(--home-text);
+-}
+-.buttons button:disabled {
+-  opacity: 0.45;
+-  cursor: not-allowed;
+-}
+-.page button:focus-visible {
+-  outline: 2px solid var(--home-text);
+-  outline-offset: 4px;
+-}
+-.actions .note {
+-  max-width: 440px;
+-  font-size: 12px;
+-}
+-
+-@media (max-width: 900px) {
+-  .columns {
+-    grid-template-columns: minmax(0, 1fr);
+-    align-content: center;
+-    gap: 40px;
+-    padding: 28px 16px 40px;
+-  }
+-  .preview,
+-  .actions {
+-    gap: 20px;
+-  }
+-  .collage {
+-    grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1.15fr) minmax(0, 2fr);
+-    gap: 8px;
+-  }
+-  .collage figcaption {
+-    font-size: 10px;
+-  }
+-  .collage figure {
+-    gap: 8px;
+-  }
+-  .resultImages > div {
+-    gap: 5px;
+-  }
+-  .template {
+-    padding: 20px 12px;
+-  }
+-}
++  --landing-background: #fff; --landing-text: #17181a; --landing-muted: #72757a; --landing-preview: #f5f5f5; --landing-border: #ddd; --landing-dot: #e5e5e5; --landing-selected-dot: #111;
++  position: relative; height: 100%; overflow: auto; color: var(--landing-text); background: var(--landing-background);
++  font: 14px/1.4285714286 "Guan Home Geist", "Guan Home Geist Fallback", ui-sans-serif, system-ui, sans-serif;
++}
++.page[data-theme="dark"] { --landing-background: #171717; --landing-text: #f5f5f5; --landing-muted: #a3a3a3; --landing-preview: #262626; --landing-border: #404040; --landing-dot: #333; --landing-selected-dot: #fff; }
++.page :global(.guan-product-empty) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); width: 100%; height: 100%; padding: clamp(24px, 3vw, 56px); box-sizing: border-box; gap: 32px; align-items: center; text-align: center; background: var(--landing-background); color: var(--landing-text); }
++.page :global(.guan-product-empty) h2, .page :global(.guan-product-empty) p { margin: 0; }
++.page :global(.guan-product-landing-preview) { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; min-width: 0; width: 100%; }
++.page :global(.guan-product-landing-preview) > * { max-width: 100%; margin-inline: auto; }
++.page :global(.bg-surface-muted) { background: var(--landing-preview); }
++.page :global(.guan-product-landing-introduction) h1 { margin: 0 0 12px; font-size: clamp(28px, 2.5vw, 48px); line-height: 1.25; font-weight: 600; }
++.page :global(.guan-product-empty) p { color: var(--landing-muted); font-size: clamp(14px, 1.15vw, 20px); line-height: 1.7; }
++.page :global(.guan-product-landing-actions) { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; min-width: 0; width: 100%; }
++.page :global(.guan-product-landing-actions) h2 { font-size: clamp(24px, 2vw, 36px); font-weight: 500; }
++.page :global(.guan-product-landing-buttons) { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
++.page :global(.guan-product-landing-buttons) button { padding: 12px 20px; font-size: clamp(16px, 1.4vw, 24px); color: var(--landing-text); background: var(--landing-background); border: 1px solid var(--landing-border); border-radius: 12px; cursor: pointer; transition: transform .18s cubic-bezier(.22,1,.36,1), box-shadow .18s cubic-bezier(.22,1,.36,1); }
++.page :global(.guan-product-landing-buttons) button:hover:enabled { transform: translateY(-2px); box-shadow: 0 8px 20px rgb(0 0 0 / 10%); }
++.page :global(.guan-product-landing-buttons) button:active:enabled { transform: scale(.97); }
++.page :global(.guan-product-landing-buttons) button:disabled { cursor: not-allowed; }
++.page [aria-label="轮播图导航"] { display: flex; align-items: center; justify-content: center; gap: 8px; height: 6px; }
++.page [aria-label="轮播图导航"] button { width: 16px; height: 6px; padding: 0; border: 0; border-radius: 16px; background: var(--landing-dot); cursor: pointer; }
++.page [aria-label="轮播图导航"] button[aria-current="true"] { background: var(--landing-selected-dot); }
++.page [data-slot="badge"] { background: rgb(0 0 0 / 60%); color: #fff; }
++.page button:focus-visible { outline: 2px solid var(--landing-selected-dot); outline-offset: 4px; }
++@media (max-width: 900px) { .page :global(.guan-product-empty) { display: flex; flex-direction: column; justify-content: flex-start; overflow-y: auto; padding: 24px 16px; gap: 40px; } .page :global(.guan-product-landing-actions) { padding-bottom: 24px; } }
++@media (prefers-reduced-motion: reduce) { .page button { transition: none; } }
+--- /dev/null
++++ b/web/public/guan/首页原样资源/轮播箭头.svg
+@@ -0,0 +1,9 @@
++<svg viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg">
++<path d="M38.488 0.0925815C39.2498 -0.231857 40.0796 0.339962 39.9939 1.13034L39.0659 9.67565C38.9787 10.4783 38.0159 10.9031 37.3398 10.4373L35.4166 9.11135C26.895 22.118 8.35173 24.4328 0 23.9396V7.35583C17.6443 15.9516 28.4093 10.6875 31.909 6.69392L30.0309 5.39986C29.3548 4.9338 29.4779 3.92951 30.2517 3.59997L38.488 0.0925815Z" fill="url(#paint0_linear_3985_10903)"/>
++<defs>
++<linearGradient id="paint0_linear_3985_10903" x1="0" y1="11.8868" x2="42.063" y2="11.8868" gradientUnits="userSpaceOnUse">
++<stop stop-color="#556455" stop-opacity="0"/>
++<stop offset="1" stop-color="#516052"/>
++</linearGradient>
++</defs>
++</svg>
+Binary files /dev/null and b/web/public/guan/首页原样资源/Geist拉丁.woff2 differ
+Binary files /dev/null and b/web/public/guan/首页原样资源/工作台Logo.png differ

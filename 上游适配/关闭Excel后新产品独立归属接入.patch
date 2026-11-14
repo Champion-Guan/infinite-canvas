@@ -1,0 +1,28 @@
+diff --git a/web/src/stores/canvas/use-canvas-store.ts b/web/src/stores/canvas/use-canvas-store.ts
+index 5e63cfd..08cfa21 100644
+--- a/web/src/stores/canvas/use-canvas-store.ts
++++ b/web/src/stores/canvas/use-canvas-store.ts
+@@ -1,4 +1,5 @@
+ import { imageInfoDefaults, withCanvasAppearanceDefaults } from "@/扩展功能/图片设置/图片信息偏好";
++import { productFeatures } from "@/扩展功能/产品配置/功能开关";
+ import { scheduleStateSave } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { shouldDeferCanvasPersist } from "@/扩展功能/画布生成/批量保存协调";
+ import { create } from "zustand";
+@@ -95,7 +96,7 @@ export const useCanvasStore = create<CanvasStore>()(
+                 const id = nanoid();
+                 const project: CanvasProject = {
+                     id,
+-                    ...(get().guanWorkbooks ? { productSetId: currentWorkbookId(get().guanWorkbooks) } : {}),
++                    productSetId: productFeatures.excel ? currentWorkbookId(get().guanWorkbooks) : null,
+                     title,
+                     createdAt: now,
+                     updatedAt: now,
+@@ -115,7 +116,7 @@ export const useCanvasStore = create<CanvasStore>()(
+                 const now = new Date().toISOString();
+                 const project: CanvasProject = {
+                     id: nanoid(),
+-                    productSetId: currentWorkbookId(get().guanWorkbooks),
++                    productSetId: productFeatures.excel ? currentWorkbookId(get().guanWorkbooks) : null,
+                     title: source.title || i18n.t("canvas.project.imported"),
+                     createdAt: source.createdAt || now,
+                     updatedAt: now,

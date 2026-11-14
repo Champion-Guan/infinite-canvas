@@ -1,0 +1,22 @@
+.error {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.error:hover {
+    color: #b91c1c;
+    opacity: 1;
+}
+
+.message > p:first-child {
+    color: #dc2626;
+}
+
+:global(.dark) .error,
+:global(.dark) .message > p:first-child {
+    color: #f87171;
+}
+
+:global(.dark) .error:hover {
+    color: #fca5a5;
+}

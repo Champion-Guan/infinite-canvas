@@ -27,6 +27,7 @@ export async function requestCanvasImage(options: {
   config: AiConfig; prompt: string; references?: ReferenceImage[]; scope: Scope;
   previous?: CanvasImageTask; signal?: AbortSignal; retry?: boolean;
   recordTask(task: CanvasImageTask): Promise<void>;
+  onSubmitted?: () => void;
   applyAndSave(image: GeneratedImage, receipt: CanvasImageReceipt): Promise<unknown>;
   deferConfirm?: () => boolean;
 }) {
@@ -47,6 +48,7 @@ export async function requestCanvasImage(options: {
             return prepared.request;
         },
     bind: async () => (await host.createPlan(prepared.plan)).binding, recordTask: options.recordTask,
+    onSubmitted: options.onSubmitted,
     applyAndSave: async (job: { bytes: string; routing?: ImageRoute }, receipt: CanvasImageReceipt) => {
       const image = parseRoutedImageResponse(config, job.bytes, job.routing)[0];
       // 远程URL需要另批受限媒体下载接入；不能绕过CSP保存未落盘的外网网址。

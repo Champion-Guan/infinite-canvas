@@ -1,0 +1,13 @@
+diff --git a/web/src/components/layout/app-providers.tsx b/web/src/components/layout/app-providers.tsx
+index 3f950c0..0b1ea4c 100644
+--- a/web/src/components/layout/app-providers.tsx
++++ b/web/src/components/layout/app-providers.tsx
+@@ -41,7 +41,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
+ 
+     useEffect(() => {
+         document.documentElement.lang = locale;
+-        document.title = "AI生图工作台";
++        document.title = "AI工作台";
+         document.querySelector('meta[name="description"]')?.setAttribute("content", t("meta.description"));
+         dayjs.locale(locale === "zh-CN" ? "zh-cn" : "en");
+     }, [locale, t]);

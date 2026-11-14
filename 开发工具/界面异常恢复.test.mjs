@@ -21,8 +21,9 @@ function load(code, imports = {}, globals = {}) {
 }
 const descriptions = load(source('存储界面/界面异常说明.ts'));
 const viewSource = source('存储界面/界面异常恢复.tsx');
-function views(router = {}, react = React) {
-    return load(viewSource, { react, 'react-router-dom': router, './界面异常说明': descriptions }, { __APP_VERSION__: '2.0.0-beta.25' });
+function views(router = {}, react = React, extra = {}) {
+    return load(viewSource, { react, 'react-router-dom': router, './界面异常说明': descriptions,
+        '../本机存储/启动画面交接.mjs': { finishStartupScreen() {} } }, { __APP_VERSION__: '2.0.0-beta.25', ...extra });
 }
 
 test('界面诊断区分循环更新和加载故障，不包含任意异常正文、密钥、产品资料或路径', () => {
@@ -38,6 +39,19 @@ test('界面诊断区分循环更新和加载故障，不包含任意异常正�
         assert.equal(descriptions.diagnosticText(value).includes(secret), false);
         assert.deepEqual(Object.keys(value).sort(), ['code', 'time', 'version']);
     }
+});
+
+test('资源加载失败的手动重试重新获取页面，避免重复使用已失败的模块缓存；不自动刷新', () => {
+    let reloads = 0;
+    const view = views({
+        useRouteError: () => Error('Failed to fetch dynamically imported module'),
+        useLocation: () => ({ pathname: '/canvas/original' }),
+        useNavigate: () => () => assert.fail('资源错误不能仅重走路由'),
+    }, { ...React, useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}] },
+    { window: { location: { reload() { reloads++; } } } });
+    const element = view.RouteInterfaceRecovery();
+    assert.equal(reloads, 0);
+    element.props.onRetry(); assert.equal(reloads, 1);
 });
 
 test('中文恢复页可直接渲染，不展示开发者堆栈，不将未知编辑报告为已保存', () => {

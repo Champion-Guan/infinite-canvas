@@ -1,4 +1,5 @@
 import { placeConnectionPicker, type PickerBox } from "./关系面板避让";
+import { CANVAS_FLOATING_CHANGE, readCanvasFloatingBounds } from "../画布交互/浮层可见区域";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -29,9 +30,9 @@ export function SharedConnectionPicker({ choices, x, y, contextMenu, onPreview, 
     const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
     useLayoutEffect(() => {
         const update = () => {
-            const viewport = document.querySelector(".guan-canvas-viewport")?.getBoundingClientRect();
-            const view = { left: Math.max(12, (viewport?.left ?? 0) + 12), top: Math.max(12, (viewport?.top ?? 0) + 12), right: Math.min(window.innerWidth - 12, (viewport?.right ?? window.innerWidth) - 12), bottom: Math.min(window.innerHeight - 12, (viewport?.bottom ?? window.innerHeight) - 72) };
-            const elements = new Map([...document.querySelectorAll<HTMLElement>("[data-node-id]")].map(element => [element.dataset.nodeId, element]));
+            const view = readCanvasFloatingBounds(panel.current);
+            const scope = document.querySelector('[data-product-active="true"]') ?? document;
+            const elements = new Map([...scope.querySelectorAll<HTMLElement>("[data-node-id]")].map(element => [element.dataset.nodeId, element]));
             const cards = new Map<string, PickerBox>();
             const lines: PickerBox[] = [];
             for (const item of choices) {
@@ -47,13 +48,15 @@ export function SharedConnectionPicker({ choices, x, y, contextMenu, onPreview, 
                 });
             }
             const actual = panel.current?.getBoundingClientRect();
-            setPosition(placeConnectionPicker(view, { width: actual?.width ?? width, height: actual?.height ?? height }, { x, y }, [...cards.values()], lines));
+            setPosition(placeConnectionPicker(view, { width: Math.min(actual?.width ?? width, view.right - view.left), height: Math.min(actual?.height ?? height, view.bottom - view.top) }, { x, y }, [...cards.values()], lines));
+            if (panel.current) { panel.current.style.maxWidth = `${view.right - view.left}px`; panel.current.style.maxHeight = `${view.bottom - view.top}px`; }
         };
         update();
         const observer = new ResizeObserver(update);
         if (panel.current) observer.observe(panel.current);
         window.addEventListener("resize", update);
-        return () => { observer.disconnect(); window.removeEventListener("resize", update); };
+        window.addEventListener(CANVAS_FLOATING_CHANGE, update);
+        return () => { observer.disconnect(); window.removeEventListener("resize", update); window.removeEventListener(CANVAS_FLOATING_CHANGE, update); };
     }, [choices, x, y, width, height]);
     const left = position?.left ?? 12, top = position?.top ?? 12;
     useEffect(() => {

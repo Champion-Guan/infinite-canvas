@@ -1,0 +1,39 @@
+diff --git a/web/src/components/canvas/canvas-node-prompt-panel.tsx b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+index 842c2c7..faa5260 100644
+--- a/web/src/components/canvas/canvas-node-prompt-panel.tsx
++++ b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+@@ -2,7 +2,7 @@ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { normalizeTextReasoningEffort } from "@/扩展功能/画布生成/文本推理强度";
+ import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
+ import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+-import { useEffect, useState } from "react";
++import { useEffect, useId, useState } from "react";
+ import { ArrowUp, LoaderCircle, Maximize2, Square } from "lucide-react";
+ import { Button } from "antd";
+ import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+@@ -57,6 +57,7 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+     const isEditingExistingContent = hasTextContent || hasImageContent;
+     const [prompt, setPrompt] = useState(node.metadata?.composerContent ?? node.metadata?.prompt ?? "");
+     const productActive = useProductActive();
++    const expandTriggerId = useId();
+     const [localExpanded, setLocalExpanded] = useState(false);
+     const expanded = controlledExpanded ?? localExpanded;
+     const setExpanded = (value: boolean) => { setLocalExpanded(value); onExpandedChange?.(value); };
+@@ -109,7 +110,7 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+             <div className="mt-2 flex min-w-0 shrink-0 items-center justify-between gap-2">
+                 <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                     <Tooltip title={t("canvas.promptPanel.expandEditor")}>
+-                        <Button type="text" className="!h-8 !w-8 !min-w-8 shrink-0 !rounded-full !bg-transparent !p-0" style={{ color: theme.node.text }} icon={<Maximize2 className="size-3.5" />} onClick={openExpandedEditor} aria-label={t("canvas.promptPanel.expandEditor")} />
++                        <Button id={expandTriggerId} type="text" className="!h-8 !w-8 !min-w-8 shrink-0 !rounded-full !bg-transparent !p-0" style={{ color: theme.node.text }} icon={<Maximize2 className="size-3.5" />} onClick={openExpandedEditor} aria-label={t("canvas.promptPanel.expandEditor")} />
+                     </Tooltip>
+                     <CanvasPromptLibrary onSelect={updatePrompt} />
+                     <TabContentTransition transitionKey={`${node.id}:${mode}`} className="min-w-0">
+@@ -167,7 +168,7 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+                     </span>
+                 </Button>
+             </div>
+-            <Modal title={t("canvas.promptPanel.editorTitle")} open={productActive && expanded} centered width={760} footer={null} onCancel={() => setExpanded(false)} destroyOnHidden>
++            <Modal triggerId={expandTriggerId} title={t("canvas.promptPanel.editorTitle")} open={productActive && expanded} centered width={760} footer={null} onCancel={() => setExpanded(false)} destroyOnHidden>
+                 <div data-canvas-no-zoom className="pt-2" onWheelCapture={(event) => event.stopPropagation()}>
+                     <CanvasNodeReferenceBar nodeId={node.id} nodes={nodes} connectedNodes={connectedNodes} onDisconnect={onDisconnectReference} onStartSelection={onStartReferenceSelection} />
+                     <CanvasPromptChipInput

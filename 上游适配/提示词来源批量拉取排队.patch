@@ -1,0 +1,30 @@
+diff --git a/web/src/services/api/prompt-source-runtime.ts b/web/src/services/api/prompt-source-runtime.ts
+index a583763..748d00b 100644
+--- a/web/src/services/api/prompt-source-runtime.ts
++++ b/web/src/services/api/prompt-source-runtime.ts
+@@ -23,13 +23,20 @@ export type RawPrompt = {
+ };
+ 
+ type RunOptions = { signal?: AbortSignal };
++let sourceQueue: Promise<void> = Promise.resolve();
+ 
+ async function fetchSource(source: PromptSource, options?: RunOptions) {
+-    const url = source.url.trim();
+-    const response = await 本地转发请求(url.startsWith("https://") ? 本地转发地址(url) : url,
+-        { cache: "no-store", signal: options?.signal });
+-    if (!response.ok) throw new Error(i18n.t("config.promptSources.runtime.requestFailed", { status: response.status }));
+-    return response.json();
++    // 来源共用代理入口，串行拉取避免刷新全部时占满两条可用请求。
++    const task = sourceQueue.then(async () => {
++        options?.signal?.throwIfAborted();
++        const url = source.url.trim();
++        const response = await 本地转发请求(url.startsWith("https://") ? 本地转发地址(url) : url,
++            { cache: "no-store", signal: options?.signal });
++        if (!response.ok) throw new Error(i18n.t("config.promptSources.runtime.requestFailed", { status: response.status }));
++        return response.json();
++    });
++    sourceQueue = task.then(() => undefined, () => undefined);
++    return task;
+ }
+ 
+ export async function runPromptSource(source: PromptSource, options?: RunOptions): Promise<RawPrompt[]> {

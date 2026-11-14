@@ -9,6 +9,7 @@ import type { CanvasTheme } from "@/lib/canvas-theme";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/image-utils";
 import { failedTaskTargets } from "./任务摘要";
+import { imageSizeRetryBlocked } from "../媒体交付/生成图片尺寸交付.mjs";
 import { runHistoryRetries, type HistoryRetryTarget } from "./历史失败重试";
 import { historyDownloadFiles } from "./历史下载文件";
 import type { HistoryDownloadFile } from "./历史下载文件";
@@ -128,7 +129,8 @@ export const CanvasGenerationHistoryTab = memo(function CanvasGenerationHistoryT
                             const invalidFiles = filesByNode.get(node.id)?.invalid || [];
                             const invalid = invalidFiles.length > 0;
                             const nodeFailed = failedByNode.get(node.id) || [];
-                            const nodeRetryTargets = [...nodeFailed, ...invalidFiles.filter(file => !nodeFailed.some(target => target.imageId === file.imageId)).map(file => ({ node, imageId: file.imageId, unavailableStorageKey: file.storageKey }))];
+                            const nodeRetryTargets = [...nodeFailed, ...invalidFiles.filter(file => !nodeFailed.some(target => target.imageId === file.imageId)
+                                && !imageSizeRetryBlocked(file.imageId ? node.metadata?.images?.find(image => image.id === file.imageId) : node.metadata)).map(file => ({ node, imageId: file.imageId, unavailableStorageKey: file.storageKey }))];
                             const nodeFiles = filesByNode.get(node.id)?.valid || [];
                             const busy = node.metadata?.status === "loading" || node.metadata?.images?.some(image => image.status === "loading");
                             return (

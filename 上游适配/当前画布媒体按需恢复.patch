@@ -1,0 +1,35 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 69dc3e2..7407208 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -62,6 +62,7 @@ import { canvasHasPendingChanges, canvasSavePending } from "@/扩展功能/产
+ import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
+ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+ import { markWorkbenchStartup } from "@/扩展功能/本机存储/启动计时.mjs";
++import { restoreCanvasMedia } from "@/扩展功能/本机存储/画布媒体延迟恢复.mjs";
+ import type { ChangeEvent as ReactChangeEvent, DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
+ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+ import { Group, Video } from "lucide-react";
+@@ -554,8 +555,20 @@ function InfiniteCanvasPage() {
+         void (async () => {
+         const savedDormant = await readDormantProduct(projectId);
+         if (cancelled) return;
+-        const project = openProject(projectId);
+-        if (!project) throw Error("原产品已移除，未恢复过期画布。");
++        const sourceProject = openProject(projectId);
++        if (!sourceProject) throw Error("原产品已移除，未恢复过期画布。");
++        markWorkbenchStartup("canvas-media-start");
++        let project = await restoreCanvasMedia(sourceProject);
++        if (cancelled) return;
++        // 恢复期间的后台更新不能被先前读取的快照覆盖。
++        while (openProject(projectId) !== sourceProject && openProject(projectId) !== project) {
++            const latest = openProject(projectId);
++            if (!latest) throw Error("原产品已移除，未恢复过期画布。");
++            project = await restoreCanvasMedia(latest);
++            if (cancelled) return;
++            if (openProject(projectId) === latest) break;
++        }
++        markWorkbenchStartup("canvas-media-ready");
+         const dormant = matchingDormantProduct(savedDormant, {
+             nodes: project.nodes, connections: project.connections, chatSessions: project.chatSessions || [],
+             deletedNodeBatches: project.deletedNodeBatches ?? EMPTY_DELETED_NODE_BATCHES,

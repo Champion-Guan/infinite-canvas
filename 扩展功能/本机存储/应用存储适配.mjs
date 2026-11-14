@@ -8,7 +8,7 @@ const sha = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-25
 
 // 兼容当前上游实际使用的localForage子集；不是全量localForage实现。
 // 旧分片只读兼容；所有新保存直接以一个SQLite文档事务提交。
-export function createApplicationStorage({ client, secretPort, readBlobUrl, onStatus = () => {} }) {
+export function createApplicationStorage({ client, secretPort, readBlobUrl, deferCanvasMedia = false, onStatus = () => {} }) {
   const codec = createValueCodec({ client, secretPort, readBlobUrl });
   const spaces = new Map(), errors = new Map();
   let closed = false, pending = 0, hasSaved = false;
@@ -56,6 +56,7 @@ export function createApplicationStorage({ client, secretPort, readBlobUrl, onSt
         requireValue(JSON.stringify([...doc.mediaIds].sort()) === JSON.stringify(refs), 'invalid_namespace', '命名空间媒体索引与应用记录不一致。');
       }
       space.entries = entries; space.revision = doc.revision;
+      space.savedHash = doc.hash;
     }
     space.loaded = true;
   }
@@ -78,19 +79,21 @@ export function createApplicationStorage({ client, secretPort, readBlobUrl, onSt
     const value = { format: APPLICATION_STORAGE_FORMAT, namespace: space.name, entries: [...entries] };
     const mediaIds = [...new Set([...entries.values()].flatMap(entry => entry.mediaIds))].sort();
     // 请求前完成协议/大小检查，失败不成为一个结果不明的操作。
-    serializeDocument('extension', space.id, value, mediaIds);
+    const body = serializeDocument('extension', space.id, value, mediaIds);
+    const hash = await sha(body);
+    if (hash === space.savedHash) return;
     const write = { collection: 'extension', id: space.id, value, mediaIds, expectedRevision: space.revision, operationId: crypto.randomUUID() };
-    space.blocked = { write, entries };
+    space.blocked = { write, entries, hash };
     return retryWrite(space);
   }
   async function retryWrite(space) {
     requireValue(space.blocked, 'nothing_to_retry', '没有待确认的保存。');
-    const { write, entries } = space.blocked;
+    const { write, entries, hash } = space.blocked;
     const ack = await client.writeDocument(write);
     requireValue(ack?.persisted === true && ack.collection === write.collection && ack.id === write.id &&
-      ack.operationId === write.operationId && ack.revision === write.expectedRevision + 1 && ack.hash === await sha(JSON.stringify(write.value)),
+      ack.operationId === write.operationId && ack.revision === write.expectedRevision + 1 && ack.hash === hash,
     'invalid_ack', '保存没有收到匹配的落盘确认，原操作保留供重试。');
-    space.entries = entries; space.revision = ack.revision; space.blocked = null; hasSaved = true;
+    space.entries = entries; space.revision = ack.revision; space.savedHash = hash; space.blocked = null; hasSaved = true;
     return ack;
   }
   function createInstance({ name = 'infinite-canvas', storeName = 'app_state' } = {}) {
@@ -102,7 +105,7 @@ export function createApplicationStorage({ client, secretPort, readBlobUrl, onSt
         return queue(space, async () => {
           const entry = space.entries.get(key);
           if (!entry) return null;
-          const value = await codec.decode(entry.tree);
+          const value = await codec.decode(entry.tree, { deferMediaUrls: deferCanvasMedia && storeName === 'app_state' && key === 'infinite-canvas:canvas_store' });
           return storeName === 'app_state' && jsonStores.has(key) ? JSON.stringify(value) : value;
         });
       },
@@ -130,17 +133,21 @@ export function createApplicationStorage({ client, secretPort, readBlobUrl, onSt
           return commit(space, entries);
         });
       },
-      async iterate(iterator) {
+      async iterate(iterator, { decodedState = false } = {}) {
         // 先取得一致快照再执行回调，兼容回调内部再次调用存储；不在队列中等回调造成死锁。
         const entries = await queue(space, () => [...space.entries]);
         let index = 0;
         for (const [key, entry] of entries) {
-          let value = await codec.decode(entry.tree);
-          if (storeName === 'app_state' && jsonStores.has(key)) value = JSON.stringify(value);
+          let value = await codec.decode(entry.tree, { deferMediaUrls: deferCanvasMedia && storeName === 'app_state' && key === 'infinite-canvas:canvas_store' });
+          if (storeName === 'app_state' && jsonStores.has(key) && !decodedState) value = JSON.stringify(value);
           const result = iterator(value, key, ++index);
           if (result !== undefined) return result;
         }
         return undefined;
+      },
+      iterateDecodedState(iterator) {
+        requireValue(storeName === 'app_state', 'namespace_denied', '仅应用状态支持对象恢复。');
+        return this.iterate(iterator, { decodedState: true });
       },
       keys() { return queue(space, () => [...space.entries.keys()]); },
       length() { return queue(space, () => space.entries.size); },

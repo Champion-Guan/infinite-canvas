@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type HTMLAttributes,
 } from "react";
 import { createPortal } from "react-dom";
 import { App, ConfigProvider } from "antd";
@@ -17,12 +18,23 @@ const ProductSurfaceContext = createContext<{
   active: boolean;
   container: HTMLElement | null;
   retiringProject: CanvasProject | null;
+  fadingOut: boolean;
+  animateEntry: boolean;
+  finishFade(): void;
 } | null>(null);
 export function useProductActive() {
   return useContext(ProductSurfaceContext)?.active ?? true;
 }
 export function useRetiringCanvasSnapshot() {
   return useContext(ProductSurfaceContext)?.retiringProject ?? null;
+}
+
+export function ProductCanvasScene({ children, ...props }: HTMLAttributes<HTMLElement>) {
+  const scope = useContext(ProductSurfaceContext);
+  const scene = useRef<HTMLElement>(null);
+  useNativeTabFade(scene, scope?.active ?? true, scope?.animateEntry ?? false,
+    !scope || scope.active || scope.fadingOut, () => scope?.finishFade());
+  return <section {...props} ref={scene}>{children}</section>;
 }
 
 // 只接管显式传入的本产品Portal，不拦截全局createPortal或修改作者DOM。
@@ -61,11 +73,10 @@ export function ProductSurface({
   onFadeOut?: (id: string) => void;
 }) {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
-  const scene = useRef<HTMLDivElement>(null);
-  useNativeTabFade(scene, active, animateEntry, Boolean(container) && (active || fadingOut), () => onFadeOut?.(id));
   const messageTop = useTransientMessageTop();
   const pausedMedia = useRef(new Set<HTMLMediaElement>());
-  const context = useMemo(() => ({ active, container, retiringProject }), [active, container, retiringProject]);
+  const context = useMemo(() => ({ active, container, retiringProject, fadingOut, animateEntry,
+    finishFade: () => onFadeOut?.(id) }), [active, container, retiringProject, fadingOut, animateEntry, onFadeOut, id]);
   const popupContainer = useMemo(() => () => container!, [container]);
   const messageConfig = useMemo(() => ({ getContainer: popupContainer, top: messageTop }), [popupContainer, messageTop]);
   const notificationConfig = useMemo(() => ({ getContainer: popupContainer }), [popupContainer]);
@@ -120,7 +131,7 @@ export function ProductSurface({
               message={messageConfig}
               notification={notificationConfig}
             >
-              <div ref={scene} data-product-tab-scene={active ? "current" : fadingOut ? "leaving" : "hidden"} style={{ height: "100%", minHeight: 0 }}>{children}</div>
+              <div data-product-tab-scene={active ? "current" : fadingOut ? "leaving" : "hidden"} style={{ height: "100%", minHeight: 0 }}>{children}</div>
             </App>
           </ConfigProvider>
         </ProductSurfaceContext.Provider>

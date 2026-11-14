@@ -10,6 +10,7 @@ import { useExcelProductId, useExcelPromptContext, useExcelPromptSource } from "
 import type { ExcelPromptItem } from "./Excel卡片上下文";
 import { EXCEL_PROMPT_DRAG_TYPE } from "./Excel拖入校验";
 import "./Excel提示词列表.css";
+import { productFeatures } from "../产品配置/功能开关";
 
 export { EXCEL_PROMPT_DRAG_TYPE } from "./Excel拖入校验";
 export function ExcelPromptGroup({ keyword, theme, onInsert, onView, renderRow }: {
@@ -29,7 +30,7 @@ export function ExcelPromptGroup({ keyword, theme, onInsert, onView, renderRow }
     const query = keyword.trim().toLowerCase();
     return query ? items?.filter(item => [item.title, item.prompt, ...item.tags].join(" ").toLowerCase().includes(query)) || [] : items || [];
   }, [items, keyword]);
-  if (!source?.source.enabled || !items?.length) return null;
+  if (!productFeatures.excel || !source?.source.enabled || !items?.length) return null;
   const show = open || !!keyword.trim();
   return <div className="guan-excel-prompt-list" data-theme={dark ? "dark" : "light"}>
     <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={show} className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1.5 text-left text-xs font-semibold opacity-75 transition hover:opacity-100">

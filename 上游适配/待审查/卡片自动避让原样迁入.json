@@ -1,0 +1,51 @@
+{
+  "日期": "2026-10-18",
+  "状态": "待具体差异批准；未接入隔离副本或3100",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/SQLite日常启动-GStYZu/日常启动接入记录.json",
+  "前置日常启动差异SHA256": "c5542c35527de84e4ef1222631aadd30d5cb8fc5e8ecf89c13d5c4fb615d363a",
+  "旧来源目录": "/Users/guanchengbin/CodexProjects/guan-ai-workbench-projects/guan-ai-workbench",
+  "旧来源指纹": {
+    "src/canvas/lib/canvas/canvas-node-placement.ts": "9e95193590ca10d83866d36e645c9d1324785fe27fce9286dcb39dc3b8779889",
+    "src/canvas/pages/canvas/project.tsx": "1fa007d1bdac287c1bee26ac1e186d5a69e544d89b7c57907843bfc8678e0bfb",
+    "src/canvas/components/canvas/canvas-top-bar.tsx": "386a1abf27e66e47f662470725b81f02affc46292b05ab32ad7b871caa5bf442",
+    "src/canvas/types/canvas.ts": "fb02101c01e2d028075270606ce809129b972a3ac3b7165b1c0f92a12c67cf95",
+    "tests/canvas-node-placement.test.mjs": "8405c48078a4878874cfb8b912b50d6d8f893656194e492d5306fedeba8fceec"
+  },
+  "自有来源": "扩展功能/画布布局/卡片自动避让.ts",
+  "自有模块SHA256": "9e95193590ca10d83866d36e645c9d1324785fe27fce9286dcb39dc3b8779889",
+  "差异SHA256": "dcf620c3d050f42a76aa4148b30d5290cc92dbb8df1069a2c907fa26748f6cf8",
+  "完整候选类型检查通过": true,
+  "真实浏览器验收": false,
+  "已修改作者仓库": false,
+  "已接管或重启3100": false,
+  "文件": [
+    {
+      "文件": "web/src/pages/canvas/project.tsx",
+      "原始SHA256": "fe73c19869458069c14b4e0bf86134f82c9e789879b8d64225bc8bd0b78fb331",
+      "候选SHA256": "efb8f275f3610d21fca95923b022c4446e5642281a05f5daf78fb4479f07732c"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-top-bar.tsx",
+      "原始SHA256": "4251a6db892bbc51942b01610c8b7babfe3e0da666d9239ae2562043e5512143",
+      "候选SHA256": "abd33135ee9b85d4f5b6a2d2668a8e42f7233a9d474b004238c1ef7dee24981c"
+    },
+    {
+      "文件": "web/src/types/canvas.ts",
+      "原始SHA256": "e158ad88d9fa13d5514e990c88a987700c111247dc0541d6dab8a90321ada956",
+      "候选SHA256": "8dd830028b91d79ce942476bc6473143dadf2ae850641abd453d520aef7135de"
+    },
+    {
+      "文件": "web/src/guan/卡片自动避让.ts",
+      "原始SHA256": null,
+      "候选SHA256": "9e95193590ca10d83866d36e645c9d1324785fe27fce9286dcb39dc3b8779889"
+    }
+  ],
+  "范围": [
+    "原几何模块逐字节迁入自有目录；新卡片同帧预留占位，已有卡片不自动整理",
+    "旧版结果卡横向顺序、结果间距48和源间距32；生成媒体尺寸变化保留旧版避让标记",
+    "加载、撤销恢复、拖动RAF使用原坐标快速入口；不在拖动每帧运行避让",
+    "旧菜单原文、图标和整理撤销逻辑；不修改连线、CSS、主题、已关闭功能或SQLite协议",
+    "用户批准后仅新隔离副本事务接入及真实画布验收；生产启用需另行当前维护确认"
+  ]
+}

@@ -1,0 +1,792 @@
+--- a/web/src/router.tsx
++++ b/web/src/router.tsx
+@@ -1,34 +1,24 @@
+-import { createBrowserRouter, Outlet } from "react-router-dom";
++import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
+ 
++import { productFeatures } from "@/guan/功能开关";
+ import { AnalyticsTracker } from "@/components/layout/analytics-tracker";
++import { CanvasEntry } from "@/guan/画布入口";
+ import UserLayout from "@/layouts/user-layout";
+-import AssetsPage from "@/pages/assets";
+-import CanvasPage from "@/pages/canvas";
+ import CanvasProjectPage from "@/pages/canvas/project";
+-import ConfigPage from "@/pages/config";
+-import HomePage from "@/pages/home";
+-import ImagePage from "@/pages/image";
+ import NotFound from "@/pages/not-found";
+-import PromptsPage from "@/pages/prompts";
+-import VideoPage from "@/pages/video";
+ 
+ export const router = createBrowserRouter([
+     {
+         element: (
+             <UserLayout>
+-                <AnalyticsTracker />
++                {productFeatures.analytics ? <AnalyticsTracker /> : null}
+                 <Outlet />
+             </UserLayout>
+         ),
+         children: [
+-            { path: "/", element: <HomePage /> },
+-            { path: "/image", element: <ImagePage /> },
+-            { path: "/video", element: <VideoPage /> },
+-            { path: "/assets", element: <AssetsPage /> },
+-            { path: "/prompts", element: <PromptsPage /> },
+-            { path: "/canvas", element: <CanvasPage /> },
++            { path: "/", element: <CanvasEntry /> },
++            ...["/image", "/video", "/assets", "/prompts", "/canvas", "/config"].map((path) => ({ path, element: <Navigate to="/" replace /> })),
+             { path: "/canvas/:id", element: <CanvasProjectPage /> },
+-            { path: "/config", element: <ConfigPage /> },
+         ],
+     },
+     { path: "*", element: <NotFound /> },
+--- a/web/src/lib/analytics.ts
++++ b/web/src/lib/analytics.ts
+@@ -4,6 +4,7 @@
+ // When no IDs are configured, no scripts are injected and no external requests are sent.
+ // Forks and self-hosted deployments therefore have no analytics by default; the official site provides its IDs through environment variables.
+ 
++import { productFeatures } from "@/guan/功能开关";
+ import { ANALYTICS_BAIDU_ID, ANALYTICS_GA4_ID } from "@/constant/runtime-config";
+ 
+ type GtagFn = (...args: unknown[]) => void;
+@@ -49,7 +50,7 @@
+ }
+ 
+ export function initAnalytics() {
+-    if (initialized || typeof window === "undefined") return;
++    if (!productFeatures.analytics || initialized || typeof window === "undefined") return;
+     initialized = true;
+ 
+     // Initialize providers independently so one failure does not affect the others or the application.
+@@ -71,6 +72,7 @@
+ 
+ // Report SPA route changes to every enabled analytics provider.
+ export function trackPageview(path: string) {
++    if (!productFeatures.analytics) return;
+     try {
+         if (active.ga4 && window.gtag) {
+             window.gtag("event", "page_view", { page_path: path, page_location: window.location.href });
+--- a/web/src/layouts/user-layout.tsx
++++ b/web/src/layouts/user-layout.tsx
+@@ -1,5 +1,6 @@
+ import type { ReactNode } from "react";
+ 
++import { productFeatures } from "@/guan/功能开关";
+ import { AgentPanel } from "@/components/agent/agent-panel";
+ import { AppTopNav } from "@/components/layout/app-top-nav";
+ 
+@@ -10,7 +11,7 @@
+                 <AppTopNav />
+                 <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+             </div>
+-            <AgentPanel />
++            {productFeatures.externalAgent ? <AgentPanel /> : null}
+         </div>
+     );
+ }
+--- a/web/src/components/layout/app-top-nav.tsx
++++ b/web/src/components/layout/app-top-nav.tsx
+@@ -1,3 +1,4 @@
++import { productFeatures } from "@/guan/功能开关";
+ import { Bot, Menu } from "lucide-react";
+ import { Button, Tooltip } from "antd";
+ import { Link, useLocation } from "react-router-dom";
+@@ -27,7 +28,7 @@
+     const activeToolSlug = navigationTools.some((tool) => tool.slug === slug) ? (slug as NavigationToolSlug) : undefined;
+ 
+     useEffect(() => {
+-        if (autoConnectRef.current || agentEnabled || agentConnected || !agentToken.trim()) return;
++        if (!productFeatures.externalAgent || autoConnectRef.current || agentEnabled || agentConnected || !agentToken.trim()) return;
+         autoConnectRef.current = true;
+         connectAgent({ silent: true });
+     }, [agentConnected, agentEnabled, agentToken, connectAgent]);
+@@ -49,7 +50,7 @@
+                                 <span className="text-base font-medium">{t("meta.title")}</span>
+                             </Link>
+ 
+-                            <button
++                            {navigationTools.length ? <button
+                                 type="button"
+                                 className="ml-3 inline-flex size-8 shrink-0 items-center justify-center text-stone-600 transition hover:text-stone-950 md:hidden dark:text-stone-300 dark:hover:text-white"
+                                 onClick={() => setMobileNavOpen(true)}
+@@ -57,7 +58,7 @@
+                                 title={t("topNav.menu")}
+                             >
+                                 <Menu className="size-5" />
+-                            </button>
++                            </button> : null}
+ 
+                             <nav className="hide-scrollbar ml-8 hidden h-14 min-w-0 items-center gap-7 overflow-x-auto md:flex">
+                                 {navigationTools.map((tool) => {
+@@ -83,16 +84,18 @@
+                         </div>
+ 
+                         <div className="my-auto flex h-9 min-w-0 items-center justify-end gap-2 justify-self-end whitespace-nowrap">
+-                            <Tooltip title={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")}>
+-                                <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" icon={<Bot className="size-4" />} onClick={togglePanel} aria-label={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")} />
+-                            </Tooltip>
++                            {productFeatures.externalAgent ? (
++                                <Tooltip title={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")}>
++                                    <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" icon={<Bot className="size-4" />} onClick={togglePanel} aria-label={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")} />
++                                </Tooltip>
++                            ) : null}
+                             <UserStatusActions />
+                         </div>
+                     </div>
+                 </header>
+             ) : null}
+ 
+-            <MobileNavDrawer open={mobileNavOpen} activeToolSlug={activeToolSlug} onClose={() => setMobileNavOpen(false)} />
++            {navigationTools.length ? <MobileNavDrawer open={mobileNavOpen} activeToolSlug={activeToolSlug} onClose={() => setMobileNavOpen(false)} /> : null}
+             <AppConfigModal />
+         </>
+     );
+--- a/web/src/components/canvas/canvas-top-bar.tsx
++++ b/web/src/components/canvas/canvas-top-bar.tsx
+@@ -1,6 +1,7 @@
++import { isCanvasMenuEnabled, productFeatures } from "@/guan/功能开关";
+ import { useEffect, useRef, useState } from "react";
+ import { BookOpen, Bot, Download, Home, Images, Menu, PanelLeftClose, PanelLeftOpen, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
+-import { Button, Dropdown, Modal, Tooltip } from "antd";
++import { Button, Dropdown, Modal, Tooltip, type MenuProps } from "antd";
+ import { useTranslation } from "react-i18next";
+ 
+ import { UserStatusActions } from "@/components/layout/user-status-actions";
+@@ -89,7 +90,7 @@
+                     <Dropdown
+                         trigger={["click"]}
+                         menu={{
+-                            items: [
++                            items: ([
+                                 { key: "home", icon: <Home className="size-4" />, label: t("canvas.home"), onClick: onHome },
+                                 { key: "docs", icon: <BookOpen className="size-4" />, label: t("canvas.docs"), onClick: () => window.open(DOCS_URL, "_blank", "noopener,noreferrer") },
+                                 { key: "projects", icon: <Images className="size-4" />, label: t("canvas.projects"), onClick: onProjects },
+@@ -102,7 +103,7 @@
+                                 { type: "divider" },
+                                 { key: "undo", disabled: !canUndo, icon: <Undo2 className="size-4" />, label: <MenuLabel text={t("canvas.undo")} shortcut="⌘ Z" />, onClick: onUndo },
+                                 { key: "redo", disabled: !canRedo, icon: <Redo2 className="size-4" />, label: <MenuLabel text={t("canvas.redo")} shortcut="⌘ ⇧ Z / ⌘ Y" />, onClick: onRedo },
+-                            ],
++                            ] satisfies NonNullable<MenuProps["items"]>).filter((item) => !("key" in item) || isCanvasMenuEnabled(String(item.key))).filter((item, index, all) => item.type !== "divider" || (index > 0 && index < all.length - 1 && all[index - 1].type !== "divider")),
+                         }}
+                     >
+                         <button type="button" className="grid size-7 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} aria-label={t("canvas.openMenu")}>
+@@ -135,21 +136,25 @@
+                             </button>
+                         )}
+                     </div>
+-                    <CompactAgentStatus status={compactAgentStatus} onClick={onToggleAgent} />
++                    {productFeatures.externalAgent ? <CompactAgentStatus status={compactAgentStatus} onClick={onToggleAgent} /> : null}
+                 </div>
+ 
+                 <div className="pointer-events-auto flex items-center gap-1.5">
+                     <UserStatusActions variant="canvas" onOpenShortcuts={() => setShortcutsOpen(true)} onOpenPlugins={onOpenPlugins} />
+-                    <span className="h-6 w-px" style={{ background: theme.toolbar.border }} />
+-                    <Button
+-                        type="text"
+-                        className="!h-10 !rounded-xl !px-3 !font-medium"
+-                        style={{ background: agentOpen ? theme.toolbar.activeBg : theme.toolbar.panel, color: theme.node.text, boxShadow: "0 10px 30px rgba(28,25,23,.10)" }}
+-                        icon={<Bot className="size-4" />}
+-                        onClick={onToggleAgent}
+-                    >
+-                        Agent
+-                    </Button>
++                    {productFeatures.externalAgent ? (
++                        <>
++                            <span className="h-6 w-px" style={{ background: theme.toolbar.border }} />
++                            <Button
++                                type="text"
++                                className="!h-10 !rounded-xl !px-3 !font-medium"
++                                style={{ background: agentOpen ? theme.toolbar.activeBg : theme.toolbar.panel, color: theme.node.text, boxShadow: "0 10px 30px rgba(28,25,23,.10)" }}
++                                icon={<Bot className="size-4" />}
++                                onClick={onToggleAgent}
++                            >
++                                Agent
++                            </Button>
++                        </>
++                    ) : null}
+                 </div>
+             </div>
+             <Modal title={t("canvas.shortcuts")} open={shortcutsOpen} onCancel={() => setShortcutsOpen(false)} footer={null} centered>
+--- a/web/src/stores/use-agent-store.ts
++++ b/web/src/stores/use-agent-store.ts
+@@ -1,3 +1,4 @@
++import { productFeatures } from "@/guan/功能开关";
+ import { create } from "zustand";
+ import i18n from "@/i18n";
+ 
+@@ -98,7 +99,7 @@
+ export const useAgentStore = create<AgentStore>((set, get) => ({
+     width: typeof window === "undefined" ? 440 : Number(localStorage.getItem("canvas-agent-panel-width")) || 440,
+     panelOpen: false,
+-    panelMounted: true,
++    panelMounted: productFeatures.externalAgent,
+     panelClosing: false,
+     canvasContext: null,
+     url: typeof window === "undefined" ? "http://127.0.0.1:17371" : localStorage.getItem("canvas-agent-url") || "http://127.0.0.1:17371",
+@@ -134,7 +135,10 @@
+     pendingTool: null,
+     pendingApprovals: [],
+     setAgentState: (patch) => set(patch),
+-    openPanel: () => set({ panelOpen: true, panelMounted: true, panelClosing: false }),
++    openPanel: () => {
++        if (!productFeatures.externalAgent) return;
++        set({ panelOpen: true, panelMounted: true, panelClosing: false });
++    },
+     closePanel: () => {
+         if (!get().panelMounted || get().panelClosing) return;
+         set({ panelOpen: false, panelClosing: true });
+@@ -145,6 +149,7 @@
+     togglePanel: () => (get().panelOpen ? get().closePanel() : get().openPanel()),
+     setCanvasContext: (canvasContext) => set({ canvasContext }),
+     connectAgent: (options) => {
++        if (!productFeatures.externalAgent) return;
+         const silent = options?.silent ?? false;
+         const endpoint = get().url.trim().replace(/\/$/, "");
+         const token = get().token.trim();
+--- a/web/src/pages/canvas/hooks/use-agent-bridge.ts
++++ b/web/src/pages/canvas/hooks/use-agent-bridge.ts
+@@ -1,5 +1,6 @@
+ import { useCallback, useEffect, useMemo, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+ 
++import { productFeatures } from "@/guan/功能开关";
+ import i18n from "@/i18n";
+ import { useAgentStore } from "@/stores/use-agent-store";
+ import { applyCanvasAgentOps, type CanvasAgentOp, type CanvasAgentSnapshot } from "@/lib/canvas/canvas-agent-ops";
+@@ -90,6 +91,7 @@
+     }, [agentUndoSnapshot, projectTitle, projectId]);
+ 
+     useEffect(() => {
++        if (!productFeatures.externalAgent) return;
+         setAgentCanvasContext({ snapshot: agentSnapshot, applyOps: applyAgentOps, undoOps: undoAgentOps, canUndo: Boolean(agentUndoSnapshot) });
+         return () => setAgentCanvasContext(null);
+     }, [agentSnapshot, applyAgentOps, agentUndoSnapshot, setAgentCanvasContext, undoAgentOps]);
+--- a/web/src/services/api/canvas-agent.ts
++++ b/web/src/services/api/canvas-agent.ts
+@@ -1,3 +1,4 @@
++import { productFeatures, requireProductFeature } from "@/guan/功能开关";
+ import i18n from "@/i18n";
+ import type { CanvasAgentSnapshot } from "@/lib/canvas/canvas-agent-ops";
+ import type { AgentReasoningEffort } from "@/stores/use-agent-store";
+@@ -42,6 +43,7 @@
+ export type AgentSkillDraftResponse = { ok?: boolean; data?: AgentSkillDraft };
+ 
+ export async function postState(endpoint: string, token: string, clientId: string, snapshot: CanvasAgentSnapshot | null) {
++    requireProductFeature("externalAgent");
+     try {
+         const response = await fetch(`${endpoint}/canvas/state?token=${encodeURIComponent(token)}&clientId=${encodeURIComponent(clientId)}`, {
+             method: "POST",
+@@ -55,6 +57,7 @@
+ }
+ 
+ export async function activateAgentClient(endpoint: string, token: string, clientId: string) {
++    requireProductFeature("externalAgent");
+     try {
+         await fetch(`${endpoint}/canvas/activate?token=${encodeURIComponent(token)}&clientId=${encodeURIComponent(clientId)}`, { method: "POST" });
+     } catch {}
+@@ -81,6 +84,7 @@
+ }
+ 
+ export function resolveAgentMessageAssetUrl(endpoint: string, token: string, value: string) {
++    if (!productFeatures.externalAgent) return "";
+     const match = AGENT_MESSAGE_ASSET_PATTERN.exec(value);
+     if (!match) return value.startsWith("agent-asset:") ? "" : value;
+     const baseUrl = endpoint.trim().replace(/\/$/, "");
+@@ -116,6 +120,7 @@
+ }
+ 
+ export async function fetchAgentJson<T>(endpoint: string, token: string, path: string, init?: RequestInit) {
++    requireProductFeature("externalAgent");
+     const url = `${endpoint}${path}${path.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}`;
+     const res = await fetch(url, init);
+     const data = (await res.json().catch(() => ({}))) as T & { error?: string; msg?: string };
+@@ -124,6 +129,7 @@
+ }
+ 
+ export async function discoverAgentConfig(endpoint: string) {
++    requireProductFeature("externalAgent");
+     try {
+         const res = await fetch(`${endpoint}/config`);
+         if (!res.ok) return null;
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -1,3 +1,4 @@
++import { productFeatures, resolveConfigTab } from "@/guan/功能开关";
+ import { App, Button, Form, Input, Modal, Progress, Radio, Select, Switch, Tabs } from "antd";
+ import type { TFunction } from "i18next";
+ import { Cloud, Download, Pencil, Plus, RefreshCw, Trash2, Upload, Wifi } from "lucide-react";
+@@ -53,7 +54,7 @@
+     const { message } = App.useApp();
+     const { i18n, t } = useTranslation();
+     const configInputRef = useRef<HTMLInputElement>(null);
+-    const [activeTab, setActiveTab] = useState<ConfigTabKey>(initialTab);
++    const [activeTab, setActiveTab] = useState<ConfigTabKey>(() => resolveConfigTab(initialTab));
+     const [editingChannelId, setEditingChannelId] = useState("");
+     const [testingWebdav, setTestingWebdav] = useState(false);
+     const [syncingWebdav, setSyncingWebdav] = useState(false);
+@@ -70,7 +71,7 @@
+     const editingChannel = config.channels.find((channel) => channel.id === editingChannelId) || null;
+     const locale = i18n.resolvedLanguage as AppLocale;
+     const imageResolutionOptions = mediaScaleOptions.map((value) => ({ value, label: value === "auto" ? t("settingsPanels.common.auto") : value.toUpperCase() }));
+-    useEffect(() => setActiveTab(initialTab), [initialTab]);
++    useEffect(() => setActiveTab(resolveConfigTab(initialTab)), [initialTab]);
+ 
+     const saveConfig = (nextConfig: AiConfig) => {
+         (Object.keys(nextConfig) as Array<keyof AiConfig>).forEach((key) => updateConfig(key, nextConfig[key]));
+@@ -181,7 +182,7 @@
+             </div>
+             <Tabs
+                 activeKey={activeTab}
+-                onChange={(key) => setActiveTab(key as ConfigTabKey)}
++                onChange={(key) => setActiveTab(resolveConfigTab(key as ConfigTabKey))}
+                 items={[
+                     {
+                         key: "channels",
+@@ -350,7 +351,7 @@
+                         label: t("config.tabs.localStorage"),
+                         children: <ConfigLocalStorage active={activeTab === "local-storage"} />,
+                     },
+-                ]}
++                ].filter((item) => (item.key !== "webdav" || productFeatures.webdav) && (item.key !== "local-proxy" || productFeatures.localProxy))}
+             />
+             {showDoneButton ? (
+                 <div className="mt-4 flex justify-end">
+--- a/web/src/services/app-sync.ts
++++ b/web/src/services/app-sync.ts
+@@ -1,3 +1,4 @@
++import { requireProductFeature } from "@/guan/功能开关";
+ import localforage from "localforage";
+ 
+ import i18n from "@/i18n";
+@@ -82,6 +83,7 @@
+ const storageKeyPattern = /^(image|video|audio|file|video-reference|audio-reference):/;
+ 
+ export async function syncAppDataToWebdav(config: WebdavSyncConfig, onProgress?: AppSyncProgress): Promise<AppSyncResult> {
++    requireProductFeature("webdav");
+     emitProgress(onProgress, { stage: "等待本地数据加载" });
+     await Promise.all([waitForHydration(useCanvasStore), waitForHydration(useAssetStore)]);
+ 
+--- a/web/src/services/webdav-sync.ts
++++ b/web/src/services/webdav-sync.ts
+@@ -1,3 +1,4 @@
++import { requireProductFeature } from "@/guan/功能开关";
+ import i18n from "@/i18n";
+ import { withLocalProxy, type WebdavSyncConfig } from "@/stores/use-config-store";
+ 
+@@ -31,6 +32,7 @@
+ }
+ 
+ export async function uploadWebdavFile(config: WebdavSyncConfig, path: string, file: Blob, contentType = "application/octet-stream") {
++    requireProductFeature("webdav");
+     if (!file.size) throw new Error(webdavText("emptyUpload"));
+     await ensureWebdavDirectory(config);
+     await ensureWebdavSubdirectory(config, path);
+@@ -43,6 +45,7 @@
+ }
+ 
+ async function ensureWebdavDirectory(config: WebdavSyncConfig) {
++    requireProductFeature("webdav");
+     assertWebdavConfig(config);
+     await ensureWebdavDirectoryPath(config, config.directory);
+ }
+@@ -73,6 +76,7 @@
+ }
+ 
+ async function webdavFetch(config: WebdavSyncConfig, path: string, init: RequestInit) {
++    requireProductFeature("webdav");
+     const headers = new Headers(init.headers);
+     if (config.username || config.password) headers.set("Authorization", `Basic ${encodeBasicAuth(`${config.username}:${config.password}`)}`);
+     const controller = new AbortController();
+--- /dev/null
++++ b/web/src/guan/功能开关.ts
+@@ -0,0 +1,62 @@
++// 用户已选择的产品策略；只通过获批适配接入，不读取 URL 或改写用户配置。
++export type ProductFeature = "webdav" | "externalAgent" | "analytics" | "localProxy" | "nodePlugins" | "languageSwitch" | "themeSwitch" | "authorVersion" | "docsLink";
++
++export const productFeatures: Readonly<Record<ProductFeature, boolean>> = Object.freeze({
++    webdav: false,
++    externalAgent: false,
++    analytics: false,
++    localProxy: false,
++    nodePlugins: false,
++    languageSwitch: false,
++    themeSwitch: false,
++    authorVersion: false,
++    docsLink: false,
++});
++
++export const pageFeatures: Readonly<Record<"home" | "image" | "video" | "canvas" | "assets" | "prompts" | "config", boolean>> = Object.freeze({ home: false, image: false, video: false, canvas: false, assets: false, prompts: false, config: false });
++// 不启用作者部署、插件发布或文档站构建，不修改作者工作流或远程设置。
++export const buildFeatures = Object.freeze({ authorDeployments: false, authorDocs: false });
++
++export const closedFeatureIds: readonly string[] = Object.freeze([
++    "P01", "P02", "P03", "P04", "P05", "P06", "P07",
++    "U01", "U02", "U03", "U04", "S07", "S08",
++    "G01", "G02", "G03", "G04", "G05", "G06", "G07",
++    "X01", "X02", "X03", "X04", "X05", "X06", "X07", "X08",
++    "B01", "B02", "B03", "B04",
++]);
++
++const names: Record<ProductFeature, string> = {
++    webdav: "WebDAV 同步", externalAgent: "外部 Agent", analytics: "访问统计",
++    localProxy: "原版本地请求代理", nodePlugins: "原版节点插件",
++    languageSwitch: "语言切换", themeSwitch: "主题切换", authorVersion: "原作者版本检测", docsLink: "作者文档入口",
++};
++
++export function requireProductFeature(feature: ProductFeature): void {
++    if (productFeatures[feature] !== true) {
++        throw Object.assign(new Error(`${names[feature] ?? "此功能"}已在本产品关闭；原有数据仍保留。`), { code: "product_feature_disabled" });
++    }
++}
++
++export function resolveConfigTab<T extends string>(tab: T): T | "channels" {
++    return (tab === "webdav" && !productFeatures.webdav) || (tab === "local-proxy" && !productFeatures.localProxy) ? "channels" : tab;
++}
++
++// 只关闭独立页面，不连带关闭侧栏、选择器或渠道配置弹窗。
++export function isPageEnabled(slug: string): boolean {
++    return Object.hasOwn(pageFeatures, slug) && pageFeatures[slug as keyof typeof pageFeatures] === true;
++}
++
++export function isCanvasMenuEnabled(key: string): boolean {
++    if (key === "home") return isPageEnabled("home");
++    if (key === "projects") return isPageEnabled("canvas");
++    if (key === "docs") return productFeatures.docsLink;
++    return true;
++}
++
++export function entryProjectId(projects: ReadonlyArray<{ id: string; updatedAt: string }>): string | null {
++    let current: { id: string; updatedAt: string } | undefined;
++    for (const project of projects) {
++        if (project.id && (!current || project.updatedAt > current.updatedAt)) current = project;
++    }
++    return current?.id ?? null;
++}
+--- a/web/src/constant/navigation-tools.ts
++++ b/web/src/constant/navigation-tools.ts
+@@ -1,6 +1,7 @@
++import { isPageEnabled } from "@/guan/功能开关";
+ import { FileText, ImagePlus, Images, Maximize2, Settings2, Video } from "lucide-react";
+ 
+-export const navigationTools = [
++export const navigationTools = ([
+     {
+         slug: "canvas",
+         icon: Maximize2,
+@@ -25,6 +26,6 @@
+         slug: "config",
+         icon: Settings2,
+     },
+-] as const;
++] as const).filter((tool) => isPageEnabled(tool.slug));
+ 
+ export type NavigationToolSlug = (typeof navigationTools)[number]["slug"];
+--- a/web/src/components/layout/user-status-actions.tsx
++++ b/web/src/components/layout/user-status-actions.tsx
+@@ -1,3 +1,4 @@
++import { productFeatures } from "@/guan/功能开关";
+ import type { CSSProperties } from "react";
+ import { Tooltip } from "antd";
+ import { BookOpen, Keyboard, Puzzle, Settings2 } from "lucide-react";
+@@ -37,26 +38,26 @@
+ 
+     return (
+         <div className="inline-flex shrink-0 items-center gap-1">
+-            {onOpenPlugins ? (
++            {productFeatures.nodePlugins && onOpenPlugins ? (
+                 <button type="button" className={naturalIconClass} style={iconStyle} onClick={onOpenPlugins} aria-label={t("topNav.plugins")} title={t("topNav.plugins")}>
+                     <Puzzle className="size-4" />
+                 </button>
+             ) : null}
+-            <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className={naturalIconClass} style={iconStyle} aria-label={t("topNav.docs")} title={t("topNav.docs")}>
++            {productFeatures.docsLink ? <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className={naturalIconClass} style={iconStyle} aria-label={t("topNav.docs")} title={t("topNav.docs")}>
+                 <BookOpen className="size-4" />
+-            </a>
++            </a> : null}
+             {showConfig ? (
+                 <button type="button" className={naturalIconClass} style={iconStyle} onClick={() => openConfigDialog(false)} aria-label={t("navigation.config")} title={t("navigation.config")}>
+                     <Settings2 className="size-4" />
+                 </button>
+             ) : null}
+-            <Tooltip title={languageLabel} mouseEnterDelay={0.2}>
++            {productFeatures.languageSwitch ? <Tooltip title={languageLabel} mouseEnterDelay={0.2}>
+                 <button type="button" className={`${naturalIconClass} text-[11px] font-semibold tracking-tight`} style={iconStyle} onClick={() => void changeAppLocale(nextLocale)} aria-label={languageLabel}>
+                     {locale === "zh-CN" ? "中" : "EN"}
+                 </button>
+-            </Tooltip>
+-            <AnimatedThemeToggler theme={theme} onThemeChange={setTheme} className={naturalIconClass} style={iconStyle} aria-label={t(theme === "dark" ? "topNav.lightTheme" : "topNav.darkTheme")} title={t(theme === "dark" ? "topNav.lightTheme" : "topNav.darkTheme")} />
+-            <VersionReleaseModal style={versionStyle} />
++            </Tooltip> : null}
++            {productFeatures.themeSwitch ? <AnimatedThemeToggler theme={theme} onThemeChange={setTheme} className={naturalIconClass} style={iconStyle} aria-label={t(theme === "dark" ? "topNav.lightTheme" : "topNav.darkTheme")} title={t(theme === "dark" ? "topNav.lightTheme" : "topNav.darkTheme")} /> : null}
++            {productFeatures.authorVersion ? <VersionReleaseModal style={versionStyle} /> : null}
+             <GitHubLink className={cn("bg-transparent hover:bg-transparent dark:hover:bg-transparent", gitHubClassName)} style={gitHubStyle} />
+             {onOpenShortcuts ? (
+                 <button type="button" className={naturalIconClass} style={iconStyle} onClick={onOpenShortcuts} aria-label={t("topNav.shortcuts")} title={t("topNav.shortcuts")}>
+--- a/web/src/components/canvas/canvas-toolbar.tsx
++++ b/web/src/components/canvas/canvas-toolbar.tsx
+@@ -1,5 +1,6 @@
+ import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from "react";
+ import { useEffect, useRef, useState } from "react";
++import { productFeatures } from "@/guan/功能开关";
+ import { Button, Segmented, Switch } from "antd";
+ import { CircleDot, Eraser, Grid2x2, Group, Hand, Image as ImageIcon, Info, LocateFixed, Moon, MousePointer2, Music2, Palette, Puzzle, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Upload, Video } from "lucide-react";
+ 
+@@ -71,7 +72,7 @@
+     const [extPanelX, setExtPanelX] = useState(0);
+     // Keep extension plugin nodes synchronized with registry changes.
+     useNodeRegistryVersion();
+-    const extensionDefs = listNodeDefinitions().filter((def) => def.showInCreateMenu !== false && getNodePluginId(def.type) !== "builtin");
++    const extensionDefs = productFeatures.nodePlugins ? listNodeDefinitions().filter((def) => def.showInCreateMenu !== false && getNodePluginId(def.type) !== "builtin") : [];
+     const dockStyle = { background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item, boxShadow: colorTheme === "dark" ? "0 18px 45px rgba(0,0,0,.32)" : "0 16px 40px rgba(28,25,23,.12)" };
+     const hoverStyle = { background: theme.toolbar.itemHover, color: theme.toolbar.activeText };
+     const activeStyle = { background: theme.toolbar.activeBg, color: theme.toolbar.activeText };
+@@ -217,6 +218,7 @@
+                     style={{ left: panelX || "50%", background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
+                 >
+                     <div className="px-1 pb-2 text-sm font-medium opacity-65">{t("canvas.toolbar.appearance")}</div>
++                    {productFeatures.themeSwitch ? <>
+                     <div className="px-1 pb-1.5 text-[11px] font-medium opacity-50">{t("canvas.toolbar.themeMode")}</div>
+                     <div className="grid grid-cols-2 gap-1 rounded-lg p-1" style={{ background: theme.toolbar.itemHover }}>
+                         <CanvasThemeButton colorTheme={colorTheme} targetTheme="light" onThemeChange={setTheme}>
+@@ -228,6 +230,7 @@
+                             {t("canvas.toolbar.dark")}
+                         </CanvasThemeButton>
+                     </div>
++                    </> : null}
+                     <div className="mt-3 px-1 pb-1.5 text-[11px] font-medium opacity-50">{t("canvas.toolbar.gridStyle")}</div>
+                     <Segmented
+                         className="w-full !p-1 [&_.ant-segmented-group]:!flex [&_.ant-segmented-item]:!min-h-8 [&_.ant-segmented-item]:!flex-1 [&_.ant-segmented-item-label]:!min-h-8 [&_.ant-segmented-item-label]:!leading-8"
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -42,6 +42,7 @@
+ import { AssetPickerModal, type InsertAssetPayload } from "@/components/canvas/asset-picker-modal";
+ import { CanvasSidePanel } from "@/components/canvas/canvas-side-panel";
+ import { CanvasZoomControls } from "@/components/canvas/canvas-zoom-controls";
++import { productFeatures } from "@/guan/功能开关";
+ import { useAgentStore } from "@/stores/use-agent-store";
+ import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
+ import { useAgentBridge } from "@/pages/canvas/hooks/use-agent-bridge";
+@@ -3420,7 +3421,7 @@
+                 <input ref={imageInputRef} type="file" multiple accept="image/*,video/*,audio/mpeg,audio/wav,audio/x-wav,.mp3,.wav" className="hidden" onChange={handleImageInputChange} />
+ 
+                 <CanvasNodeInfoModal node={infoNode} open={Boolean(infoNode)} onClose={() => setInfoNodeId(null)} />
+-                <CanvasPluginManagerModal open={pluginManagerOpen} onClose={() => setPluginManagerOpen(false)} />
++                {productFeatures.nodePlugins ? <CanvasPluginManagerModal open={pluginManagerOpen} onClose={() => setPluginManagerOpen(false)} /> : null}
+ 
+                 {cropNode?.metadata?.content ? <CanvasNodeCropDialog dataUrl={cropNode.metadata.content} open={Boolean(cropNode)} onClose={() => setCropNodeId(null)} onConfirm={(crop) => void cropImageNode(cropNode!, crop)} /> : null}
+ 
+--- a/web/src/hooks/use-version-check.ts
++++ b/web/src/hooks/use-version-check.ts
+@@ -1,3 +1,4 @@
++import { productFeatures } from "@/guan/功能开关";
+ import { useCallback, useEffect, useMemo, useState } from "react";
+ import { App } from "antd";
+ import { useTranslation } from "react-i18next";
+@@ -35,6 +36,7 @@
+     const hasNewVersion = isNewerVersion(latestVersion, currentVersion);
+ 
+     const checkLatestVersion = useCallback(async () => {
++        if (!productFeatures.authorVersion) return false;
+         try {
+             const response = await fetch(latestVersionUrl);
+             if (!response.ok) return false;
+@@ -48,6 +50,7 @@
+ 
+     const checkLatestRelease = useCallback(
+         async (showMessage = false) => {
++            if (!productFeatures.authorVersion) return false;
+             setChecking(true);
+             try {
+                 const [versionResponse, changelogResponse] = await Promise.all([fetch(latestVersionUrl), fetch(latestChangelogUrl)]);
+@@ -75,6 +78,7 @@
+     }, [checkLatestVersion]);
+ 
+     const openReleaseModal = useCallback(() => {
++        if (!productFeatures.authorVersion) return;
+         setOpen(true);
+         void checkLatestRelease();
+     }, [checkLatestRelease]);
+--- a/web/src/stores/use-theme-store.ts
++++ b/web/src/stores/use-theme-store.ts
+@@ -1,3 +1,4 @@
++import { productFeatures } from "@/guan/功能开关";
+ import { create } from "zustand";
+ import { persist } from "zustand/middleware";
+ 
+@@ -12,7 +13,7 @@
+     persist(
+         (set) => ({
+             theme: "dark",
+-            setTheme: (theme) => set({ theme }),
++            setTheme: (theme) => { if (productFeatures.themeSwitch) set({ theme }); },
+         }),
+         { name: "infinite-canvas:theme_store" },
+     ),
+--- a/web/src/i18n/index.ts
++++ b/web/src/i18n/index.ts
+@@ -1,3 +1,4 @@
++import { productFeatures } from "@/guan/功能开关";
+ import i18n from "i18next";
+ import { initReactI18next } from "react-i18next";
+ 
+@@ -22,6 +23,7 @@
+ });
+ 
+ export function changeAppLocale(locale: AppLocale) {
++    if (!productFeatures.languageSwitch) return Promise.resolve();
+     localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+     return i18n.changeLanguage(locale);
+ }
+--- a/web/src/services/api/local-proxy.ts
++++ b/web/src/services/api/local-proxy.ts
+@@ -1,8 +1,10 @@
++import { requireProductFeature } from "@/guan/功能开关";
+ import i18n from "@/i18n";
+ import { normalizeLocalProxyUrl } from "@/stores/use-config-store";
+ 
+ /** The proxy answers its root path with its own identity payload, which doubles as a reachability check. */
+ export async function testLocalProxy(proxyUrl: string) {
++    requireProductFeature("localProxy");
+     const base = normalizeLocalProxyUrl(proxyUrl);
+     if (!base) throw new Error(i18n.t("config.proxy.missingUrl"));
+     const response = await fetch(`${base}/`, { cache: "no-store" });
+--- a/web/src/stores/use-config-store.ts
++++ b/web/src/stores/use-config-store.ts
+@@ -1,3 +1,4 @@
++import { productFeatures, requireProductFeature } from "@/guan/功能开关";
+ import { useMemo } from "react";
+ import { create } from "zustand";
+ import { persist } from "zustand/middleware";
+@@ -501,6 +502,7 @@
+ export function withLocalProxy(url: string) {
+     const { proxyEnabled, proxyUrl } = useConfigStore.getState().config;
+     if (!proxyEnabled || !/^https?:\/\//i.test(url)) return url;
++    if (!productFeatures.localProxy) requireProductFeature("localProxy");
+     const base = normalizeLocalProxyUrl(proxyUrl);
+     if (!base || url.startsWith(`${base}/`)) return url;
+     return `${base}/${url}`;
+--- a/web/src/lib/canvas/plugin-loader.ts
++++ b/web/src/lib/canvas/plugin-loader.ts
+@@ -1,3 +1,4 @@
++import { productFeatures, requireProductFeature } from "@/guan/功能开关";
+ import { registerNodeDefinitions, unregisterPluginNodes } from "@/lib/canvas/node-registry";
+ import { getPluginRuntime } from "@/lib/canvas/plugin-runtime";
+ import { usePluginStore, type InstalledPlugin } from "@/stores/canvas/use-plugin-store";
+@@ -9,6 +10,7 @@
+ // A remote plugin may export CanvasPlugin directly or a factory that receives runtime and returns CanvasPlugin.
+ // The factory uses runtime.React so the bundle does not need its own React copy.
+ async function evaluatePluginSource(source: string): Promise<CanvasPlugin> {
++    requireProductFeature("nodePlugins");
+     const blob = new Blob([source], { type: "text/javascript" });
+     const url = URL.createObjectURL(blob);
+     try {
+@@ -29,6 +31,7 @@
+ }
+ 
+ export function activatePlugin(plugin: CanvasPlugin) {
++    requireProductFeature("nodePlugins");
+     registerNodeDefinitions(plugin.nodes, plugin.id);
+     const runtime = getPluginRuntime();
+     const disposers: Array<() => void> = [];
+@@ -46,6 +49,7 @@
+ }
+ 
+ async function fetchPluginSource(url: string) {
++    requireProductFeature("nodePlugins");
+     const response = await fetch(url);
+     if (!response.ok) throw new Error(i18n.t("canvas.pluginErrors.downloadFailed", { status: response.status }));
+     return response.text();
+@@ -59,6 +63,7 @@
+ // Install or replace a plugin from a URL and enable it immediately.
+ // bustCache bypasses HTTP/CDN caches during upgrades while persisting a clean URL without the timestamp query.
+ export async function installPluginFromUrl(url: string, opts?: { official?: boolean; bustCache?: boolean }) {
++    requireProductFeature("nodePlugins");
+     const source = await fetchPluginSource(opts?.bustCache ? withCacheBust(url) : url);
+     const plugin = await evaluatePluginSource(source);
+     deactivatePlugin(plugin.id); // Replace the previous version.
+@@ -73,6 +78,7 @@
+ }
+ 
+ export async function setPluginEnabled(record: InstalledPlugin, enabled: boolean) {
++    requireProductFeature("nodePlugins");
+     usePluginStore.getState().setEnabled(record.id, enabled);
+     if (!enabled) {
+         deactivatePlugin(record.id);
+@@ -85,6 +91,7 @@
+ }
+ 
+ export function uninstallPlugin(id: string) {
++    requireProductFeature("nodePlugins");
+     deactivatePlugin(id);
+     usePluginStore.getState().remove(id);
+ }
+@@ -93,6 +100,7 @@
+ 
+ // Load installed and enabled plugins at application startup.
+ export async function ensurePluginsLoaded() {
++    if (!productFeatures.nodePlugins) return;
+     if (loaded) return;
+     loaded = true;
+     await usePluginStore.persist.rehydrate();
+@@ -115,6 +123,7 @@
+ // Discover local plugins from web/public/plugins, add them disabled, and expose them in the manager without a URL.
+ // Refresh metadata and source for existing records while preserving the enabled flag so persisted versions stay current.
+ async function loadLocalPlugins() {
++    if (!productFeatures.nodePlugins) return;
+     let urls: unknown;
+     try {
+         const response = await fetch("/plugins/index.json");
+@@ -151,6 +160,7 @@
+ // During local development, refetch VITE_DEV_PLUGINS URLs without caching or persistence on every startup.
+ // Together with watch builds, refreshing the page loads code changes without reinstalling the plugin.
+ async function loadDevPlugins() {
++    if (!productFeatures.nodePlugins) return;
+     const raw = import.meta.env.VITE_DEV_PLUGINS;
+     if (!raw) return;
+     const urls = raw.split(",").map((item) => item.trim()).filter(Boolean);
+--- a/web/src/lib/canvas/plugin-registry.ts
++++ b/web/src/lib/canvas/plugin-registry.ts
+@@ -1,3 +1,4 @@
++import { requireProductFeature } from "@/guan/功能开关";
+ import { PLUGIN_REGISTRY_URL } from "@/constant/env";
+ 
+ // An official registry item whose entry has been resolved to an absolute URL.
+@@ -15,6 +16,7 @@
+ 
+ // Fetch the official registry and resolve relative entries against its URL for the existing URL installation flow.
+ export async function fetchOfficialPlugins(registryUrl: string = PLUGIN_REGISTRY_URL): Promise<OfficialPluginEntry[]> {
++    requireProductFeature("nodePlugins");
+     const response = await fetch(registryUrl, { headers: { accept: "application/json" } });
+     if (!response.ok) throw new Error(i18n.t("canvas.pluginErrors.registryFailed", { status: response.status }));
+     const data = (await response.json()) as RawManifest;
+--- /dev/null
++++ b/web/src/guan/画布入口.tsx
+@@ -0,0 +1,27 @@
++import { Button } from "antd";
++import { Navigate, useNavigate } from "react-router-dom";
++import { useTranslation } from "react-i18next";
++import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
++import { entryProjectId } from "@/guan/功能开关";
++
++// 原版首页/项目列表关闭后的最小落点，不加载原页面，也不在初始化时写入新画布。
++export function CanvasEntry() {
++    const { t } = useTranslation();
++    const navigate = useNavigate();
++    const hydrated = useCanvasStore((state) => state.hydrated);
++    const projects = useCanvasStore((state) => state.projects);
++    const createProject = useCanvasStore((state) => state.createProject);
++    const id = entryProjectId(projects);
++
++    if (!hydrated) return <main className="grid h-full place-items-center bg-background text-foreground" role="status">{t("canvas.opening")}</main>;
++    if (id) return <Navigate to={`/canvas/${encodeURIComponent(id)}`} replace />;
++
++    return (
++        <main className="grid h-full place-items-center bg-background text-foreground">
++            <Button type="primary" onClick={() => {
++                const projectId = createProject(t("canvas.defaultTitle", { count: 1 }));
++                navigate(`/canvas/${encodeURIComponent(projectId)}`, { replace: true });
++            }}>{t("canvas.create")}</Button>
++        </main>
++    );
++}

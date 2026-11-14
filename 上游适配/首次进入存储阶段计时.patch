@@ -1,0 +1,17 @@
+diff --git a/web/src/main.tsx b/web/src/main.tsx
+index 13e01a5..89e9b65 100644
+--- a/web/src/main.tsx
++++ b/web/src/main.tsx
+@@ -1,9 +1,12 @@
+ import { initializeSQLiteApplication, sqliteStateStorage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { applyStartupTheme } from "@/扩展功能/主题/启动主题同步";
++import { markWorkbenchStartup } from "@/扩展功能/本机存储/启动计时.mjs";
+ 
+ async function start() {
+     try {
++        markWorkbenchStartup("storage-start");
+         await initializeSQLiteApplication();
++        markWorkbenchStartup("storage-ready");
+         applyStartupTheme(sqliteStateStorage.getItem("infinite-canvas:theme_store"));
+         await import("@/扩展功能/存储界面/SQLite应用入口");
+     } catch {

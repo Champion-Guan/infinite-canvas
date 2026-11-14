@@ -1,0 +1,34 @@
+--- a/web/src/components/layout/user-status-actions.tsx
++++ b/web/src/components/layout/user-status-actions.tsx
+@@ -1,3 +1,4 @@
++import { topRightEntries } from "@/guan/右上双入口";
+ import { productFeatures } from "@/guan/功能开关";
+ import type { CSSProperties } from "react";
+ import { Tooltip } from "antd";
+@@ -46,7 +47,7 @@
+             {productFeatures.docsLink ? <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className={naturalIconClass} style={iconStyle} aria-label={t("topNav.docs")} title={t("topNav.docs")}>
+                 <BookOpen className="size-4" />
+             </a> : null}
+-            {showConfig ? (
++            {topRightEntries.configButton && showConfig ? (
+                 <button type="button" className={naturalIconClass} style={iconStyle} onClick={() => openConfigDialog(false)} aria-label={t("navigation.config")} title={t("navigation.config")}>
+                     <Settings2 className="size-4" />
+                 </button>
+@@ -58,7 +59,7 @@
+             </Tooltip> : null}
+             {productFeatures.themeSwitch ? <AnimatedThemeToggler theme={theme} onThemeChange={setTheme} className={naturalIconClass} style={iconStyle} aria-label={t(theme === "dark" ? "topNav.lightTheme" : "topNav.darkTheme")} title={t(theme === "dark" ? "topNav.lightTheme" : "topNav.darkTheme")} /> : null}
+             {productFeatures.authorVersion ? <VersionReleaseModal style={versionStyle} /> : null}
+-            <GitHubLink className={cn("bg-transparent hover:bg-transparent dark:hover:bg-transparent", gitHubClassName)} style={gitHubStyle} />
++            {topRightEntries.authorGitHub ? <GitHubLink className={cn("bg-transparent hover:bg-transparent dark:hover:bg-transparent", gitHubClassName)} style={gitHubStyle} /> : null}
+             {onOpenShortcuts ? (
+                 <button type="button" className={naturalIconClass} style={iconStyle} onClick={onOpenShortcuts} aria-label={t("topNav.shortcuts")} title={t("topNav.shortcuts")}>
+                     <Keyboard className="size-4" />
+--- /dev/null
++++ b/web/src/guan/右上双入口.ts
+@@ -0,0 +1,6 @@
++// 仅关闭共享顶栏中的两个展示入口；不停止渠道配置或生成业务。
++// 具体差异获批前不接入3100，不影响首页独立的设置按钮。
++export const topRightEntries = Object.freeze({
++    configButton: false,
++    authorGitHub: false,
++});

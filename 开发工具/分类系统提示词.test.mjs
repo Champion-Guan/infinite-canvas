@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { variantModules, variantFixture } from './产品变体生成夹具.mjs';
+import { modelTextReasoningEfforts, normalizeTextReasoningEffort } from '../扩展功能/画布生成/文本推理强度.ts';
 
 const require = createRequire(resolve('.运行/3100源/画布副本/web/package.json'));
 const ts = require('typescript');
@@ -41,7 +42,7 @@ test('真实渠道解析函数按模型能力选择提示词，不更改认证�
     const code = source.statements.filter(node => ts.isFunctionDeclaration(node) && names.has(node.name?.text)).map(node => node.getText(source)).join('\n');
     const compiled = ts.transpileModule(code, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
     const module = { exports: {} };
-    new Function('module', 'exports', 'withCapabilitySystemPrompt', 'CHANNEL_MODEL_SEPARATOR', 'VIDEO_KEYWORDS', 'AUDIO_KEYWORDS', 'IMAGE_KEYWORDS', compiled)(module, module.exports, rules.withCapabilitySystemPrompt, '::', ['video'], ['audio'], ['image']);
+    new Function('module', 'exports', 'withCapabilitySystemPrompt', 'CHANNEL_MODEL_SEPARATOR', 'VIDEO_KEYWORDS', 'AUDIO_KEYWORDS', 'IMAGE_KEYWORDS', 'normalizeTextReasoningEffort', 'modelTextReasoningEfforts', compiled)(module, module.exports, rules.withCapabilitySystemPrompt, '::', ['video'], ['audio'], ['image'], normalizeTextReasoningEffort, modelTextReasoningEfforts);
     const models = ['image', 'text', 'video', 'audio'].map(capability => ({ name: capability + '-model', capability }));
     const config = { channels: [{ id: 'channel', models, baseUrl: 'https://synthetic.invalid', apiKey: 'synthetic', apiFormat: 'openai' }],
         systemPrompt: '旧值', imageSystemPrompt: '图片', textSystemPrompt: '文本', videoSystemPrompt: '视频', audioInstructions: '音频' };

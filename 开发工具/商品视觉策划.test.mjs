@@ -72,6 +72,32 @@ function planned(loader = modules()) {
     return { loader, fixture, rules, plan, canvas, fingerprint };
 }
 
+test('新建首张提示词与参数端口同高，有障碍只向右避让，重新策划保留已有手动位置', () => {
+    for (const height of [320, 520, 540, 800]) {
+        const loader = modules(), fixture = variantFixture();
+        const parameter = { ...fixture.parameter, height, position: { x: 100, y: 200 } };
+        const canvas = loader.load('Excel画布/商品提示词画布.ts');
+        const clear = canvas.productPlanOps(parameter, planData(), [parameter], [], 'signature');
+        const first = clear.find(op => op.type === 'add_node' && op.nodeType === 'guan:product-prompt');
+        const route = loader.load('画布连线/圆角连线路由.ts').routeConnection(parameter, first, { obstacles: [] });
+        assert.equal(route.points.length, 2, '无遮挡时实际路由只有两个端点，不产生折点');
+        assert.equal(route.points[0].y, route.points[1].y);
+        const obstacle = { id: 'obstacle', type: 'image', position: { x: 540, y: 0 }, width: 900, height: 1800, metadata: {} };
+        const plan = planData(); plan.images = [plan.images[0]];
+        const ops = canvas.productPlanOps(parameter, plan, [parameter, obstacle], [], 'signature');
+        const prompt = ops.find(op => op.type === 'add_node' && op.nodeType === 'guan:product-prompt');
+        const config = ops.find(op => op.type === 'add_node' && op.nodeType === 'config');
+        assert.equal(prompt.position.y + prompt.height / 2, parameter.position.y + parameter.height / 2);
+        assert.equal(config.position.y + config.height / 2, parameter.position.y + parameter.height / 2);
+        assert.ok(prompt.position.x >= obstacle.position.x + obstacle.width + 48);
+        const current = { nodes: [parameter, obstacle], connections: [] }; apply(current, ops);
+        const old = current.nodes.find(node => node.id === prompt.id); old.position = { x: 1900, y: 940 };
+        const again = canvas.productPlanOps(parameter, plan, current.nodes, current.connections, 'new-signature');
+        assert.deepEqual(again.find(op => op.type === 'update_node' && op.id === old.id).patch, { title: old.title });
+        assert.deepEqual(old.position, { x: 1900, y: 940 });
+    }
+});
+
 test('通用角色不含平台规格，策划只使用所选平台规则，删除字段的旧值不再影响AI', () => {
     const loader = modules(), { PRODUCT_PLANNING_ROLE } = loader.load('Excel画布/商品视觉策划指令.ts');
     assert.doesNotMatch(PRODUCT_PLANNING_ROLE, /Wildberries|1800|2400|800|500|sunburst/);
@@ -657,11 +683,14 @@ test('策划服务记录并保存任务后落地，非法结果、旧资料与�
     let incoming, failSave = false, failFinalSave = false, cancelled = false, mutateSource = false, noImages = false, wrongCount = false;
     const fixture = variantFixture(); fixture.nodes = [fixture.parameter]; fixture.connections = [];
     let ops = 0, saves = 0;
-    const notifications = [];
+    const notifications = [], noticeScopes = [];
     const loader = modules({
         '@/stores/use-config-store': { useConfigStore: { getState: () => ({ config: { channels: [], imageModel: 'user-selected-image' }, isAiConfigReady: () => true }) } },
         '@/lib/canvas/canvas-generation-helpers': { buildGenerationConfig: () => ({ model: 'vision' }) },
-        './商品策划完成通知': { notifyProductPlanning: (productId, parameterId, completed) => notifications.push({ productId, parameterId, completed, saves }) },
+        './商品策划完成通知': { notifyProductPlanning: (productId, parameterId, completed, configNodeIds) => {
+            notifications.push({ productId, parameterId, completed, saves });
+            if (completed) noticeScopes.push([...configNodeIds]);
+        } },
         '../产品/产品操作': { saveProductCanvas: async () => { saves++; return { persisted: !failSave && !(failFinalSave && saves % 2 === 0) }; } },
         '../画布生成/原画布文本调用': { confirmSavedCanvasText: async () => {}, requestCanvasText: async options => {
             incoming = options;
@@ -696,6 +725,7 @@ test('策划服务记录并保存任务后落地，非法结果、旧资料与�
     assert.equal(sent.requirements.production.mainAndCarousel.count, 11);
     assert.equal(sent.requirements.production.rich.count, 6);
     assert.equal(fixture.nodes.filter(node => node.type === 'config').length, 17, '两个变体共用17种图片用途，不重复建卡');
+    assert.deepEqual(noticeScopes[0], fixture.nodes.filter(node => node.type === 'config').map(node => node.id));
     wrongCount = true;
     const retainedNodes = structuredClone(fixture.nodes), retainedConnections = structuredClone(fixture.connections);
     await assert.rejects(service.planProductImages(ctx, 'product', controller.signal), /图片数量不符合要求/);
@@ -721,6 +751,7 @@ test('策划服务记录并保存任务后落地，非法结果、旧资料与�
     await service.planProductImages(ctx, 'product', controller.signal);
     assert.equal(ops, committedOps, '最终保存失败后先确认已应用的原任务，不重新策划');
     assert.equal(notifications.filter(item => item.completed).length, 2);
+    assert.deepEqual(noticeScopes[1], noticeScopes[0], '继续保存沿用最初策划配置范围');
     noImages = true;
     const pendingPhases = [];
     await service.planProductImages(ctx, 'product', controller.signal, phase => pendingPhases.push(phase));
@@ -816,7 +847,7 @@ test('旧翻译错误可重试，失败仅更新错误说明，保留中英文�
     const effects = [];
     let calls = 0;
     const loader = modules({
-        react: { useEffect: callback => effects.push(callback), useRef: value => ({ current: value }), useState: value => [typeof value === 'function' ? value() : value, () => {}] },
+        react: { useEffect: callback => effects.push(callback), useMemo: callback => callback(), useRef: value => ({ current: value }), useState: value => [typeof value === 'function' ? value() : value, () => {}] },
         'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
         'lucide-react': { Languages: 'Languages', RotateCcw: 'RotateCcw' },
         './Excel画布上下文': { useExcelProductId: () => 'product' },

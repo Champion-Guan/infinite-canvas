@@ -1,0 +1,100 @@
+--- a/web/src/guan/精简与离线策略.ts
++++ b/web/src/guan/精简与离线策略.ts
+@@ -1,9 +1,9 @@
+-// 待审查批次：禁止新生成，不删除媒体、任务、来源配置或缓存。
+-export const closedFeatureIds = Object.freeze(["S06", "C15", "A02", "A03", "V03", "V04", "AI超分占位"]);
++// 待审查恢复批次：恢复画布音视频生成；不恢复其他关闭项或独立页面。
++export const closedFeatureIds = Object.freeze(["S06", "C15", "AI超分占位"]);
+ export const auxiliaryFeatures = Object.freeze({ urlCredentials: false, nodeInfo: false, superResolve: false, promptNetwork: false });
+ 
+ export function isGenerationModeEnabled(mode: string): boolean {
+-    return mode === "image" || mode === "text";
++    return mode === "image" || mode === "text" || mode === "video" || mode === "audio";
+ }
+ 
+ export function requireAuxiliaryFeature(feature: keyof typeof auxiliaryFeatures): void {
+@@ -11,7 +11,7 @@
+ }
+ 
+ export function requireGenerationMode(mode: string): void {
+-    if (!isGenerationModeEnabled(mode)) throw Object.assign(new Error("视频和语音新生成已关闭；已有媒体及视频任务查询仍保留。"), { code: "product_feature_disabled" });
++    if (!isGenerationModeEnabled(mode)) throw Object.assign(new Error("不支持的生成模式。"), { code: "product_feature_disabled" });
+ }
+ 
+ // 仅作用于读取结果。远程封面/参考图不再自动加载，原缓存不修改。
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -1,4 +1,3 @@
+-import { isGenerationModeEnabled } from "@/guan/精简与离线策略";
+ import { ThemePreference } from "@/guan/三态主题设置";
+ import { businessFeatures, resolveBusinessConfigTab } from "@/guan/脚本与提示词来源";
+ import { productFeatures, resolveConfigTab } from "@/guan/功能开关";
+@@ -9,6 +8,7 @@
+ import { useTranslation } from "react-i18next";
+ 
+ import { ModelPicker } from "@/components/model-picker";
++import { videoResolutionOptions } from "@/components/video-settings-panel";
+ import { ChannelEditorDrawer } from "@/components/layout/channel-editor-drawer";
+ import { ConfigLocalProxy } from "@/components/layout/config-local-proxy";
+ import { ConfigPromptSources } from "@/components/layout/config-prompt-sources";
+@@ -17,7 +17,8 @@
+ import { exportAppConfig, importAppConfig } from "@/services/config-file";
+ import { syncAppDataToWebdav, type AppSyncDomainKey, type AppSyncProgressEvent } from "@/services/app-sync";
+ import { testWebdavConnection, WEBDAV_MANIFEST_FILE_NAME } from "@/services/webdav-sync";
+-import { computeMediaSize, inferMediaRatio, inferMediaScale, mediaScaleOptions } from "@/lib/media-size";
++import { audioFormatOptions, audioVoiceOptions, normalizeAudioSpeedValue } from "@/lib/audio-generation";
++import { computeMediaSize, inferMediaRatio, inferMediaScale, mediaScaleOptions, parseVideoResolution } from "@/lib/media-size";
+ import { createModelChannel, modelOptionsFromChannels, normalizeModelOptionValue, selectableModelsByCapability, useConfigStore, type AiConfig, type ApiCallFormat, type ConfigTabKey, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
+ 
+ type ModelGroup = {
+@@ -230,7 +231,7 @@
+                                 <ThemePreference />
+                                 <div className="mb-2 text-sm font-semibold">{t("config.preferences.defaultModels")}</div>
+                                 <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+-                                    {modelGroups.filter((group) => isGenerationModeEnabled(group.capability)).map((group) => (
++                                    {modelGroups.map((group) => (
+                                         <Form.Item key={group.modelKey} label={t(group.labelKey)} className="mb-0">
+                                             <ModelPicker config={config} value={config[group.modelKey]} onChange={(model) => updateConfig(group.modelKey, model)} capability={group.capability} fullWidth />
+                                         </Form.Item>
+@@ -251,10 +252,26 @@
+                                     <Form.Item label={t("config.preferences.imageResolution")} className="mb-4">
+                                         <Select value={inferMediaScale(config.size)} options={imageResolutionOptions} onChange={(scale) => updateConfig("size", computeMediaSize(scale, inferMediaRatio(config.size)))} />
+                                     </Form.Item>
+-                                    
+-                                    
+-                                    
+-                                    
++                                    <Form.Item label={t("config.preferences.videoResolution")} className="mb-4">
++                                        <Select value={parseVideoResolution(config.vquality)} options={videoResolutionOptions} onChange={(value) => updateConfig("vquality", value)} />
++                                    </Form.Item>
++                                    <Form.Item label={t("config.preferences.audioVoice")} className="mb-4">
++                                        <Select value={config.audioVoice} options={audioVoiceOptions} onChange={(value) => updateConfig("audioVoice", value)} />
++                                    </Form.Item>
++                                    <Form.Item label={t("config.preferences.audioFormat")} className="mb-4">
++                                        <Select value={config.audioFormat} options={audioFormatOptions} onChange={(value) => updateConfig("audioFormat", value)} />
++                                    </Form.Item>
++                                    <Form.Item label={t("config.preferences.audioSpeed")} className="mb-4">
++                                        <Input
++                                            type="number"
++                                            min={0.25}
++                                            max={4}
++                                            step={0.05}
++                                            value={config.audioSpeed}
++                                            onChange={(event) => updateConfig("audioSpeed", event.target.value)}
++                                            onBlur={(event) => updateConfig("audioSpeed", normalizeAudioSpeedValue(event.target.value))}
++                                        />
++                                    </Form.Item>
+                                 </div>
+                                 <Form.Item label={t("config.preferences.regenerateBehavior")} className="mb-4">
+                                     <Radio.Group value={config.nodeRegenerateBehavior} onChange={(event) => updateConfig("nodeRegenerateBehavior", event.target.value)} className="flex flex-col gap-2">
+@@ -274,7 +291,9 @@
+                                         <Switch checked={config.autoFocusOnSelect} onChange={(checked) => updateConfig("autoFocusOnSelect", checked)} />
+                                     </div>
+                                 </Form.Item>
+-                                
++                                <Form.Item label={t("config.preferences.audioInstructions")} className="mb-4">
++                                    <Input.TextArea rows={2} value={config.audioInstructions} placeholder={t("config.preferences.audioInstructionsPlaceholder")} onChange={(event) => updateConfig("audioInstructions", event.target.value)} />
++                                </Form.Item>
+                                 <Form.Item label={t("config.preferences.systemPrompt")} className="mb-0">
+                                     <Input.TextArea rows={4} value={config.systemPrompt} placeholder={t("config.preferences.systemPromptPlaceholder")} onChange={(event) => updateConfig("systemPrompt", event.target.value)} />
+                                 </Form.Item>

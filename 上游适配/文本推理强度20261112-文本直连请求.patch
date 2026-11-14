@@ -1,0 +1,18 @@
+diff --git a/web/src/services/api/image.ts b/web/src/services/api/image.ts
+index a26e384..aec4398 100644
+--- a/web/src/services/api/image.ts
++++ b/web/src/services/api/image.ts
+@@ -854,7 +854,7 @@ export async function requestImageQuestion(config: AiConfig, messages: AiTextMes
+         const answer = (await requestStreamingResponse(requestConfig, {
+             model: requestConfig.model,
+             input: toResponseInput(withSystemMessage(requestConfig, messages)),
+-            ...(requestConfig.reasoningEffort === "auto" ? {} : { reasoning: { effort: requestConfig.reasoningEffort } }),
++            reasoning: { effort: requireTextReasoningEffort(requestConfig.reasoningEffort, requestConfig.modelReasoningEfforts) },
+         }, onDelta, options)).content || apiText("noContent");
+         if (answer === apiText("noContent")) onDelta(answer);
+         return answer;
+@@ -878,3 +878,4 @@ const defaultGeminiConfig: Pick<AiConfig, "baseUrl" | "apiKey" | "apiFormat" | "
+     model: "",
+     systemPrompt: "",
+ };
++import { requireTextReasoningEffort } from "@/扩展功能/画布生成/文本推理强度";

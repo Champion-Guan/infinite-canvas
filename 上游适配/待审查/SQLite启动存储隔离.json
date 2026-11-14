@@ -1,0 +1,32 @@
+{
+  "状态": "待具体3文件差异批准，未应用任何运行副本",
+  "日期": "2026-10-17",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置节点存储差异SHA256": "d6aa48d18899fe8ab7044d343c44026cd3e827dea884017314d0f409a0cdae08",
+  "差异SHA256": "0b15056948f5ada3171f66c36d778259c4b1728b6493d751a568be95644ff54e",
+  "完整类型预审通过": true,
+  "原因": "实际启动堆栈确认index.html读取localStorage主题，React Router读取sessionStorage切换缓存。",
+  "保持约束": [
+    "主题偏好仍由SQLite恢复，首屏仅临时跟随系统",
+    "路由记录仅本页内存，业务数据不回退浏览器",
+    "通过React Router官方window参数接入，不修改全局Storage或依赖包",
+    "未接管或重启3100，未迁旧数据、访问真实凭据或发布"
+  ],
+  "文件": [
+    {
+      "文件": "web/index.html",
+      "原始SHA256": "3b735dba7e5aeab1857f239239bbdba3b4f4bf1137b3e1f5bf291bf10dddf701",
+      "候选SHA256": "35c4cf5d3d657227204b820b68f3fd8f30c6be68a0dd0c0ae8046e328dc3fc87"
+    },
+    {
+      "文件": "web/src/router.tsx",
+      "原始SHA256": "294f00278ca36bd48abba64bd39bcb346140a8ddbd74303884e7ab5329190b8b",
+      "候选SHA256": "e1afdc4f6b57dbffd161bf5cbef30e0387b8065e0325ba650fb98b334eab98dc"
+    },
+    {
+      "文件": "web/src/guan/路由临时状态.ts",
+      "原始SHA256": null,
+      "候选SHA256": "ed2255f92907e2fcbf952ebcf906a5fa7389f0d07edc13610842120248ee1696"
+    }
+  ]
+}

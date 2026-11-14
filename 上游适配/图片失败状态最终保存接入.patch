@@ -1,0 +1,28 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 54a257d..8c1ff5a 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -56,6 +56,7 @@ import { useProductActive, useRetiringCanvasSnapshot } from "@/扩展功能/产
+ import { protectProductCanvasWork } from "@/扩展功能/产品/画布驻留保护";
+ import { saveDormantProduct, readDormantProduct, matchingDormantProduct } from "@/扩展功能/产品/画布休眠状态";
+ import { saveProductCanvas } from "@/扩展功能/产品/产品操作";
++import { saveFailedImageState } from "@/扩展功能/画布生成/图片失败状态保存";
+ import { ImageTaskConfirmation } from "@/扩展功能/画布生成/图片任务确认状态";
+ import { requestCanvasImage } from "@/扩展功能/画布生成/原画布图片调用";
+ import { readProtectedRetryPrompt } from "@/扩展功能/提示词/生成文本读取";
+@@ -2841,6 +2842,7 @@ function InfiniteCanvasPage() {
+                 );
+             } finally {
+                 finishGenerationRequest(nodeId, runController, requestKey);
++                if (mode === "image") await saveFailedImageState(projectId, nodesRef.current, [nodeId, ...pendingChildIds], text => { void message.warning(text); });
+             }
+         }),
+         [completeVideoNodeTask, generationRequestsRef, nodesRef, effectiveConfig, finishGenerationRequest, isAiConfigReady, isBatchCanvasSaveActive, message, openConfigDialog, projectId, recordImageGatewayTask, requestNodeText, requestNodeAudio, saveCanvasImageResult, setNodes, startGenerationRequest, t],
+@@ -2994,6 +2996,7 @@ function InfiniteCanvasPage() {
+                     if (node.type === CanvasNodeType.Image && imageId && !controller.signal.aborted) {
+                         setNodes(previous => previous.map(item => item.id === node.id ? settleImageRetryStatus(item) : item));
+                     }
++                    if (node.type === CanvasNodeType.Image) await saveFailedImageState(projectId, nodesRef.current, [node.id], text => { void message.warning(text); });
+                 }
+             } finally { retryingNodeIdsRef.current.delete(retryKey); }
+         }),

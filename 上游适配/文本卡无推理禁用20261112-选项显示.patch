@@ -1,0 +1,28 @@
+diff --git a/web/src/components/text-settings-panel.tsx b/web/src/components/text-settings-panel.tsx
+index f0b91d8..996773e 100644
+--- a/web/src/components/text-settings-panel.tsx
++++ b/web/src/components/text-settings-panel.tsx
+@@ -5,19 +5,20 @@ import i18n from "@/i18n";
+ import { ImageSettingsTheme } from "@/components/image-settings-panel";
+ import { type CanvasTheme } from "@/lib/canvas-theme";
+ import type { AiConfig, ReasoningEffort } from "@/stores/use-config-store";
+-import { modelTextReasoningEfforts, modelTextReasoningEffortOptions, normalizeTextReasoningEffort } from "@/扩展功能/画布生成/文本推理强度";
++import { modelTextReasoningEfforts, modelTextReasoningEffortOptions, normalizeTextReasoningEffort, TEXT_REASONING_EFFORTS } from "@/扩展功能/画布生成/文本推理强度";
+ 
+ type TextSettingsPanelProps = {
+     config: AiConfig;
+     onConfigChange: (key: "reasoningEffort", value: ReasoningEffort) => void;
+     theme: CanvasTheme;
+     className?: string;
++    showUnsupportedNone?: boolean;
+ };
+ 
+-export function TextSettingsPanel({ config, onConfigChange, theme, className = "space-y-4" }: TextSettingsPanelProps) {
++export function TextSettingsPanel({ config, onConfigChange, theme, className = "space-y-4", showUnsupportedNone = false }: TextSettingsPanelProps) {
+     const { t } = useTranslation();
+     const supported = modelTextReasoningEfforts(config);
+-    const reasoningEffortOptions = modelTextReasoningEffortOptions(config.model || config.textModel || "");
++    const reasoningEffortOptions = showUnsupportedNone ? TEXT_REASONING_EFFORTS : modelTextReasoningEffortOptions(config.model || config.textModel || "");
+     const selected = normalizeTextReasoningEffort(config.reasoningEffort);
+     return (
+         <ImageSettingsTheme theme={theme}>

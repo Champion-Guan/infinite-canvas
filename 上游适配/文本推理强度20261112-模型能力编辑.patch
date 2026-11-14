@@ -1,0 +1,28 @@
+diff --git a/web/src/components/layout/channel-editor-drawer.tsx b/web/src/components/layout/channel-editor-drawer.tsx
+index 094fda4..a8d58ed 100644
+--- a/web/src/components/layout/channel-editor-drawer.tsx
++++ b/web/src/components/layout/channel-editor-drawer.tsx
+@@ -12,6 +12,8 @@ import { useTranslation } from "react-i18next";
+ import { defaultBaseUrlForApiFormat, guessCapability, normalizeChannelModels, type ApiCallFormat, type ChannelModel, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
+ import { ModelScriptEditor } from "./model-script-editor";
+ import { ModelSelectModal } from "./model-select-modal";
++import { reasoningEffortLabel } from "@/components/text-settings-panel";
++import { STANDARD_TEXT_REASONING_EFFORTS, TEXT_REASONING_EFFORTS } from "@/扩展功能/画布生成/文本推理强度";
+ 
+ type ScriptTarget = { name: string; capability: ModelCapability; value: string };
+ 
+@@ -130,6 +132,14 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open:
+                                 </Button> : model.script ? <span className="text-xs text-amber-600 dark:text-amber-400" title="原有脚本已保留，生成时会停止，不会改用其他调用方式">自定义脚本已停用</span> : null}
+                                 <Button size="small" danger type="text" icon={<Trash2 className="size-3.5" />} aria-label={`${t("common.delete")} ${model.name}`} title={`${t("common.delete")} ${model.name}`} onClick={() => removeModel(model.name)} />
+                             </div>
++                            {model.capability === "text" ? <label className="flex w-full min-w-0 items-center gap-2 pb-1 text-xs text-stone-500">
++                                <span className="shrink-0">支持的推理强度</span>
++                                <Select mode="multiple" aria-label={`${model.name}支持的推理强度`} className="min-w-0 flex-1"
++                                    value={[...(model.reasoningEfforts ?? STANDARD_TEXT_REASONING_EFFORTS)]}
++                                    options={TEXT_REASONING_EFFORTS.map(value => ({ value, label: reasoningEffortLabel(value) }))}
++                                    onChange={reasoningEfforts => setModels(draft.models.map(item => item.name === model.name
++                                        ? { ...item, reasoningEfforts } : item))} />
++                            </label> : null}
+                         </div>
+                     ))
+                 ) : (

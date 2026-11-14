@@ -136,6 +136,8 @@ test('设置按钮连续打开关闭，保持已选页签；窗口沿用统一�
     const header = load('扩展功能/首页/旧版首页顶栏.tsx', {
         react: { useRef: current => ({ current }) }, 'react/jsx-runtime': { jsx, jsxs: jsx }, antd: { App: { useApp: () => ({ message: {} }) } },
         '../Excel/Excel工作簿选择': { ExcelWorkbookPicker: 'Excel' }, '../产品/顶部产品胶囊': { ProductCapsules: 'Products' },
+        '../产品配置/功能开关': { productFeatures: { excel: false } },
+        '../存储界面/延迟设置入口': { preloadSettings() {} },
         '../产品/产品回收面板': { ProductTrashEntry: 'Trash' }, '../产品/产品操作': { useProductNavigation: () => ({ busy: false }) },
         '@/components/ui/animated-theme-toggler': { AnimatedThemeToggler: 'Theme' }, '@/stores/use-config-store': { useConfigStore: selector => selector(state) },
         '@/stores/use-theme-store': { useThemeStore: selector => selector({ theme: 'light', setTheme() {} }) }, './旧版顶栏.module.css': { default: {} },

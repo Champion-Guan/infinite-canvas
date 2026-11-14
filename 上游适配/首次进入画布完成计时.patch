@@ -1,0 +1,36 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index a9d7315..f6a4f17 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -61,6 +61,7 @@ import { useCanvasPersistence } from "@/扩展功能/产品/画布保存接线";
+ import { canvasHasPendingChanges, canvasSavePending } from "@/扩展功能/产品/画布保存判定";
+ import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
+ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
++import { markWorkbenchStartup } from "@/扩展功能/本机存储/启动计时.mjs";
+ import type { ChangeEvent as ReactChangeEvent, DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
+ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+ import { Group, Video } from "lucide-react";
+@@ -593,6 +594,7 @@ function InfiniteCanvasPage() {
+             }
+             restoredProjectIdRef.current = projectId;
+             setProjectLoaded(true);
++            markWorkbenchStartup("canvas-restored");
+ 
+         const firstCanvasPaint = new Promise<void>((resolve) => {
+             requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+@@ -618,6 +620,15 @@ function InfiniteCanvasPage() {
+         return () => { cancelled = true; };
+     }, [hydrated, navigate, openProject, projectId, setRawNodes, restoreAttempt]);
+ 
++    useEffect(() => {
++        if (!projectLoaded || !productActive) return;
++        let paint = 0;
++        const frame = requestAnimationFrame(() => {
++            paint = requestAnimationFrame(() => markWorkbenchStartup("canvas-painted"));
++        });
++        return () => { cancelAnimationFrame(frame); cancelAnimationFrame(paint); };
++    }, [projectLoaded, productActive]);
++
+     useEffect(() => {
+         if (!projectLoaded) return;
+         nodesRef.current.filter(hasResumableVideoTask).forEach((node) => void pollVideoNodeTask(node, true));

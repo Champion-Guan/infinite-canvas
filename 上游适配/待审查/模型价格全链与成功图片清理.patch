@@ -1,0 +1,290 @@
+--- a/画布副本/web/src/stores/use-config-store.ts
++++ b/画布副本/web/src/stores/use-config-store.ts
+@@ -19,6 +19,7 @@
+     name: string;
+     capability: ModelCapability;
+     script?: string;
++    price?: number;
+ };
+ 
+ export type ModelChannel = {
+@@ -327,7 +328,8 @@
+         seen.add(name);
+         const capability = typeof item === "string" ? guessCapability(name) : item.capability || guessCapability(name);
+         const script = typeof item === "string" ? undefined : item.script?.trim() || undefined;
+-        result.push({ name, capability, script });
++        const price = typeof item === "string" || item.price == null || item.price === 0 ? undefined : Number(item.price);
++        result.push({ name, capability, script, ...(Number.isFinite(price) ? { price } : {}) });
+     }
+     return result;
+ }
+--- a/画布副本/web/src/components/layout/model-select-modal.tsx
++++ b/画布副本/web/src/components/layout/model-select-modal.tsx
+@@ -1,14 +1,14 @@
+ import { useSettingsViewport } from "@/guan/设置视区";
+-import { App, Button, Checkbox, Input, Modal, Tabs } from "antd";
++import { App, Button, Checkbox, Input, InputNumber, Modal, Tabs } from "antd";
+ import { RefreshCw, Search } from "lucide-react";
+ import { useEffect, useMemo, useState } from "react";
+ import { useTranslation } from "react-i18next";
+ 
+ import { fetchChannelModels } from "@/services/api/image";
+-import type { ModelChannel } from "@/stores/use-config-store";
++import { guessCapability, type ChannelModel, type ModelChannel } from "@/stores/use-config-store";
+ 
+ // Channel model selector: fetch upstream models or add them manually, then include checked models in the channel list.
+-export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onClose }: { open: boolean; channel: ModelChannel | null; selectedNames: string[]; onConfirm: (names: string[]) => void; onClose: () => void }) {
++export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onClose }: { open: boolean; channel: ModelChannel | null; selectedNames: string[]; onConfirm: (models: ChannelModel[]) => void; onClose: () => void }) {
+     const { message } = App.useApp();
+     const { t } = useTranslation();
+     const viewport = useSettingsViewport();
+@@ -18,6 +18,7 @@
+     const [activeTab, setActiveTab] = useState("new");
+     const [search, setSearch] = useState("");
+     const [manual, setManual] = useState("");
++    const [prices, setPrices] = useState<Record<string, number | undefined>>({});
+     const [loading, setLoading] = useState(false);
+ 
+     useEffect(() => {
+@@ -28,7 +29,8 @@
+         setActiveTab(selectedNames.length ? "existing" : "new");
+         setSearch("");
+         setManual("");
+-    }, [open, selectedNames]);
++        setPrices(Object.fromEntries((channel?.models || []).map((model) => [model.name, model.price])));
++    }, [open, selectedNames, channel]);
+ 
+     const currentList = activeTab === "new" ? fetched : existing;
+     const visibleList = useMemo(() => {
+@@ -82,7 +84,11 @@
+ 
+     const confirm = () => {
+         const ordered = [...existing, ...fetched].filter((name, index, list) => list.indexOf(name) === index).filter((name) => selected.has(name));
+-        onConfirm(ordered);
++        onConfirm(ordered.map((name) => {
++            const existingModel = channel?.models.find((model) => model.name === name);
++            const price = prices[name];
++            return { ...(existingModel || { name, capability: guessCapability(name) }), price };
++        }));
+         onClose();
+     };
+ 
+@@ -146,11 +152,12 @@
+             {visibleList.length ? (
+                 <div className="grid grid-cols-1 gap-x-8 gap-y-3 md:grid-cols-2">
+                     {visibleList.map((name) => (
+-                        <Checkbox key={name} checked={selected.has(name)} onChange={(event) => toggle(name, event.target.checked)}>
+-                            <span className="truncate" title={name}>
+-                                {name}
+-                            </span>
+-                        </Checkbox>
++                        <div key={name} className="flex items-center gap-2">
++                            <Checkbox checked={selected.has(name)} onChange={(event) => toggle(name, event.target.checked)}>
++                                <span className="truncate" title={name}>{name}</span>
++                            </Checkbox>
++                            <InputNumber size="small" min={0} precision={6} disabled={!selected.has(name)} value={prices[name]} onChange={(value) => setPrices((current) => ({ ...current, [name]: typeof value === "number" ? value : undefined }))} placeholder="价格（可选）" />
++                        </div>
+                     ))}
+                 </div>
+             ) : (
+--- a/画布副本/web/src/components/layout/channel-editor-drawer.tsx
++++ b/画布副本/web/src/components/layout/channel-editor-drawer.tsx
+@@ -1,6 +1,6 @@
+ import { useSettingsViewport } from "@/guan/设置视区";
+ import { businessFeatures } from "@/guan/脚本与提示词来源";
+-import { Button, Drawer, Input, Segmented, Select, Space } from "antd";
++import { Button, Drawer, Input, InputNumber, Segmented, Select, Space } from "antd";
+ import { ListPlus, Trash2 } from "lucide-react";
+ import { useEffect, useState } from "react";
+ import { useTranslation } from "react-i18next";
+@@ -37,9 +37,9 @@
+         patch({ apiFormat, baseUrl });
+     };
+ 
+-    const applySelection = (names: string[]) => {
++    const applySelection = (models: ChannelModel[]) => {
+         const map = new Map(draft.models.map((model) => [model.name, model]));
+-        setModels(names.map((name) => map.get(name) || { name, capability: guessCapability(name) }));
++        setModels(models.map((model) => ({ ...map.get(model.name), ...model, capability: model.capability || guessCapability(model.name) })));
+     };
+ 
+     const setCapability = (name: string, capability: ModelCapability) => setModels(draft.models.map((model) => (model.name === name ? { ...model, capability } : model)));
+@@ -106,6 +106,7 @@
+                                 {model.name}
+                             </span>
+                             <div className="flex shrink-0 items-center gap-2">
++                                <InputNumber size="small" min={0} precision={6} value={model.price} placeholder="价格（可选）" onChange={(value) => setModels(draft.models.map((item) => (item.name === model.name ? { ...item, price: typeof value === "number" ? value : undefined } : item)))} />
+                                 <Segmented size="small" value={model.capability} options={capabilityOptions} onChange={(value) => setCapability(model.name, value as ModelCapability)} />
+                                 {businessFeatures.modelScripts ? <Button size="small" type={model.script ? "primary" : "default"} ghost={Boolean(model.script)} onClick={() => setScriptTarget({ name: model.name, capability: model.capability, value: model.script || "" })}>
+                                     {t(model.script ? "config.channelEditor.scriptReady" : "config.channelEditor.script")}
+--- a/画布副本/web/src/guan/generation/图片任务确认恢复.mjs
++++ b/画布副本/web/src/guan/generation/图片任务确认恢复.mjs
+@@ -1,4 +1,5 @@
+-import { requireValue } from '../sqlite/协议.mjs';
++// 独立后继，原确认恢复 SHA256 3909de11a30448d34909323a7b911831db36f540af1cceaf9552a1d62ce94d5f；原件保留。
++import { requireValue } from '../本机存储/协议.mjs';
+ 
+ // 只从原卡片已有的任务身份及响应收据恢复；不创建任务、不交付图片、不访问渠道。
+ export function imageConfirmationTargets(productId, nodes) {
+@@ -16,7 +17,8 @@
+   return targets;
+ }
+ 
+-export function createImageConfirmationRecovery({ host, targets, save, serialize, isCurrent = () => true }) {
++/** @param {{host: any, targets: any[], save: Function, serialize: Function, afterConfirmed?: (target: {id: string, productId: string, nodeId: string, responseHash: string}) => Promise<void>, isCurrent?: () => boolean}} options */
++export function createImageConfirmationRecovery({ host, targets, save, serialize, afterConfirmed = async () => {}, isCurrent = () => true }) {
+   const confirmed = new Set();
+   let flight;
+   function run() {
+@@ -50,6 +52,7 @@
+               const { responseHash, ...task } = target;
+               await host.confirmSaved(task, { responseHash });
+             }
++            if (isCurrent()) await afterConfirmed(target);
+             if (isCurrent()) confirmed.add(target.id);
+           });
+         } catch {
+@@ -63,3 +66,32 @@
+   }
+   return Object.freeze({ run });
+ }
++
++// 仅清理已经由调用方确认成功的原任务槽位；不触碰媒体、身份或其他失败项。
++export function clearConfirmedImageErrors(nodes, target) {
++  let changed = false;
++  const next = nodes.map(node => {
++    if (node.type !== 'image' || node.id !== target.nodeId) return node;
++    const tasks = (node.metadata?.gatewayGenerationTasks || []).filter(task => task.taskId === target.id);
++    const receipts = (node.metadata?.gatewayGenerationReceipts || []).filter(receipt => receipt.taskId === target.id);
++    if (tasks.length !== 1 || receipts.length !== 1 || receipts[0].responseHash !== target.responseHash) return node;
++    const slots = node.metadata?.images || [], slotId = tasks[0].slotId;
++    if (slots.filter(image => image.id === slotId).length !== 1) return node;
++    let slotChanged = false;
++    const images = slots.map(image => {
++      if (image.id !== slotId || image.status !== 'success' || !image.content || !image.storageKey || !image.errorDetails) return image;
++      changed = true;
++      slotChanged = true;
++      return { ...image, errorDetails: undefined };
++    });
++    return slotChanged ? { ...node, metadata: { ...node.metadata, images } } : node;
++  });
++  return changed ? next : nodes;
++}
++
++// 同一收据确认后仍可能收到原保存失败回调；新错误出现时重新核对任务，不能沿用旧confirmed缓存。
++export function imageConfirmationErrorKey(nodes) {
++  return JSON.stringify(nodes.filter(node => node.type === 'image').flatMap(node =>
++    (node.metadata?.images || []).filter(image => image.status === 'success' && image.errorDetails)
++      .map(image => [node.id, image.id, image.errorDetails])));
++}
+--- a/画布副本/web/src/guan/generation/图片任务确认状态.tsx
++++ b/画布副本/web/src/guan/generation/图片任务确认状态.tsx
+@@ -4,14 +4,17 @@
+ import { saveProductCanvas } from "@/guan/产品操作";
+ import { storageStatus } from "@/guan/上游浏览器存储桥";
+ import { serializeProductResult } from "./图片任务衔接.mjs";
+-import { createImageConfirmationRecovery, imageConfirmationTargets } from "./图片任务确认恢复.mjs";
++import { createImageConfirmationRecovery, imageConfirmationTargets, imageConfirmationErrorKey } from "./图片任务确认恢复.mjs";
++
++export type ConfirmedImageTarget = { id: string; productId: string; nodeId: string; responseHash: string };
+ 
+ // 与图片重试按钮分开：这里始终只确认已有收据，不能走生成或媒体交付入口。
+-export function ImageTaskConfirmation({ productId, nodes, ready }: { productId: string; nodes: CanvasNodeData[]; ready: boolean }) {
++export function ImageTaskConfirmation({ productId, nodes, ready, afterConfirmed }: { productId: string; nodes: CanvasNodeData[]; ready: boolean; afterConfirmed: (target: ConfirmedImageTarget) => Promise<void> }) {
+   const targetsKey = useMemo(() => {
+     try { return JSON.stringify(imageConfirmationTargets(productId, nodes)); }
+     catch { return null; }
+   }, [productId, nodes]);
++  const errorsKey = useMemo(() => imageConfirmationErrorKey(nodes), [nodes]);
+   const [status, setStatus] = useState({ key: "", pending: 0, busy: false });
+   const retryRef = useRef<(() => void) | null>(null);
+   useEffect(() => {
+@@ -19,7 +22,7 @@
+     let active = true;
+     const host = (window as unknown as { __guanGenerationHost?: unknown }).__guanGenerationHost;
+     const recovery = createImageConfirmationRecovery({ host, targets: JSON.parse(targetsKey), save: saveProductCanvas,
+-      serialize: serializeProductResult, isCurrent: () => active });
++      serialize: serializeProductResult, afterConfirmed, isCurrent: () => active });
+     const retry = () => {
+       if (!active) return;
+       setStatus(previous => ({ key: targetsKey, pending: previous.key === targetsKey ? previous.pending : 0, busy: true }));
+@@ -32,7 +35,7 @@
+     window.addEventListener("guan:storage-status", saved);
+     retry();
+     return () => { active = false; retryRef.current = null; window.removeEventListener("guan:storage-status", saved); };
+-  }, [productId, ready, targetsKey]);
++  }, [productId, ready, targetsKey, errorsKey, afterConfirmed]);
+   const invalid = ready && targetsKey === null;
+   const pending = status.key === targetsKey ? status.pending : 0;
+   if (!invalid && !pending) return null;
+--- a/画布副本/web/src/pages/canvas/project.tsx
++++ b/画布副本/web/src/pages/canvas/project.tsx
+@@ -6,7 +6,8 @@
+ import { bindExcelParameters, createProductParameterNode, insertExcelPromptCards, reconcileExcelPreviews, excelDeletionIds, clearDeletedExcelRelations, disconnectExcelParameters, remapCopiedExcelRelations, type ExcelInsertRequest } from "@/guan/Excel卡片事务";
+ import { EXCEL_PROMPT_DRAG_TYPE } from "@/guan/Excel提示词列表";
+ import { useProductActive } from "@/guan/产品界面边界";
+-import { ImageTaskConfirmation } from "@/guan/generation/图片任务确认状态";
++import { clearConfirmedImageErrors } from "@/guan/generation/图片任务确认恢复.mjs";
++import { ImageTaskConfirmation, type ConfirmedImageTarget } from "@/guan/generation/图片任务确认状态";
+ import { requestCanvasImage, type CanvasImageTask } from "@/guan/generation/原画布图片调用";
+ import { saveProductCanvas, useProductCanvasSave, useProductNavigation } from "@/guan/产品操作";
+ import { flushSQLiteStorage } from "@/guan/上游浏览器存储桥";
+@@ -649,6 +650,22 @@
+             }
+         }, () => generationRequestsRef.current.size === 0 && runningNodeId === null);
+ 
++    const pendingImageErrorSaves = useRef(new Set<string>());
++    const clearConfirmedImageError = useCallback(async (target: ConfirmedImageTarget) => {
++        if (target.productId !== projectId || restoredProjectIdRef.current !== projectId) return;
++        const previous = nodesRef.current;
++        const next = clearConfirmedImageErrors(previous, target) as CanvasNodeData[];
++        if (next !== previous) {
++            pendingImageErrorSaves.current.add(target.id);
++            setNodes(next);
++        }
++        // 清理保存失败时保留重试标记；下次仅保存，不重新交付或生成图片。
++        if (pendingImageErrorSaves.current.has(target.id)) {
++            await saveProductCanvas(projectId);
++            pendingImageErrorSaves.current.delete(target.id);
++        }
++    }, [projectId, setNodes]);
++
+     const recordImageGatewayTask = useCallback(async (id: string, task: CanvasImageTask) => {
+         if (!nodesRef.current.some(node => node.id === id)) throw new Error("原结果卡片已删除，未发送生成请求。");
+         setNodes(prev => prev.map(node => node.id !== id ? node : { ...node, metadata: {
+@@ -3850,7 +3867,7 @@
+ 
+                 <AssetPickerModal open={productActive && assetPickerOpen} onInsert={handleAssetInsert} onClose={() => setAssetPickerOpen(false)} />
+             </section>
+-            <ImageTaskConfirmation productId={projectId} nodes={nodes} ready={projectLoaded} />
++            <ImageTaskConfirmation productId={projectId} nodes={nodes} ready={projectLoaded} afterConfirmed={clearConfirmedImageError} />
+         </main></ExcelCanvasScope>
+     );
+ }
+--- a/画布副本/web/src/guan/config/配置文件安全.ts
++++ b/画布副本/web/src/guan/config/配置文件安全.ts
+@@ -1,3 +1,4 @@
++// 独立后继，原配置安全来源 SHA256 f703e850d553a23e83a0c51922db19a3f96128c70e9bf0c41836630f7ea69b50；保留脱敏及导入门禁，只增加有限非负价格字段。
+ // 迁入旧版config-file.ts与config-portability.ts的导出/导入行为。
+ // 来源与指纹由开发工具/预审配置文件安全.mjs锁定；SQLite负责凭据加密及保存ACK。
+ import { saveAs } from "file-saver";
+@@ -47,7 +48,8 @@
+             channels: config.channels.map((channel) => ({
+                 id: channel.id, name: channel.name, apiFormat: channel.apiFormat, apiKey: "", baseUrl: portableEndpoint(channel.baseUrl),
+                 // Arbitrary request scripts can contain embedded credentials.
+-                models: channel.models.map((model) => ({ name: model.name, capability: model.capability, script: "" })),
++                models: channel.models.map((model) => ({ name: model.name, capability: model.capability, script: "",
++                    ...(typeof model.price === "number" && Number.isFinite(model.price) && model.price >= 0 ? { price: model.price } : {}) })),
+             })),
+         },
+         webdav: { username: webdav.username, directory: webdav.directory, lastSyncedAt: webdav.lastSyncedAt, password: "", url: portableEndpoint(webdav.url) },
+@@ -123,7 +125,8 @@
+             apiFormat: channel.apiFormat as "openai" | "gemini",
+             models: channel.models.map((model) => {
+                 if (!record(model) || !["image", "video", "text", "audio"].includes(string(model.capability))) invalid();
+-                return { name: string(model.name), capability: model.capability as "image" | "video" | "text" | "audio",
++                if (model.price !== undefined && (typeof model.price !== "number" || !Number.isFinite(model.price) || model.price < 0)) invalid();
++                return { name: string(model.name), ...(model.price === undefined ? {} : { price: model.price as number }), capability: model.capability as "image" | "video" | "text" | "audio",
+                     ...(model.script === undefined ? {} : { script: string(model.script) }) };
+             }),
+         };

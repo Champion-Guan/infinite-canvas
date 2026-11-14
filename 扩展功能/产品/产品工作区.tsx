@@ -12,6 +12,7 @@ import { productRestoreMountGate } from "./产品恢复挂载门禁";
 import { usePreferredModelSynchronization } from "../画布生成/偏好模型同步";
 import { createProductCanvasCache, retainedProductCanvases, PRODUCT_CANVAS_IDLE_TIMEOUT_MS } from "./画布缓存规则";
 import { productCanvasResidency } from "./画布驻留保护";
+import { finishStartupScreen } from "../本机存储/启动画面交接.mjs";
 
 // 最近访问的画布保留热实例；非当前画布连续安全空闲五分钟后才休眠释放。
 // 后台工作实例由驻留保护临时保留，不用卸载/Activity暂停来取消用户任务。
@@ -55,6 +56,9 @@ export function ProductWorkspace() {
   const home = useMatch("/");
   const blockedRestores = useSyncExternalStore(productRestoreMountGate.subscribe, productRestoreMountGate.getSnapshot, productRestoreMountGate.getSnapshot);
   const activeRestorePending = blockedRestores.includes(activeId);
+  useLayoutEffect(() => {
+    if (activeRestorePending || (!activeId && !home)) finishStartupScreen();
+  }, [activeRestorePending, activeId, home]);
   const ids = useCanvasStore(
     useShallow((state) => state.projects.map((project) => project.id)),
   );

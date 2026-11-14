@@ -8,7 +8,7 @@ import { COLLECTIONS, LEGACY_SCHEMA_VERSION, MAX_FRAGMENT_BATCH_BYTES, MAX_FRAGM
 
 import { 清理独占暂存文件 } from '../本机服务/中断文件清理.mjs';
 import { 数据磁盘保留字节, 配置SQLite日志, 检查SQLite写入空间 } from './写入空间保护.mjs';
-import { readCategorizedUsage } from './分类容量统计.mjs';
+import { readCategorizedUsageInBackground } from './分类容量统计.mjs';
 import { 复制独立备份文件, 复用相同数据库快照, 计算文件哈希 } from './备份节省空间.mjs';
 import { createStorageRetention } from './存储保留策略.mjs';
 
@@ -263,7 +263,7 @@ export function openWorkspace({ dataRoot, initialize = false, availableBytes, be
     readDetailedUsage() {
       active();
       // 同时打开多个容量面板只做一次扫描；结束后不缓存，不影响保存队列。
-      if (!usagePending) usagePending = readCategorizedUsage({ dataRoot: root, workspaceId }).finally(() => { usagePending = null; });
+      if (!usagePending) usagePending = readCategorizedUsageInBackground({ dataRoot: root, workspaceId }).finally(() => { usagePending = null; });
       return usagePending;
     },
     readUsage() {

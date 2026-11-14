@@ -1,0 +1,12 @@
+diff --git a/web/src/components/canvas/canvas-selection-toolbar.tsx b/web/src/components/canvas/canvas-selection-toolbar.tsx
+index c0248ad..0710e1f 100644
+--- a/web/src/components/canvas/canvas-selection-toolbar.tsx
++++ b/web/src/components/canvas/canvas-selection-toolbar.tsx
+@@ -53,6 +53,7 @@ export function CanvasSelectionToolbar({
+         <CanvasFloatingBoundary><div
+             data-node-toolbar="selection"
+             data-canvas-selection-toolbar
++            aria-busy={downloading}
+             data-toolbar-node-x={bounds.left}
+             data-toolbar-node-y={bounds.top}
+             data-toolbar-node-width={bounds.right - bounds.left}

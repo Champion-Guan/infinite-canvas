@@ -7,5 +7,6 @@ export async function assembleNetworkProxyService({ workspace, vault, runTrusted
   const runtime = createMihomoRuntime(runtimeOptions), proxy = await openNetworkProxyService({ workspace, vault, runTrustedWrite, runtime, initialConfiguration, deferStartup,
     ...(resourceUpdateOptions ? { resourceUpdateOptions: { ...resourceUpdateOptions, bundledCore: runtimeOptions.core, runtimeFactory: core => createMihomoRuntime({ ...runtimeOptions, core }) } } : {}) });
   return Object.freeze({ handle: createNetworkProxyHTTPHandler({ origin, authorize, proxy, relay: 创建本地转发({ proxy }) }), getStatus: proxy.status,
+    waitUntilReady: options => proxy.waitUntilReady(options),
     pauseUpdates: () => proxy.pauseUpdates(), resumeUpdates: () => proxy.resumeUpdates(), assertCanClose: () => proxy.assertCanClose(), close: () => proxy.close(), acquireRoute: transport => proxy.acquireRoute(transport) });
 }

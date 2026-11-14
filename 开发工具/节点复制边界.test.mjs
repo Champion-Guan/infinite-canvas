@@ -32,6 +32,7 @@ let serial = 0;
 const api = await load('画布布局/节点复制操作.ts', {
     react: { useCallback: value => value, useRef: value => ({ current: value }) }, nanoid: { nanoid: () => 'new-' + ++serial },
     '@/types/canvas': { CanvasNodeType: { Group: 'group' } }, '../Excel画布/Excel卡片事务': excel,
+    '../Excel画布/商品策划副本规则': await load('Excel画布/商品策划副本规则.ts'),
 });
 const node = (id, metadata = {}, type = 'text', x = 0, y = 0) => ({ id, type, title: id, position: { x, y }, width: 100, height: 80, metadata });
 const edge = (fromNodeId, toNodeId) => ({ id: fromNodeId + '-' + toNodeId, fromNodeId, toNodeId });
@@ -107,6 +108,37 @@ test('复制参数卡不继承策划胶囊通知或运行状态，原任务保�
     const copied = copy([parameter]).nodes[0];
     assert.equal(copied.metadata.productPlanningTask, undefined);
     assert.equal(parameter.metadata.productPlanningTask.id, 'planning');
+});
+test('参数副本清理全部策划恢复标记，保留商品、变体和已填待确认资料，原卡任务和收据不变', async () => {
+    const {productPlanningRecovery} = (await import('./产品变体生成夹具.mjs')).variantModules().load('Excel画布/商品策划恢复入口.ts');
+    const metadata = {
+        productBrief:{nameCategory:'浴室置物架',dimensions:'72cm'},productPlatform:'未指定',productLanguage:'俄文',
+        productMainImages:[{id:'photo',storageKey:'image:photo'}],productVariants:[{id:'a',name:'白色'}],
+        productConfirmations:[{factId:'load',value:'8',variantId:'a'}],
+        productImagePlan:{imageCount:17,pendingFacts:[]},gatewayGenerationTasks:[{taskId:'old',slotId:'product-image-plan'}],
+        gatewayGenerationReceipts:[{taskId:'old',responseHash:'hash'}],
+        productPlanningTask:{id:'running',status:'loading'},productPlanningCandidate:{taskId:'old',response:'old-response'},
+        productPlanningPendingCommit:{taskId:'old',slotId:'product-image-plan',configNodeIds:['original-config']},
+        productPlanningTaskSources:{'product-image-plan':'old-source'},productPlanningResolution:{taskId:'old',status:'succeeded'},
+        productPlanningTaskOwner:{productId:'product',nodeId:'parameter',taskId:'old'},
+    };
+    const source=node('parameter',metadata,'guan:prompt-variables'),before=structuredClone(source);
+    for(const result of [copy([source]).nodes[0],(()=>{const h=hooked([source]);h.duplicateNode(source.id);return h.nodesRef.current[1];})()]){
+        for(const key of ['gatewayGenerationTasks','gatewayGenerationReceipts','productPlanningTask','productPlanningCandidate',
+            'productPlanningPendingCommit','productPlanningTaskSources','productPlanningResolution','productPlanningTaskOwner'])
+            assert.equal(result.metadata[key],undefined,key);
+        for(const key of ['productBrief','productPlatform','productLanguage','productMainImages','productVariants','productConfirmations','productImagePlan'])
+            assert.deepEqual(result.metadata[key],metadata[key],key);
+        assert.equal(productPlanningRecovery(result),undefined);
+    }
+    assert.deepEqual(source,before);
+});
+test('成组复制商品参数和双语提示词后，副本提示词绑定新参数，修改不回写原参数', () => {
+    const parameter=node('parameter',{productBrief:{nameCategory:'旧商品'}},'guan:prompt-variables');
+    const prompt=node('prompt',{productImagePrompt:{parameterId:'parameter',key:'main',prompt:{chinese:'商品',english:'Product'}}},'guan:product-prompt');
+    const before=structuredClone(prompt),result=copy([parameter,prompt],[edge('parameter','prompt')]);
+    assert.equal(result.nodes[1].metadata.productImagePrompt.parameterId,result.nodes[0].id);
+    assert.deepEqual(prompt,before);
 });
 test('连续粘贴生成不同ID并各自深拷贝，位置居中且不累加Copy后缀', () => {
     const original = [node('a', { references: ['image:a'] }, 'text', 0, 0), node('b', {}, 'text', 200, 100)];

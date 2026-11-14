@@ -9,7 +9,7 @@ type ProtocolIssue = { path: string; problem: string; factId?: string };
 export type ProductPlanningCandidate = {
     requestKey: string; response: string; imageIdentity?: string; issues: ProtocolIssue[]; slotId: string; taskId: string;
 };
-type PlanningCommit = { slotId: string; taskId: string };
+type PlanningCommit = { slotId: string; taskId: string; configNodeIds?: string[] };
 type CandidateMetadata = ProductPromptMetadata & {
     productPlanningCandidate?: ProductPlanningCandidate;
     productPlanningPendingCommit?: PlanningCommit;

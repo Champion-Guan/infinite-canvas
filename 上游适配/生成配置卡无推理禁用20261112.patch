@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/canvas-config-node-panel.tsx b/web/src/components/canvas/canvas-config-node-panel.tsx
+index b014b43..5922684 100644
+--- a/web/src/components/canvas/canvas-config-node-panel.tsx
++++ b/web/src/components/canvas/canvas-config-node-panel.tsx
+@@ -116,7 +116,7 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
+                 ) : mode === "audio" ? (
+                     <CanvasAudioSettingsPopover config={config} placement="topRight" buttonClassName="canvas-compact-control !h-10 !w-full !justify-start !rounded-lg !px-2" onConfigChange={(key, value) => onConfigChange(node.id, audioConfigPatch(key, value))} />
+                 ) : (
+-                    <CanvasTextSettingsPopover config={config} count={node.metadata?.textCount || 1} placement="topRight" buttonClassName="canvas-compact-control !h-10 !w-full !justify-start !rounded-lg !px-2" onConfigChange={(_, value) => onConfigChange(node.id, { reasoningEffort: value })} onCountChange={(textCount) => onConfigChange(node.id, { textCount })} />
++                    <CanvasTextSettingsPopover showUnsupportedNone config={config} count={node.metadata?.textCount || 1} placement="topRight" buttonClassName="canvas-compact-control !h-10 !w-full !justify-start !rounded-lg !px-2" onConfigChange={(_, value) => onConfigChange(node.id, { reasoningEffort: value })} onCountChange={(textCount) => onConfigChange(node.id, { textCount })} />
+                 )}
+             </div> : <div role="status" className="mb-2 text-xs opacity-60">此卡片的视频/语音生成已关闭，原参数保留；可切换图片或文本。</div>}
+             </TabContentTransition>

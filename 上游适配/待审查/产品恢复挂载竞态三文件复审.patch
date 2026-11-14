@@ -1,0 +1,120 @@
+--- /dev/null
++++ b/web/src/guan/产品恢复挂载门禁.ts
+@@ -0,0 +1,25 @@
++// 待审查后继：仅阻止恢复产品在落盘确认前挂载，不改变SQLite保存/重试协议。
++export class ProductRestoreMountGate {
++  private snapshot: readonly string[] = Object.freeze([]);
++  private listeners = new Set<() => void>();
++
++  getSnapshot = () => this.snapshot;
++  subscribe = (listener: () => void) => {
++    this.listeners.add(listener);
++    return () => { this.listeners.delete(listener); };
++  };
++
++  block(id: string) {
++    if (this.snapshot.includes(id)) return;
++    this.snapshot = Object.freeze([...this.snapshot, id]);
++    for (const listener of this.listeners) listener();
++  }
++
++  release(id: string) {
++    if (!this.snapshot.includes(id)) return;
++    this.snapshot = Object.freeze(this.snapshot.filter(value => value !== id));
++    for (const listener of this.listeners) listener();
++  }
++}
++
++export const productRestoreMountGate = new ProductRestoreMountGate();
+--- a/web/src/guan/产品操作.ts
++++ b/web/src/guan/产品操作.ts
+@@ -12,6 +12,7 @@
+ import { ProductCommitCheckpoint } from "./产品保存检查点";
+ import { planProductRecycle, planProductRestore, recycledProducts } from "./产品回收规则";
+ import { orderedProducts } from "./产品规则";
++import { productRestoreMountGate } from "./产品恢复挂载门禁";
+ 
+ export const ACTIVE_PRODUCT_KEY = "guan-products:active:v1";
+ const operations = new ProductOperationGate();
+@@ -62,7 +63,9 @@
+   const commitCurrent = useCallback(async () => {
+     if (!useCanvasStore.getState().hydrated)
+       throw new Error("产品数据尚未加载完成。");
+-    if (activeId && useCanvasStore.getState().openProject(activeId))
++    // 恢复门禁中的产品尚未挂载、不能编辑；没有页面检查点，但仍须下方全局保存ACK。
++    if (activeId && !productRestoreMountGate.getSnapshot().includes(activeId)
++        && useCanvasStore.getState().openProject(activeId))
+       await saves.flush(activeId);
+     await flushSQLiteStorage();
+   }, [activeId]);
+@@ -87,6 +90,8 @@
+         viewTransition: !window.matchMedia("(prefers-reduced-motion: reduce)")
+           .matches,
+       });
++      // 只有业务根与导航偏好均已确认，且导航已发起，才允许恢复画布挂载。
++      productRestoreMountGate.release(id);
+     },
+     [navigate],
+   );
+@@ -126,6 +131,8 @@
+       if (planned !== before) useCanvasStore.setState(planned);
+       // 失败不回滚/覆盖已确认代；完整快照仍在回收站及待确认队列，允许原UI显式重试。
+       await flushSQLiteStorage();
++      // 已再次归档的ID不再需要页内挂载门禁；未确认保存不走到这里。
++      productRestoreMountGate.release(id);
+       if (activeId === id) {
+         const current = useCanvasStore.getState();
+         const next = recycledProducts(current).find(entry => entry.id === id)?.nextProductId;
+@@ -144,7 +151,11 @@
+     (id: string) => operations.run(async () => {
+       await commitCurrent();
+       const before = useCanvasStore.getState(), planned = planProductRestore(before, id);
+-      if (planned !== before) useCanvasStore.setState(planned);
++      if (planned !== before) {
++        // 必须先封住挂载，再发布恢复状态；失败时保留门禁，显式重试/切换确认后放行。
++        productRestoreMountGate.block(id);
++        useCanvasStore.setState(planned);
++      }
+       await flushSQLiteStorage();
+       await enter(id);
+     }),
+--- a/web/src/guan/产品工作区.tsx
++++ b/web/src/guan/产品工作区.tsx
+@@ -1,4 +1,4 @@
+-import { memo, useEffect, useState } from "react";
++import { memo, useEffect, useState, useSyncExternalStore } from "react";
+ import { Route, Routes, useMatch } from "react-router-dom";
+ import { useShallow } from "zustand/react/shallow";
+ import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
+@@ -6,6 +6,7 @@
+ import NotFound from "@/pages/not-found";
+ import { CanvasEntry } from "@/guan/画布入口";
+ import { ProductSurface } from "./产品界面边界";
++import { productRestoreMountGate } from "./产品恢复挂载门禁";
+ 
+ // 原版每产品frameCache的等价边界：访问过才挂载，ID不变就不卸载；
+ // 保留真实尺寸、视区、选择、历史及后台任务。所有实例共用同一个Zustand/SQLite宿主，
+@@ -29,6 +30,8 @@
+ export function ProductWorkspace() {
+   const activeId = useMatch("/canvas/:id")?.params.id || "";
+   const home = useMatch("/");
++  const blockedRestores = useSyncExternalStore(productRestoreMountGate.subscribe, productRestoreMountGate.getSnapshot, productRestoreMountGate.getSnapshot);
++  const activeRestorePending = blockedRestores.includes(activeId);
+   const ids = useCanvasStore(
+     useShallow((state) => state.projects.map((project) => project.id)),
+   );
+@@ -46,10 +49,12 @@
+       : retained;
+   return (
+     <div style={{ position: "relative", height: "100%", minHeight: 0 }}>
+-      {visibleIds.map((id) => (
++      {visibleIds.filter((id) => !blockedRestores.includes(id)).map((id) => (
+         <ProductCanvas key={id} id={id} active={id === activeId} />
+       ))}
+-      {home || (activeId && !ids.includes(activeId)) ? (
++      {activeRestorePending ? (
++        <main className="grid h-full place-items-center bg-background text-foreground" role="status">产品恢复尚未确认，请勿刷新或关闭；若保存失败，请在回收站重试。</main>
++      ) : home || (activeId && !ids.includes(activeId)) ? (
+         <CanvasEntry />
+       ) : !activeId ? (
+         <NotFound />

@@ -153,7 +153,7 @@ test('Beta历史跟随已保存的开发者模式，关闭及尚未读取时隐�
             latest: { version: '2.1.0-beta.2', publishedAt: '2026-11-08T00:00:00Z', notes: '+ [新增] 在线Beta说明' } });
         assert.equal(value.currentVersion, '2.1.0-beta.2');
         assert.deepEqual(value.releases.map(item => item.version), (developerMode ? localReleases : stable).map(item => item.version));
-        if (developerMode) assert.equal(value.releases[0].items[0].content, '在线Beta说明');
+        if (developerMode) assert.equal(value.releases[0].items[0].content, 'Beta说明', '当前安装版本沿用本地逐条历史说明');
     }
     assert.deepEqual(localReleases, before, '切换只过滤展示，不删除离线Beta历史');
 });

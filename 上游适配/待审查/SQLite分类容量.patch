@@ -1,0 +1,644 @@
+--- a/扩展功能/本机存储/SQLite工作区.mjs
++++ b/扩展功能/本机存储/SQLite工作区.mjs
+@@ -6,6 +6,8 @@
+ import { createHash, randomUUID } from 'node:crypto';
+ import { COLLECTIONS, MAX_MEDIA_BYTES, MEDIA_TYPES, PROTOCOL, SCHEMA_VERSION, StorageError, requireValue, serializeDocument, validHash, validId, validUUID } from './协议.mjs';
+ 
++import { readCategorizedUsage } from './分类容量统计.mjs';
++
+ const DB_NAME = '工作台.sqlite';
+ const MARKER = '.工作区.json';
+ const LOCK = '.实例锁.json';
+@@ -112,6 +114,7 @@
+     db.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=3000;');
+   } catch (error) { db?.close(); if (lockOwned) unlinkSync(lockPath); throw error; }
+ 
++  let usagePending;
+   function active(write = false) {
+     requireValue(!closed, 'workspace_closed', '工作区已关闭。', 503);
+     requireValue(!write || !maintenance, 'workspace_busy', '工作区正在备份，请稍后重试。', 503);
+@@ -130,6 +133,12 @@
+   function validDocumentKey(collection, id) { requireValue(COLLECTIONS.includes(collection) && validId(id), 'invalid_document', '集合或文档标识无效。'); }
+   const store = {
+     dataRoot: root, workspaceId,
++    readDetailedUsage() {
++      active();
++      // 同时打开多个容量面板只做一次扫描；结束后不缓存，不影响保存队列。
++      if (!usagePending) usagePending = readCategorizedUsage({ dataRoot: root, workspaceId }).finally(() => { usagePending = null; });
++      return usagePending;
++    },
+     readUsage() {
+       active();
+       const groups = new Map();
+--- a/扩展功能/本机服务/数据服务.mjs
++++ b/扩展功能/本机服务/数据服务.mjs
+@@ -72,7 +72,7 @@
+         } finally { request.off('aborted', disconnected); response.off('close', disconnected); }
+       }
+       if (rawPath === '/health' && request.method === 'GET') { json(200, { protocol: PROTOCOL, workspaceId: workspace.workspaceId }); return; }
+-      if (rawPath === '/usage' && request.method === 'GET') { json(200, workspace.readUsage()); return; }
++      if (rawPath === '/usage' && request.method === 'GET') { const usage = await workspace.readDetailedUsage(); requireValue(sessions.get(token) === session && session.expiresAt > now(), 'session_denied', '统计期间会话已失效，请重新授权。', 401); json(200, usage); return; }
+       const match = rawPath.match(/^\/v1\/workspaces\/([^/]+)\/(documents|media)(?:\/([^/]+))?(?:\/([^/]+))?$/);
+       requireValue(match, 'route_not_found', '接口不存在。', 404);
+       const [, workspaceId, resource, first, second] = match;
+--- /dev/null
++++ b/扩展功能/本机存储/分类容量统计.mjs
+@@ -0,0 +1,184 @@
++import { DatabaseSync } from 'node:sqlite';
++import { createHash } from 'node:crypto';
++import { lstatSync, readdirSync } from 'node:fs';
++import { isAbsolute, join } from 'node:path';
++import { setImmediate } from 'node:timers/promises';
++import { MEDIA_TYPES, PROTOCOL, SCHEMA_VERSION, StorageError, requireValue, validHash, validUUID } from './协议.mjs';
++import { readFragmentGraph } from './分片值编码.mjs';
++
++export const USAGE_FORMAT = 'guan-sqlite-usage.v1';
++const sha = value => createHash('sha256').update(value).digest('hex');
++const namespaces = {
++  app_state: 'workspace', preferences: 'workspace', image_files: 'images', image_previews: 'previews',
++  media_files: 'media_index', prompt_cache: 'prompts', image_generation_logs: 'image_logs', video_generation_logs: 'video_logs',
++};
++const labels = {
++  images: '图片', previews: '图片缩略图', videos: '视频', audio: '音频', media_index: '通用媒体索引',
++  prompts: '提示词缓存', workspace: '画布与应用配置', image_logs: '图片生成记录', video_logs: '视频生成记录',
++  other_media: '其他媒体', shared: '跨分类共享内容', other: '其他扩展数据', history: '历史及未发布分片', retained_media: '当前未引用的保留媒体',
++};
++function safeStat(path, directory = false, optional = false) {
++  let stat;
++  try { stat = lstatSync(path); } catch (error) { if (optional && error.code === 'ENOENT') return null; throw error; }
++  requireValue(!stat.isSymbolicLink() && (directory ? stat.isDirectory() : stat.isFile() && stat.nlink === 1) && stat.uid === process.getuid() && (stat.mode & 0o022) === 0,
++    'usage_unsafe_path', '容量统计拒绝链接、未知类型或不安全权限。', 409);
++  return stat;
++}
++const check = (ok, message = '当前存储格式或引用不完整，未报告为空。') => requireValue(ok, 'usage_invalid_data', message, 409);
++const mimeCategory = mime => mime.startsWith('image/') ? 'images' : mime.startsWith('video/') ? 'videos' : mime.startsWith('audio/') ? 'audio' : 'other_media';
++function own(map, id, category) { if (!map.has(id)) map.set(id, new Set()); map.get(id).add(category); }
++const owner = owners => owners.size === 1 ? [...owners][0] : 'shared';
++
++// 只读独立连接持有业务快照；不在写连接跨await持有事务，不解密凭据、不读取媒体正文。
++// 磁盘文件长度是采样值，不冒充与并行写入原子一致的磁盘快照。备份明确不计入。
++export async function readCategorizedUsage({ dataRoot, workspaceId }) {
++  let db;
++  try {
++    check(isAbsolute(dataRoot) && validUUID(workspaceId));
++    safeStat(dataRoot, true);
++    const dbPath = join(dataRoot, '工作台.sqlite'), mediaRoot = join(dataRoot, '媒体');
++    safeStat(dbPath); safeStat(mediaRoot, true);
++    for (const suffix of ['-wal', '-shm']) safeStat(dbPath + suffix, false, true);
++    db = new DatabaseSync(dbPath, { readOnly: true });
++    db.exec('PRAGMA query_only=ON; PRAGMA busy_timeout=3000; BEGIN');
++    check(db.prepare('PRAGMA application_id').get().application_id === 0x47574149 && db.prepare('PRAGMA user_version').get().user_version === SCHEMA_VERSION);
++    check(db.prepare("SELECT value FROM workspace WHERE key='id'").get()?.value === workspaceId);
++    const categories = new Map(Object.entries(labels).map(([name, label]) => [name, { name, label, records: 0, files: 0, blocks: 0, documentBytes: 0, mediaBytes: 0, bytes: 0 }]));
++    const docs = new Map(), docOwners = new Map(), media = new Map(), mediaOwners = new Map(), files = new Map();
++    let documentBytes = 0, indexedMediaBytes = 0, steps = 0;
++    const yieldPeriodically = async () => { if (++steps % 128 === 0) await setImmediate(); };
++    for (const row of db.prepare('SELECT collection,id,length(CAST(body AS BLOB)) AS bytes FROM documents').iterate()) {
++      docs.set(row.collection + '/' + row.id, row); documentBytes += row.bytes;
++      check(docs.size <= 100_000, '统计记录超过本次安全上限，请使用后续分页统计。');
++      await yieldPeriodically();
++    }
++    for (const row of db.prepare('SELECT id,mime,size FROM media').iterate()) {
++      check(validHash(row.id) && MEDIA_TYPES.includes(row.mime) && Number.isSafeInteger(row.size) && row.size > 0);
++      media.set(row.id, row); indexedMediaBytes += row.size;
++      check(media.size <= 100_000, '媒体索引超过本次安全上限，请使用后续分页统计。');
++      await yieldPeriodically();
++    }
++    const getDocument = (collection, id) => {
++      const row = db.prepare('SELECT body,hash FROM documents WHERE collection=? AND id=?').get(collection, id);
++      check(row && sha(row.body) === row.hash, '当前文档或分片缺失、哈希不符，统计已停止。');
++      return { collection, id, value: JSON.parse(row.body), mediaIds: db.prepare('SELECT media_id FROM document_media WHERE collection=? AND document_id=? ORDER BY media_id').all(collection, id).map(ref => ref.media_id) };
++    };
++    function walkTree(tree, category, refs, depth = 0) {
++      check(depth <= 32 && Array.isArray(tree));
++      const [tag, value] = tree;
++      if ((tag === 'null' || tag === 'undefined') && tree.length === 1) return;
++      check(tree.length === 2);
++      if (tag === 'string') { check(typeof value === 'string' && !value.startsWith('blob:')); return; }
++      if (tag === 'boolean') { check(typeof value === 'boolean'); return; }
++      if (tag === 'number') { check(Number.isFinite(value)); return; }
++      if (tag === 'date') { check(typeof value === 'string' && Number.isFinite(Date.parse(value))); return; }
++      if (tag === 'secret') { check(typeof value === 'string' && /^secret:[A-Za-z0-9_-]{1,128}$/.test(value)); return; }
++      if (['blob', 'blob-url', 'array-buffer'].includes(tag)) {
++        check(value && typeof value.mime === 'string' && (!value.mime || MEDIA_TYPES.includes(value.mime)) && Number.isSafeInteger(value.size) && value.size >= 0 && value.size <= 512 * 1024 * 1024 && Array.isArray(value.parts) && value.parts.every(validHash) && value.parts.length === Math.ceil(value.size / (16 * 1024 * 1024)));
++        const kind = category === 'previews' ? 'previews' : !value.mime || value.mime === 'application/octet-stream' ? category === 'images' ? 'images' : 'other_media' : mimeCategory(value.mime);
++        const fileKey = JSON.stringify([value.mime, value.size, value.parts]);
++        own(files, fileKey, kind);
++        for (let i = 0; i < value.parts.length; i++) {
++          const id = value.parts[i];
++          check(media.get(id)?.size === Math.min(16 * 1024 * 1024, value.size - i * 16 * 1024 * 1024), '媒体块索引缺失或长度不符，统计已停止。');
++          refs.add(id); own(mediaOwners, id, kind);
++        }
++        return;
++      }
++      check((tag === 'array' || tag === 'object') && Array.isArray(value));
++      const names = new Set();
++      for (const item of value) {
++        if (tag === 'array') walkTree(item, category, refs, depth + 1);
++        else {
++          check(Array.isArray(item) && item.length === 2 && typeof item[0] === 'string' && !names.has(item[0]));
++          names.add(item[0]); walkTree(item[1], category, refs, depth + 1);
++        }
++      }
++    }
++    const rootIds = new Set();
++    for (const [namespace, category] of Object.entries(namespaces)) {
++      const id = 'app-' + sha(namespace), key = 'extension/' + id;
++      rootIds.add(key);
++      if (!docs.has(key)) continue;
++      const document = getDocument('extension', id), value = document.value;
++      check(value.namespace === namespace);
++      own(docOwners, key, category);
++      let entries;
++      if (value.format === 'guan-app-storage.v1') entries = value.entries;
++      else {
++        check(value.format === 'guan-app-storage.v2' && Object.keys(value).length === 4 && Number.isSafeInteger(value.entryCount) && value.entryCount >= 0);
++        entries = await readFragmentGraph({ head: value.head, readDocument: async (collection, part) => {
++          await yieldPeriodically(); own(docOwners, collection + '/' + part, category); return getDocument(collection, part);
++        } });
++        check(Array.isArray(entries) && entries.length === value.entryCount);
++      }
++      check(Array.isArray(entries));
++      const keys = new Set(), rootRefs = new Set();
++      for (const pair of entries) {
++        check(Array.isArray(pair) && pair.length === 2 && typeof pair[0] === 'string' && pair[0].length > 0 && pair[0].length <= 512 && !keys.has(pair[0]));
++        keys.add(pair[0]);
++        const refs = new Set(); walkTree(pair[1]?.tree, category, refs);
++        check(Array.isArray(pair[1]?.mediaIds) && pair[1].mediaIds.every(validHash) && pair[1].mediaIds.length === refs.size && pair[1].mediaIds.every(id => refs.has(id)) && new Set(pair[1].mediaIds).size === refs.size);
++        for (const id of refs) rootRefs.add(id);
++        await yieldPeriodically();
++      }
++      check(document.mediaIds.length === rootRefs.size && document.mediaIds.every(id => rootRefs.has(id)));
++      categories.get(category).records += entries.length;
++    }
++    for (const [key, row] of docs) {
++      let kind;
++      if (docOwners.has(key)) kind = owner(docOwners.get(key));
++      else if (row.collection === 'extension' && /^app-part-[a-f0-9]{64}$/.test(row.id)) kind = 'history';
++      else {
++        check(!(row.collection === 'extension' && row.id.startsWith('app-') && !rootIds.has(key)), '发现未知应用存储版本，统计已停止。');
++        kind = row.collection === 'canvas' ? 'workspace' : 'other';
++        categories.get(kind).records++;
++      }
++      categories.get(kind).documentBytes += row.bytes;
++      if (kind === 'history') categories.get(kind).blocks++;
++    }
++    // 普通业务文档的直接媒体引用兼容；已有类型描述优先，不把同一图片另算一份。
++    for (const row of db.prepare('SELECT collection,document_id,media_id FROM document_media').iterate()) {
++      check(media.has(row.media_id));
++      if (docOwners.has(row.collection + '/' + row.document_id) || /^app-part-[a-f0-9]{64}$/.test(row.document_id)) continue;
++      if (!mediaOwners.has(row.media_id)) own(mediaOwners, row.media_id, mimeCategory(media.get(row.media_id).mime));
++    }
++    for (const [id, row] of media) {
++      const kind = mediaOwners.has(id) ? owner(mediaOwners.get(id)) : 'retained_media';
++      categories.get(kind).mediaBytes += row.size; categories.get(kind).blocks++;
++    }
++    for (const owners of files.values()) categories.get(owner(owners)).files++;
++    db.exec('COMMIT'); db.close(); db = null;
++
++    let mediaDiskBytes = 0, unindexedMediaBytes = 0, unindexedMediaFiles = 0;
++    const seen = new Set();
++    for (const entry of readdirSync(mediaRoot, { withFileTypes: true })) {
++      let stat;
++      try { stat = safeStat(join(mediaRoot, entry.name)); } catch (error) {
++        if (error.code === 'ENOENT' && entry.name.startsWith('.暂存-')) continue;
++        throw error;
++      }
++      mediaDiskBytes += stat.size;
++      if (media.has(entry.name)) { check(stat.size === media.get(entry.name).size, '媒体文件缺失或大小不符，统计已停止。'); seen.add(entry.name); }
++      else { unindexedMediaBytes += stat.size; unindexedMediaFiles++; }
++      await yieldPeriodically();
++    }
++    check(seen.size === media.size, '已索引媒体文件缺失，统计已停止。');
++    const databaseFileBytes = safeStat(dbPath).size, walBytes = safeStat(dbPath + '-wal', false, true)?.size ?? 0, shmBytes = safeStat(dbPath + '-shm', false, true)?.size ?? 0;
++    const databaseBytes = databaseFileBytes + walBytes + shmBytes;
++    const stores = [...categories.values()].map(row => ({ ...row, bytes: row.documentBytes + row.mediaBytes }));
++    const contentBytes = documentBytes + indexedMediaBytes;
++    check(stores.reduce((sum, row) => sum + row.bytes, 0) === contentBytes);
++    const retainedContentBytes = stores.filter(row => row.name === 'history' || row.name === 'retained_media').reduce((sum, row) => sum + row.bytes, 0);
++    return { protocol: PROTOCOL, workspaceId, usage: databaseBytes + mediaDiskBytes, quota: null, contentBytes,
++      databases: [{ name: '工作台.sqlite + 媒体', version: SCHEMA_VERSION, bytes: contentBytes, stores }],
++      breakdown: { format: USAGE_FORMAT, sampledAt: new Date().toISOString(), currentContentBytes: contentBytes - retainedContentBytes, retainedContentBytes,
++        documentBytes, indexedMediaBytes, mediaDiskBytes, unindexedMediaBytes, unindexedMediaFiles, databaseBytes, databaseFileBytes, walBytes, shmBytes,
++        businessSnapshot: true, physicalSample: true, backupsIncluded: false, mediaContentVerified: false } };
++  } catch (error) {
++    if (error instanceof StorageError) throw error;
++    throw new StorageError('usage_unavailable', '容量读取失败，未报告为空；请稍后刷新。', 503);
++  } finally {
++    if (db) { try { if (db.isTransaction) db.exec('ROLLBACK'); } finally { db.close(); } }
++  }
++}
+--- /dev/null
++++ b/扩展功能/本机存储/分片值编码.mjs
+@@ -0,0 +1,153 @@
++import { requireValue, serializeDocument } from './协议.mjs';
++
++export const FRAGMENT_FORMAT = 'guan-app-fragment.v1';
++export const MAX_FRAGMENT_BYTES = 1024 * 1024;
++export const MAX_LOGICAL_BYTES = 32 * 1024 * 1024;
++export const MAX_GRAPH_FRAGMENTS = 4096;
++const INLINE_BYTES = 768 * 1024, FIELD_BYTES = 192 * 1024, INLINE_DEPTH = 30, MAX_GRAPH_DEPTH = 128;
++const utf8 = new TextEncoder();
++const bytes = value => utf8.encode(JSON.stringify(value)).length;
++const sha = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', utf8.encode(value)))].map(byte => byte.toString(16).padStart(2, '0')).join('');
++const sameKeys = (value, keys) => value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
++const validRef = value => sameKeys(value, ['id']) && typeof value.id === 'string' && /^app-part-[a-f0-9]{64}$/.test(value.id);
++const typedObject = value => Array.isArray(value) && value.length === 2 && value[0] === 'object' && Array.isArray(value[1]);
++function shallow(value, depth = 0) {
++  if (depth > INLINE_DEPTH) return false;
++  // 大的带类型对象按字段隔离，不能被外层数组重新合并成整产品块。
++  if (typedObject(value) && bytes(value) > FIELD_BYTES) return false;
++  return value === null || typeof value !== 'object' || Object.values(value).every(child => shallow(child, depth + 1));
++}
++
++// 只接收应用值编码器产生的普通JSON，不用于绕过凭据检测。
++// 固定数组分页保持局部修改的块边界；先生成完整计划，后由应用适配器提交根目录。
++export async function buildFragmentPlan(value) {
++  const logicalBytes = bytes(value), fragments = new Map();
++  requireValue(logicalBytes <= MAX_LOGICAL_BYTES, 'logical_value_too_large', '逻辑命名空间超过当前32MiB分片验收范围。', 413);
++  async function save(body) {
++    const value = { format: FRAGMENT_FORMAT, ...body }, text = JSON.stringify(value), size = utf8.encode(text).length;
++    requireValue(size <= MAX_FRAGMENT_BYTES, 'fragment_too_large', '数据块超过1MiB上限，没有提交根目录。', 413);
++    const hash = await sha(text), id = 'app-part-' + hash;
++    serializeDocument('extension', id, value, []);
++    if (!fragments.has(id)) fragments.set(id, { id, hash, value });
++    requireValue(fragments.size <= MAX_GRAPH_FRAGMENTS, 'fragment_budget_exceeded', '数据块数量超过当前4096块验收范围。', 413);
++    return { id };
++  }
++  async function pack(value, depth = 0) {
++    requireValue(depth <= MAX_GRAPH_DEPTH, 'fragment_depth_exceeded', '分片结构层级超过安全范围。');
++    if (typedObject(value) && bytes(value) > FIELD_BYTES) {
++      const entries = [];
++      for (const pair of value[1]) {
++        requireValue(Array.isArray(pair) && pair.length === 2 && typeof pair[0] === 'string', 'invalid_fragment_value', '带类型对象字段无效。');
++        entries.push([pair[0], bytes(pair[1]) > FIELD_BYTES ? ['ref', await pack(pair[1], depth + 1)] : ['inline', pair[1]]]);
++      }
++      return save({ kind: 'typed-object', entries: await pack(entries, depth + 1) });
++    }
++    if (bytes(value) <= INLINE_BYTES && shallow(value)) return save({ kind: 'json', data: value });
++    if (typeof value === 'string') {
++      let parts = [];
++      // 按UTF-16固定位置切分，重组后保留原字符（含跨块代理对及孤立代理项）。
++      for (let offset = 0; offset < value.length; offset += 8192) parts.push(await save({ kind: 'json', data: value.slice(offset, offset + 8192) }));
++      while (parts.length > 64) {
++        const next = [];
++        for (let offset = 0; offset < parts.length; offset += 64) next.push(await save({ kind: 'text', parts: parts.slice(offset, offset + 64) }));
++        parts = next;
++      }
++      return save({ kind: 'text', parts });
++    }
++    if (Array.isArray(value)) {
++      if (value.length === 1) return save({ kind: 'single', part: await pack(value[0], depth + 1) });
++      const width = value.length > 64 ? 64 : Math.ceil(value.length / 2), parts = [];
++      for (let offset = 0; offset < value.length; offset += width) parts.push(await pack(value.slice(offset, offset + width), depth + 1));
++      // 多级分页也限制根块扇出，避免百万条小记录把根目录撑大。
++      while (parts.length > 64) {
++        const next = [];
++        for (let offset = 0; offset < parts.length; offset += 64) next.push(await save({ kind: 'array', parts: parts.slice(offset, offset + 64) }));
++        parts.splice(0, parts.length, ...next);
++      }
++      return save({ kind: 'array', parts });
++    }
++    requireValue(value && typeof value === 'object', 'invalid_fragment_value', '分片只接收普通JSON值。');
++    return save({ kind: 'object', entries: await pack(Object.entries(value), depth + 1) });
++  }
++  return { head: await pack(value), fragments, logicalBytes };
++}
++
++export async function verifyFragment(document, reference) {
++  requireValue(validRef(reference) && document?.collection === 'extension' && document.id === reference.id && Array.isArray(document.mediaIds) && document.mediaIds.length === 0 && document.value?.format === FRAGMENT_FORMAT,
++    'fragment_corrupt', '数据块缺失、身份或格式不符，未作为空值读取。', 409);
++  const text = serializeDocument('extension', reference.id, document.value, []);
++  requireValue(utf8.encode(text).length <= MAX_FRAGMENT_BYTES && await sha(text) === reference.id.slice(9), 'fragment_corrupt', '数据块大小或内容哈希不匹配。', 409);
++  return document.value;
++}
++
++// 不依赖集合列表，避免列表1000条上限造成静默遗漏；通过根引用逐块校验。
++export async function readFragmentGraph({ head, readDocument }) {
++  const cache = new Map(), visiting = new Set();
++  let loaded = 0;
++  const bounded = result => {
++    requireValue(result.size <= MAX_LOGICAL_BYTES && result.depth <= MAX_GRAPH_DEPTH, 'fragment_budget_exceeded', '分片重组超过大小或层级安全范围。', 413);
++    return result;
++  };
++  async function visit(ref, depth = 0) {
++    requireValue(validRef(ref) && depth <= MAX_GRAPH_DEPTH && !visiting.has(ref.id), 'fragment_corrupt', '数据块引用、层级或循环无效。', 409);
++    if (cache.has(ref.id)) return cache.get(ref.id);
++    requireValue(++loaded <= MAX_GRAPH_FRAGMENTS, 'fragment_budget_exceeded', '读取的数据块数量超过安全范围。', 413);
++    visiting.add(ref.id);
++    const body = await verifyFragment(await readDocument('extension', ref.id), ref);
++    let result;
++    if (body.kind === 'json') {
++      requireValue(sameKeys(body, ['format', 'kind', 'data']) && shallow(body.data), 'fragment_corrupt', '内联数据块结构无效。', 409);
++      result = bounded({ value: body.data, size: bytes(body.data), depth: 1 });
++    } else if (body.kind === 'single') {
++      requireValue(sameKeys(body, ['format', 'kind', 'part']), 'fragment_corrupt', '单元素数据块结构无效。', 409);
++      const child = await visit(body.part, depth + 1);
++      result = bounded({ value: [child.value], size: child.size + 2, depth: child.depth + 1 });
++    } else if (body.kind === 'array' || body.kind === 'text') {
++      requireValue(sameKeys(body, ['format', 'kind', 'parts']) && Array.isArray(body.parts) && body.parts.length > 0 && body.parts.length <= 64, 'fragment_corrupt', '分片目录结构无效。', 409);
++      const values = []; let size = 2, childDepth = 0, length = 0, lastCode = 0;
++      for (const part of body.parts) {
++        const child = await visit(part, depth + 1);
++        requireValue(body.kind === 'array' ? Array.isArray(child.value) : typeof child.value === 'string', 'fragment_corrupt', '数据块类型与目录不匹配。', 409);
++        // 数组页的外括号不属于展开结果；文本拼接还可能合并跨页代理对。
++        size += child.size - 2 + (body.kind === 'array' && length && child.value.length ? 1 : 0); childDepth = Math.max(childDepth, child.depth);
++        if (body.kind === 'text' && child.value.length) {
++          const firstCode = child.value.charCodeAt(0);
++          if (lastCode >= 0xd800 && lastCode <= 0xdbff && firstCode >= 0xdc00 && firstCode <= 0xdfff) size -= 8;
++          lastCode = child.value.charCodeAt(child.value.length - 1);
++        }
++        length += child.value.length;
++        bounded({ size, depth: childDepth + 1 });
++        requireValue(body.kind !== 'array' || length <= 1_000_000, 'fragment_budget_exceeded', '数组展开数量超过安全范围。', 413);
++        values.push(child.value);
++      }
++      const value = body.kind === 'array' ? values.flat() : values.join('');
++      result = bounded({ value, size: body.kind === 'text' ? bytes(value) : size, depth: childDepth + 1 });
++    } else if (body.kind === 'typed-object') {
++      requireValue(sameKeys(body, ['format', 'kind', 'entries']), 'fragment_corrupt', '带类型对象目录无效。', 409);
++      const child = await visit(body.entries, depth + 1), entries = [], names = new Set();
++      requireValue(Array.isArray(child.value), 'fragment_corrupt', '带类型对象字段目录无效。', 409);
++      let size = 13, childDepth = child.depth;
++      for (const pair of child.value) {
++        requireValue(Array.isArray(pair) && pair.length === 2 && typeof pair[0] === 'string' && !names.has(pair[0]) && Array.isArray(pair[1]) && pair[1].length === 2, 'fragment_corrupt', '带类型对象字段重复或无效。', 409);
++        const [tag, payload] = pair[1];
++        requireValue(tag === 'inline' && shallow(payload) || tag === 'ref' && validRef(payload), 'fragment_corrupt', '带类型字段引用无效。', 409);
++        const item = tag === 'ref' ? await visit(payload, depth + 1) : { value: payload, size: bytes(payload), depth: 1 };
++        size += bytes(pair[0]) + item.size + 3 + (entries.length ? 1 : 0); childDepth = Math.max(childDepth, item.depth);
++        bounded({ size, depth: childDepth + 1 }); names.add(pair[0]); entries.push([pair[0], item.value]);
++      }
++      const value = ['object', entries];
++      result = bounded({ value, size: bytes(value), depth: childDepth + 1 });
++    } else if (body.kind === 'object') {
++      requireValue(sameKeys(body, ['format', 'kind', 'entries']), 'fragment_corrupt', '对象数据块结构无效。', 409);
++      const child = await visit(body.entries, depth + 1), value = {}, names = new Set();
++      requireValue(Array.isArray(child.value), 'fragment_corrupt', '对象字段目录无效。', 409);
++      for (const pair of child.value) {
++        requireValue(Array.isArray(pair) && pair.length === 2 && typeof pair[0] === 'string' && !names.has(pair[0]), 'fragment_corrupt', '对象字段重复或无效。', 409);
++        names.add(pair[0]); Object.defineProperty(value, pair[0], { value: pair[1], enumerable: true, configurable: true, writable: true });
++      }
++      result = bounded({ value, size: child.size, depth: child.depth + 1 });
++    } else requireValue(false, 'fragment_corrupt', '未知数据块版本或类型。', 409);
++    visiting.delete(ref.id); cache.set(ref.id, result); return result;
++  }
++  return (await visit(head)).value;
++}
+--- a/web/src/components/layout/config-local-storage.tsx
++++ b/web/src/components/layout/config-local-storage.tsx
+@@ -1,130 +1 @@
+-import { Alert, Button, Progress, Spin } from "antd";
+-import type { TFunction } from "i18next";
+-import { Database, HardDrive, Layers3, RefreshCw } from "lucide-react";
+-import { useCallback, useEffect, useState, type ReactNode } from "react";
+-import { useTranslation } from "react-i18next";
+-
+-import { readLocalStorageUsage, type LocalStorageUsage } from "@/services/local-storage-usage";
+-
+-const storeLabelKeys: Record<string, string> = {
+-    app_state: "appState",
+-    image_files: "images",
+-    image_previews: "imagePreviews",
+-    media_files: "media",
+-    image_generation_logs: "imageLogs",
+-    video_generation_logs: "videoLogs",
+-    agent_chat_messages: "agentMessages",
+-    prompt_cache: "promptCache",
+-};
+-
+-export function ConfigLocalStorage({ active }: { active: boolean }) {
+-    const { t } = useTranslation();
+-    const [usage, setUsage] = useState<LocalStorageUsage | null>(null);
+-    const [loading, setLoading] = useState(false);
+-    const [error, setError] = useState("");
+-
+-    const refresh = useCallback(async () => {
+-        setLoading(true);
+-        setError("");
+-        try {
+-            setUsage(await readLocalStorageUsage());
+-        } catch (reason) {
+-            setError(reason instanceof Error ? reason.message : t("config.localStorage.readFailed"));
+-        } finally {
+-            setLoading(false);
+-        }
+-    }, [t]);
+-
+-    useEffect(() => {
+-        if (active && !usage) void refresh();
+-    }, [active, refresh, usage]);
+-
+-    const indexedDbBytes = usage?.contentBytes ?? 0;
+-    const percent = usage?.quota ? Math.min(100, (usage.usage / usage.quota) * 100) : 0;
+-
+-    return (
+-        <div className="space-y-3">
+-            <section className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
+-                <div className="flex flex-wrap items-start justify-between gap-3">
+-                    <div>
+-                        <div className="flex items-center gap-2 text-sm font-semibold">
+-                            <Database className="size-4" />
+-                            {t("config.localStorage.title")}
+-                        </div>
+-                        <div className="mt-1 text-xs text-stone-500">{t("config.localStorage.description")}</div>
+-                    </div>
+-                    <Button icon={<RefreshCw className="size-4" />} loading={loading} onClick={() => void refresh()}>
+-                        {t("config.localStorage.refresh")}
+-                    </Button>
+-                </div>
+-                {error ? <Alert className="mt-4" type="error" showIcon message={t("config.localStorage.readFailed")} description={error} /> : null}
+-                {!usage && loading ? (
+-                    <div className="flex min-h-48 items-center justify-center"><Spin /></div>
+-                ) : usage ? (
+-                    <>
+-                        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+-                            <StorageMetric icon={<Database className="size-4" />} label={t("config.localStorage.indexedDbUsage")} value={formatStorageBytes(indexedDbBytes)} hint={t("config.localStorage.contentEstimate")} />
+-                            <StorageMetric icon={<HardDrive className="size-4" />} label={t("config.localStorage.siteUsage")} value={formatStorageBytes(usage.usage)} hint={t("config.localStorage.siteUsageHint")} />
+-                            <StorageMetric icon={<Layers3 className="size-4" />} label={t("config.localStorage.quota")} value={formatStorageBytes(usage.quota)} hint={usage.quota ? t("config.localStorage.quotaHint") : t("config.localStorage.quotaUnavailable")} />
+-                        </div>
+-                        {usage.quota ? (
+-                            <div className="mt-4">
+-                                <div className="mb-1 flex justify-between text-xs text-stone-500">
+-                                    <span>{t("config.localStorage.quotaProgress")}</span>
+-                                    <span className="tabular-nums">{percent.toFixed(2)}%</span>
+-                                </div>
+-                                <Progress percent={percent} showInfo={false} />
+-                            </div>
+-                        ) : null}
+-                    </>
+-                ) : null}
+-            </section>
+-            {usage?.databases.map((database) => (
+-                <section key={database.name} className="overflow-hidden rounded-lg border border-stone-200 dark:border-stone-800">
+-                    <div className="flex items-center justify-between gap-3 border-b border-stone-200 px-4 py-3 dark:border-stone-800">
+-                        <div className="min-w-0">
+-                            <div className="truncate text-sm font-semibold">{t("config.localStorage.mainDatabase")}</div>
+-                            <div className="mt-0.5 truncate font-mono text-[11px] text-stone-500">{database.name} · v{database.version}</div>
+-                        </div>
+-                        <div className="shrink-0 text-sm font-medium tabular-nums">{formatStorageBytes(database.bytes)}</div>
+-                    </div>
+-                    <div className="divide-y divide-stone-200 dark:divide-stone-800">
+-                        {database.stores.map((store) => (
+-                            <div key={store.name} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-4 px-4 py-3 text-sm">
+-                                <div className="min-w-0">
+-                                    <div className="truncate font-medium">{storeLabel(store.name, t)}</div>
+-                                    <div className="mt-0.5 truncate font-mono text-[11px] text-stone-500">{store.name}</div>
+-                                </div>
+-                                <div className="text-right text-xs text-stone-500 tabular-nums">{t("config.localStorage.records", { count: store.records })}</div>
+-                                <div className="w-20 text-right font-medium tabular-nums">{formatStorageBytes(store.bytes)}</div>
+-                            </div>
+-                        ))}
+-                    </div>
+-                </section>
+-            ))}
+-        </div>
+-    );
+-}
+-
+-function StorageMetric({ icon, label, value, hint }: { icon: ReactNode; label: string; value: string; hint: string }) {
+-    return (
+-        <div className="rounded-lg bg-stone-100/70 p-3 dark:bg-stone-900/70">
+-            <div className="flex items-center gap-2 text-xs text-stone-500">{icon}{label}</div>
+-            <div className="mt-2 text-xl font-semibold tabular-nums">{value}</div>
+-            <div className="mt-1 text-[11px] text-stone-500">{hint}</div>
+-        </div>
+-    );
+-}
+-
+-function storeLabel(name: string, t: TFunction) {
+-    const key = storeLabelKeys[name];
+-    return key ? t(`config.localStorage.stores.${key}`) : name;
+-}
+-
+-function formatStorageBytes(bytes: number | null) {
+-    if (bytes === null) return "—";
+-    if (bytes < 1024) return `${bytes} B`;
+-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+-    return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+-}
++export { ConfigLocalStorage } from "@/guan/SQLite分类容量面板";
+--- /dev/null
++++ b/web/src/guan/SQLite分类容量面板.tsx
+@@ -0,0 +1,121 @@
++import { Alert, Button, Progress, Spin } from "antd";
++import { Database, HardDrive, Layers3, RefreshCw } from "lucide-react";
++import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
++
++import { readLocalStorageUsage, type LocalStorageUsage } from "@/services/local-storage-usage";
++
++type Category = { name: string; label: string; records: number; files: number; blocks: number; documentBytes: number; mediaBytes: number; bytes: number };
++type DetailedUsage = Omit<LocalStorageUsage, "databases"> & {
++    databases: Array<{ name: string; version: number; bytes: number; stores: Category[] }>;
++    breakdown: {
++        format: string; sampledAt: string; currentContentBytes: number; retainedContentBytes: number;
++        databaseBytes: number; databaseFileBytes: number; walBytes: number; shmBytes: number;
++        indexedMediaBytes: number; mediaDiskBytes: number; unindexedMediaBytes: number; unindexedMediaFiles: number;
++    };
++};
++
++// 现有设置面板的分区、圆角、间距、按钮及深色样式保留；只更换统计数据与说明。
++export function ConfigLocalStorage({ active }: { active: boolean }) {
++    const [usage, setUsage] = useState<DetailedUsage | null>(null);
++    const [loading, setLoading] = useState(false);
++    const [error, setError] = useState("");
++    const request = useRef(0);
++    const invalidate = useCallback(() => { request.current++; }, []);
++    const refresh = useCallback(async () => {
++        const id = ++request.current;
++        setLoading(true);
++        setError("");
++        try {
++            const result = await readLocalStorageUsage() as DetailedUsage;
++            if (result.breakdown?.format !== "guan-sqlite-usage.v1") throw new Error("当前服务尚未接入 SQLite 分类统计，请完成服务接入后重试。");
++            if (id === request.current) setUsage(result);
++        } catch (reason) {
++            if (id === request.current) setError(reason instanceof Error ? reason.message : "容量读取失败，请稍后刷新。");
++        } finally {
++            if (id === request.current) setLoading(false);
++        }
++    }, []);
++
++    useEffect(() => {
++        // 页签先完成显示，再开始本机读取；关闭时取消尚未开始的读取及过期结果。
++        const timer = active ? window.setTimeout(() => void refresh(), 0) : undefined;
++        return () => { window.clearTimeout(timer); invalidate(); };
++    }, [active, refresh, invalidate]);
++
++    return (
++        <div className="space-y-3" aria-busy={loading}>
++            <section className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
++                <div className="flex flex-wrap items-start justify-between gap-3">
++                    <div>
++                        <div className="flex items-center gap-2 text-sm font-semibold"><Database className="size-4" />本机 SQLite 存储</div>
++                        <div className="mt-1 text-xs text-stone-500">数据保存在本机数据库和媒体目录，不使用浏览器站点配额，仍受本机磁盘可用空间限制。</div>
++                    </div>
++                    <Button icon={<RefreshCw className="size-4" />} loading={loading} onClick={() => void refresh()}>刷新统计</Button>
++                </div>
++                {error ? <Alert className="mt-4" type="error" showIcon message="容量读取失败" description={`${error}${usage ? " 下方保留上次结果，不代表当前容量。" : ""}`} /> : null}
++                {!usage && loading ? <div className="flex min-h-48 items-center justify-center"><Spin /></div> : null}
++                {usage ? (
++                    <>
++                        <div className="mt-4 grid gap-3 sm:grid-cols-3">
++                            <StorageMetric icon={<Database className="size-4" />} label="当前业务内容" value={formatBytes(usage.breakdown.currentContentBytes)} hint="当前记录及去重后的引用媒体，不含历史分片" />
++                            <StorageMetric icon={<HardDrive className="size-4" />} label="本机实际占用（采样）" value={formatBytes(usage.usage)} hint="SQLite、WAL、SHM 和媒体文件长度；不含备份" />
++                            <StorageMetric icon={<Layers3 className="size-4" />} label="历史与保留内容" value={formatBytes(usage.breakdown.retainedContentBytes)} hint="旧代/未发布分片和当前未引用媒体；不会自动清理" />
++                        </div>
++                        <div className="mt-3 text-[11px] leading-5 text-stone-500" role="status">
++                            统计时间：{new Date(usage.breakdown.sampledAt).toLocaleString()}。分类容量为数据正文与媒体大小，不等于 SQLite 文件大小，不能与实际占用再次相加。
++                        </div>
++                    </>
++                ) : null}
++            </section>
++            {usage?.databases.map(database => (
++                <section key={database.name} className="overflow-hidden rounded-lg border border-stone-200 dark:border-stone-800">
++                    <div className="flex items-center justify-between gap-3 border-b border-stone-200 px-4 py-3 dark:border-stone-800">
++                        <div className="min-w-0"><div className="text-sm font-semibold">内容分类</div><div className="mt-0.5 text-[11px] text-stone-500">容量按存储块去重，共享部分单列；文件数按媒体描述去重</div></div>
++                        <div className="shrink-0 text-sm font-medium tabular-nums">{formatBytes(database.bytes)}</div>
++                    </div>
++                    <div className="divide-y divide-stone-200 dark:divide-stone-800">
++                        {database.stores.map(store => (
++                            <div key={store.name} className="px-4 py-3">
++                                <div className="flex items-start justify-between gap-4 text-sm">
++                                    <div className="min-w-0"><div className="font-medium">{store.label}</div><div className="mt-0.5 text-[11px] text-stone-500">{countLabel(store)}</div></div>
++                                    <div className="shrink-0 text-right font-medium tabular-nums">{formatBytes(store.bytes)}</div>
++                                </div>
++                                <Progress className="!mb-0 !mt-1" percent={database.bytes ? Math.min(100, store.bytes / database.bytes * 100) : 0} showInfo={false} size="small" aria-label={`${store.label}容量占比`} />
++                            </div>
++                        ))}
++                    </div>
++                </section>
++            ))}
++            {usage ? (
++                <section className="rounded-lg border border-stone-200 p-4 text-xs dark:border-stone-800">
++                    <div className="mb-3 font-semibold">实际占用明细</div>
++                    <dl className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 text-stone-500">
++                        <dt>数据库文件</dt><dd className="text-right tabular-nums">{formatBytes(usage.breakdown.databaseFileBytes)}</dd>
++                        <dt>写入日志（WAL）</dt><dd className="text-right tabular-nums">{formatBytes(usage.breakdown.walBytes)}</dd>
++                        <dt>共享内存文件（SHM）</dt><dd className="text-right tabular-nums">{formatBytes(usage.breakdown.shmBytes)}</dd>
++                        <dt>媒体文件（已索引）</dt><dd className="text-right tabular-nums">{formatBytes(usage.breakdown.indexedMediaBytes)}</dd>
++                        <dt>媒体文件（未索引/暂存）</dt><dd className="text-right tabular-nums">{formatBytes(usage.breakdown.unindexedMediaBytes)}</dd>
++                    </dl>
++                    <p className="mb-0 mt-3 text-[11px] leading-5 text-stone-500">业务记录数不是画布卡片数，媒体块数不是文件数。实际占用包含索引、保存确认记录及数据库内部空间；并行保存时文件采样可能略有变化。这里只统计，不读取媒体正文、不解密密钥、不删除数据，也不统计备份。</p>
++                </section>
++            ) : null}
++        </div>
++    );
++}
++
++function countLabel(store: Category) {
++    if (store.name === "history") return `${store.blocks} 个存储分片（非业务记录）`;
++    const parts = store.records || (!store.files && !store.mediaBytes) ? [`${store.records} 项记录`] : [];
++    if (store.files) parts.push(`${store.files} 个去重媒体文件`);
++    if (store.blocks && store.mediaBytes) parts.push(`${store.blocks} 个媒体块`);
++    return parts.join(" · ");
++}
++function StorageMetric({ icon, label, value, hint }: { icon: ReactNode; label: string; value: string; hint: string }) {
++    return <div className="rounded-lg bg-stone-100/70 p-3 dark:bg-stone-900/70"><div className="flex items-center gap-2 text-xs text-stone-500">{icon}{label}</div><div className="mt-2 text-xl font-semibold tabular-nums">{value}</div><div className="mt-1 text-[11px] text-stone-500">{hint}</div></div>;
++}
++function formatBytes(bytes: number) {
++    if (bytes < 1024) return `${bytes} B`;
++    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
++    if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
++    return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
++}

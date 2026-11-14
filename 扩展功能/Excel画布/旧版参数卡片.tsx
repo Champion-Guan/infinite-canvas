@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Braces } from "lucide-react";
+import { Tooltip } from "antd";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { CanvasNodeContext } from "@/types/canvas-plugin";
@@ -18,6 +19,7 @@ import { ProductPlanningButton, ProductPlanOverview } from "./商品策划按钮
 import { ProductPlanningStreamPreview } from "./商品策划流式预览";
 import { ProductPlatformRuleEditor } from "./平台规则编辑";
 import { useGlobalPlatformRules } from "./平台规则订阅";
+import { productFeatures } from "../产品配置/功能开关";
 
 type ProductCardMetadata = ProductParameterMetadata;
 
@@ -76,8 +78,8 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
             data-canvas-no-zoom
             className="flex h-full w-full min-h-0 flex-col overflow-hidden rounded-[inherit] p-3 text-sm"
             style={{ color: theme.node.text }}
-            onMouseDown={(event) => { if ((event.target as HTMLElement).closest("input, textarea, select, button, [data-card-panel-anchor]")) event.stopPropagation(); }}
-            onPointerDown={(event) => { if ((event.target as HTMLElement).closest("input, textarea, select, button, [data-card-panel-anchor]")) event.stopPropagation(); }}
+            onMouseDown={(event) => { if ((event.target as HTMLElement).closest("input, textarea, select, button, summary, [data-card-panel-anchor]")) event.stopPropagation(); }}
+            onPointerDown={(event) => { if ((event.target as HTMLElement).closest("input, textarea, select, button, summary, [data-card-panel-anchor]")) event.stopPropagation(); }}
             onWheel={(event) => event.stopPropagation()}
         >
             <div className="mb-2 flex items-start justify-between gap-2">
@@ -92,6 +94,8 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
             </div>
 
             <div className="guan-scroll-region thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+            <ProductPlanningStreamPreview node={ctx.node} />
+            <ProductPlanOverview metadata={cardMetadata} ctx={ctx} productId={productId} />
             <section className="space-y-2 rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
                 <div className="grid grid-cols-2 gap-2">
                     <div className="block text-[11px]">
@@ -105,15 +109,27 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
                 </div>
                 <ProductPlatformRuleEditor key={`${ctx.node.id}:${platform}`} ctx={ctx} />
             </section>
-            <ProductPlanningStreamPreview node={ctx.node} />
-            <ProductPlanOverview metadata={cardMetadata} ctx={ctx} productId={productId} />
             <ProductMainImageUploader ctx={ctx} productId={productId} />
             <ProductVariantEditor ctx={ctx} onChange={updateMetadata} tokens={tokens} />
+            <label className="block text-[11px]">
+                <span className="mb-1 block font-medium">商品资料与制作要求</span>
+                <Tooltip title="可在这里一次写完商品是什么、销售款式、尺寸、包装清单、真实卖点和图片风格。主图、尺寸图等不同要求注明对应用途；不知道的事实可写待确认。"
+                    trigger={["hover", "focus"]} placement="right" mouseEnterDelay={0.35}
+                    styles={{ root: { maxWidth: 300 }, container: { fontSize: 13, lineHeight: 1.6, padding: "8px 12px" } }}>
+                <textarea aria-label="商品资料与制作要求" value={metadata.promptVariableSupplement || ""} onChange={(event) => updateSupplement(event.target.value)} rows={6}
+                    className="guan-scroll-field min-h-36 w-full resize-y rounded-lg border bg-transparent px-2 py-2 text-xs outline-none focus:ring-2 focus:ring-stone-300/70 dark:focus:ring-stone-500/50"
+                    style={{ borderColor: theme.node.stroke, color: theme.node.text }}
+                    placeholder="例如：白色三层带轮置物架，72×36×23cm，只销售空架、不含摆件。制作俄文商品图，突出窄缝收纳，使用真实浴室场景，不改变轮子和层数。" />
+                </Tooltip>
+            </label>
+            <details className="border-t border-current/15 pt-2" data-product-detail-fields>
+            <summary className="cursor-pointer text-xs font-medium">详细资料（选填）</summary>
+            <div className="mt-3 space-y-3">
             {!tokens.length ? (
                 <ProductBriefForm values={cardMetadata.productBrief} platform={platform} borderColor={theme.node.stroke} textColor={theme.node.text} shared={productVariants(metadata).length > 0} onChange={updateBrief} />
             ) : (
                 <div className="space-y-2">
-                    {productVariants(metadata).length ? <h3 className="text-xs font-semibold">共用 Excel 变量</h3> : null}
+                    {productVariants(metadata).length ? <h3 className="text-xs font-semibold">共用产品变量</h3> : null}
                     {tokens.map((token) => (
                         <label key={token} className="block text-[11px] text-black dark:text-white">
                             <span className="mb-1 block truncate" title={token}>{variableLabel(token)}</span>
@@ -123,15 +139,20 @@ export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
                 </div>
             )}
             <label className="block text-[11px]">
-                <span className="mb-1 block font-medium">提示词补充</span>
-                <textarea aria-label="提示词补充" value={metadata.promptVariableSupplement || ""} onChange={(event) => updateSupplement(event.target.value)} rows={4}
+                <span className="mb-1 block font-medium">所有图片统一追加的要求</span>
+                <Tooltip title="这里只填写每张图片都必须遵守的通用要求，会直接追加到本参数卡关联图片的生图提示词。某张图专用的要求请写在上方商品资料与制作要求中；清空即可取消追加。"
+                    trigger={["hover", "focus"]} placement="right" mouseEnterDelay={0.35}
+                    styles={{ root: { maxWidth: 300 }, container: { fontSize: 13, lineHeight: 1.6, padding: "8px 12px" } }}>
+                <textarea aria-label="所有图片统一追加的要求" value={cardMetadata.productGenerationSupplement || ""}
+                    onChange={(event) => updateMetadata({ productGenerationSupplement: event.target.value } as ProductParameterMetadata)} rows={3}
                     className="guan-scroll-field min-h-24 w-full resize-y rounded-lg border bg-transparent px-2 py-2 text-xs outline-none focus:ring-2 focus:ring-stone-300/70 dark:focus:ring-stone-500/50"
-                    style={{ borderColor: theme.node.stroke, color: theme.node.text }} placeholder="输入任意补充内容，将追加到所有连线提示词的末尾" />
-                <span className="mt-1 block text-[10px] opacity-55">仅应用于本参数卡连接的提示词；清空即可取消补充。</span>
+                    style={{ borderColor: theme.node.stroke, color: theme.node.text }} placeholder="可选，例如：保留商品原有 Logo，不添加水印。" />
+                </Tooltip>
             </label>
-
             </div>
-            <div className="mt-2 truncate text-[10px] opacity-55">{context.fileName || "未识别 Excel"} · {tokens.length} 个变量{tokens.length ? " · 连接提示词卡片后生成最终提示词" : ""}</div>
+            </details>
+            </div>
+            {productFeatures.excel || tokens.length ? <div className="mt-2 truncate text-[10px] opacity-55">{productFeatures.excel ? `${context.fileName || "未识别 Excel"} · ` : ""}{tokens.length} 个变量{tokens.length ? " · 连接提示词卡片后生成最终提示词" : ""}</div> : null}
         </div>
     );
 }

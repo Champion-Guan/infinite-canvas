@@ -140,15 +140,17 @@ test('卡内切换变体不保存或生成，编辑与AI优化仅改变所选变
     const cells = [], effects = [];
     let cursor = 0, updates = 0;
     const h = harness({
-        react: { useEffect: fn => effects.push(fn), useRef: value => ({ current: value }),
+        react: { useEffect: fn => effects.push(fn), useRef: value => ({ current: value }), useMemo: fn => fn(),
             useState: value => { const index = cursor++; if (!(index in cells)) cells[index] = typeof value === 'function' ? value() : value;
                 return [cells[index], next => { cells[index] = next; }]; } },
         'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
         'lucide-react': { Languages: 'Languages', RotateCcw: 'RotateCcw' },
         antd: { Segmented: 'Segmented' }, '../主题/页签内容过渡': { TabContentTransition: 'TabContentTransition' },
+        './提示词变体选择': { PromptVariantTabs: 'VariantTabs', PromptVariantSelectAll: 'SelectAll' },
         './Excel画布上下文': { useExcelProductId: () => 'product' }, './商品策划请求': {},
         '../提示词/双语联动文本框': { useBilingualPromptSync: () => ({}), BilingualPromptField: 'Field' },
         './商品待确认编辑': { ProductConfirmationDialog: 'ProductConfirmationDialog' },
+        './图片引用标签': { ImageReferenceText:'ImageReferenceText', ImageReferenceToken:'ImageReferenceToken' },
     });
     h.apply(h.canvas.productPlanOps(h.fixture.parameter, h.plan, h.fixture.nodes, h.fixture.connections, h.fingerprint));
     const node = h.fixture.nodes.find(item => h.rules.promptDocument(item)), original = structuredClone(h.rules.promptDocument(node).variants.red);
@@ -161,11 +163,11 @@ test('卡内切换变体不保存或生成，编辑与AI优化仅改变所选变
         return flat(tree);
     };
     let tree = render();
-    const selector = tree.find(item => item.type === 'Segmented');
-    assert.deepEqual(selector.props.options.map(item => item.value), ['red', 'blue']);
+    const selector = tree.find(item => item.type === 'VariantTabs');
+    assert.deepEqual(selector.props.ids, ['red', 'blue']);
     selector.props.onChange('blue'); tree = render();
     assert.equal(updates, 0);
-    assert.match(tree.find(item => item.type === 'Field' && item.props.language === 'chinese').props.value, /blue/);
+    assert.match(tree.find(item => item.type === 'Field' && item.props.language === 'chinese').props.value, /blue|蓝色__正面/);
     const optimization = h.loader.load('提示词/提示词优化规则.ts');
     const source = optimization.readPromptOptimizationSource(node, h.fixture.nodes);
     assert.equal(source.context.image.variantId, 'blue');
@@ -275,6 +277,8 @@ test('分配图片面板使用统一主按钮，完成文字不继承画布里�
         react: { useState: value => [value, () => {}] },
         'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
         antd: { Button: 'Button', Checkbox: 'Checkbox', Tooltip: 'Tooltip' },
+        'motion/react': { AnimatePresence: 'Presence' },
+        './变体管理面板': { ProductVariantManager: 'Manager' },
         'lucide-react': Object.fromEntries(['Check', 'ChevronDown', 'Copy', 'Images', 'Plus', 'Trash2', 'X'].map(key => [key, key])),
         '../主题/苹果弹窗': { AppleModal: 'Modal' }, '../媒体交付/媒体缩略图': { MediaThumbnail: 'MediaThumbnail' },
         './参数图片预览': { ParameterImageThumbnail: 'ParameterImageThumbnail' },

@@ -1,0 +1,90 @@
+{
+  "日期": "2026-10-19",
+  "状态": "待具体批准；仅内存候选，未接入/启动/重启3100",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/Excel卡片变量-mLSYZd/Excel卡片变量接入记录.json",
+  "前置差异SHA256": "b0b146dbab238c866336a2f644821c589b79d9167225ee3b1c2af0432946be77",
+  "旧来源目录": "/Users/guanchengbin/CodexProjects/guan-ai-workbench-projects/guan-ai-workbench",
+  "旧来源SHA256": {
+    "src/shared/data-contract/index.js": "1b14b228241b07fa1a4f6fea8956c7f60112ef61bbfc8c33ec151bce5de7bb22",
+    "src/shared/data-contract/index.css": "169d3c6de95793d5648e1f673e92307d804a9599010522941e932378d1baccff"
+  },
+  "旧删除函数体SHA256": "7a144f4b22a7b992950350f42c9fab162a964bf5ba8d392f10dde8a50df568b6",
+  "旧删除声明SHA256": "e907a7273322639171d8ccb3cd04a3d7b1d70b59010d69fff0c2cd41589055e8",
+  "自有来源": [
+    {
+      "文件": "扩展功能/Excel删除/工作簿删除规则.ts",
+      "SHA256": "49fcb9d2d276601c027f9c199f32ed9bcc694127e2754ed39826c1d069de984f"
+    },
+    {
+      "文件": "扩展功能/Excel删除/工作簿删除门禁.ts",
+      "SHA256": "5a14596cc0bbf2a805d29d15deebde24815e0966fa3c7e20615c660cf4a73fd6"
+    },
+    {
+      "文件": "扩展功能/Excel删除/工作簿删除弹窗.tsx",
+      "SHA256": "175f109a8eeb52885e04abf78af7baedbcf9635d4693c3c132ec3cac53e3956a"
+    }
+  ],
+  "工具来源": [
+    {
+      "文件": "开发工具/预审Excel工作簿删除.mjs",
+      "SHA256": "48a6d33ce1ed2ddd9a0202c9b98c780cb32050167fc0b481bce13232ec044858"
+    },
+    {
+      "文件": "开发工具/Excel工作簿删除.test.mjs",
+      "SHA256": "b5a49dfeab45f8bfd791883c757e43c985826ce988ba4a477e4fb908b3608ed7"
+    }
+  ],
+  "差异SHA256": "12125e114dac0c06f922052ff2e7ea222b2f8365ce8db1f4b7d324b10c7597be",
+  "文件数": 7,
+  "完整虚拟类型检查通过": true,
+  "已接入": false,
+  "真实浏览器验收": false,
+  "已修改作者仓库": false,
+  "已访问正式数据": false,
+  "文件": [
+    {
+      "文件": "web/src/guan/工作簿删除规则.ts",
+      "原始SHA256": null,
+      "候选SHA256": "49fcb9d2d276601c027f9c199f32ed9bcc694127e2754ed39826c1d069de984f"
+    },
+    {
+      "文件": "web/src/guan/工作簿删除门禁.ts",
+      "原始SHA256": null,
+      "候选SHA256": "5a14596cc0bbf2a805d29d15deebde24815e0966fa3c7e20615c660cf4a73fd6"
+    },
+    {
+      "文件": "web/src/guan/工作簿删除弹窗.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "175f109a8eeb52885e04abf78af7baedbcf9635d4693c3c132ec3cac53e3956a"
+    },
+    {
+      "文件": "web/src/guan/旧版工作簿删除.js",
+      "原始SHA256": null,
+      "候选SHA256": "22a5f5909abea9628705d89339db6d588ac53e2dd0216e7259370ee2cf0098fe"
+    },
+    {
+      "文件": "web/src/guan/产品回收面板.tsx",
+      "原始SHA256": "c5cc95485faadf2aaed4bcc4427c0bd22a8c6b26d65f58f91c6c694e27757071",
+      "候选SHA256": "bebb4b881d00265d6f5379028c4867cd49b5a0f8c6659d74b5b9f3f488ed4a4f"
+    },
+    {
+      "文件": "web/src/guan/Excel工作簿选择.tsx",
+      "原始SHA256": "d495dadd2e2e4556da445214a730ac83687438444b4b80e4acafab2f99b8c66b",
+      "候选SHA256": "ddbbac4a064adfa9a25a3fba2e131e26868aaa2ec67a8008f8f9217627c8cb07"
+    },
+    {
+      "文件": "web/src/guan/产品操作.ts",
+      "原始SHA256": "3974a0a2ff9b6d122d093ddb74c93e4b06e2f328f478f3eb32271a6ffc9d4e7c",
+      "候选SHA256": "50a872e4309d12b0a75fe04c0d56aa69778e8031a978b7c9b2d8ea1fee88f45b"
+    }
+  ],
+  "范围": [
+    "旧工作簿下拉删除入口/确认布局/危险操作文案，级联删除纯函数原文提取",
+    "稳定工作簿ID、当前/后台产品检查点、运行/未决任务及回收站保护；不调用媒体文件清理",
+    "跨归属冲突或旧级联未覆盖的自建产品关联记录明确拒绝，不扩大旧删除范围或遗留悬空记录",
+    "同一产品操作锁，根ACK及导航确认前保持门禁；失败原队列显式重试，不重放旧快照",
+    "后台删除保留当前产品；删除最后工作簿不造新产品；不做收费AI校准或生成调度",
+    "仅批准后新独立完整包事务接入，再临时SQLite/独立浏览器/合成工作簿和旧版视觉验收；不含3100切换/发布"
+  ]
+}

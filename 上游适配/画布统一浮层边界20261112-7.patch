@@ -1,0 +1,14 @@
+diff --git a/web/src/components/canvas/canvas-node-prompt-panel.tsx b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+index 18340c7..30c5a84 100644
+--- a/web/src/components/canvas/canvas-node-prompt-panel.tsx
++++ b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+@@ -4,7 +4,8 @@ import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与
+ import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+ import { useEffect, useState } from "react";
+ import { ArrowUp, LoaderCircle, Maximize2, Square } from "lucide-react";
+-import { Button, Tooltip } from "antd";
++import { Button } from "antd";
++import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+ import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { useTranslation } from "react-i18next";
+ 

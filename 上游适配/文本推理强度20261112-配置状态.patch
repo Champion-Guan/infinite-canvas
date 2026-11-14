@@ -1,0 +1,73 @@
+diff --git a/web/src/stores/use-config-store.ts b/web/src/stores/use-config-store.ts
+index e57ca24..2b46e4c 100644
+--- a/web/src/stores/use-config-store.ts
++++ b/web/src/stores/use-config-store.ts
+@@ -1,4 +1,5 @@
+ import { isSealedCredential } from "@/扩展功能/本机凭据/页面凭据引用.mjs";
++import { modelTextReasoningEfforts, normalizeModelReasoningEfforts, normalizeTextReasoningEffort, type TextReasoningEffort } from "@/扩展功能/画布生成/文本推理强度";
+ import { withCapabilitySystemPrompt, type SystemPromptPreferences } from "@/扩展功能/系统提示词/分类提示词规则";
+ import { createConfigPersistence } from "@/扩展功能/本机存储/配置持久化筛选";
+ import { 本地转发地址, 本地转发前缀 } from "@/扩展功能/网络代理/本地转发请求";
+@@ -17,13 +18,14 @@ import i18n from "@/i18n";
+ 
+ export type ApiCallFormat = "openai" | "gemini";
+ export type ModelCapability = "image" | "video" | "text" | "audio";
+-export type ReasoningEffort = "auto" | "low" | "medium" | "high" | "xhigh";
++export type ReasoningEffort = TextReasoningEffort;
+ 
+ export type ChannelModel = {
+     name: string;
+     capability: ModelCapability;
+     script?: string;
+     price?: number;
++    reasoningEfforts?: ReasoningEffort[];
+ };
+ 
+ export type ModelChannel = {
+@@ -132,7 +134,7 @@ export const defaultConfig: AiConfig = {
+     textSystemPrompt: null,
+     videoSystemPrompt: null,
+     imagePlanningSystemPrompt: null,
+-    reasoningEffort: "auto",
++    reasoningEffort: "medium",
+     models: ["default::gpt-image-2", "default::grok-imagine-video", "default::gpt-5.5", "default::gpt-4o-mini-tts"],
+     quality: "auto",
+     moderation: "auto",
+@@ -259,7 +261,7 @@ export const useConfigStore = create<ConfigStore>()(
+                     return {
+                         config: {
+                             ...state.config,
+-                            [key]: value,
++                            [key]: key === "reasoningEffort" ? normalizeTextReasoningEffort(value) : value,
+                         },
+                     };
+                 }),
+@@ -322,7 +324,7 @@ export const useConfigStore = create<ConfigStore>()(
+                         audioFormat: config.audioFormat || defaultConfig.audioFormat,
+                         audioSpeed: config.audioSpeed || defaultConfig.audioSpeed,
+                         audioInstructions: config.audioInstructions || "",
+-                        reasoningEffort: config.reasoningEffort || "auto",
++                        reasoningEffort: normalizeTextReasoningEffort(config.reasoningEffort),
+                         moderation: config.moderation === "low" ? "low" : "auto",
+                         videoSeconds: config.videoSeconds || "6",
+                         vquality: config.vquality || "720",
+@@ -357,7 +359,9 @@ export function normalizeChannelModels(models: Array<string | ChannelModel> | un
+         const capability = typeof item === "string" ? guessCapability(name) : item.capability || guessCapability(name);
+         const script = typeof item === "string" ? undefined : item.script?.trim() || undefined;
+         const price = typeof item === "string" || item.price == null || item.price === 0 ? undefined : Number(item.price);
+-        result.push({ name, capability, script, ...(Number.isFinite(price) ? { price } : {}) });
++        const efforts = typeof item === "string" ? undefined : normalizeModelReasoningEfforts(item.reasoningEfforts);
++        result.push({ name, capability, script, ...(Number.isFinite(price) ? { price } : {}),
++            ...(efforts ? { reasoningEfforts: efforts } : {}) });
+     }
+     return result;
+ }
+@@ -493,6 +497,8 @@ export function resolveModelRequestConfig(config: AiConfig, value: string) {
+     const capability = modelCapabilityOf(config, value) ?? config.fallbackCapability ?? guessCapability(modelOptionName(value || config.model));
+     return {
+         ...withCapabilitySystemPrompt(config, capability),
++        reasoningEffort: normalizeTextReasoningEffort(config.reasoningEffort),
++        modelReasoningEfforts: modelTextReasoningEfforts(config, value),
+         model: modelOptionName(value || config.model),
+         baseUrl: channel.baseUrl,
+         apiKey: channel.apiKey,

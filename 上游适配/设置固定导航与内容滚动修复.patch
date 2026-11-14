@@ -1,0 +1,22 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index 88ba227..a28fb5e 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -248,7 +248,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                                 <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                     {modelGroups.map((group) => (
+                                         <Form.Item key={group.modelKey} label={t(group.labelKey)} className="mb-0">
+-                                            <ModelPicker config={config} value={config[group.modelKey]} onChange={(model) => updateConfig(group.modelKey, model)}
++                                            <ModelPicker active={active && activeTab === "preferences"} config={config} value={config[group.modelKey]} onChange={(model) => updateConfig(group.modelKey, model)}
+                                                 onReasoningEffortChange={group.capability === "text" ? (model, effort) => {
+                                                     updateConfig(group.modelKey, model); updateConfig("reasoningEffort", effort);
+                                                 } : undefined}
+@@ -411,7 +411,7 @@ export function AppConfigModal() {
+                 ...(viewport ? { wrapper: { position: "absolute" }, mask: { position: "absolute" } } : {}),
+                 container: { display: "flex", flexDirection: "column", maxHeight: viewport ? "calc(100cqh - 24px)" : "calc(100dvh - 24px)" },
+                 header: { flexShrink: 0 },
+-                body: { height: viewport ? "72cqh" : "72dvh", minHeight: 0, overflowY: "auto", paddingRight: 12 },
++                body: { height: viewport ? "72cqh" : "72dvh", minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", paddingRight: 12 },
+                 footer: { flexShrink: 0 },
+             }}
+             className="guan-config-modal"

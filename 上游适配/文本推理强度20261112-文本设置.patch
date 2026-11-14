@@ -1,0 +1,61 @@
+diff --git a/web/src/components/text-settings-panel.tsx b/web/src/components/text-settings-panel.tsx
+index 82d6598..6f4c1f3 100644
+--- a/web/src/components/text-settings-panel.tsx
++++ b/web/src/components/text-settings-panel.tsx
+@@ -5,8 +5,9 @@ import i18n from "@/i18n";
+ import { ImageSettingsTheme } from "@/components/image-settings-panel";
+ import { type CanvasTheme } from "@/lib/canvas-theme";
+ import type { AiConfig, ReasoningEffort } from "@/stores/use-config-store";
++import { modelTextReasoningEfforts, normalizeTextReasoningEffort, TEXT_REASONING_EFFORTS } from "@/扩展功能/画布生成/文本推理强度";
+ 
+-const reasoningEffortOptions: ReasoningEffort[] = ["auto", "low", "medium", "high", "xhigh"];
++const reasoningEffortOptions = TEXT_REASONING_EFFORTS;
+ 
+ type TextSettingsPanelProps = {
+     config: AiConfig;
+@@ -17,6 +18,8 @@ type TextSettingsPanelProps = {
+ 
+ export function TextSettingsPanel({ config, onConfigChange, theme, className = "space-y-4" }: TextSettingsPanelProps) {
+     const { t } = useTranslation();
++    const supported = modelTextReasoningEfforts(config);
++    const selected = normalizeTextReasoningEffort(config.reasoningEffort);
+     return (
+         <ImageSettingsTheme theme={theme}>
+             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
+@@ -25,10 +28,12 @@ export function TextSettingsPanel({ config, onConfigChange, theme, className = "
+                     <div className="text-sm font-medium" style={{ color: theme.node.muted }}>
+                         {t("settingsPanels.text.reasoning")}
+                     </div>
+-                    <div className="grid grid-cols-5 gap-2">
++                    <div className="grid grid-cols-3 gap-2">
+                         {reasoningEffortOptions.map((value) => (
+-                            <OptionPill key={value} selected={config.reasoningEffort === value} theme={theme} onClick={() => onConfigChange("reasoningEffort", value)}>
+-                                {t(`settingsPanels.common.${value}`)}
++                            <OptionPill key={value} selected={selected === value} disabled={!supported.includes(value)}
++                                title={!supported.includes(value) ? "当前渠道模型未声明支持此强度，请在渠道设置中核对。" : undefined}
++                                theme={theme} onClick={() => onConfigChange("reasoningEffort", value)}>
++                                {t(`settingsPanels.text.efforts.${value}`)}
+                             </OptionPill>
+                         ))}
+                     </div>
+@@ -39,14 +44,17 @@ export function TextSettingsPanel({ config, onConfigChange, theme, className = "
+ }
+ 
+ export function reasoningEffortLabel(value: ReasoningEffort) {
+-    return reasoningEffortOptions.includes(value) ? i18n.t(`settingsPanels.common.${value}`) : value;
++    return i18n.t(`settingsPanels.text.efforts.${normalizeTextReasoningEffort(value)}`);
+ }
+ 
+-function OptionPill({ selected, theme, onClick, children }: { selected: boolean; theme: CanvasTheme; onClick: () => void; children: ReactNode }) {
++function OptionPill({ selected, disabled, title, theme, onClick, children }: { selected: boolean; disabled?: boolean; title?: string; theme: CanvasTheme; onClick: () => void; children: ReactNode }) {
+     return (
+         <button
+             type="button"
+-            className="h-9 cursor-pointer rounded-full border px-2 text-sm transition hover:opacity-80"
++            disabled={disabled}
++            title={title}
++            aria-pressed={selected}
++            className="h-9 min-w-0 cursor-pointer rounded-full border px-2 text-sm transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-35"
+             style={{ background: "transparent", borderColor: selected ? theme.node.text : theme.node.stroke, color: theme.node.text }}
+             onMouseDown={(event) => event.stopPropagation()}
+             onClick={onClick}

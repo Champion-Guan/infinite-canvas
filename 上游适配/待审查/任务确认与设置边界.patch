@@ -1,0 +1,248 @@
+--- a/画布副本/web/src/guan/generation/生成任务客户端.mjs
++++ b/画布副本/web/src/guan/generation/生成任务客户端.mjs
+@@ -27,6 +27,18 @@
+     list: productId => call({ operation: 'list', productId }),
+     cancel: id => call({ operation: 'cancel', id }),
+     retryResultSave: id => call({ operation: 'retry-save', id }),
++    // 独立确认已保存结果：没有result/submit/bind，也不重写图片或新建任务。
++    async confirmSaved(task, { responseHash } = {}) {
++      requireValue(/^[0-9a-f]{64}$/.test(responseHash), 'generation_receipt_invalid', '原任务收据摘要无效。', 409);
++      const job = match(await call({ operation: 'get', id: task.id }), task);
++      requireValue(job.state === 'succeeded' && job.result?.id === responseHash, 'generation_receipt_mismatch', '任务结果与原卡片收据不符，未确认完成。', 409);
++      if (job.applied) return job;
++      const checkpoint = await call({ operation: 'checkpoint', id: task.id });
++      const applied = match(await call({ operation: 'applied', id: task.id, checkpoint }), task);
++      requireValue(applied.state === 'succeeded' && applied.applied && applied.result?.id === responseHash,
++        'generation_ack_invalid', '任务完成确认尚未收到有效响应，请保留原任务。', 503);
++      return applied;
++    },
+     async deliver(task, { applyAndSave } = {}) {
+       requireValue(typeof applyAndSave === 'function', 'generation_save_port_required', '需要原产品的保存确认端口。');
+       const job = match(await call({ operation: 'result', id: task.id }), task);
+--- a/画布副本/web/src/guan/generation/图片任务衔接.mjs
++++ b/画布副本/web/src/guan/generation/图片任务衔接.mjs
+@@ -87,11 +87,11 @@
+     requireValue(job.state === 'succeeded', job.state === 'uncertain' ? 'generation_result_unknown' : 'generation_failed',
+       job.state === 'uncertain' ? '上游是否完成尚未确认，不能自动重试或重复计费。' : '原生成任务未成功；可明确重试，不会自动切换渠道。', 409);
+     if (signal?.aborted) throw new DOMException('已取消', 'AbortError');
+-    return await host.deliver(task, { applyAndSave: saved => serializeProductResult(target.productId, async () => {
++    return await serializeProductResult(target.productId, () => host.deliver(task, { applyAndSave: async saved => {
+       scoped(saved, target, task.id);
+       await applyAndSave(saved, Object.freeze({ taskId: task.id, responseHash: saved.result.id }));
+       // 后端再次核对已落盘的原产品、节点和收据；不能以setNodes或saved:true代替。
+       return host.checkpoint(task.id);
+-    }) });
++    } }));
+   } finally { signal?.removeEventListener('abort', cancel); }
+ }
+--- /dev/null
++++ b/画布副本/web/src/guan/generation/图片任务确认恢复.mjs
+@@ -0,0 +1,65 @@
++import { requireValue } from '../sqlite/协议.mjs';
++
++// 只从原卡片已有的任务身份及响应收据恢复；不创建任务、不交付图片、不访问渠道。
++export function imageConfirmationTargets(productId, nodes) {
++  const targets = [], seen = new Set();
++  for (const node of nodes) {
++    if (node.type !== 'image') continue;
++    for (const task of node.metadata?.gatewayGenerationTasks || []) {
++      const receipts = (node.metadata?.gatewayGenerationReceipts || []).filter(item => item.taskId === task.taskId);
++      if (!receipts.length) continue;
++      requireValue(receipts.length === 1 && !seen.has(task.taskId), 'generation_receipt_ambiguous', '原卡片任务收据重复，请保留画布。', 409);
++      seen.add(task.taskId);
++      targets.push({ id: task.taskId, productId, nodeId: node.id, responseHash: receipts[0].responseHash });
++    }
++  }
++  return targets;
++}
++
++export function createImageConfirmationRecovery({ host, targets, save, serialize, isCurrent = () => true }) {
++  const confirmed = new Set();
++  let flight;
++  function run() {
++    if (flight) return flight;
++    flight = (async () => {
++      const pending = [];
++      const remaining = targets.filter(target => !confirmed.has(target.id));
++      if (!remaining.length || !isCurrent()) return { pending, confirmed: [...confirmed] };
++      let jobs;
++      try {
++        requireValue(typeof host?.list === 'function' && typeof host?.confirmSaved === 'function' && remaining.every(target => target.productId === remaining[0].productId),
++          'generation_confirmation_unavailable', '任务确认端口尚未就绪，请保留画布并重试。', 503);
++        jobs = await host.list(remaining[0].productId);
++        requireValue(Array.isArray(jobs), 'generation_ack_invalid', '任务清单响应无效，原收据保留。', 503);
++      } catch { return { pending: remaining.map(target => target.id), confirmed: [...confirmed] }; }
++      for (const target of targets) {
++        if (!isCurrent()) break;
++        if (confirmed.has(target.id)) continue;
++        try {
++          await serialize(target.productId, async () => {
++            if (!isCurrent()) return;
++            // 一次清单处理整幅画布，避免重开大量历史图片时逐任务查询；确认时客户端会再次查询原ID。
++            const matches = jobs.filter(job => job?.id === target.id), current = matches[0];
++            requireValue(matches.length === 1 && current.productId === target.productId && current.nodeId === target.nodeId &&
++              current.state === 'succeeded' && typeof current.applied === 'boolean' && current.result?.id === target.responseHash,
++            'generation_scope_mismatch', '任务与原产品、卡片或收据不符，未确认完成。', 409);
++            if (!current.applied) {
++              if (!isCurrent()) return;
++              await save(target.productId);
++              if (!isCurrent()) return;
++              const { responseHash, ...task } = target;
++              await host.confirmSaved(task, { responseHash });
++            }
++            if (isCurrent()) confirmed.add(target.id);
++          });
++        } catch {
++          // 保留失败项，下一次保存恢复事件或明确点击仅重试确认；不展示端口内部错误。
++          pending.push(target.id);
++        }
++      }
++      return { pending, confirmed: [...confirmed] };
++    })().finally(() => { flight = undefined; });
++    return flight;
++  }
++  return Object.freeze({ run });
++}
+--- /dev/null
++++ b/画布副本/web/src/guan/generation/图片任务确认状态.tsx
+@@ -0,0 +1,42 @@
++import { useEffect, useMemo, useRef, useState } from "react";
++import type { CanvasNodeData } from "@/types/canvas";
++import { saveProductCanvas } from "@/guan/产品操作";
++import { storageStatus } from "@/guan/上游浏览器存储桥";
++import { serializeProductResult } from "./图片任务衔接.mjs";
++import { createImageConfirmationRecovery, imageConfirmationTargets } from "./图片任务确认恢复.mjs";
++
++// 与图片重试按钮分开：这里始终只确认已有收据，不能走生成或媒体交付入口。
++export function ImageTaskConfirmation({ productId, nodes, ready }: { productId: string; nodes: CanvasNodeData[]; ready: boolean }) {
++  const targetsKey = useMemo(() => {
++    try { return JSON.stringify(imageConfirmationTargets(productId, nodes)); }
++    catch { return null; }
++  }, [productId, nodes]);
++  const [status, setStatus] = useState({ key: "", pending: 0, busy: false });
++  const retryRef = useRef<(() => void) | null>(null);
++  useEffect(() => {
++    if (!ready || !targetsKey || targetsKey === "[]") return;
++    let active = true;
++    const host = (window as unknown as { __guanGenerationHost?: unknown }).__guanGenerationHost;
++    const recovery = createImageConfirmationRecovery({ host, targets: JSON.parse(targetsKey), save: saveProductCanvas,
++      serialize: serializeProductResult, isCurrent: () => active });
++    const retry = () => {
++      if (!active) return;
++      setStatus(previous => ({ key: targetsKey, pending: previous.key === targetsKey ? previous.pending : 0, busy: true }));
++      void recovery.run().then((result: { pending: string[] }) => {
++        if (active) setStatus({ key: targetsKey, pending: result.pending.length, busy: false });
++      });
++    };
++    const saved = () => { const state = storageStatus(); if (state.state === "saved" && !state.pending && !state.retrying) retry(); };
++    retryRef.current = retry;
++    window.addEventListener("guan:storage-status", saved);
++    retry();
++    return () => { active = false; retryRef.current = null; window.removeEventListener("guan:storage-status", saved); };
++  }, [productId, ready, targetsKey]);
++  const invalid = ready && targetsKey === null;
++  const pending = status.key === targetsKey ? status.pending : 0;
++  if (!invalid && !pending) return null;
++  return <aside aria-label="图片任务确认" className="absolute bottom-24 right-5 z-[80] max-w-sm rounded-xl border bg-background px-4 py-3 text-sm text-foreground shadow-lg">
++    <p role="status" aria-live="polite">{invalid ? "原卡片任务收据异常，请保留画布。" : `${pending} 个图片任务的完成确认尚未结束，图片和原任务已保留。`}</p>
++    {!invalid ? <button type="button" className="mt-2 rounded-lg border px-3 py-1.5" disabled={status.busy} onClick={() => retryRef.current?.()}>{status.busy ? "正在确认…" : "重试任务确认"}</button> : null}
++  </aside>;
++}
+--- a/画布副本/web/src/pages/canvas/project.tsx
++++ b/画布副本/web/src/pages/canvas/project.tsx
+@@ -6,6 +6,7 @@
+ import { bindExcelParameters, createProductParameterNode, insertExcelPromptCards, reconcileExcelPreviews, excelDeletionIds, clearDeletedExcelRelations, disconnectExcelParameters, remapCopiedExcelRelations, type ExcelInsertRequest } from "@/guan/Excel卡片事务";
+ import { EXCEL_PROMPT_DRAG_TYPE } from "@/guan/Excel提示词列表";
+ import { useProductActive } from "@/guan/产品界面边界";
++import { ImageTaskConfirmation } from "@/guan/generation/图片任务确认状态";
+ import { requestCanvasImage, type CanvasImageTask } from "@/guan/generation/原画布图片调用";
+ import { saveProductCanvas, useProductCanvasSave, useProductNavigation } from "@/guan/产品操作";
+ import { flushSQLiteStorage } from "@/guan/上游浏览器存储桥";
+@@ -3849,6 +3850,7 @@
+ 
+                 <AssetPickerModal open={productActive && assetPickerOpen} onInsert={handleAssetInsert} onClose={() => setAssetPickerOpen(false)} />
+             </section>
++            <ImageTaskConfirmation productId={projectId} nodes={nodes} ready={projectLoaded} />
+         </main></ExcelCanvasScope>
+     );
+ }
+--- /dev/null
++++ b/画布副本/web/src/guan/设置视区.tsx
+@@ -0,0 +1,12 @@
++import { createContext, useContext, useState, type ReactNode } from "react";
++
++const SettingsViewportContext = createContext<HTMLDivElement | null>(null);
++export const useSettingsViewport = () => useContext(SettingsViewportContext);
++
++// 继承旧宿主顶栏下方 iframe 的视区边界；由 React 提供真实容器，不查询或改写 DOM。
++export function SettingsViewport({ children }: { children: ReactNode }) {
++  const [container, setContainer] = useState<HTMLDivElement | null>(null);
++  return <div ref={setContainer} className="relative min-h-0 flex-1 overflow-hidden" style={{ containerType: "size" }}>
++    <SettingsViewportContext.Provider value={container}>{children}</SettingsViewportContext.Provider>
++  </div>;
++}
+--- a/画布副本/web/src/layouts/user-layout.tsx
++++ b/画布副本/web/src/layouts/user-layout.tsx
+@@ -1,4 +1,6 @@
+ import type { ReactNode } from "react";
++import { SettingsViewport } from "@/guan/设置视区";
++import { AppConfigModal } from "@/components/layout/app-config-modal";
+ import { LegacyHomeChrome } from "@/guan/旧版首页顶栏";
+ 
+ import { productFeatures } from "@/guan/功能开关";
+@@ -9,7 +11,7 @@
+         <div className="flex h-dvh overflow-hidden bg-background text-foreground">
+             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+                 <LegacyHomeChrome />
+-                <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
++                <SettingsViewport>{children}<AppConfigModal /></SettingsViewport>
+             </div>
+             {productFeatures.externalAgent ? <AgentPanel /> : null}
+         </div>
+--- a/画布副本/web/src/guan/旧版首页顶栏.tsx
++++ b/画布副本/web/src/guan/旧版首页顶栏.tsx
+@@ -5,7 +5,6 @@
+ import { ProductCapsules } from "./顶部产品胶囊";
+ import { ProductTrashEntry } from "./产品回收面板";
+ import { useProductNavigation } from "./产品操作";
+-import { AppConfigModal } from "@/components/layout/app-config-modal";
+ import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+ import { useConfigStore } from "@/stores/use-config-store";
+ import { useThemeStore } from "@/stores/use-theme-store";
+@@ -32,5 +31,5 @@
+     </div>
+     <AnimatedThemeToggler className={styles.themeButton} theme={theme} onThemeChange={setTheme} duration={400} variant="circle" aria-pressed={theme === "dark"} aria-label={theme === "dark" ? "切换浅色主题" : "切换深色主题"} title={theme === "dark" ? "切换浅色主题" : "切换深色主题"}>{theme === "dark" ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20.9 13.2A8.5 8.5 0 0 1 10.8 3.1 8.5 8.5 0 1 0 20.9 13.2Z" /></svg>}</AnimatedThemeToggler>
+     <button type="button" className={styles.settingsButton} aria-label="画布设置" title="画布设置" onClick={() => openConfig(false)}><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg></button>
+-  </header><AppConfigModal /></>;
++  </header></>;
+ }
+--- a/画布副本/web/src/components/layout/app-config-modal.tsx
++++ b/画布副本/web/src/components/layout/app-config-modal.tsx
+@@ -1,5 +1,6 @@
+ import { businessFeatures, resolveBusinessConfigTab } from "@/guan/脚本与提示词来源";
+ import { productFeatures, resolveConfigTab } from "@/guan/功能开关";
++import { useSettingsViewport } from "@/guan/设置视区";
+ import { OriginalFallbackPanel } from "@/guan/fallback/原版Fallback面板";
+ import { App, Button, Form, Input, Modal, Progress, Radio, Select, Switch, Tabs } from "antd";
+ import type { TFunction } from "i18next";
+@@ -374,6 +375,7 @@
+ }
+ 
+ export function AppConfigModal() {
++    const viewport = useSettingsViewport();
+     const { t } = useTranslation();
+     const isConfigOpen = useConfigStore((state) => state.isConfigOpen);
+     const configTab = useConfigStore((state) => state.configTab);
+@@ -390,7 +392,11 @@
+             width={980}
+             centered
+             onCancel={() => setConfigDialogOpen(false)}
+-            styles={{ body: { height: "72vh", maxHeight: "72vh", overflowY: "auto", paddingRight: 12 } }}
++            getContainer={viewport ?? undefined}
++            styles={{
++                ...(viewport ? { root: { position: "absolute", inset: 0 }, wrapper: { position: "absolute" }, mask: { position: "absolute" } } : {}),
++                body: { height: viewport ? "72cqh" : "72vh", maxHeight: viewport ? "72cqh" : "72vh", overflowY: "auto", paddingRight: 12 },
++            }}
+             footer={null}
+         >
+             <AppConfigPanel showDoneButton initialTab={configTab} />

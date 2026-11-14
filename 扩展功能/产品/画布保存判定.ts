@@ -1,4 +1,5 @@
 import type { CanvasProject } from "@/stores/canvas/use-canvas-store";
+import { sameDeferredCanvasMedia } from "../本机存储/画布媒体延迟恢复.mjs";
 
 type SavedFields = Pick<CanvasProject, "nodes" | "connections" | "chatSessions" | "activeChatId" | "backgroundMode" | "showImageInfo" | "viewport">;
 
@@ -6,6 +7,7 @@ type SavedFields = Pick<CanvasProject, "nodes" | "connections" | "chatSessions" 
 // 只复用确认等值的普通数据引用；Blob/类实例/过深结构均保守视为变化。
 export function sameCanvasValue(a: unknown, b: unknown, depth = 0, seen = new WeakMap<object, object>()): boolean {
     if (Object.is(a, b)) return true;
+    if (sameDeferredCanvasMedia(a, b)) return true;
     if (!a || !b || typeof a !== "object" || typeof b !== "object" || depth > 40) return false;
     if (Array.isArray(a) !== Array.isArray(b)) return false;
     if (Array.isArray(a) && a.length !== (b as unknown[]).length) return false;

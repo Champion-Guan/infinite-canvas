@@ -1,0 +1,49 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index 9907214..0c442b0 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -8,7 +8,7 @@ import { hasHeicNameOrType } from "@/扩展功能/媒体交付/HEIC格式识别.
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { panelTransition, useHiddenPanelExit } from "@/扩展功能/主题/侧栏动效";
+ import { TAB_INDICATOR_BASE_STYLE, useUnifiedTabIndicator } from "@/扩展功能/主题/统一页签横条";
+-import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
++import { TabContentTransition, useNativeTabFade } from "@/扩展功能/主题/页签内容过渡";
+ import { AppleActionButton } from "@/扩展功能/主题/苹果交互按钮";
+ import { sqlitePreferences } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
+@@ -94,6 +94,8 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+     const [resizing, setResizing] = useState(false);
+     const reducedMotion = useReducedMotion();
+     const tabsRef = useRef<HTMLDivElement>(null);
++    const listRef = useRef<HTMLDivElement>(null);
++    useNativeTabFade(listRef, productActive, false, productActive && panelOpen);
+     useUnifiedTabIndicator(tabsRef, `${projectId}:${tab}`, { enabled: productActive && panelOpen, reduced: reducedMotion });
+     const resizeCleanup = useRef<(() => void) | null>(null);
+     useEffect(() => () => { resizeCleanup.current?.(); }, []);
+@@ -150,7 +152,7 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+             transition={transition}
+             onAnimationComplete={() => { if (productActive && !panelOpen) finishPanelClose(panelCloseRevision); }}
+             data-canvas-side-panel={panelOpen ? "open" : "closing"}
+-            style={{ overflow: "clip", pointerEvents: panelClosing ? "none" : undefined }}
++            style={{ overflow: "clip", pointerEvents: panelClosing ? "none" : undefined, visibility: productActive ? "visible" : "hidden" }}
+         >
+             <motion.aside
+                 className="relative flex h-full shrink-0 flex-col overflow-hidden border-r"
+@@ -170,7 +172,8 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+                     <TabButton label="回收站" active={tab === "trash"} theme={theme} onClick={() => setTab("trash")} />
+                     <span data-unified-tab-indicator aria-hidden="true" className="pointer-events-none absolute -bottom-px rounded-full" style={{ ...TAB_INDICATOR_BASE_STYLE, background: theme.toolbar.activeText }} />
+                 </div>
+-                <TabContentTransition transitionKey={`${projectId}:${tab}`} enabled={productActive && panelOpen} className="mt-2 min-h-0 flex-1 overflow-hidden">
++                <div ref={listRef} className="mt-2 min-h-0 flex-1 overflow-hidden">
++                <TabContentTransition transitionKey={`${projectId}:${tab}`} enabled={productActive && panelOpen} className="h-full min-h-0 overflow-hidden">
+                     {tab === "canvas" ? (
+                         <CanvasNodesTab nodes={nodes} connections={connections} selectedNodeIds={selectedNodeIds} onFocusNode={onFocusNode} onPreviewNode={onPreviewNode} onHoverNode={onHoverNode} theme={theme} />
+                     ) : tab === "assets" ? (
+@@ -183,6 +186,7 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+                         <CanvasPromptsTab onInsert={onInsertAsset} theme={theme} />
+                     ) : null}
+                 </TabContentTransition>
++                </div>
+                 <button type="button" className="absolute inset-y-0 right-0 z-40 w-4 translate-x-1/2 cursor-col-resize touch-none"
+                     role="separator" aria-orientation="vertical" aria-valuemin={CANVAS_SIDE_PANEL_MIN_WIDTH} aria-valuemax={CANVAS_SIDE_PANEL_MAX_WIDTH} aria-valuenow={width}
+                     onPointerDown={startResize} onKeyDown={event => {

@@ -140,7 +140,7 @@ test('落卡正文与真实生图上下文一致，多次执行和用户手改�
     const jsx = (type, props) => ({ type, props: props || {} });
     const loader = variantModules({
         '@/lib/canvas/node-registry': { getNodeDefinition: type => type === 'guan:product-prompt' ? { resource: () => ({ kind: 'text', text: '' }) } : undefined },
-        react: { useEffect() {}, useRef: value => ({ current: value }), useState: value => [typeof value === 'function' ? value() : value, () => {}] },
+        react: { useMemo: fn => fn(), useEffect() {}, useRef: value => ({ current: value }), useState: value => [typeof value === 'function' ? value() : value, () => {}] },
         'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': { Languages: 'Languages', RotateCcw: 'RotateCcw' },
         antd: { Segmented: 'Segmented' }, './Excel画布上下文': { useExcelProductId: () => 'product' },
         './商品策划请求': { translateProductPrompt() {} }, './商品待确认编辑': { ProductConfirmationDialog: 'dialog' },

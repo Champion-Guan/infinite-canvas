@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 import type { CanvasNodeData, CanvasConnection } from "@/types/canvas";
 import type { CanvasAgentOp } from "@/lib/canvas/canvas-agent-ops";
-import { placeCanvasNode } from "../画布布局/卡片自动避让";
+import { placeCanvasNode, placeGeneratedCanvasNode } from "../画布布局/卡片自动避让";
 import { imageBriefSignature, productPlanningParameters, productPromptTitle, promptDocument, PRODUCT_PROMPT_NODE_TYPE, type ProductImageBrief, type ProductImagePlan, type ProductPromptMetadata } from "./商品提示词规则";
 import { mergeProductVariantPrompts, sharedProductPromptOps } from "./共用商品提示词";
 
@@ -23,12 +23,12 @@ export function productPlanOps(parameter: CanvasNodeData, plan: ProductImagePlan
     const requestedSlots = new Set(plan.images.map(brief => brief.key));
     const reserved = new Set(oldPrompts.filter(node => requestedSlots.has(promptDocument(node)!.key)).map(node => node.id));
     const occupied = [...nodes];
-    let nextY = parameter.position.y;
+    let nextY = parameter.position.y + (parameter.height - 540) / 2;
     const retained = new Set<string>();
     const kindOrder = { main: 0, carousel: 1, rich: 2 };
     const briefs = plan.images.map((brief, planIndex) => ({ brief, planIndex }))
         .sort((a, b) => kindOrder[a.brief.kind] - kindOrder[b.brief.kind] || a.planIndex - b.planIndex);
-    for (const { brief, planIndex } of briefs) {
+    for (const [rowIndex, { brief, planIndex }] of briefs.entries()) {
         const document = brief;
         const title = productPromptTitle(document, plan.images);
         const old = oldPrompts.find(node => !retained.has(node.id) && promptDocument(node)?.key === brief.key
@@ -40,7 +40,7 @@ export function productPlanOps(parameter: CanvasNodeData, plan: ProductImagePlan
         const signature = imageBriefSignature(document);
         const metadata: ProductPromptMetadata = { ...old?.metadata, productImagePrompt: { ...document, planIndex, parameterId: parameter.id, generatedSignature: signature },
             productPromptSourceFingerprint: fingerprint, productPromptRetired: false, status: "success" };
-        const pair = old || placeCanvasNode({
+        const pair = old || (rowIndex === 0 ? placeGeneratedCanvasNode : placeCanvasNode)({
             id, type: PRODUCT_PROMPT_NODE_TYPE, title,
             position: { x: parameter.position.x + parameter.width + 96, y: nextY }, width: 876, height: 540,
         }, occupied);

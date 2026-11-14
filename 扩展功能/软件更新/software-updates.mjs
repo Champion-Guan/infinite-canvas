@@ -51,13 +51,16 @@ export class SoftwareUpdates {
   }
   async status(context) {
     try {
-      const p = await this.preferences(), meta = isPublicUpdateRepository(p.repository) ? null : await this.auth.metadata(), history = await this.history(p.repository);
+      const p = await this.preferences();
+      const [meta, history, install] = await Promise.all([
+        isPublicUpdateRepository(p.repository) ? null : this.auth.metadata(),
+        this.history(p.repository), this.manager?.status(),
+      ]);
       const bound = Boolean(meta && meta.repository.toLowerCase() === p.repository.toLowerCase());
       // Never show a previously checked repository's release after external config change.
       const result = this.matchesPreferences(p) ? this.result : { state: p.repository ? 'unchecked' : 'unconfigured', latest: null, lastCheckedAt: null, error: null, history: [] };
       const cached = this.downloader?.status(p.repository);
       const download = cached?.version && !acceptsUpdateVersion(cached.version, p.developerMode) ? { state: 'idle', progress: 0 } : cached || { state: 'not-implemented', progress: 0 };
-      const install = await this.manager?.status();
       const excluded = install?.targetVersion && !acceptsUpdateVersion(install.targetVersion, p.developerMode);
       const latest = result.latest ? { version: result.latest.version, publishedAt: result.latest.publishedAt, notes: result.latest.notes,
         verification: download.state === 'verified' && download.version === result.latest.version ? 'verified' : result.latest.verification } : null;

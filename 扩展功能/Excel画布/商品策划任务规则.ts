@@ -8,6 +8,7 @@ export function productPlanningRequirements(metadata: ProductParameterMetadata) 
     const keywords = metadata.productBrief?.imageKeywords?.trim();
     return {
         platform, textLanguage: metadata.productLanguage || "",
+        briefInterpretation: "facts.supplement 是用户填写的商品资料与制作要求，可包含全部商品信息，不要求用户另填结构化表单。与 brief、variables 和已附图片在本次策划请求中一并理解，不增加单独的资料提取步骤。用户原文与手填字段都保留，不自动覆盖字段。区分明确商品事实、图片可见外观、制作要求与未经证实的营销愿望；尺寸、材质、数量及性能不得从外观猜测。原文与详细资料冲突时不得静默选择其一，销售款式、包装数量等真实性关键冲突列为待确认；仅在无法确定实际销售商品时暂停出图并追问，其他缺失按保守方案继续。按每张图用途分配要求，例如主图简洁、尺寸图标注尺寸；不要把整段原文复制到每张提示词。平台规则与文字语言使用本次明确选项，原文有冲突时列明待确认。",
         imageTextLanguageRequirement: productImageLanguageRequirement(metadata.productLanguage),
         imageTextPlanning: "逐张按图片用途决定必要文字，不展示用户关键词不等于无字。数量或套装图可清晰标注已确认的总数、单品数量与配件名称，尺寸图可标注真实数值和单位，其他图片可按需要提供简洁说明；文字、字体层级与位置都写入该图完整提示词。不得编造未提供的数量或参数，也不要求每张图都加字。",
         imageKeywordRequirement: keywords ? {

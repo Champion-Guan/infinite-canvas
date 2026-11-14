@@ -31,8 +31,12 @@ export const productPlanningParameterKeys = ["productPlatform", "productPlatform
     "productMainImageHeight", "productMainImageBytes", "productMainImageMimeType", "productVariants", "productSharedImageIds"] as const;
 export const productPlanningParameters = (metadata: ProductVariantMetadata): string =>
     JSON.stringify({ ...Object.fromEntries(productPlanningParameterKeys.map(key => [key, metadata[key]])),
-        productPlatformRules: productPlatformRules({ ...metadata, productPlatform: metadata.productPlatform || WILDBERRIES_PLATFORM }) }, (key, value) =>
-        key === "url" && typeof value === "string" && value.startsWith("blob:") ? undefined : value);
+        productPlatformRules: productPlatformRules({ ...metadata, productPlatform: metadata.productPlatform || WILDBERRIES_PLATFORM }) }, function (key, value) {
+        // 文件身份已由storageKey保存，来源快照不再复制整张Base64图片。
+        return key === "url" && typeof value === "string"
+            && (value.startsWith("blob:") || value.startsWith("data:" + "image/") && typeof this.storageKey === "string")
+            ? undefined : value;
+    });
 export type ProductPromptMetadata = CanvasNodeMetadata & {
     productImagePrompt?: ProductPromptDocument;
     productPromptConfigKey?: string;
@@ -151,8 +155,9 @@ const cleanBrief = (brief?: ProductVariantMetadata["productBrief"]) => {
 export function productPlanningFacts(metadata: ProductVariantMetadata) {
     const pool = productMainImages(metadata);
     if (!pool.length) throw Error("请先上传产品主图，再让 AI 策划图片。");
-    if (!metadata.productBrief?.nameCategory?.trim() && !Object.values(metadata.promptVariableValues || {}).some(value => value.trim()))
-        throw Error("请先填写商品名称／品类或 Excel 商品资料。");
+    if (!baseConfirmationSupplement(metadata.promptVariableSupplement).trim()
+        && !metadata.productBrief?.nameCategory?.trim() && !Object.values(metadata.promptVariableValues || {}).some(value => value.trim()))
+        throw Error("请先填写商品资料与制作要求，或在详细资料中填写商品名称／品类。");
     const variants = productVariants(metadata);
     const selected = variants.filter(item => item.enabled);
     if (variants.length && !selected.length) throw Error("请至少勾选一个需要制作的变体。");
@@ -209,7 +214,7 @@ export function productPlanningChangeDetails(metadata: ProductVariantMetadata, p
     if (!old) return [{ label: "策划来源记录缺失", reason: "策划时的商品资料记录缺失，请重新使用“AI写提示词”更新原卡片。" }];
     const changes: ProductPlanningChange[] = [];
     const labels: Record<string, string> = { platform: "上架平台", channelRequirements: "平台规则", brief: "共用商品资料",
-        variables: "Excel 变量", supplement: "提示词补充", images: "参考图", variants: "变体资料或配图" };
+        variables: "Excel 变量", supplement: "商品资料与制作要求", images: "参考图", variants: "变体资料或配图" };
     const display = (value: unknown) => typeof value === "string" ? value.trim() || "未填写" : "未填写";
     const changedValue = (label: string, field: string, before: unknown, after: unknown) => {
         const original = display(before), latest = display(after);

@@ -1,16 +1,18 @@
-// 局部关闭：保留已有来源和单源手动刷新，拒绝新增、自动刷新及全部拉取；不重置原配置。
-export type BusinessFeature = "modelScripts" | "promptSources" | "promptRefresh" | "promptSourceCreate" | "promptRefreshAll";
+// 提示词库与来源恢复原生功能；自定义模型调用脚本继续关闭。
+export type BusinessFeature = "modelScripts" | "promptLibrary" | "promptSources" | "promptRefresh" | "promptSourceCreate" | "promptRefreshAll";
 
 export const businessFeatures: Readonly<Record<BusinessFeature, boolean>> = Object.freeze({
     modelScripts: false,
+    promptLibrary: true,
     promptSources: true,
-    promptRefresh: false,
-    promptSourceCreate: false,
-    promptRefreshAll: false,
+    promptRefresh: true,
+    promptSourceCreate: true,
+    promptRefreshAll: true,
 });
 
 const names: Record<BusinessFeature, string> = {
     modelScripts: "自定义模型调用脚本",
+    promptLibrary: "提示词库",
     promptSources: "提示词来源管理与手动刷新",
     promptRefresh: "提示词自动刷新",
     promptSourceCreate: "新增提示词来源",

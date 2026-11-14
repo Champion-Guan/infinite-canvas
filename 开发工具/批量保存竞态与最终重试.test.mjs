@@ -77,6 +77,8 @@ function productDependencies({
       orderedProducts: () => [],
     },
     "./产品保存检查点": { ProductCommitCheckpoint: productCheckpoint },
+    "./产品导航范围": { navigationProducts: () => [], navigationSelection: value => value, navigationWorkbookMemory: () => null },
+    "../产品配置/功能开关": { requireProductFeature() {} },
     "./产品回收规则": {
       planProductRecycle: state => state,
       planProductRestore: state => state,
@@ -344,6 +346,7 @@ test("最终批量保存只放行当前产品的一次Zustand持久化", async (
         scheduleStateSave: (key, value) => { scheduled.push({ key, value }); return Promise.resolve(); },
       },
       "@/扩展功能/画布生成/批量保存协调": batchSave,
+      "@/扩展功能/产品配置/功能开关": { productFeatures: { excel: false } },
       zustand: {
         create: () => initializer => {
           let state;

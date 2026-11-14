@@ -1,0 +1,41 @@
+diff --git a/web/src/components/canvas/canvas-prompt-chip-input.tsx b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+index fc32865..b48ad72 100644
+--- a/web/src/components/canvas/canvas-prompt-chip-input.tsx
++++ b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+@@ -11,6 +11,7 @@ import { canvasThemes } from "@/lib/canvas-theme";
+ import { isImeComposing, isPlainEnterKey } from "@/lib/keyboard-event";
+ import { useThemeStore } from "@/stores/use-theme-store";
+ import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
++import inputStyles from "@/扩展功能/提示词/提示词输入.module.css";
+ 
+ type Props = {
+     value: string;
+@@ -128,22 +129,21 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
+     };
+ 
+     const showPlaceholder = !value.trim();
++    const { borderColor, ...inputStyle } = style || {};
+ 
+     return (
+         <div className="relative h-full min-h-0 w-full">
+-            {showPlaceholder && placeholder ? (
+-                <div className="pointer-events-none absolute left-3 top-2 text-sm leading-5" style={{ color: theme.node.placeholder }}>
+-                    {placeholder}
+-                </div>
+-            ) : null}
+             <div
+                 ref={editorRef}
+                 contentEditable
+                 suppressContentEditableWarning
+                 role="textbox"
+                 aria-multiline="true"
+-                className={"guan-scroll-region " + (`${className || ""} overflow-y-auto whitespace-pre-wrap break-words outline-none` || "")}
+-                style={{ ...style, cursor: "text" }}
++                aria-label={placeholder}
++                data-placeholder={showPlaceholder ? placeholder : undefined}
++                className={`${inputStyles.input} guan-scroll-region ${className || ""} overflow-y-auto whitespace-pre-wrap break-words outline-none`}
++                style={{ ...inputStyle, cursor: "text", "--prompt-border": borderColor || theme.toolbar.border,
++                    "--prompt-focus": theme.node.muted, "--prompt-placeholder": theme.node.placeholder } as CSSProperties}
+                 onInput={() => {
+                     if (!composingRef.current) syncFromEditor();
+                 }}

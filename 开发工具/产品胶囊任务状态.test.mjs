@@ -96,6 +96,17 @@ test('真实生成完成仍会点亮成功胶囊，失败目标仍可重试', ()
   assert.deepEqual(failedTaskTargets([node('idle', { generationImageType: 'main image', status: 'idle' })]), []);
 });
 
+test('尺寸不符仍报告失败状态，但不能进入失败重试目标，混合批次只保留普通失败', () => {
+  const errorDetails = '图片尺寸不符：要求 1152 × 1536，上游返回 1024 × 1536。';
+  const mismatch = node('size', { generationStartedAt: 100, status: 'error', errorDetails }, 'image');
+  const mixed = node('mixed', { generationStartedAt: 100, status: 'error', images: [
+    { id: 'size', status: 'error', errorDetails }, { id: 'network', status: 'error', errorDetails: '网络中断' },
+  ] }, 'image');
+  assert.equal(canvasTaskSummary([mismatch]).status, 'error');
+  assert.deepEqual(failedTaskTargets([mismatch]), []);
+  assert.deepEqual(failedTaskTargets([mixed]), [{ node: mixed, imageId: 'network' }]);
+});
+
 function notifications() {
   const values = new Map(), storage = { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) };
   return {

@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 00c3593..5c50cc5 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -480,7 +480,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+             {/* Counter-scale the panel so its on-screen size stays constant while the canvas zooms. */}
+             {showPanel && !isGroup && renderPanel ? (
+                 <CardPanelLayer node={data} target={panelTarget}>
+-                <div className="pointer-events-auto absolute left-1/2 top-full z-[70] w-[600px] pt-4" style={{ transform: `translateX(-50%) scale(${1 / scale})`, transformOrigin: "top center" }} data-node-panel={data.id}>
++                <div className="pointer-events-auto w-full" data-node-panel={data.id}>
+                     {renderPanel(data)}
+                 </div>
+                 </CardPanelLayer>

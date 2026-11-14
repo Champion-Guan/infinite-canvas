@@ -1,0 +1,313 @@
+--- a/web/src/guan/功能开关.ts
++++ b/web/src/guan/功能开关.ts
+@@ -8,7 +8,7 @@
+     localProxy: false,
+     nodePlugins: false,
+     languageSwitch: false,
+-    themeSwitch: true,
++    themeSwitch: false,
+     authorVersion: false,
+     docsLink: false,
+ });
+--- a/web/src/guan/旧版首页顶栏.tsx
++++ b/web/src/guan/旧版首页顶栏.tsx
+@@ -3,7 +3,6 @@
+ import { useNavigate } from "react-router-dom";
+ import { useTranslation } from "react-i18next";
+ import { AppConfigModal } from "@/components/layout/app-config-modal";
+-import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+ import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
+ import { useConfigStore } from "@/stores/use-config-store";
+ import { useThemeStore } from "@/stores/use-theme-store";
+@@ -13,7 +12,6 @@
+   const { t } = useTranslation();
+   const navigate = useNavigate();
+   const theme = useThemeStore((s) => s.theme);
+-  const setTheme = useThemeStore((s) => s.setTheme);
+   const create = useCanvasStore((s) => s.createProject);
+   const openConfig = useConfigStore((s) => s.openConfigDialog);
+   const pending = "旧版业务尚未迁入；不会读取旧数据。";
+@@ -29,7 +27,7 @@
+       <span className={styles.sheetLabel}>当前工作表：</span>
+       <button type="button" className={styles.fileTrigger} aria-label="选择已上传的 Excel 文件" disabled title={pending}><span>暂无已上传 Excel</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>
+     </div>
+-    <AnimatedThemeToggler className={styles.themeButton} theme={theme} onThemeChange={setTheme} duration={400} variant="circle" aria-pressed={theme === "dark"} aria-label={theme === "dark" ? "切换浅色主题" : "切换深色主题"} title={theme === "dark" ? "切换浅色主题" : "切换深色主题"}>{theme === "dark" ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20.9 13.2A8.5 8.5 0 0 1 10.8 3.1 8.5 8.5 0 1 0 20.9 13.2Z" /></svg>}</AnimatedThemeToggler>
++    
+     <button type="button" className={styles.settingsButton} aria-label="画布设置" title="画布设置" onClick={() => openConfig(false)}><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg></button>
+   </header><AppConfigModal /></>;
+ }
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -1,4 +1,3 @@
+-import { ThemePreference } from "@/guan/三态主题设置";
+ import { businessFeatures, resolveBusinessConfigTab } from "@/guan/脚本与提示词来源";
+ import { productFeatures, resolveConfigTab } from "@/guan/功能开关";
+ import { App, Button, Form, Input, Modal, Progress, Radio, Select, Switch, Tabs } from "antd";
+@@ -228,7 +227,6 @@
+                         label: t("config.tabs.preferences"),
+                         children: (
+                             <Form layout="vertical" requiredMark={false}>
+-                                <ThemePreference />
+                                 <div className="mb-2 text-sm font-semibold">{t("config.preferences.defaultModels")}</div>
+                                 <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                     {modelGroups.map((group) => (
+--- a/web/src/guan/三态主题状态.ts
++++ b/web/src/guan/三态主题状态.ts
+@@ -1,7 +1,7 @@
+ import { create } from "zustand";
+-import { persist } from "zustand/middleware";
+ 
+ export type ThemeName = "light" | "dark";
++// 保留旧接口类型，避免要求上游所有消费组件一起修改。
+ export type ThemeMode = ThemeName | "system";
+ type ThemeStore = {
+     theme: ThemeName;
+@@ -15,38 +15,15 @@
+     return typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+ }
+ 
+-export function resolveThemeMode(saved: unknown): ThemeMode {
+-    if (!saved || typeof saved !== "object") return "system";
+-    const data = saved as { mode?: unknown; theme?: unknown };
+-    if (data.mode === "light" || data.mode === "dark" || data.mode === "system") return data.mode;
+-    // 旧版明确选择过的浅/深色保持原选择，不擅自改成跟随系统。
+-    return data.theme === "light" || data.theme === "dark" ? data.theme : "system";
+-}
+-
+-export const useThemeStore = create<ThemeStore>()(
+-    persist(
+-        (set, get) => ({
+-            mode: "system",
+-            theme: systemTheme(),
+-            setTheme: (theme) => {
+-                if (theme === "light" || theme === "dark") set({ mode: theme, theme });
+-            },
+-            setMode: (mode) => {
+-                if (mode !== "system" && mode !== "light" && mode !== "dark") return;
+-                set({ mode, theme: mode === "system" ? systemTheme() : mode });
+-            },
+-            syncSystemTheme: (dark) => {
+-                const theme = dark ? "dark" : "light";
+-                if (get().mode === "system" && get().theme !== theme) set({ theme });
+-            },
+-        }),
+-        {
+-            name: "infinite-canvas:theme_store",
+-            partialize: (state) => ({ mode: state.mode }),
+-            merge: (saved, current) => {
+-                const mode = resolveThemeMode(saved);
+-                return { ...current, mode, theme: mode === "system" ? systemTheme() : mode };
+-            },
+-        },
+-    ),
+-);
++// 只解析系统外观，不读取或覆盖旧的手动主题持久化记录。
++// 兼容setter不再改变主题；所有仍保留的上游消费者读取同一个解析结果。
++export const useThemeStore = create<ThemeStore>()((set, get) => ({
++    mode: "system",
++    theme: systemTheme(),
++    setTheme: () => undefined,
++    setMode: () => undefined,
++    syncSystemTheme: (dark) => {
++        const theme = dark ? "dark" : "light";
++        if (get().theme !== theme) set({ theme });
++    },
++}));
+--- a/web/src/guan/三态主题设置.tsx
++++ b/web/src/guan/三态主题设置.tsx
+@@ -1,8 +1,7 @@
+ import { useEffect } from "react";
+-import { Form, Select } from "antd";
+-import { useThemeStore, type ThemeMode } from "./三态主题状态";
++import { useThemeStore } from "./三态主题状态";
+ 
+-// 全应用只挂载一次；系统改变时只更新解析后的颜色，不改变用户偏好。
++// 接入时仍生成历史模块路径；只挂载一份监听，不提供手动选择控件。
+ export function SystemThemeSync() {
+     useEffect(() => {
+         if (typeof window.matchMedia !== "function") return;
+@@ -14,13 +13,3 @@
+     }, []);
+     return null;
+ }
+-
+-export function ThemePreference() {
+-    const mode = useThemeStore((state) => state.mode);
+-    const setMode = useThemeStore((state) => state.setMode);
+-    return <Form.Item label="界面主题" extra="跟随系统会自动响应 macOS 外观变化；顶栏太阳/月亮按钮会切换为手动浅色或深色。">
+-        <Select aria-label="界面主题" value={mode} onChange={(value: ThemeMode) => setMode(value)} options={[
+-            { value: "system", label: "跟随系统" }, { value: "light", label: "浅色" }, { value: "dark", label: "深色" },
+-        ]} />
+-    </Form.Item>;
+-}
+--- a/web/src/guan/脚本与提示词来源.ts
++++ b/web/src/guan/脚本与提示词来源.ts
+@@ -1,16 +1,20 @@
+-// 全局界面恢复批次：恢复R02/R03；S03仍关闭，不清空来源、间隔或缓存。
+-export type BusinessFeature = "modelScripts" | "promptSources" | "promptRefresh";
++// 局部关闭：保留已有来源和单源手动刷新，拒绝新增、自动刷新及全部拉取；不重置原配置。
++export type BusinessFeature = "modelScripts" | "promptSources" | "promptRefresh" | "promptSourceCreate" | "promptRefreshAll";
+ 
+ export const businessFeatures: Readonly<Record<BusinessFeature, boolean>> = Object.freeze({
+     modelScripts: false,
+     promptSources: true,
+-    promptRefresh: true,
++    promptRefresh: false,
++    promptSourceCreate: false,
++    promptRefreshAll: false,
+ });
+ 
+ const names: Record<BusinessFeature, string> = {
+     modelScripts: "自定义模型调用脚本",
+     promptSources: "提示词来源管理与手动刷新",
+-    promptRefresh: "提示词自动刷新与缓存更新",
++    promptRefresh: "提示词自动刷新",
++    promptSourceCreate: "新增提示词来源",
++    promptRefreshAll: "全部提示词来源拉取",
+ };
+ 
+ export function requireBusinessFeature(feature: BusinessFeature): void {
+--- a/web/src/components/layout/config-prompt-sources.tsx
++++ b/web/src/components/layout/config-prompt-sources.tsx
+@@ -1,13 +1,13 @@
+-import { App, Button, Select, Switch, Tag } from "antd";
++import { App, Button, Switch, Tag } from "antd";
+ import { useQuery, useQueryClient } from "@tanstack/react-query";
+-import { Eye, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
++import { Eye, Pencil, RefreshCw, Trash2 } from "lucide-react";
+ import { useState } from "react";
+ import { useTranslation } from "react-i18next";
+ 
+ import { PromptSourceEditorDrawer } from "./prompt-source-editor-drawer";
+ import { PromptSourceContentModal } from "./prompt-source-content-modal";
+-import { fetchPromptSourceStatuses, refreshAllSources, refreshSource } from "@/services/api/prompts";
+-import { PROMPT_SOURCE_INTERVALS, usePromptSourceStore } from "@/stores/use-prompt-source-store";
++import { fetchPromptSourceStatuses, refreshSource } from "@/services/api/prompts";
++import { usePromptSourceStore } from "@/stores/use-prompt-source-store";
+ import type { PromptSource } from "@/services/api/prompt-source-presets";
+ 
+ const STATUS_QUERY_KEY = ["prompt-source-statuses"];
+@@ -17,20 +17,15 @@
+     const { i18n, t } = useTranslation();
+     const queryClient = useQueryClient();
+     const sources = usePromptSourceStore((state) => state.sources);
+-    const schedule = usePromptSourceStore((state) => state.schedule);
+-    const addSource = usePromptSourceStore((state) => state.addSource);
+     const saveSource = usePromptSourceStore((state) => state.saveSource);
+     const removeSource = usePromptSourceStore((state) => state.removeSource);
+     const toggleSource = usePromptSourceStore((state) => state.toggleSource);
+-    const updateSchedule = usePromptSourceStore((state) => state.updateSchedule);
+     const statusQuery = useQuery({ queryKey: STATUS_QUERY_KEY, queryFn: fetchPromptSourceStatuses });
+ 
+     const [editingSource, setEditingSource] = useState<PromptSource | null>(null);
+     const [viewingId, setViewingId] = useState("");
+     const [refreshingId, setRefreshingId] = useState("");
+-    const [refreshingAll, setRefreshingAll] = useState(false);
+     const viewingSource = sources.find((item) => item.id === viewingId) || null;
+-    const intervalOptions = PROMPT_SOURCE_INTERVALS.map((value) => ({ value, label: t(`config.promptSources.intervals.${intervalKey(value)}`) }));
+ 
+     const invalidatePrompts = async () => {
+         await Promise.all([
+@@ -73,28 +68,11 @@
+         }
+     };
+ 
+-    const handleRefreshAll = async () => {
+-        setRefreshingAll(true);
+-        try {
+-            const result = await refreshAllSources();
+-            updateSchedule("lastFetchedAt", new Date().toISOString());
+-            await invalidatePrompts();
+-            if (result.failureCount) message.warning(t("config.promptSources.refreshPartial", { success: result.successCount, failed: result.failureCount }));
+-            else message.success(t("config.promptSources.refreshAllSuccess", { sources: result.successCount, total: result.total }));
+-        } catch (error) {
+-            message.error(error instanceof Error ? error.message : t("config.promptSources.refreshFailed"));
+-        } finally {
+-            setRefreshingAll(false);
+-        }
+-    };
++    
+ 
+     return (
+         <div>
+-            <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
+-                <Button type="primary" icon={<Plus className="size-4" />} onClick={() => setEditingSource(addSource())}>
+-                    {t("config.promptSources.add")}
+-                </Button>
+-            </div>
++            
+ 
+             <div className="space-y-2">
+                 {sources.map((source) => {
+@@ -131,20 +109,7 @@
+                 })}
+             </div>
+ 
+-            <section className="mt-5 rounded-lg border border-stone-200 p-4 dark:border-stone-800">
+-                <div className="mb-3 text-sm font-semibold">{t("config.promptSources.schedule")}</div>
+-                <div className="flex flex-wrap items-center gap-3">
+-                    <div className="flex items-center gap-2">
+-                        <span className="text-xs text-stone-500">{t("config.promptSources.interval")}</span>
+-                        <Select size="small" className="w-36" value={schedule.intervalMinutes} options={intervalOptions} onChange={(value) => updateSchedule("intervalMinutes", value)} />
+-                    </div>
+-                    <Button size="small" type="primary" icon={<RefreshCw className="size-3.5" />} loading={refreshingAll} onClick={() => void handleRefreshAll()}>
+-                        {t("config.promptSources.refreshAll")}
+-                    </Button>
+-                    <span className="text-xs text-stone-500">{schedule.lastFetchedAt ? t("config.promptSources.lastFetched", { time: formatTime(schedule.lastFetchedAt, i18n.resolvedLanguage) }) : t("config.promptSources.neverScheduled")}</span>
+-                </div>
+-                <div className="mt-2 text-xs text-stone-400">{t("config.promptSources.scheduleDescription")}</div>
+-            </section>
++            
+ 
+             <PromptSourceEditorDrawer open={Boolean(editingSource)} source={editingSource} onSave={handleSave} onClose={() => setEditingSource(null)} />
+             <PromptSourceContentModal source={viewingSource} onClose={() => setViewingId("")} />
+@@ -157,10 +122,4 @@
+     return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString(locale, { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+ }
+ 
+-function intervalKey(value: number) {
+-    if (value === 30) return "minutes30";
+-    if (value === 60) return "hour1";
+-    if (value === 360) return "hours6";
+-    if (value === 1440) return "hours24";
+-    return "disabled";
+-}
++
+--- a/web/src/stores/use-prompt-source-store.ts
++++ b/web/src/stores/use-prompt-source-store.ts
+@@ -30,12 +30,13 @@
+ 
+ export const usePromptSourceStore = create<PromptSourceStore>()(
+     persist(
+-        (set) => ({
++        (set, get) => ({
+             sources: DEFAULT_PROMPT_SOURCES,
+             schedule: defaultSchedule,
+-            addSource: () => { requireBusinessFeature("promptSources"); return createPromptSource(); },
++            addSource: () => { requireBusinessFeature("promptSourceCreate"); return createPromptSource(); },
+             saveSource: (source) => {
+                 requireBusinessFeature("promptSources");
++                if (!get().sources.some((item) => item.id === source.id)) requireBusinessFeature("promptSourceCreate");
+                 return set((state) => ({
+                     sources: state.sources.some((item) => item.id === source.id)
+                         ? state.sources.map((item) => (item.id === source.id && !item.builtIn ? createPromptSource(source) : item))
+--- a/web/src/components/layout/client-root-init.tsx
++++ b/web/src/components/layout/client-root-init.tsx
+@@ -1,6 +1,4 @@
+ import type { ReactNode } from "react";
+-import { usePromptSourceScheduler } from "@/hooks/use-prompt-source-scheduler";
+ export function ClientRootInit({ children }: { children: ReactNode }) {
+-    usePromptSourceScheduler();
+     return <>{children}</>;
+ }
+--- a/web/src/services/api/prompts.ts
++++ b/web/src/services/api/prompts.ts
+@@ -173,7 +173,7 @@
+ }
+ 
+ export async function refreshAllSources(): Promise<PromptSourceRefreshSummary> {
+-    requireBusinessFeature("promptSources");
++    requireBusinessFeature("promptRefreshAll");
+     const results = await Promise.all(enabledSources().map(getOrStartRefresh));
+     return summarizeRefresh(results);
+ }

@@ -1,0 +1,101 @@
+diff --git a/web/src/services/api/image.ts b/web/src/services/api/image.ts
+index aec4398..24cd2b1 100644
+--- a/web/src/services/api/image.ts
++++ b/web/src/services/api/image.ts
+@@ -12,6 +12,7 @@ import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
+ import { imageToDataUrl } from "@/services/image-storage";
+ import { imageSizePresets, inferMediaScale } from "@/lib/media-size";
+ import type { ReferenceImage } from "@/types/image";
++import { imageRequestSizePlan, imagePaddingPrompt, padImageReference, type ImageRequestPadding } from "@/扩展功能/媒体交付/生成图片尺寸交付.mjs";
+ 
+ const apiText = (key: string, options?: Record<string, unknown>) => i18n.t(`apiErrors.${key}`, options);
+ 
+@@ -173,8 +174,8 @@ function resolveRequestSize(size: string) {
+     if (!value || value.toLowerCase() === "auto") return undefined;
+     const dimensions = parseImageDimensions(value);
+     if (dimensions) {
+-        validateImageSize(dimensions.width, dimensions.height);
+-        return `${dimensions.width}x${dimensions.height}`;
++        const plan = imageRequestSizePlan(dimensions.width, dimensions.height);
++        return `${plan.width}x${plan.height}`;
+     }
+     if (value.includes(":")) return resolveSize(value);
+     throw new Error(apiText("invalidImageSizeFormat"));
+@@ -694,7 +695,7 @@ function parseGeminiImagePayload(payload: GeminiPayload) {
+     return images;
+ }
+ 
+-export async function requestGeneration(config: AiConfig, prompt: string, options?: RequestOptions) {
++export async function requestGeneration(config: AiConfig, prompt: string, options?: RequestOptions): Promise<Array<{ id: string; dataUrl: string; padding?: ImageRequestPadding }>> {
+     requireModelConfigured(config, "image", config.model || config.imageModel);
+     const requestConfig = resolveModelRequestConfig(config, config.model || config.imageModel);
+     const n = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));
+@@ -728,12 +729,15 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
+     const quality = normalizeQuality(config.quality);
+     const requestSize = resolveRequestSize(config.size);
+     const background = normalizeBackground(config.background);
++    const dimensions = parseImageDimensions(config.size);
++    const padding = dimensions ? imageRequestSizePlan(dimensions.width, dimensions.height).padding : undefined;
++    const requestPrompt = padding ? prompt + imagePaddingPrompt(padding) : prompt;
+     try {
+         const response = await axios.post<ImageApiResponse>(
+             aiApiUrl(requestConfig, "/images/generations"),
+             {
+                 model: requestConfig.model,
+-                prompt: withSystemPrompt(requestConfig, prompt),
++                prompt: withSystemPrompt(requestConfig, requestPrompt),
+                 n,
+                 ...(quality ? { quality } : {}),
+                 ...(requestSize ? { size: requestSize } : {}),
+@@ -749,13 +753,13 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
+             },
+         );
+         const images = await parseImagePayload(response.data);
+-        return images;
++        return images.map(image => ({ ...image, ...(padding ? { padding } : {}) }));
+     } catch (error) {
+         throw new Error(readAxiosError(error, apiText("requestFailed")));
+     }
+ }
+ 
+-export async function requestEdit(config: AiConfig, prompt: string, references: ReferenceImage[], options?: RequestOptions) {
++export async function requestEdit(config: AiConfig, prompt: string, references: ReferenceImage[], options?: RequestOptions): Promise<Array<{ id: string; dataUrl: string; padding?: ImageRequestPadding }>> {
+     assertImageReferenceLimit(references);
+     requireModelConfigured(config, "image", config.model || config.imageModel);
+     const requestConfig = resolveModelRequestConfig(config, config.model || config.imageModel);
+@@ -793,9 +797,11 @@ export async function requestEdit(config: AiConfig, prompt: string, references:
+     const quality = normalizeQuality(config.quality);
+     const requestSize = resolveRequestSize(config.size);
+     const background = normalizeBackground(config.background);
++    const dimensions = parseImageDimensions(config.size);
++    const padding = dimensions ? imageRequestSizePlan(dimensions.width, dimensions.height).padding : undefined;
+     const formData = new FormData();
+     formData.set("model", requestConfig.model);
+-    formData.set("prompt", withSystemPrompt(requestConfig, requestPrompt));
++    formData.set("prompt", withSystemPrompt(requestConfig, padding ? requestPrompt + imagePaddingPrompt(padding) : requestPrompt));
+     formData.set("n", String(n));
+     // gpt-image models reject response_format; they always return b64.
+     if (!/gpt-image/.test(requestConfig.model)) {
+@@ -811,14 +817,20 @@ export async function requestEdit(config: AiConfig, prompt: string, references:
+     if (background) {
+         formData.set("background", background);
+     }
+-    const files = await Promise.all(references.map(async (image) => dataUrlToFile({ ...image, dataUrl: await imageToDataUrl(image) })));
++    const files: File[] = [];
++    for (const image of references) {
++        options?.signal?.throwIfAborted();
++        const original = await imageToDataUrl(image);
++        const dataUrl = padding ? await padImageReference(original, padding, options?.signal) : original;
++        files.push(dataUrlToFile({ ...image, dataUrl }));
++    }
+     const imageField = files.length > 1 ? "image[]" : "image";
+     files.forEach((file) => formData.append(imageField, file));
+ 
+     try {
+         const response = await axios.post<ImageApiResponse>(aiApiUrl(requestConfig, "/images/edits"), formData, { headers: aiHeaders(requestConfig), signal: options?.signal, timeout: IMAGE_REQUEST_TIMEOUT_MS });
+         const images = await parseImagePayload(response.data);
+-        return images;
++        return images.map(image => ({ ...image, ...(padding ? { padding } : {}) }));
+     } catch (error) {
+         throw new Error(readAxiosError(error, apiText("requestFailed")));
+     }

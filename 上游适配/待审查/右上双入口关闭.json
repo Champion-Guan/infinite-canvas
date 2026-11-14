@@ -1,0 +1,26 @@
+{
+  "状态": "待单独批准",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "已应用到运行副本": false,
+  "范围": [
+    "共享顶栏配置按钮不渲染",
+    "共享顶栏原作者GitHub链接不渲染"
+  ],
+  "语法预审通过": true,
+  "标准差异检查通过": true,
+  "全量类型检查": "尚未运行",
+  "浏览器验收": "待具体差异获批接入后进行",
+  "差异SHA256": "84ce03a198345769f2314e0e7dc220b1030a7f9d93152ff410125036afc425ef",
+  "文件": [
+    {
+      "文件": "web/src/components/layout/user-status-actions.tsx",
+      "原始SHA256": "e68e79e33b86329d59545d35d74f8c90dd17786a3a26f8e348c022319efc75fe",
+      "候选SHA256": "969bdd6c199ca7822a5e4f05fc960f99f3f42b80f0e3fcca5ef90defdf031ef7"
+    },
+    {
+      "文件": "web/src/guan/右上双入口.ts",
+      "原始SHA256": null,
+      "候选SHA256": "f3d736b9f5b4a8a9e5e97932abf63004cfe15421490dfef9e21fa02fdb386774"
+    }
+  ]
+}

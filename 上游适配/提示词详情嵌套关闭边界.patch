@@ -1,0 +1,22 @@
+diff --git a/web/src/components/layout/prompt-source-content-modal.tsx b/web/src/components/layout/prompt-source-content-modal.tsx
+index 2851ca7..b34cac3 100644
+--- a/web/src/components/layout/prompt-source-content-modal.tsx
++++ b/web/src/components/layout/prompt-source-content-modal.tsx
+@@ -39,6 +39,7 @@ export function PromptSourceContentModal({ source, localItems, onClose, triggerI
+             try {
+                 const next = force ? await refreshSourceItems(source.id) : await fetchSourcePrompts(source.id);
+                 setItems(next);
++                setPage(current => Math.min(current, Math.max(1, Math.ceil(next.length / 10))));
+                 if (force) message.success(t("config.promptSources.refreshed", { name: source.name, count: next.length }));
+             } catch (error) {
+                 message.error(error instanceof Error ? error.message : t("config.promptSources.content.loadFailed"));
+@@ -142,8 +143,8 @@ export function PromptSourceContentModal({ source, localItems, onClose, triggerI
+                         },
+                     ]}
+                 />
++                <PromptDetailDialog triggerId={detailTriggerId} prompt={detail} onClose={() => setDetail(null)} onCopy={(prompt) => copyText(prompt, t("common.promptCopied"))} onSaveAsset={saveAsset} />
+             </Modal>
+-            <PromptDetailDialog triggerId={detailTriggerId} prompt={detail} onClose={() => setDetail(null)} onCopy={(prompt) => copyText(prompt, t("common.promptCopied"))} onSaveAsset={saveAsset} />
+         </>
+     );
+ }

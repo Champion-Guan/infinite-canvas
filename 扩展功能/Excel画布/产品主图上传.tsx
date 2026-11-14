@@ -6,7 +6,7 @@ import type { CanvasNodeContext } from "@/types/canvas-plugin";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { ASSET_DRAG_TYPE, readAssetDrag } from "../素材/上传资产规则";
 import { ParameterImageThumbnail } from "./参数图片预览";
-import { applyProductImageCutout, productMainImages, productMainImagesPatch, productImageSource, restoreProductMainImage,
+import { applyProductImageCutout, productMainImages, productMainImagesPatch, productImageSource, removeProductMainImagePatch, restoreProductMainImage,
     sameProductImageSource, type ProductImageMetadata, type ProductMainImage } from "./产品主图规则";
 
 export function ProductMainImageUploader({ ctx, productId }: { ctx: CanvasNodeContext; productId: string }) {
@@ -161,7 +161,10 @@ export function ProductMainImageUploader({ ctx, productId }: { ctx: CanvasNodeCo
                             <ParameterImageThumbnail image={image} number={index + 1} name={`产品主图 ${label}`} className="block h-full min-h-0 w-full min-w-0" />
                             <button type="button" aria-label={`移除产品主图 ${label}`} title="移除图片" disabled={pending}
                                 className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/95 text-stone-900 opacity-0 shadow-sm transition-opacity group-hover/product-image:opacity-100 group-focus-within/product-image:opacity-100 disabled:cursor-wait motion-reduce:transition-none [@media(hover:none)]:opacity-100"
-                                onClick={() => updateImages(current => current.filter(item => item.id !== image.id))}><X className="size-3" /></button>
+                                onClick={() => {
+                                    const current = latest.current.getNode(ctx.node.id);
+                                    if (current) latest.current.updateMetadata(removeProductMainImagePatch(current.metadata || {}, image.id));
+                                }}><X className="size-3" /></button>
                             <button type="button" aria-label={`${image.backgroundRemoved ? "还原" : "移除背景"} 产品主图 ${label}`}
                                 title={image.backgroundRemoved ? "还原原图" : "移除背景"} disabled={pending} aria-busy={pending}
                                 className={`absolute bottom-1 left-1 right-1 flex min-h-6 items-center justify-center gap-1 rounded-md bg-black/75 px-1 py-1 text-[10px] leading-4 text-white transition-opacity group-hover/product-image:opacity-100 group-focus-within/product-image:opacity-100 motion-reduce:transition-none [@media(hover:none)]:opacity-100 ${pending ? "opacity-100" : "opacity-0"}`}

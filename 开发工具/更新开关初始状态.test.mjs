@@ -21,7 +21,7 @@ function fixture() {
         '@/hooks/use-version-check': { useVersionCheck: () => ({ status, unavailable, currentVersion: 'test', releases: [], checking: false, refresh: async () => { if (pending) status = { ...status, preferences: { ...status.preferences, ...pending } }; }, checkLatestRelease: async () => writes.push(['check']) }) },
         './软件更新客户端': { updateMessages: {}, updateRequest: async (operation, input) => { writes.push([operation, input]); if (fail) throw Error('保存失败'); pending = input; } },
         './在线安装操作': { OnlineInstallActions: 'InstallActions' },
-        './版本历史时间线': { ReleaseTimeline: 'ReleaseTimeline' },
+        './GitHub更新正文': { GitHubReleaseNotes: 'GitHubReleaseNotes' },
     };
     const module = { exports: {} };
     const source = readFileSync(new URL('../扩展功能/软件更新/软件更新设置.tsx', import.meta.url), 'utf8');

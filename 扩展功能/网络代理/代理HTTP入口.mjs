@@ -1,31 +1,52 @@
 import { StorageError, requireValue } from '../本机存储/协议.mjs';
-import { PROXY_PROTOCOL, MAX_PROXY_SOURCE, exact } from './配置边界.mjs';
+import { PROXY_PROTOCOL, exact } from './配置边界.mjs';
+import { MAX_RESPONSE_BYTES } from '../生成网关/生成协议.mjs';
+import { createProxyRequestQueue, proxyQueueErrors } from './代理请求排队.mjs';
 
-export function createNetworkProxyHTTPHandler({ origin, authorize, proxy, relay, now = Date.now } = {}) {
+export function createNetworkProxyHTTPHandler({ origin, authorize, proxy, relay, queueOptions = {} } = {}) {
   requireValue(/^http:\/\/(?:localhost|127\.0\.0\.1):\d+$/.test(origin) && typeof authorize === 'function' && typeof proxy?.status === 'function', 'proxy_http_invalid', '代理入口必须使用当前工作台授权。');
-  let active = 0, count = 0, windowStart = now();
+  const transfers = createProxyRequestQueue({ concurrent: 4, maxBytes: 576 * 1024 ** 2, maxQueuedBytes: 64 * 1024 ** 2, ...queueOptions });
+  const reads = createProxyRequestQueue({ concurrent: 4, maxQueued: 16, timeoutMs: 15_000 });
+  const controls = createProxyRequestQueue({ concurrent: 2, maxQueued: 8, timeoutMs: 15_000 });
+  let receiving = 0, receivingBytes = 0;
   return async function handle(request, response) {
     if (request.url !== '/__guan-local/network-proxy') return false;
     response.setHeader('Cache-Control', 'no-store'); response.setHeader('X-Content-Type-Options', 'nosniff'); response.setHeader('Referrer-Policy', 'no-referrer');
     const json = (status, value) => { if (!response.destroyed && !response.writableEnded) { response.writeHead(status, { 'Content-Type': 'application/json' }); response.end(JSON.stringify({ protocol: PROXY_PROTOCOL, ...value })); } };
-    let counted = false;
+    let release;
     const controller = new AbortController(), abort = () => { if (!response.writableFinished) controller.abort(); };
-    response.once('close', abort);
+    response.once('close', abort); request.once('aborted', abort);
     try {
       requireValue(request.headers.host === new URL(origin).host && request.headers.origin === origin && (!request.headers['sec-fetch-site'] || request.headers['sec-fetch-site'] === 'same-origin') &&
         request.method === 'POST' && request.headers['content-type'] === 'application/json' && request.headers['x-guan-proxy-protocol'] === PROXY_PROTOCOL,
       'proxy_origin_denied', '代理请求必须来自当前授权工作台。', 403);
       await authorize(request);
-      const time = now(); if (time - windowStart >= 60_000) { count = 0; windowStart = time; }
-      requireValue(++count <= 60 && active < 2, 'proxy_http_busy', '代理入口繁忙。', 429); active++; counted = true;
       const limit = Math.ceil(32 * 1024 ** 2 / 3) * 4 + 65536, length = request.headers['content-length'];
       requireValue(!length || /^\d+$/.test(length) && Number(length) <= limit, 'proxy_body_large', '代理请求过大。', 413);
-      const chunks = []; let size = 0;
-      for await (const chunk of request) { size += chunk.length; requireValue(size <= limit, 'proxy_body_large', '代理请求过大。', 413); chunks.push(chunk); }
-      let value; try { value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))); } catch { throw new StorageError('proxy_json_invalid', '代理请求格式无效。'); }
+      const expected = length ? Number(length) : limit;
+      requireValue(receiving < 32 && receivingBytes + expected <= 128 * 1024 ** 2, 'proxy_ingress_busy', proxyQueueErrors.proxy_ingress_busy, 503);
+      receiving++; receivingBytes += expected;
+      let value, size = 0;
+      try {
+        const chunks = [];
+        for await (const chunk of request) {
+          size += chunk.length;
+          requireValue(size <= expected, 'proxy_body_large', '代理请求过大。', 413); chunks.push(chunk);
+        }
+        try { value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))); }
+        catch { throw new StorageError('proxy_json_invalid', '代理请求格式无效。'); }
+      } finally { receiving--; receivingBytes -= expected; }
+      const isRelay = exact(value, ['operation', 'request']) && value.operation === 'relay' && typeof relay === 'function';
+      const isRead = exact(value, ['operation']) && ['status', 'snapshot', 'nodes'].includes(value.operation);
+      // 响应缓冲及Base64/JSON副本按保守倍数预留；排队只保留请求，不获取网络租约。
+      release = await (isRelay ? transfers : isRead ? reads : controls).acquire({
+        signal: controller.signal, ...(isRelay ? { weight: Math.max(1, size * 2 + MAX_RESPONSE_BYTES * 4), retained: Math.max(1, size * 2) } : {}),
+      });
+      controller.signal.throwIfAborted();
       await authorize(request);
       let result;
       if (exact(value, ['operation']) && value.operation === 'status') result = await (proxy.observeStatus ? proxy.observeStatus() : proxy.status());
+      else if (exact(value, ['operation']) && value.operation === 'snapshot') result = proxy.status();
       else if (exact(value, ['operation', 'configText', 'subscriptionUrl', 'fileName']) && value.operation === 'configure') result = await proxy.configure(value);
       else if (exact(value, ['operation', 'enabled']) && value.operation === 'toggle') result = await proxy.toggle(value.enabled);
       else if (exact(value, ['operation', 'enabled']) && value.operation === 'toggle-relay') result = await proxy.toggleRelay(value.enabled);
@@ -39,8 +60,8 @@ export function createNetworkProxyHTTPHandler({ origin, authorize, proxy, relay,
       else if (exact(value, ['operation', 'group', 'name']) && value.operation === 'select' && typeof value.group === 'string' && typeof value.name === 'string' && value.group.length <= 256 && value.name.length <= 256) result = await proxy.select(value.group, value.name);
       else requireValue(false, 'proxy_command_denied', '代理操作不受支持。');
       await authorize(request); json(200, { result });
-    } catch (error) { json(error instanceof StorageError ? error.status : 503, { error: { code: error instanceof StorageError ? error.code : 'proxy_unavailable', message: '代理操作未确认，配置保留；请检查状态，不要反复提交。' } }); request.resume(); }
-    finally { response.removeListener('close', abort); if (counted) active--; }
+    } catch (error) { json(error instanceof StorageError ? error.status : 503, { error: { code: error instanceof StorageError ? error.code : 'proxy_unavailable', message: proxyQueueErrors[error.code] || '代理操作未确认，配置保留；请检查状态，不要反复提交。' } }); request.resume(); }
+    finally { response.removeListener('close', abort); request.removeListener('aborted', abort); release?.(); }
     return true;
   };
 }

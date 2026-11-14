@@ -5,6 +5,8 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
 import { runCanvasImageTask } from '../扩展功能/画布生成/图片任务衔接.mjs';
+import { ImageDeliverySizeError } from '../扩展功能/媒体交付/生成图片尺寸交付.mjs';
+import { imageRequestSizePlan } from '../扩展功能/媒体交付/生成图片尺寸交付.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const samples = JSON.parse(readFileSync(resolve(root, '开发工具/图片回写原行为样例.json'), 'utf8')).样例;
@@ -69,7 +71,7 @@ for (const sample of samples) test('与拆分前原回调一致：' + sample.名
 
 async function fixture(options = {}) {
     const sample = structuredClone(samples[0]), order = [], cleaned = [];
-    let uploads = 0, saves = 0, applied = 0; const targets = [];
+    let uploads = 0, saves = 0, applied = 0; const targets = [], paddings = [];
     const port = {
         projectId: 'product', nodesRef: { current: [sample.原节点, { id: 'config', type: 'config', metadata: { status: 'loading' } }] },
         restoredProjectIdRef: { current: 'product' }, surfaceRef: { current: { projectId: 'product', mounted: true, active: true } },
@@ -77,12 +79,13 @@ async function fixture(options = {}) {
     };
     const { useCanvasImageResults } = await load('扩展功能/媒体交付/图片结果保存操作.ts', {
         react: { useCallback: callback => callback }, './图片结果回写': results,
-        '@/services/image-storage': { deleteStoredImages: async keys => { cleaned.push(...keys); }, uploadGeneratedImage: async (_input, { signal, targetSize }) => {
+        '@/services/image-storage': { deleteStoredImages: async keys => { cleaned.push(...keys); }, uploadGeneratedImage: async (_input, { signal, targetSize, padding }) => {
             targets.push(targetSize);
+            paddings.push(padding);
             uploads++; order.push('upload'); assert.equal(signal, request.signal);
             if (options.uploadGate) await options.uploadGate;
-            if (options.uploadError) throw Error('图片落盘失败');
-            return sample.上传结果;
+            if (options.uploadError) throw options.uploadError instanceof Error ? options.uploadError : Error('图片落盘失败');
+            return options.uploaded || sample.上传结果;
         } },
         '../产品/产品操作': { saveProductCanvas: async id => {
             saves++; order.push('save'); assert.equal(id, 'product');
@@ -92,8 +95,22 @@ async function fixture(options = {}) {
     const controller = new AbortController();
     const request = { mode: 'batch', nodeId: 'result', slotId: 'one', image: sample.图片, receipt: sample.回执,
         signal: controller.signal, sourceConfigId: 'config', onApplied: () => { applied++; order.push('applied'); } };
-    return { port, request, controller, order, targets, cleaned, run: useCanvasImageResults(port), counts: () => ({ uploads, saves, applied }) };
+    return { port, request, controller, order, targets, paddings, cleaned, run: useCanvasImageResults(port), counts: () => ({ uploads, saves, applied }) };
 }
+
+test('普通批次、编辑和重试均将补边信息传到交付层，保存原交付尺寸与上游请求尺寸', async () => {
+    const padding = imageRequestSizePlan(790,1376).padding;
+    for (const mode of ['batch','tool','retry']) {
+        const api = await fixture({uploaded:{url:'local:image',storageKey:'image:delivery',width:790,height:1376,bytes:20,mimeType:'image/png'}});
+        const request = {...api.request,mode,prompt:'原提示词',generationMetadata:{generationType:'edit'},
+            requestedSize:'790x1376',image:{...api.request.image,deliverySize:'790x1376',upstreamSize:'800x1376',padding}};
+        await api.run(request);
+        assert.deepEqual(api.paddings,[padding]); assert.deepEqual(api.targets,['790x1376']);
+        const result=api.port.nodesRef.current[0].metadata;
+        assert.equal(result.requestedSize,'790x1376');assert.equal(result.upstreamSize,'800x1376');
+        assert.equal(result.deliverySize,'790x1376');assert.equal(api.counts().saves,1);
+    }
+});
 
 test('图片先落盘、再同步回写结果及源配置、最后保存原产品', async () => {
     const api = await fixture(); await api.run(api.request);
@@ -203,6 +220,23 @@ test('落盘失败不改变节点；保存失败向任务协议抛出，已回�
     await assert.rejects(badSave.run(badSave.request), /保存失败/);
     assert.deepEqual(badSave.counts(), { uploads: 1, saves: 1, applied: 1 });
     assert.equal(badSave.port.nodesRef.current[0].metadata.gatewayGenerationReceipts.at(-1).taskId, 'task');
+});
+
+test('尺寸不符时首次、重试和工具均不回写成功，保留原节点及原任务身份', async () => {
+    for (const mode of ['batch', 'retry', 'tool']) {
+        const error = new ImageDeliverySizeError({ width: 1024, height: 1536 }, { width: 1152, height: 1536 });
+        const api = await fixture({ uploadError: error });
+        api.port.nodesRef.current[0].metadata.gatewayGenerationTasks = [{ slotId: 'one', taskId: api.request.receipt.taskId }];
+        const before = structuredClone(api.port.nodesRef.current);
+        await assert.rejects(api.run({ ...api.request, mode, prompt: '本地测试', generationMetadata: {} }), failure => {
+            assert.equal(failure.code, 'image_delivery_size_mismatch');
+            assert.match(failure.message, /要求 1152 × 1536.*上游返回 1024 × 1536.*原始响应已保留.*不支持重试/);
+            return true;
+        });
+        assert.deepEqual(api.port.nodesRef.current, before);
+        assert.deepEqual(api.counts(), { uploads: 1, saves: 0, applied: 0 });
+        assert.deepEqual(api.cleaned, []);
+    }
 });
 
 test('旧单图没有批次槽位时仍可整卡重试；尺寸回落到原请求快照', async () => {

@@ -37,14 +37,14 @@ async function failureMessage(host, job, options) {
 }
 
 const slots = new Set();
-/** @param {{host: any, scope: {productId: string, nodeId: string, slotId: string}, prepare: Function, bind: Function, previous?: any, recordTask: Function, applyAndSave: Function, onProgress?: Function, signal?: AbortSignal, retry?: boolean, recoverOnly?: boolean, wait?: Function, retryWait?: Function, makeId?: Function, deferConfirm?: () => boolean}} options */
+/** @param {{host: any, scope: {productId: string, nodeId: string, slotId: string}, prepare: Function, bind: Function, previous?: any, recordTask: Function, applyAndSave: Function, onSubmitted?: () => void, onProgress?: Function, signal?: AbortSignal, retry?: boolean, recoverOnly?: boolean, wait?: Function, retryWait?: Function, makeId?: Function, deferConfirm?: () => boolean}} options */
 export async function runCanvasImageTask(options) {
   const key = JSON.stringify([options.scope?.productId, options.scope?.nodeId, options.scope?.slotId]);
   requireValue(!slots.has(key), 'generation_slot_busy', '该生成任务正在处理，请勿重复点击。', 409);
   slots.add(key);
   try { return await run(options); } finally { slots.delete(key); }
 }
-async function run({ host, scope, prepare, bind, previous, recordTask, applyAndSave,
+async function run({ host, scope, prepare, bind, previous, recordTask, applyAndSave, onSubmitted,
   signal, onProgress, retry = false, recoverOnly = false, wait = delay, retryWait, makeId = () => crypto.randomUUID(), deferConfirm } = {}) {
   requireValue(host?.submit && host?.get && host?.deliver && host?.checkpoint && typeof prepare === 'function' &&
     typeof bind === 'function' && typeof recordTask === 'function' && typeof applyAndSave === 'function' &&
@@ -110,6 +110,7 @@ async function run({ host, scope, prepare, bind, previous, recordTask, applyAndS
       }
       if (cancelled) cancel();
     }
+    if (!cancelled && !signal?.aborted) onSubmitted?.();
     if (onProgress && host.observeText && !terminalState(job.state)) {
       try { job = scoped(await host.observeText(task, { signal, onProgress: text => onProgress(text, task.id) }), target, task.id); }
       catch {

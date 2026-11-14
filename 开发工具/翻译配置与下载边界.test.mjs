@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { platformState } from './全局平台规则夹具.mjs';
+import { createRequire } from 'node:module';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -8,7 +9,7 @@ import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_m
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 async function load(name, dependencies = {}, extra = {}) {
-    dependencies = { './平台规则全局状态': platformState, './平台规则订阅': { useGlobalPlatformRules() {} }, ...dependencies };
+    dependencies = { fflate: createRequire(new URL('../.运行/3100源/画布副本/web/package.json', import.meta.url))('fflate'), './平台规则全局状态': platformState, './平台规则订阅': { useGlobalPlatformRules() {} }, ...dependencies };
     const file = resolve(root, '扩展功能', name);
     const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file, {
         loader: name.endsWith('.tsx') ? 'tsx' : name.endsWith('.js') ? 'js' : 'ts', jsx: 'automatic', format: 'cjs', target: 'es2022', tsconfigRaw: '{}',
@@ -20,7 +21,7 @@ async function load(name, dependencies = {}, extra = {}) {
     return module.exports;
 }
 const types = { CanvasNodeType: { Text: 'text', Config: 'config', Image: 'image', Video: 'video', Audio: 'audio' } };
-const hooks = { useCallback: callback => callback, useRef: value => ({ current: value }), useEffect: () => {} };
+const hooks = { useState: value => [value, () => {}], useCallback: callback => callback, useRef: value => ({ current: value }), useEffect: () => {} };
 const modes = await load('安全与批量/prompt-generation-mode.ts');
 const detected = await load('画布生成/生成参数继承.ts', {
     '@/types/canvas': types, '@/lib/canvas/canvas-generation-helpers': { getGenerationCount: value => Math.max(1, Number(value) || 1) },
@@ -171,6 +172,8 @@ test('参数卡启用独立AI入口后，填写仍同步原卡和关联预览，
         './Excel参数记忆': { saveProductParameterValues: (...args) => remembered.push(args) },
     });
     const { PromptVariablesContent } = await load('Excel画布/旧版参数卡片.tsx', {
+        antd: { Tooltip: 'Tooltip' },
+        '../产品配置/功能开关': { productFeatures: { excel: false } },
         react: { useMemo: compute => compute(), useEffect: () => {}, useRef: current => ({ current }), useState: value => [value, () => {}] }, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': { Braces: 'icon', Sparkles: 'sparkles' },
         '@/lib/canvas-theme': { canvasThemes: { light: { node: {}, toolbar: {} } } }, '@/stores/use-theme-store': { useThemeStore: selector => selector({ theme: 'light' }) },
         './产品参数编辑操作': editing, './旧版参数规则': rules, './Excel画布上下文': { useExcelProductId: () => 'a', useExcelPromptContext: () => ({ templates: [], fileName: '测试.xlsx' }) },

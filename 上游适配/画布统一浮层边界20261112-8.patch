@@ -1,0 +1,30 @@
+diff --git a/web/src/components/canvas/canvas-resource-mention-textarea.tsx b/web/src/components/canvas/canvas-resource-mention-textarea.tsx
+index 36f1f98..50c2d1d 100644
+--- a/web/src/components/canvas/canvas-resource-mention-textarea.tsx
++++ b/web/src/components/canvas/canvas-resource-mention-textarea.tsx
+@@ -1,6 +1,7 @@
+ import { forwardRef, useMemo, useRef, useState } from "react";
+ import type { CSSProperties, MouseEvent, PointerEvent, TextareaHTMLAttributes } from "react";
+ import { createProductPortal } from "@/扩展功能/产品/产品界面边界";
++import { CanvasFloatingBoundary } from "@/扩展功能/画布交互/画布浮层容器";
+ import { FileText, Image as ImageIcon, Music2, Video } from "lucide-react";
+ 
+ import { canvasThemes } from "@/lib/canvas-theme";
+@@ -242,7 +243,7 @@ function MentionMenu({ textarea, caretIndex, references, activeIndex, theme, onS
+     };
+ 
+     return createProductPortal(
+-        <div
++        <CanvasFloatingBoundary><div
+             data-canvas-resource-mention-menu="true"
+             className="guan-scroll-region fixed z-[120] max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md"
+             style={{ left, top, background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
+@@ -274,7 +275,7 @@ function MentionMenu({ textarea, caretIndex, references, activeIndex, theme, onS
+                     </span>
+                 </button>
+             ))}
+-        </div>,
++        </div></CanvasFloatingBoundary>,
+         document.body,
+     );
+ }

@@ -1,0 +1,25 @@
+{
+  "状态": "待单独批准，未接入3100",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置批准差异SHA256": "b76672614125cf0316b27c3347bff04d1bae8a1964dd28922a9e56d5bcd1bbc8",
+  "类型预审通过": true,
+  "差异检查通过": true,
+  "差异SHA256": "c219fe373e41d0adefcc5fcd16dd9d324cdb9cffa7b86b44f40dae822b961800",
+  "文件": [
+    {
+      "文件": "web/src/guan/画布入口.tsx",
+      "原始SHA256": "0016a03d66de7296d2d12d52fa84eb12560b58285397eb917ae17483bba75ee8",
+      "候选SHA256": "7a28790b320f31d57912ac9e2bb4742e675b4b52dbd0e6f1ebd07af039d666b0"
+    },
+    {
+      "文件": "web/src/guan/工作台首页.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "a0951dccada2837faff562bf0fe58077bf08b289a5984a5a3669cf6d455efd8f"
+    },
+    {
+      "文件": "web/src/guan/首页.module.css",
+      "原始SHA256": null,
+      "候选SHA256": "5adbdf461591de95440d08b97c5d0043e07139ba7fa7595c0ee32d46f1a4f421"
+    }
+  ]
+}

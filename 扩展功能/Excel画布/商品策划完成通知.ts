@@ -1,4 +1,4 @@
-export type ProductPlanningNotice = { productId: string; parameterId: string; deadline: number | null; sequence: number };
+export type ProductPlanningNotice = { productId: string; parameterId: string; configNodeIds: readonly string[]; deadline: number | null; sequence: number };
 const listeners = new Set<(notice: ProductPlanningNotice) => void>();
 let sequence = 0;
 
@@ -7,8 +7,9 @@ export function subscribeProductPlanningNotice(listener: (notice: ProductPlannin
     return () => { listeners.delete(listener); };
 }
 
-export function notifyProductPlanning(productId: string, parameterId: string, completed: boolean) {
-    const notice = { productId, parameterId, deadline: completed ? Date.now() + 60_000 : null, sequence: ++sequence };
+export function notifyProductPlanning(productId: string, parameterId: string, completed: boolean, configNodeIds: readonly string[] = []) {
+    const notice: ProductPlanningNotice = { productId, parameterId, configNodeIds: Object.freeze([...new Set(configNodeIds)]),
+        deadline: completed ? Date.now() + 60_000 : null, sequence: ++sequence };
     for (const listener of listeners) listener(notice);
 }
 

@@ -17,7 +17,7 @@ export class ProductCommitCheckpoint<T> {
     number,
     { resolve: (commit: Commit<T>) => void; reject: (error: Error) => void }
   >();
-  constructor(private requestRender: (ticket: number) => void) {}
+  constructor(private requestRender: (ticket: number) => void, private isSnapshotCurrent: () => boolean = () => true) {}
   mount() {
     this.active = true;
     this.generation++;
@@ -80,7 +80,8 @@ export class ProductCommitCheckpoint<T> {
     while (true) {
       if (!this.active || generation !== this.generation)
         throw new Error("产品保存提交已失效。");
-      if (this.latest !== undefined && this.ready && this.hasReadyBaseline && this.persistedRevision === this.revision)
+      // setNodes会先同步更新事务ref，React提交可能还没发生；旧帧已保存不能代表新事务已保存。
+      if (this.latest !== undefined && this.ready && this.hasReadyBaseline && this.persistedRevision === this.revision && this.isSnapshotCurrent())
         return;
       const ticket = ++this.ticket;
       let timer: ReturnType<typeof setTimeout> | undefined;
@@ -114,7 +115,7 @@ export class ProductCommitCheckpoint<T> {
       // 工作簿切换在统一SQLite ACK后确认延迟保存；其他保存记录真实ACK。
       if (options.deferSQLiteFlush) this.deferredRevision = committed.revision;
       else this.persistedRevision = committed.revision;
-      if (committed.revision === this.revision) return;
+      if (committed.revision === this.revision && this.isSnapshotCurrent()) return;
     }
   }
   acknowledgeDeferredSave() {

@@ -1,0 +1,355 @@
+--- a/web/src/router.tsx
++++ b/web/src/router.tsx
+@@ -1,5 +1,6 @@
+ import { createBrowserRouter, Outlet } from "react-router-dom";
+ 
++import { productFeatures } from "@/guan/功能开关";
+ import { AnalyticsTracker } from "@/components/layout/analytics-tracker";
+ import UserLayout from "@/layouts/user-layout";
+ import AssetsPage from "@/pages/assets";
+@@ -16,7 +17,7 @@
+     {
+         element: (
+             <UserLayout>
+-                <AnalyticsTracker />
++                {productFeatures.analytics ? <AnalyticsTracker /> : null}
+                 <Outlet />
+             </UserLayout>
+         ),
+--- a/web/src/lib/analytics.ts
++++ b/web/src/lib/analytics.ts
+@@ -4,6 +4,7 @@
+ // When no IDs are configured, no scripts are injected and no external requests are sent.
+ // Forks and self-hosted deployments therefore have no analytics by default; the official site provides its IDs through environment variables.
+ 
++import { productFeatures } from "@/guan/功能开关";
+ import { ANALYTICS_BAIDU_ID, ANALYTICS_GA4_ID } from "@/constant/runtime-config";
+ 
+ type GtagFn = (...args: unknown[]) => void;
+@@ -49,7 +50,7 @@
+ }
+ 
+ export function initAnalytics() {
+-    if (initialized || typeof window === "undefined") return;
++    if (!productFeatures.analytics || initialized || typeof window === "undefined") return;
+     initialized = true;
+ 
+     // Initialize providers independently so one failure does not affect the others or the application.
+@@ -71,6 +72,7 @@
+ 
+ // Report SPA route changes to every enabled analytics provider.
+ export function trackPageview(path: string) {
++    if (!productFeatures.analytics) return;
+     try {
+         if (active.ga4 && window.gtag) {
+             window.gtag("event", "page_view", { page_path: path, page_location: window.location.href });
+--- a/web/src/layouts/user-layout.tsx
++++ b/web/src/layouts/user-layout.tsx
+@@ -1,5 +1,6 @@
+ import type { ReactNode } from "react";
+ 
++import { productFeatures } from "@/guan/功能开关";
+ import { AgentPanel } from "@/components/agent/agent-panel";
+ import { AppTopNav } from "@/components/layout/app-top-nav";
+ 
+@@ -10,7 +11,7 @@
+                 <AppTopNav />
+                 <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+             </div>
+-            <AgentPanel />
++            {productFeatures.externalAgent ? <AgentPanel /> : null}
+         </div>
+     );
+ }
+--- a/web/src/components/layout/app-top-nav.tsx
++++ b/web/src/components/layout/app-top-nav.tsx
+@@ -1,3 +1,4 @@
++import { productFeatures } from "@/guan/功能开关";
+ import { Bot, Menu } from "lucide-react";
+ import { Button, Tooltip } from "antd";
+ import { Link, useLocation } from "react-router-dom";
+@@ -27,7 +28,7 @@
+     const activeToolSlug = navigationTools.some((tool) => tool.slug === slug) ? (slug as NavigationToolSlug) : undefined;
+ 
+     useEffect(() => {
+-        if (autoConnectRef.current || agentEnabled || agentConnected || !agentToken.trim()) return;
++        if (!productFeatures.externalAgent || autoConnectRef.current || agentEnabled || agentConnected || !agentToken.trim()) return;
+         autoConnectRef.current = true;
+         connectAgent({ silent: true });
+     }, [agentConnected, agentEnabled, agentToken, connectAgent]);
+@@ -83,9 +84,11 @@
+                         </div>
+ 
+                         <div className="my-auto flex h-9 min-w-0 items-center justify-end gap-2 justify-self-end whitespace-nowrap">
+-                            <Tooltip title={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")}>
+-                                <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" icon={<Bot className="size-4" />} onClick={togglePanel} aria-label={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")} />
+-                            </Tooltip>
++                            {productFeatures.externalAgent ? (
++                                <Tooltip title={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")}>
++                                    <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" icon={<Bot className="size-4" />} onClick={togglePanel} aria-label={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")} />
++                                </Tooltip>
++                            ) : null}
+                             <UserStatusActions />
+                         </div>
+                     </div>
+--- a/web/src/components/canvas/canvas-top-bar.tsx
++++ b/web/src/components/canvas/canvas-top-bar.tsx
+@@ -1,3 +1,4 @@
++import { productFeatures } from "@/guan/功能开关";
+ import { useEffect, useRef, useState } from "react";
+ import { BookOpen, Bot, Download, Home, Images, Menu, PanelLeftClose, PanelLeftOpen, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
+ import { Button, Dropdown, Modal, Tooltip } from "antd";
+@@ -135,21 +136,25 @@
+                             </button>
+                         )}
+                     </div>
+-                    <CompactAgentStatus status={compactAgentStatus} onClick={onToggleAgent} />
++                    {productFeatures.externalAgent ? <CompactAgentStatus status={compactAgentStatus} onClick={onToggleAgent} /> : null}
+                 </div>
+ 
+                 <div className="pointer-events-auto flex items-center gap-1.5">
+                     <UserStatusActions variant="canvas" onOpenShortcuts={() => setShortcutsOpen(true)} onOpenPlugins={onOpenPlugins} />
+-                    <span className="h-6 w-px" style={{ background: theme.toolbar.border }} />
+-                    <Button
+-                        type="text"
+-                        className="!h-10 !rounded-xl !px-3 !font-medium"
+-                        style={{ background: agentOpen ? theme.toolbar.activeBg : theme.toolbar.panel, color: theme.node.text, boxShadow: "0 10px 30px rgba(28,25,23,.10)" }}
+-                        icon={<Bot className="size-4" />}
+-                        onClick={onToggleAgent}
+-                    >
+-                        Agent
+-                    </Button>
++                    {productFeatures.externalAgent ? (
++                        <>
++                            <span className="h-6 w-px" style={{ background: theme.toolbar.border }} />
++                            <Button
++                                type="text"
++                                className="!h-10 !rounded-xl !px-3 !font-medium"
++                                style={{ background: agentOpen ? theme.toolbar.activeBg : theme.toolbar.panel, color: theme.node.text, boxShadow: "0 10px 30px rgba(28,25,23,.10)" }}
++                                icon={<Bot className="size-4" />}
++                                onClick={onToggleAgent}
++                            >
++                                Agent
++                            </Button>
++                        </>
++                    ) : null}
+                 </div>
+             </div>
+             <Modal title={t("canvas.shortcuts")} open={shortcutsOpen} onCancel={() => setShortcutsOpen(false)} footer={null} centered>
+--- a/web/src/stores/use-agent-store.ts
++++ b/web/src/stores/use-agent-store.ts
+@@ -1,3 +1,4 @@
++import { productFeatures } from "@/guan/功能开关";
+ import { create } from "zustand";
+ import i18n from "@/i18n";
+ 
+@@ -98,7 +99,7 @@
+ export const useAgentStore = create<AgentStore>((set, get) => ({
+     width: typeof window === "undefined" ? 440 : Number(localStorage.getItem("canvas-agent-panel-width")) || 440,
+     panelOpen: false,
+-    panelMounted: true,
++    panelMounted: productFeatures.externalAgent,
+     panelClosing: false,
+     canvasContext: null,
+     url: typeof window === "undefined" ? "http://127.0.0.1:17371" : localStorage.getItem("canvas-agent-url") || "http://127.0.0.1:17371",
+@@ -134,7 +135,10 @@
+     pendingTool: null,
+     pendingApprovals: [],
+     setAgentState: (patch) => set(patch),
+-    openPanel: () => set({ panelOpen: true, panelMounted: true, panelClosing: false }),
++    openPanel: () => {
++        if (!productFeatures.externalAgent) return;
++        set({ panelOpen: true, panelMounted: true, panelClosing: false });
++    },
+     closePanel: () => {
+         if (!get().panelMounted || get().panelClosing) return;
+         set({ panelOpen: false, panelClosing: true });
+@@ -145,6 +149,7 @@
+     togglePanel: () => (get().panelOpen ? get().closePanel() : get().openPanel()),
+     setCanvasContext: (canvasContext) => set({ canvasContext }),
+     connectAgent: (options) => {
++        if (!productFeatures.externalAgent) return;
+         const silent = options?.silent ?? false;
+         const endpoint = get().url.trim().replace(/\/$/, "");
+         const token = get().token.trim();
+--- a/web/src/pages/canvas/hooks/use-agent-bridge.ts
++++ b/web/src/pages/canvas/hooks/use-agent-bridge.ts
+@@ -1,5 +1,6 @@
+ import { useCallback, useEffect, useMemo, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+ 
++import { productFeatures } from "@/guan/功能开关";
+ import i18n from "@/i18n";
+ import { useAgentStore } from "@/stores/use-agent-store";
+ import { applyCanvasAgentOps, type CanvasAgentOp, type CanvasAgentSnapshot } from "@/lib/canvas/canvas-agent-ops";
+@@ -90,6 +91,7 @@
+     }, [agentUndoSnapshot, projectTitle, projectId]);
+ 
+     useEffect(() => {
++        if (!productFeatures.externalAgent) return;
+         setAgentCanvasContext({ snapshot: agentSnapshot, applyOps: applyAgentOps, undoOps: undoAgentOps, canUndo: Boolean(agentUndoSnapshot) });
+         return () => setAgentCanvasContext(null);
+     }, [agentSnapshot, applyAgentOps, agentUndoSnapshot, setAgentCanvasContext, undoAgentOps]);
+--- a/web/src/services/api/canvas-agent.ts
++++ b/web/src/services/api/canvas-agent.ts
+@@ -1,3 +1,4 @@
++import { productFeatures, requireProductFeature } from "@/guan/功能开关";
+ import i18n from "@/i18n";
+ import type { CanvasAgentSnapshot } from "@/lib/canvas/canvas-agent-ops";
+ import type { AgentReasoningEffort } from "@/stores/use-agent-store";
+@@ -42,6 +43,7 @@
+ export type AgentSkillDraftResponse = { ok?: boolean; data?: AgentSkillDraft };
+ 
+ export async function postState(endpoint: string, token: string, clientId: string, snapshot: CanvasAgentSnapshot | null) {
++    requireProductFeature("externalAgent");
+     try {
+         const response = await fetch(`${endpoint}/canvas/state?token=${encodeURIComponent(token)}&clientId=${encodeURIComponent(clientId)}`, {
+             method: "POST",
+@@ -55,6 +57,7 @@
+ }
+ 
+ export async function activateAgentClient(endpoint: string, token: string, clientId: string) {
++    requireProductFeature("externalAgent");
+     try {
+         await fetch(`${endpoint}/canvas/activate?token=${encodeURIComponent(token)}&clientId=${encodeURIComponent(clientId)}`, { method: "POST" });
+     } catch {}
+@@ -81,6 +84,7 @@
+ }
+ 
+ export function resolveAgentMessageAssetUrl(endpoint: string, token: string, value: string) {
++    if (!productFeatures.externalAgent) return "";
+     const match = AGENT_MESSAGE_ASSET_PATTERN.exec(value);
+     if (!match) return value.startsWith("agent-asset:") ? "" : value;
+     const baseUrl = endpoint.trim().replace(/\/$/, "");
+@@ -116,6 +120,7 @@
+ }
+ 
+ export async function fetchAgentJson<T>(endpoint: string, token: string, path: string, init?: RequestInit) {
++    requireProductFeature("externalAgent");
+     const url = `${endpoint}${path}${path.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}`;
+     const res = await fetch(url, init);
+     const data = (await res.json().catch(() => ({}))) as T & { error?: string; msg?: string };
+@@ -124,6 +129,7 @@
+ }
+ 
+ export async function discoverAgentConfig(endpoint: string) {
++    requireProductFeature("externalAgent");
+     try {
+         const res = await fetch(`${endpoint}/config`);
+         if (!res.ok) return null;
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -1,3 +1,4 @@
++import { productFeatures, resolveConfigTab } from "@/guan/功能开关";
+ import { App, Button, Form, Input, Modal, Progress, Radio, Select, Switch, Tabs } from "antd";
+ import type { TFunction } from "i18next";
+ import { Cloud, Download, Pencil, Plus, RefreshCw, Trash2, Upload, Wifi } from "lucide-react";
+@@ -53,7 +54,7 @@
+     const { message } = App.useApp();
+     const { i18n, t } = useTranslation();
+     const configInputRef = useRef<HTMLInputElement>(null);
+-    const [activeTab, setActiveTab] = useState<ConfigTabKey>(initialTab);
++    const [activeTab, setActiveTab] = useState<ConfigTabKey>(() => resolveConfigTab(initialTab));
+     const [editingChannelId, setEditingChannelId] = useState("");
+     const [testingWebdav, setTestingWebdav] = useState(false);
+     const [syncingWebdav, setSyncingWebdav] = useState(false);
+@@ -70,7 +71,7 @@
+     const editingChannel = config.channels.find((channel) => channel.id === editingChannelId) || null;
+     const locale = i18n.resolvedLanguage as AppLocale;
+     const imageResolutionOptions = mediaScaleOptions.map((value) => ({ value, label: value === "auto" ? t("settingsPanels.common.auto") : value.toUpperCase() }));
+-    useEffect(() => setActiveTab(initialTab), [initialTab]);
++    useEffect(() => setActiveTab(resolveConfigTab(initialTab)), [initialTab]);
+ 
+     const saveConfig = (nextConfig: AiConfig) => {
+         (Object.keys(nextConfig) as Array<keyof AiConfig>).forEach((key) => updateConfig(key, nextConfig[key]));
+@@ -181,7 +182,7 @@
+             </div>
+             <Tabs
+                 activeKey={activeTab}
+-                onChange={(key) => setActiveTab(key as ConfigTabKey)}
++                onChange={(key) => setActiveTab(resolveConfigTab(key as ConfigTabKey))}
+                 items={[
+                     {
+                         key: "channels",
+@@ -350,7 +351,7 @@
+                         label: t("config.tabs.localStorage"),
+                         children: <ConfigLocalStorage active={activeTab === "local-storage"} />,
+                     },
+-                ]}
++                ].filter((item) => item.key !== "webdav" || productFeatures.webdav)}
+             />
+             {showDoneButton ? (
+                 <div className="mt-4 flex justify-end">
+--- a/web/src/services/app-sync.ts
++++ b/web/src/services/app-sync.ts
+@@ -1,3 +1,4 @@
++import { requireProductFeature } from "@/guan/功能开关";
+ import localforage from "localforage";
+ 
+ import i18n from "@/i18n";
+@@ -82,6 +83,7 @@
+ const storageKeyPattern = /^(image|video|audio|file|video-reference|audio-reference):/;
+ 
+ export async function syncAppDataToWebdav(config: WebdavSyncConfig, onProgress?: AppSyncProgress): Promise<AppSyncResult> {
++    requireProductFeature("webdav");
+     emitProgress(onProgress, { stage: "等待本地数据加载" });
+     await Promise.all([waitForHydration(useCanvasStore), waitForHydration(useAssetStore)]);
+ 
+--- a/web/src/services/webdav-sync.ts
++++ b/web/src/services/webdav-sync.ts
+@@ -1,3 +1,4 @@
++import { requireProductFeature } from "@/guan/功能开关";
+ import i18n from "@/i18n";
+ import { withLocalProxy, type WebdavSyncConfig } from "@/stores/use-config-store";
+ 
+@@ -31,6 +32,7 @@
+ }
+ 
+ export async function uploadWebdavFile(config: WebdavSyncConfig, path: string, file: Blob, contentType = "application/octet-stream") {
++    requireProductFeature("webdav");
+     if (!file.size) throw new Error(webdavText("emptyUpload"));
+     await ensureWebdavDirectory(config);
+     await ensureWebdavSubdirectory(config, path);
+@@ -43,6 +45,7 @@
+ }
+ 
+ async function ensureWebdavDirectory(config: WebdavSyncConfig) {
++    requireProductFeature("webdav");
+     assertWebdavConfig(config);
+     await ensureWebdavDirectoryPath(config, config.directory);
+ }
+@@ -73,6 +76,7 @@
+ }
+ 
+ async function webdavFetch(config: WebdavSyncConfig, path: string, init: RequestInit) {
++    requireProductFeature("webdav");
+     const headers = new Headers(init.headers);
+     if (config.username || config.password) headers.set("Authorization", `Basic ${encodeBasicAuth(`${config.username}:${config.password}`)}`);
+     const controller = new AbortController();
+--- /dev/null
++++ b/web/src/guan/功能开关.ts
+@@ -0,0 +1,25 @@
++// 构建期产品策略，不从网址、用户数据库或浏览器配置读取，关闭功能不删除数据。
++export type ProductFeature = "webdav" | "externalAgent" | "analytics";
++
++export const productFeatures: Readonly<Record<ProductFeature, boolean>> = Object.freeze({
++    webdav: false,
++    externalAgent: false,
++    analytics: false,
++});
++
++const featureNames: Record<ProductFeature, string> = {
++    webdav: "WebDAV 同步",
++    externalAgent: "外部 Agent",
++    analytics: "访问统计",
++};
++
++export function requireProductFeature(feature: ProductFeature): void {
++    if (productFeatures[feature] !== true) {
++        throw Object.assign(new Error(`${featureNames[feature] ?? "此功能"}已在本产品关闭；原有数据仍保留。`), { code: "product_feature_disabled" });
++    }
++}
++
++// 关闭的页签不能通过旧的 configTab 状态或程序调用重新打开。
++export function resolveConfigTab<T extends string>(tab: T): T | "channels" {
++    return tab === "webdav" && !productFeatures.webdav ? "channels" : tab;
++}

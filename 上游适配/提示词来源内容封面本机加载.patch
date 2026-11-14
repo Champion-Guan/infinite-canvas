@@ -1,0 +1,19 @@
+diff --git a/web/src/components/layout/prompt-source-content-modal.tsx b/web/src/components/layout/prompt-source-content-modal.tsx
+index dc9814e..542cea7 100644
+--- a/web/src/components/layout/prompt-source-content-modal.tsx
++++ b/web/src/components/layout/prompt-source-content-modal.tsx
+@@ -1,4 +1,5 @@
+ import { App, Button, Empty, Space, Table, Tag } from "antd";
++import { PromptImage } from "@/扩展功能/提示词/提示词图片";
+ import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { Copy, FolderPlus, RefreshCw } from "lucide-react";
+ import { useCallback, useEffect, useState } from "react";
+@@ -81,7 +82,7 @@ export function PromptSourceContentModal({ source, localItems, onClose }: { sour
+                             title: t("config.promptSources.content.cover"),
+                             dataIndex: "coverUrl",
+                             width: 72,
+-                            render: (coverUrl: string) => (coverUrl ? <img src={coverUrl} alt="" className="size-12 rounded object-cover" /> : <div className="size-12 rounded bg-stone-100 dark:bg-stone-800" />),
++                            render: (coverUrl: string) => (coverUrl ? <PromptImage src={coverUrl} alt="" className="size-12 rounded object-cover" /> : <div className="size-12 rounded bg-stone-100 dark:bg-stone-800" />),
+                         },
+                         {
+                             title: t("config.promptSources.content.titleColumn"),

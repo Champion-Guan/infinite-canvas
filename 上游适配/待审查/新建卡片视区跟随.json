@@ -1,0 +1,33 @@
+{
+  "日期": "2026-10-18",
+  "状态": "待具体差异批准；未接入隔离副本或3100",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/SQLite分类容量-YzaI8L/分类容量接入记录.json",
+  "前置差异SHA256": "3edbd9ed415032822a5602cef465dc7b67a38f39f1cd6ed313b8c7b7989171b4",
+  "旧来源目录": "/Users/guanchengbin/CodexProjects/guan-ai-workbench-projects/guan-ai-workbench",
+  "旧来源文件": "src/canvas/pages/canvas/project.tsx",
+  "旧来源SHA256": "1fa007d1bdac287c1bee26ac1e186d5a69e544d89b7c57907843bfc8678e0bfb",
+  "旧片段SHA256": {
+    "ref": "02caef20ce5d1be2c5b6d33beef067fc7bb6c199b927f800dcacf830a06cc4c6",
+    "mark": "7f24b2117a1adadf25161a64e3e9b2e801d49998ddb67eec9d9caeac9d0a2493",
+    "effect": "6592ec2259845ea1d5729da6adb23e7d5fc40f50bce5b3f69cbe82e5781ee1b0"
+  },
+  "差异SHA256": "9577c812b3296b9f881e84c7c8b9286b1f4f21bf00e20d0a651da0bdfc55f9cb",
+  "完整候选类型检查通过": true,
+  "真实浏览器验收": false,
+  "已修改作者仓库": false,
+  "已接管或重启3100": false,
+  "文件": [
+    {
+      "文件": "web/src/pages/canvas/project.tsx",
+      "原始SHA256": "efb8f275f3610d21fca95923b022c4446e5642281a05f5daf78fb4479f07732c",
+      "候选SHA256": "b06c14e3d1632a9f2750c52521a78d00fbd26a295aa7fc7dd8b37f50ac857cf3"
+    }
+  ],
+  "范围": [
+    "仅补回旧版ref、手动createNode标记及useLayoutEffect，三个来源片段逐字节保留",
+    "新增节点超出旧版24/64/32/100视区边界时居中；使用避让事务后的最终位置，不改变缩放",
+    "已有卡片、面板开关、避让间距、生成结果及后台任务保持；不迁入提示词变量业务",
+    "批准后新独立后继保护及快照事务接入全新隔离包，真实浏览器验收；3100切换另需当前维护确认"
+  ]
+}

@@ -1,3 +1,5 @@
+import { imageSizeRetryBlocked } from "../媒体交付/生成图片尺寸交付.mjs";
+
 // Read live state between slots; never restart a task that has since succeeded or is running.
 export async function runHistoryRetries(targets, { getNode, isActive, onRetry, onError }) {
     const visited = new Set();
@@ -10,7 +12,7 @@ export async function runHistoryRetries(targets, { getNode, isActive, onRetry, o
         const node = getNode(target.node.id);
         if (!node) continue;
         const media = target.imageId ? node.metadata?.images?.find(image => image.id === target.imageId) : node.metadata;
-        if (!media) continue;
+        if (!media || imageSizeRetryBlocked(media)) continue;
         // 同一节点的不同图片槽位可以并行；只有目标槽位本身在运行时跳过。
         // 整卡重试仍保持原来的节点级 loading 门禁。
         if (target.imageId ? media.status === "loading" : node.metadata?.status === "loading" || node.metadata?.images?.some(image => image.status === "loading")) continue;
@@ -24,7 +26,7 @@ export async function runHistoryRetries(targets, { getNode, isActive, onRetry, o
         if (!node) return;
         const media = target.imageId ? node.metadata?.images?.find(image => image.id === target.imageId) : node.metadata;
         const unavailable = target.unavailableStorageKey && media?.storageKey === target.unavailableStorageKey;
-        if (!media || media.status === "loading" || media.status !== "error" && !unavailable) return;
+        if (!media || imageSizeRetryBlocked(media) || media.status === "loading" || media.status !== "error" && !unavailable) return;
         await onRetry(node, target.imageId);
     };
     // 图片全部并行；历史中的视频等类型继续沿用逐项重试。

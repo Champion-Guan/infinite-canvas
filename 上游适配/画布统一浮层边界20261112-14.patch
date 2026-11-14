@@ -1,0 +1,12 @@
+diff --git a/web/src/components/canvas/canvas-selection-toolbar.tsx b/web/src/components/canvas/canvas-selection-toolbar.tsx
+index 80117c2..3911edd 100644
+--- a/web/src/components/canvas/canvas-selection-toolbar.tsx
++++ b/web/src/components/canvas/canvas-selection-toolbar.tsx
+@@ -1,6 +1,6 @@
+ import type { ReactNode } from "react";
+ import { Grid2x2, Group, Ungroup } from "lucide-react";
+-import { Tooltip } from "antd";
++import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+ import { useTranslation } from "react-i18next";
+ 
+ import { canvasThemes } from "@/lib/canvas-theme";

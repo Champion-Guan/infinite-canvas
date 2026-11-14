@@ -1,0 +1,117 @@
+{
+  "状态": "待具体9文件差异批准，未应用任何运行副本",
+  "日期": "2026-10-17",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置启动存储差异SHA256": "0b15056948f5ada3171f66c36d778259c4b1728b6493d751a568be95644ff54e",
+  "差异SHA256": "80e8684475fdfb0649215cb719d75e35a2635286027c2be7203f45595ce36331",
+  "完整TS类型预审通过": true,
+  "自有JS语法及模块图通过": true,
+  "核心改动": "仅将已批准index.html的module入口从main.tsx改为自有启动入口；新增8个自有模块，原main及React布局不改",
+  "保持约束": [
+    "没有应用待批差异，也未建立携带新差异的运行副本",
+    "一次性码只由可信进程内签发，不放URL/Cookie/浏览器存储",
+    "授权和健康检查成功后才加载既有SQLite初始化及原React入口",
+    "刷新须新码；现阶段启动器只支持临时隔离端口",
+    "不接管或重启3100，不迁旧数据、不读取真实凭据、不发布",
+    "保存失败UI、正式凭据端口、容量及恢复仍为独立缺口"
+  ],
+  "文件": [
+    {
+      "文件": "web/index.html",
+      "原始SHA256": "35c4cf5d3d657227204b820b68f3fd8f30c6be68a0dd0c0ae8046e328dc3fc87",
+      "候选SHA256": "bc5ea05410fcf691b1dea6a3fd16c4e47d90f8444d946194302497cb7b768dc4"
+    },
+    {
+      "文件": "web/src/guan/sqlite/协议.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "7233efe46bfb06d5e509c6da2f16c871d8b397387edf2d90ddf91a48fbe4a095"
+    },
+    {
+      "文件": "web/src/guan/sqlite/浏览器适配.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "54a9772480928c9660e495816acbc8cb4098c44ff258c8502635d862e5fa8da3"
+    },
+    {
+      "文件": "web/src/guan/sqlite/续期数据客户端.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "628d5f532b63789bec0f0962dbf58ac049e98511e568fcfa64414cd782b60d11"
+    },
+    {
+      "文件": "web/src/guan/sqlite/应用值编码.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "ef0ab5cde710b405755cb4cf63688f91c9a965e321d63a9d655411a3756a863f"
+    },
+    {
+      "文件": "web/src/guan/sqlite/应用存储适配.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "4c665bfa4db2b3fd388dafbfa926023f796d7a0faf1db32826f5b939e07cc1f9"
+    },
+    {
+      "文件": "web/src/guan/sqlite/本机授权客户端.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "dba0989bc29b47e71d628f37bae05c555fbfe58532380b82e6b6ecd4fc87723c"
+    },
+    {
+      "文件": "web/src/guan/sqlite/工作台授权入口.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "ad74b6b5ecdfb7fb8979e7e6c21dc18bf8a59a0b113fe3df65d8c7044c7e6dce"
+    },
+    {
+      "文件": "web/src/guan/sqlite/启动工作台.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "290870eb4368ece5c20ba9242f023f3d8ff9cb56ece98d98167c5303e303a6d1"
+    }
+  ],
+  "自有来源": [
+    {
+      "文件": "扩展功能/本机存储/协议.mjs",
+      "SHA256": "7233efe46bfb06d5e509c6da2f16c871d8b397387edf2d90ddf91a48fbe4a095"
+    },
+    {
+      "文件": "扩展功能/本机存储/浏览器适配.mjs",
+      "SHA256": "54a9772480928c9660e495816acbc8cb4098c44ff258c8502635d862e5fa8da3"
+    },
+    {
+      "文件": "扩展功能/本机存储/续期数据客户端.mjs",
+      "SHA256": "628d5f532b63789bec0f0962dbf58ac049e98511e568fcfa64414cd782b60d11"
+    },
+    {
+      "文件": "扩展功能/本机存储/应用值编码.mjs",
+      "SHA256": "ef0ab5cde710b405755cb4cf63688f91c9a965e321d63a9d655411a3756a863f"
+    },
+    {
+      "文件": "扩展功能/本机存储/应用存储适配.mjs",
+      "SHA256": "4c665bfa4db2b3fd388dafbfa926023f796d7a0faf1db32826f5b939e07cc1f9"
+    },
+    {
+      "文件": "扩展功能/本机存储/本机授权客户端.mjs",
+      "SHA256": "dba0989bc29b47e71d628f37bae05c555fbfe58532380b82e6b6ecd4fc87723c"
+    },
+    {
+      "文件": "扩展功能/本机存储/工作台授权入口.mjs",
+      "SHA256": "ad74b6b5ecdfb7fb8979e7e6c21dc18bf8a59a0b113fe3df65d8c7044c7e6dce"
+    },
+    {
+      "文件": "扩展功能/本机存储/启动工作台.mjs",
+      "SHA256": "290870eb4368ece5c20ba9242f023f3d8ff9cb56ece98d98167c5303e303a6d1"
+    }
+  ],
+  "启动器来源": [
+    {
+      "文件": "扩展功能/本机服务/受限工作台启动器.mjs",
+      "SHA256": "f90547d1b108b65202bb2dc978b798fc1922f80adeb031fe62d940a8b2148785"
+    },
+    {
+      "文件": "扩展功能/本机服务/本机授权网关.mjs",
+      "SHA256": "eacf3ad9534722f64faf03e7fc4e661ec48c8b485daa0940c275f1e3338d1b10"
+    },
+    {
+      "文件": "扩展功能/本机服务/受控会话.mjs",
+      "SHA256": "fe3bd4bdb24b16f9b05181e9f66720a5ef19a0f5f140c9cc672c01b695201c94"
+    },
+    {
+      "文件": "扩展功能/本机服务/自动备份.mjs",
+      "SHA256": "a488edfd3365657224d003f5e9a19c7fe069b1f6f1090fea7e2bad79ac141377"
+    }
+  ]
+}

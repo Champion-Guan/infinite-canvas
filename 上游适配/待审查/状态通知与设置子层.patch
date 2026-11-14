@@ -1,0 +1,136 @@
+--- /dev/null
++++ b/画布副本/web/src/guan/状态通知区.tsx
+@@ -0,0 +1,19 @@
++import { createContext, useContext, useState, type ReactNode } from "react";
++import { createPortal } from "react-dom";
++
++const LocalStatusContext = createContext<HTMLDivElement | null>(null);
++
++// 两种本机状态共享自然文档流，长错误文案和窄窗口不再靠固定偏移量避让。
++export function LocalStatusRegion({ children }: { children: ReactNode }) {
++  const [container, setContainer] = useState<HTMLDivElement | null>(null);
++  return <LocalStatusContext.Provider value={container}>
++    {children}
++    <div ref={setContainer} role="region" aria-label="本机状态通知区" style={{ position: "fixed", right: 20, bottom: 20, zIndex: 80, width: "min(360px, calc(100vw - 40px))", maxHeight: "calc(100dvh - 104px)", overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }} />
++  </LocalStatusContext.Provider>;
++}
++
++export function LocalStatusNotice({ children, order }: { children: ReactNode; order: number }) {
++  const container = useContext(LocalStatusContext);
++  const notice = <div style={{ order }}>{children}</div>;
++  return container ? createPortal(notice, container) : <div style={{ position: "fixed", right: 20, bottom: 20, zIndex: 80, maxWidth: "min(360px, calc(100vw - 40px))" }}>{children}</div>;
++}
+--- a/画布副本/web/src/guan/SQLite应用入口.tsx
++++ b/画布副本/web/src/guan/SQLite应用入口.tsx
+@@ -1,4 +1,5 @@
+ import React from "react";
++import { LocalStatusRegion } from "@/guan/状态通知区";
+ import { SQLiteSaveStatus } from "@/guan/保存状态条";
+ import { createRoot } from "react-dom/client";
+ import "antd/dist/reset.css";
+@@ -18,8 +19,10 @@
+ createRoot(document.getElementById("root")!).render(
+     <React.StrictMode>
+         <AppProviders>
+-            <RouterProvider router={router} />
+-            <SQLiteSaveStatus />
++            <LocalStatusRegion>
++                <RouterProvider router={router} />
++                <SQLiteSaveStatus />
++            </LocalStatusRegion>
+         </AppProviders>
+     </React.StrictMode>,
+ );
+--- a/画布副本/web/src/guan/保存状态条.tsx
++++ b/画布副本/web/src/guan/保存状态条.tsx
+@@ -1,3 +1,4 @@
++import { LocalStatusNotice } from "@/guan/状态通知区";
+ import { useEffect, useState } from "react";
+ import { reconnectAndRetrySQLiteStorage, retrySQLiteStorage, storageStatus } from "@/guan/上游浏览器存储桥";
+ 
+@@ -21,7 +22,7 @@
+     const title = status.reconnecting ? "正在重新连接并保存…" : status.retrying ? "正在核实并重试保存…" : failed ? "保存尚未确认" : status.state === "saving" ? "正在保存到本机…" : "已保存到本机";
+     const reconnect = status.reconnectRequired && !status.conflict;
+     const expired = ["authorization_expired", "authorization_denied", "lease_expired", "session_host_closed"].includes(status.reconnectError ?? "");
+-    return <aside aria-label="本机保存状态" data-save-state={status.state} style={{ position: "fixed", right: 20, bottom: 20, zIndex: 80, maxWidth: 360, padding: "12px 16px", borderRadius: 12, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", boxShadow: "0 6px 24px #0002", fontSize: 13 }}>
++    return <LocalStatusNotice order={2}><aside aria-label="本机保存状态" data-save-state={status.state} style={{ padding: "12px 16px", borderRadius: 12, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", boxShadow: "0 6px 24px #0002", fontSize: 13 }}>
+         <p role={failed ? "alert" : "status"} aria-live={failed ? "assertive" : "polite"} style={{ margin: 0, fontWeight: 600 }}>{title}</p>
+         {failed && <>
+             <p style={{ margin: "6px 0 10px" }}>{status.conflict ? "其他窗口已修改数据。请保留本页，不要刷新、关闭或强制覆盖；需要先处理版本冲突。" : expired ? "页面授权已结束或服务已重开，不能恢复原连接。编辑仍在本页，请保留页面，勿刷新或关闭，需先由可信入口恢复授权。" : reconnect ? "本机数据连接已过期。编辑仍保留在本页，请勿刷新或关闭；点击下方重新连接，确认后继续原保存。" : "编辑仍保留在本页内存中。请勿刷新或关闭，连接恢复后点击重试。"}</p>
+@@ -30,5 +31,5 @@
+                 {status.reconnecting ? "正在重新连接…" : status.retrying ? "正在重试…" : reconnect ? "重新连接并保存" : "重试未确认保存"}
+             </button>
+         </>}
+-    </aside>;
++    </aside></LocalStatusNotice>;
+ }
+--- a/画布副本/web/src/guan/generation/图片任务确认状态.tsx
++++ b/画布副本/web/src/guan/generation/图片任务确认状态.tsx
+@@ -1,3 +1,4 @@
++import { LocalStatusNotice } from "@/guan/状态通知区";
+ import { useEffect, useMemo, useRef, useState } from "react";
+ import type { CanvasNodeData } from "@/types/canvas";
+ import { saveProductCanvas } from "@/guan/产品操作";
+@@ -35,8 +36,8 @@
+   const invalid = ready && targetsKey === null;
+   const pending = status.key === targetsKey ? status.pending : 0;
+   if (!invalid && !pending) return null;
+-  return <aside aria-label="图片任务确认" className="absolute bottom-24 right-5 z-[80] max-w-sm rounded-xl border bg-background px-4 py-3 text-sm text-foreground shadow-lg">
++  return <LocalStatusNotice order={1}><aside aria-label="图片任务确认" className="w-full rounded-xl border bg-background px-4 py-3 text-sm text-foreground shadow-lg">
+     <p role="status" aria-live="polite">{invalid ? "原卡片任务收据异常，请保留画布。" : `${pending} 个图片任务的完成确认尚未结束，图片和原任务已保留。`}</p>
+     {!invalid ? <button type="button" className="mt-2 rounded-lg border px-3 py-1.5" disabled={status.busy} onClick={() => retryRef.current?.()}>{status.busy ? "正在确认…" : "重试任务确认"}</button> : null}
+-  </aside>;
++  </aside></LocalStatusNotice>;
+ }
+--- a/画布副本/web/src/components/layout/channel-editor-drawer.tsx
++++ b/画布副本/web/src/components/layout/channel-editor-drawer.tsx
+@@ -1,3 +1,4 @@
++import { useSettingsViewport } from "@/guan/设置视区";
+ import { businessFeatures } from "@/guan/脚本与提示词来源";
+ import { Button, Drawer, Input, Segmented, Select, Space } from "antd";
+ import { ListPlus, Trash2 } from "lucide-react";
+@@ -12,6 +13,7 @@
+ 
+ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: boolean; channel: ModelChannel | null; onSave: (channel: ModelChannel) => void; onClose: () => void }) {
+     const { t } = useTranslation();
++    const viewport = useSettingsViewport();
+     const [draft, setDraft] = useState<ModelChannel | null>(channel);
+     const [selectOpen, setSelectOpen] = useState(false);
+     const [scriptTarget, setScriptTarget] = useState<ScriptTarget | null>(null);
+@@ -53,6 +55,8 @@
+         <Drawer
+             open={open}
+             width={640}
++            getContainer={viewport ?? undefined}
++            rootStyle={viewport ? { position: "absolute", inset: 0 } : undefined}
+             title={t("config.channelEditor.title")}
+             onClose={onClose}
+             styles={{ body: { paddingTop: 16 } }}
+--- a/画布副本/web/src/components/layout/model-select-modal.tsx
++++ b/画布副本/web/src/components/layout/model-select-modal.tsx
+@@ -1,3 +1,4 @@
++import { useSettingsViewport } from "@/guan/设置视区";
+ import { App, Button, Checkbox, Input, Modal, Tabs } from "antd";
+ import { RefreshCw, Search } from "lucide-react";
+ import { useEffect, useMemo, useState } from "react";
+@@ -10,6 +11,7 @@
+ export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onClose }: { open: boolean; channel: ModelChannel | null; selectedNames: string[]; onConfirm: (names: string[]) => void; onClose: () => void }) {
+     const { message } = App.useApp();
+     const { t } = useTranslation();
++    const viewport = useSettingsViewport();
+     const [existing, setExisting] = useState<string[]>([]);
+     const [fetched, setFetched] = useState<string[]>([]);
+     const [selected, setSelected] = useState<Set<string>>(new Set());
+@@ -95,7 +97,11 @@
+                     {t("config.modelSelect.title")} <span className="ml-2 text-xs font-normal text-stone-500">{t("config.modelSelect.selected", { selected: selected.size, total: new Set([...existing, ...fetched]).size })}</span>
+                 </span>
+             }
+-            styles={{ body: { maxHeight: "62vh", overflowY: "auto" } }}
++            getContainer={viewport ?? undefined}
++            styles={{
++                ...(viewport ? { root: { position: "absolute", inset: 0 }, wrapper: { position: "absolute" }, mask: { position: "absolute" } } : {}),
++                body: { maxHeight: viewport ? "62cqh" : "62vh", overflowY: "auto" },
++            }}
+             footer={[
+                 <Button key="cancel" onClick={onClose}>
+                     {t("common.cancel")}

@@ -1,0 +1,74 @@
+.wrapper {
+    overflow: hidden;
+}
+
+.window {
+    top: 0;
+    padding-bottom: 0;
+    max-height: calc(min(100dvh, 100cqh) - 24px);
+}
+
+.anchored {
+    transform-origin: var(--apple-modal-origin) !important;
+}
+
+.window :global(.ant-modal-container) {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(min(100dvh, 100cqh) - 24px);
+    overflow: hidden;
+}
+
+.window :global(.ant-modal-header),
+.window :global(.ant-modal-footer) {
+    flex-shrink: 0;
+}
+
+.window :global(.ant-modal-body) {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.window :global(.ant-select) input:focus,
+.window :global(.ant-input-number) input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+@layer base {
+    .window :global(.ant-select) input:focus-visible,
+    .window :global(.ant-input-number) input:focus-visible {
+        outline: none !important;
+    }
+}
+
+@layer utilities {
+    .window :global(.ant-select-focused .ant-select-selector) {
+        box-shadow: none !important;
+    }
+}
+
+.window :global(.guan-settings-surface) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.window :global(.guan-settings-surface) > :first-child,
+.window :global(.guan-settings-tabs) > :global(.ant-tabs-nav) {
+    flex-shrink: 0;
+}
+
+.window :global(.guan-settings-tabs) {
+    flex: 1;
+    min-height: 0;
+}
+
+.window :global(.guan-settings-tabs) > :global(.ant-tabs-content-holder),
+.window :global(.guan-settings-tabs) > :global(.ant-tabs-body-holder) {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}

@@ -1,0 +1,1665 @@
+--- /dev/null
++++ b/web/src/guan/产品规则.ts
+@@ -0,0 +1,86 @@
++// 命名规则迁自旧 data-contract/index.js 的新建处理及 product-recycle-bridge.ts。
++// 产品顺序使用旧 registerCanvasProduct 的创建顺序，不跟随 updatedAt 重排。
++export type ProductIdentity = { id: string; title: string; createdAt: string };
++
++export function nextProductTitle(projects: ReadonlyArray<{ title: string }>) {
++  const highest = projects.reduce((max, project) => {
++    const number = project.title.match(/^未命名产品(\d+)$/)?.[1];
++    return number && Number.isSafeInteger(Number(number))
++      ? Math.max(max, Number(number))
++      : max;
++  }, 0);
++  if (highest >= Number.MAX_SAFE_INTEGER)
++    throw new Error("未命名产品编号已达上限，请先给产品命名。");
++  return `未命名产品${highest + 1}`;
++}
++
++export function orderedProducts<T extends ProductIdentity>(
++  projects: readonly T[],
++): T[] {
++  // Zustand 将新产品放在数组前端；反转后按 createdAt 稳定排序，兼容同毫秒创建。
++  return [...projects]
++    .reverse()
++    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
++}
++
++export function selectEntryProduct(
++  projects: readonly ProductIdentity[],
++  rememberedId: string | null,
++) {
++  return (
++    projects.find((project) => project.id === rememberedId)?.id ||
++    orderedProducts(projects)[0]?.id ||
++    null
++  );
++}
++
++// 与旧产品操作锁相同：同页操作串行，重复点击不创建同名产品或交错切换。
++export class ProductOperationGate {
++  private busy = false;
++  private listeners = new Set<() => void>();
++  getSnapshot = () => this.busy;
++  subscribe = (callback: () => void) => {
++    this.listeners.add(callback);
++    return () => {
++      this.listeners.delete(callback);
++    };
++  };
++  private emit() {
++    for (const listener of this.listeners) listener();
++  }
++  async run<T>(action: () => Promise<T>) {
++    if (this.busy) throw new Error("另一个产品操作正在进行，请稍后重试。");
++    this.busy = true;
++    this.emit();
++    try {
++      return await action();
++    } finally {
++      this.busy = false;
++      this.emit();
++    }
++  }
++}
++
++export class ProductSaveRegistry {
++  private participants = new Map<
++    string,
++    { token: symbol; save: () => Promise<void> }
++  >();
++  register(id: string, save: () => Promise<void>) {
++    if (!id || this.participants.has(id))
++      throw new Error("产品画布实例重复，已停止切换。");
++    const token = Symbol(id);
++    this.participants.set(id, { token, save });
++    return () => {
++      if (this.participants.get(id)?.token === token)
++        this.participants.delete(id);
++    };
++  }
++  async flush(id: string) {
++    const entry = this.participants.get(id);
++    if (!entry) throw new Error("产品画布尚未加载完成，请稍后重试。");
++    await entry.save();
++    if (this.participants.get(id) !== entry)
++      throw new Error("保存期间产品实例已改变，未切换画布。");
++  }
++}
+--- /dev/null
++++ b/web/src/guan/产品保存检查点.ts
+@@ -0,0 +1,96 @@
++// 迁自旧 RenderCommitCheckpoint：保留真实 layout-effect 提交票据和代次校验；
++// 移除旧在线更新 activity 依赖，保存ACK改接现有SQLite桥，不含更新或停服权限。
++type Commit<T> = { snapshot: T; revision: number; generation: number };
++export class ProductCommitCheckpoint<T> {
++  private active = false;
++  private generation = 0;
++  private revision = 0;
++  private ticket = 0;
++  private latest: T | undefined;
++  private ready = false;
++  private pending = new Map<
++    number,
++    { resolve: (commit: Commit<T>) => void; reject: (error: Error) => void }
++  >();
++  constructor(private requestRender: (ticket: number) => void) {}
++  mount() {
++    this.active = true;
++    this.generation++;
++  }
++  unmount() {
++    this.active = false;
++    this.generation++;
++    for (const pending of this.pending.values())
++      pending.reject(new Error("产品保存提交已失效。"));
++    this.pending.clear();
++    this.latest = undefined;
++    this.ready = false;
++  }
++  commit(ticket: number, snapshot: T, ready: boolean) {
++    if (!this.active) return;
++    if (this.latest !== snapshot || this.ready !== ready) {
++      this.latest = snapshot;
++      this.ready = ready;
++      this.revision++;
++    }
++    for (const [id, pending] of this.pending) {
++      if (id > ticket) continue;
++      this.pending.delete(id);
++      if (!ready)
++        pending.reject(
++          new Error("当前画布正在编辑或移动，请完成操作后再切换。"),
++        );
++      else
++        pending.resolve({
++          snapshot,
++          revision: this.revision,
++          generation: this.generation,
++        });
++    }
++  }
++  async flush(persist: (snapshot: T) => Promise<void>) {
++    if (!this.active || this.pending.size >= 32)
++      throw new Error("产品保存检查点不可用。");
++    const generation = this.generation,
++      ticket = ++this.ticket;
++    let timer: ReturnType<typeof setTimeout> | undefined;
++    const committed = await new Promise<Commit<T>>((resolve, reject) => {
++      const clear = () => {
++        if (timer) clearTimeout(timer);
++      };
++      this.pending.set(ticket, {
++        resolve: (value) => {
++          clear();
++          resolve(value);
++        },
++        reject: (error) => {
++          clear();
++          reject(error);
++        },
++      });
++      timer = setTimeout(() => {
++        this.pending.delete(ticket);
++        reject(new Error("产品页面未确认提交，保留当前画布，请重试。"));
++      }, 10000);
++      try {
++        this.requestRender(ticket);
++      } catch {
++        this.pending.get(ticket)?.reject(new Error("产品保存提交不可用。"));
++        this.pending.delete(ticket);
++      }
++    });
++    if (
++      !this.active ||
++      generation !== this.generation ||
++      committed.revision !== this.revision
++    )
++      throw new Error("产品保存提交已改变，请重试。");
++    await persist(committed.snapshot);
++    if (
++      !this.active ||
++      committed.generation !== this.generation ||
++      committed.revision !== this.revision
++    )
++      throw new Error("保存时画布发生新编辑，保留当前产品，请重试。");
++  }
++}
+--- /dev/null
++++ b/web/src/guan/产品操作.ts
+@@ -0,0 +1,107 @@
++import {
++  useCallback,
++  useLayoutEffect,
++  useRef,
++  useState,
++  useSyncExternalStore,
++} from "react";
++import { useMatch, useNavigate } from "react-router-dom";
++import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
++import { flushSQLiteStorage, sqlitePreferences } from "@/guan/上游浏览器存储桥";
++import { ProductOperationGate, ProductSaveRegistry } from "./产品规则";
++import { ProductCommitCheckpoint } from "./产品保存检查点";
++
++export const ACTIVE_PRODUCT_KEY = "guan-products:active:v1";
++const operations = new ProductOperationGate();
++const saves = new ProductSaveRegistry();
++
++export function useProductCanvasSave<T>(
++  projectId: string,
++  snapshot: T,
++  ready: () => boolean,
++  persist: (snapshot: T) => Promise<void>,
++) {
++  const [ticket, requestRender] = useState(0);
++  const checkpointRef = useRef<ProductCommitCheckpoint<T> | null>(null);
++  if (!checkpointRef.current)
++    checkpointRef.current = new ProductCommitCheckpoint(requestRender);
++  const checkpoint = checkpointRef.current;
++  const persistRef = useRef(persist);
++  useLayoutEffect(() => {
++    checkpoint.mount();
++    const unregister = saves.register(projectId, () =>
++      checkpoint.flush((value) => persistRef.current(value)),
++    );
++    return () => {
++      unregister();
++      checkpoint.unmount();
++    };
++  }, [checkpoint, projectId]);
++  useLayoutEffect(() => {
++    persistRef.current = persist;
++    checkpoint.commit(ticket, snapshot, ready());
++  });
++}
++
++export function useProductNavigation() {
++  const navigate = useNavigate();
++  const activeId = useMatch("/canvas/:id")?.params.id || "";
++  const busy = useSyncExternalStore(
++    operations.subscribe,
++    operations.getSnapshot,
++    operations.getSnapshot,
++  );
++  const commitCurrent = useCallback(async () => {
++    if (!useCanvasStore.getState().hydrated)
++      throw new Error("产品数据尚未加载完成。");
++    if (activeId && useCanvasStore.getState().openProject(activeId))
++      await saves.flush(activeId);
++    await flushSQLiteStorage();
++  }, [activeId]);
++  const enter = useCallback(
++    async (id: string) => {
++      if (!useCanvasStore.getState().openProject(id))
++        throw new Error("目标产品不存在，未切换画布。");
++      const previous = sqlitePreferences.getItem(ACTIVE_PRODUCT_KEY);
++      try {
++        sqlitePreferences.setItem(ACTIVE_PRODUCT_KEY, id);
++        await flushSQLiteStorage();
++        if (!useCanvasStore.getState().openProject(id))
++          throw new Error("保存期间目标产品已删除，未切换画布。");
++      } catch (error) {
++        // 只撤回失败的导航偏好，不删除已经创建的产品或覆盖业务数据。
++        if (previous === null) sqlitePreferences.removeItem(ACTIVE_PRODUCT_KEY);
++        else sqlitePreferences.setItem(ACTIVE_PRODUCT_KEY, previous);
++        throw error;
++      }
++      navigate(`/canvas/${encodeURIComponent(id)}`, {
++        replace: true,
++        viewTransition: !window.matchMedia("(prefers-reduced-motion: reduce)")
++          .matches,
++      });
++    },
++    [navigate],
++  );
++  const selectProduct = useCallback(
++    (id: string) =>
++      operations.run(async () => {
++        if (id === activeId) return;
++        await commitCurrent();
++        await enter(id);
++      }),
++    [activeId, commitCurrent, enter],
++  );
++  const createProduct = useCallback(
++    () =>
++      operations.run(async () => {
++        await commitCurrent();
++        const id = useCanvasStore.getState().createProject();
++        // 保存失败不删除新产品，不清空旧画布，也不绕过错误切换。
++        await flushSQLiteStorage();
++        await enter(id);
++        return id;
++      }),
++    [commitCurrent, enter],
++  );
++  return { activeId, busy, createProduct, selectProduct };
++}
+--- /dev/null
++++ b/web/src/guan/产品界面边界.tsx
+@@ -0,0 +1,107 @@
++import {
++  createContext,
++  useContext,
++  useEffect,
++  useMemo,
++  useRef,
++  useState,
++  type ReactNode,
++} from "react";
++import { createPortal } from "react-dom";
++import { App, ConfigProvider } from "antd";
++
++const ProductSurfaceContext = createContext<{
++  active: boolean;
++  container: HTMLElement | null;
++} | null>(null);
++export function useProductActive() {
++  return useContext(ProductSurfaceContext)?.active ?? true;
++}
++
++// 只接管显式传入的本产品Portal，不拦截全局createPortal或修改作者DOM。
++function ProductPortal({
++  children,
++  fallback,
++}: {
++  children: ReactNode;
++  fallback: Element | DocumentFragment;
++}) {
++  const scope = useContext(ProductSurfaceContext);
++  return createPortal(children, scope?.container || fallback);
++}
++export function createProductPortal(
++  children: ReactNode,
++  fallback: Element | DocumentFragment,
++) {
++  return <ProductPortal fallback={fallback}>{children}</ProductPortal>;
++}
++
++export function ProductSurface({
++  id,
++  active,
++  children,
++}: {
++  id: string;
++  active: boolean;
++  children: ReactNode;
++}) {
++  const [container, setContainer] = useState<HTMLDivElement | null>(null);
++  const pausedMedia = useRef(new Set<HTMLMediaElement>());
++  const context = useMemo(() => ({ active, container }), [active, container]);
++  useEffect(() => {
++    if (!container) return;
++    // 旧版canvas-visibility的展示行为：只暂停媒体，不停止任务或保存。
++    const paused = pausedMedia.current;
++    const pause = () => {
++      if (active) return;
++      container
++        .querySelectorAll<HTMLMediaElement>("video,audio")
++        .forEach((media) => {
++          if (!media.paused && !media.ended) {
++            paused.add(media);
++            media.pause();
++          }
++        });
++    };
++    if (active) {
++      for (const media of paused)
++        if (media.isConnected) void media.play().catch(() => {});
++      paused.clear();
++    } else pause();
++    container.addEventListener("play", pause, true);
++    return () => container.removeEventListener("play", pause, true);
++  }, [active, container]);
++  return (
++    <div
++      ref={setContainer}
++      data-product-id={id}
++      data-product-active={active ? "true" : "false"}
++      aria-hidden={!active}
++      inert={!active}
++      style={{
++        position: "absolute",
++        inset: 0,
++        visibility: active ? "visible" : "hidden",
++        pointerEvents: active ? "auto" : "none",
++        zIndex: active ? 1 : 0,
++      }}
++    >
++      {container ? (
++        <ProductSurfaceContext.Provider value={context}>
++          <ConfigProvider
++            getPopupContainer={() => container}
++            getTargetContainer={() => container}
++          >
++            <App
++              style={{ height: "100%" }}
++              message={{ getContainer: () => container }}
++              notification={{ getContainer: () => container }}
++            >
++              {children}
++            </App>
++          </ConfigProvider>
++        </ProductSurfaceContext.Provider>
++      ) : null}
++    </div>
++  );
++}
+--- /dev/null
++++ b/web/src/guan/产品工作区.tsx
+@@ -0,0 +1,59 @@
++import { memo, useEffect, useState } from "react";
++import { Route, Routes, useMatch } from "react-router-dom";
++import { useShallow } from "zustand/react/shallow";
++import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
++import CanvasProjectPage from "@/pages/canvas/project";
++import NotFound from "@/pages/not-found";
++import { CanvasEntry } from "@/guan/画布入口";
++import { ProductSurface } from "./产品界面边界";
++
++// 原版每产品frameCache的等价边界：访问过才挂载，ID不变就不卸载；
++// 保留真实尺寸、视区、选择、历史及后台任务。所有实例共用同一个Zustand/SQLite宿主，
++// 不复刻旧iframe的多套浏览器数据库，不使用Activity暂停后台保存effect。
++const ProductCanvas = memo(function ProductCanvas({
++  id,
++  active,
++}: {
++  id: string;
++  active: boolean;
++}) {
++  return (
++    <ProductSurface id={id} active={active}>
++      <Routes location={`/canvas/${encodeURIComponent(id)}`}>
++        <Route path="/canvas/:id" element={<CanvasProjectPage />} />
++      </Routes>
++    </ProductSurface>
++  );
++});
++
++export function ProductWorkspace() {
++  const activeId = useMatch("/canvas/:id")?.params.id || "";
++  const home = useMatch("/");
++  const ids = useCanvasStore(
++    useShallow((state) => state.projects.map((project) => project.id)),
++  );
++  const [visited, setVisited] = useState<string[]>([]);
++  useEffect(() => {
++    if (!activeId || !ids.includes(activeId)) return;
++    setVisited((previous) =>
++      previous.includes(activeId) ? previous : [...previous, activeId],
++    );
++  }, [activeId, ids]);
++  const retained = visited.filter((id) => ids.includes(id));
++  const visibleIds =
++    activeId && ids.includes(activeId) && !retained.includes(activeId)
++      ? [...retained, activeId]
++      : retained;
++  return (
++    <div style={{ position: "relative", height: "100%", minHeight: 0 }}>
++      {visibleIds.map((id) => (
++        <ProductCanvas key={id} id={id} active={id === activeId} />
++      ))}
++      {home || (activeId && !ids.includes(activeId)) ? (
++        <CanvasEntry />
++      ) : !activeId ? (
++        <NotFound />
++      ) : null}
++    </div>
++  );
++}
+--- /dev/null
++++ b/web/src/guan/顶部产品胶囊.tsx
+@@ -0,0 +1,181 @@
++import {
++  useLayoutEffect,
++  useMemo,
++  useState,
++  useSyncExternalStore,
++} from "react";
++import {
++  useCanvasStore,
++  type CanvasProject,
++} from "@/stores/canvas/use-canvas-store";
++import { sqlitePreferences } from "@/guan/上游浏览器存储桥";
++import { orderedProducts } from "./产品规则";
++import { useProductNavigation } from "./产品操作";
++import { canvasTaskSummary } from "./产品任务摘要.js";
++import { productDisplayName } from "./旧版产品显示名.js";
++import { readCanvasCapsuleStatus } from "./旧版产品胶囊状态.js";
++import styles from "./产品胶囊.module.css";
++
++type Summary = {
++  id: string;
++  title: string;
++  createdAt: string;
++  status: string;
++  fingerprint: string;
++};
++function createSummarySelector() {
++  let previous: Summary[] = [];
++  const taskCache = new WeakMap<
++    CanvasProject["nodes"],
++    {
++      connections: CanvasProject["connections"];
++      task: ReturnType<typeof canvasTaskSummary>;
++    }
++  >();
++  return (state: { projects: CanvasProject[] }) => {
++    const previousById = new Map(previous.map((item) => [item.id, item]));
++    const next = orderedProducts(state.projects).map((project, index) => {
++      let cached = taskCache.get(project.nodes);
++      if (!cached || cached.connections !== project.connections) {
++        cached = {
++          connections: project.connections,
++          task: canvasTaskSummary(project.nodes, project.connections),
++        };
++        taskCache.set(project.nodes, cached);
++      }
++      const { status, taskId, startedAt } = cached.task;
++      const title = productDisplayName(project, index),
++        fingerprint = JSON.stringify([status, taskId, startedAt]);
++      const old = previousById.get(project.id);
++      return old &&
++        old.title === title &&
++        old.createdAt === project.createdAt &&
++        old.fingerprint === fingerprint
++        ? old
++        : {
++            id: project.id,
++            title,
++            createdAt: project.createdAt,
++            status,
++            fingerprint,
++          };
++    });
++    if (
++      next.length !== previous.length ||
++      next.some((item, i) => item !== previous[i])
++    )
++      previous = next;
++    return previous;
++  };
++}
++
++function subscribeVisibility(listener: () => void) {
++  document.addEventListener("visibilitychange", listener);
++  return () => document.removeEventListener("visibilitychange", listener);
++}
++function getVisibility() {
++  return document.visibilityState;
++}
++function capsuleStorage(product: Summary) {
++  return {
++    getItem(key: string) {
++      if (key === `guan-canvas-status:${product.id}`) {
++        const [status, taskId, startedAt] = JSON.parse(product.fingerprint);
++        return JSON.stringify({ status, taskId, startedAt });
++      }
++      return sqlitePreferences.getItem(key);
++    },
++    setItem(key: string, value: string) {
++      sqlitePreferences.setItem(key, value);
++    },
++  };
++}
++
++export function ProductCapsules() {
++  const selector = useMemo(createSummarySelector, []);
++  const products = useCanvasStore(selector);
++  const { activeId, busy, selectProduct } = useProductNavigation();
++  const [lastSelectedId, setLastSelectedId] = useState("");
++  const visibility = useSyncExternalStore(
++    subscribeVisibility,
++    getVisibility,
++    getVisibility,
++  );
++  const [error, setError] = useState("");
++  const current = products.find((item) => item.id === activeId);
++  const entering = lastSelectedId !== activeId;
++  useLayoutEffect(() => {
++    if (lastSelectedId === activeId) return;
++    if (!current) {
++      if (!activeId) setLastSelectedId("");
++      return;
++    }
++    setLastSelectedId(activeId);
++    if (current.status === "loading" || visibility === "hidden") return;
++    // 与旧版相同：只在重新进入产品时确认通知；正在查看的任务结束仍显示成功/失败色。
++    readCanvasCapsuleStatus(
++      current.id,
++      true,
++      capsuleStorage(current),
++      true,
++      true,
++    );
++  }, [activeId, current, visibility, lastSelectedId]);
++  return (
++    <div className={styles.root}>
++      <div
++        className="guan-dc-product-nav"
++        role="tablist"
++        aria-label="当前工作表产品"
++        aria-busy={busy}
++      >
++        {products.map((product, index) => {
++          const active = product.id === activeId;
++          const storage = capsuleStorage(product);
++          // 渲染只读。旧函数的写入只在上面的真实提交阶段执行，不在render修改SQLite。
++          const status = readCanvasCapsuleStatus(
++            product.id,
++            active,
++            { ...storage, setItem() {} },
++            visibility !== "hidden",
++            active && entering,
++          );
++          const label = productDisplayName(product, index);
++          return (
++            <div key={product.id} className="guan-product-capsule-wrap">
++              <button
++                type="button"
++                className={`guan-dc-product-capsule guan-shared-product-capsule guan-dc-product-capsule-${status} ${active ? "is-active" : ""}`}
++                role="tab"
++                aria-selected={active}
++                data-product-id={product.id}
++                title={label}
++                disabled={busy}
++                onClick={() => {
++                  setError("");
++                  void selectProduct(product.id).catch((reason) =>
++                    setError(
++                      reason instanceof Error ? reason.message : String(reason),
++                    ),
++                  );
++                }}
++              >
++                <svg viewBox="0 0 24 24" aria-hidden="true">
++                  <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
++                  <circle cx="8.5" cy="9" r="1.5" />
++                  <path d="m5.5 17 4.4-4.4 3.2 3.2 2.2-2.2 3.2 3.4" />
++                </svg>
++                <span>{label}</span>
++              </button>
++            </div>
++          );
++        })}
++      </div>
++      {error ? (
++        <span role="alert" className={styles.error}>
++          {error}
++        </span>
++      ) : null}
++    </div>
++  );
++}
+--- /dev/null
++++ b/web/src/guan/产品胶囊.module.css
+@@ -0,0 +1,184 @@
++/* 源自旧data-contract/index.css产品导航/胶囊块，只增加局部根，主题使用现有.dark。 */
++.root {
++  --dc-bg: #fff;
++  --dc-text: #17181a;
++  position: relative;
++  flex: 1 1 0;
++  min-width: 0;
++}
++:global(.dark) .root {
++  --dc-bg: #1d1e20;
++  --dc-text: #f4f4f5;
++}
++.root :global(.guan-dc-product-nav) {
++  display: flex;
++  align-items: center;
++  gap: 5px;
++  flex: 1 1 0;
++  min-width: 0;
++  max-width: none;
++  overflow-x: auto;
++  padding: 2px 1px;
++  scrollbar-width: none;
++}
++.root :global(.guan-dc-product-nav::-webkit-scrollbar) {
++  display: none;
++}
++.root :global(.guan-product-capsule-wrap) {
++  position: relative;
++  flex: 0 0 auto;
++}
++.root :global(.guan-dc-product-capsule) {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  gap: 6px;
++  flex: 0 0 auto;
++  box-sizing: border-box;
++  width: clamp(88px, 9vw, 128px);
++  min-width: 88px;
++  height: 36px;
++  padding: 0 10px;
++  border: 0 !important;
++  border-radius: 999px;
++  background: var(--dc-bg);
++  color: var(--dc-text);
++  cursor: pointer;
++  font:
++    12px/1.2 ui-sans-serif,
++    -apple-system,
++    BlinkMacSystemFont,
++    "Segoe UI",
++    sans-serif;
++  transition:
++    background-color 0.18s ease,
++    border-color 0.18s ease,
++    color 0.18s ease,
++    box-shadow 0.18s ease,
++    transform 0.16s ease;
++}
++.root :global(.guan-dc-product-capsule:hover) {
++  border-color: transparent;
++  box-shadow: 0 7px 18px rgb(0 0 0 / 12%);
++  transform: translateY(-1px) scale(1.015);
++}
++.root :global(.guan-dc-product-capsule:active) {
++  transform: scale(0.97);
++  transition-duration: 0.12s;
++}
++.root :global(.guan-dc-product-capsule.is-active) {
++  border-color: transparent;
++  background: #111214;
++  color: #fff;
++  box-shadow: 0 5px 16px rgb(0 0 0 / 12%);
++  view-transition-name: guan-active-product-capsule;
++}
++:global(.dark) .root :global(.guan-dc-product-capsule.is-active) {
++  border-color: #f4f4f5;
++  background: #f4f4f5;
++  color: #17181a;
++}
++.root :global(.guan-dc-product-capsule.guan-dc-product-capsule-loading) {
++  background: #facc15;
++  color: #111214;
++}
++.root :global(.guan-dc-product-capsule.guan-dc-product-capsule-success) {
++  background: #16a34a;
++  color: #fff;
++}
++.root :global(.guan-dc-product-capsule.guan-dc-product-capsule-error) {
++  background: #dc2626;
++  color: #fff;
++}
++:global(.dark)
++  .root
++  :global(.guan-dc-product-capsule.guan-dc-product-capsule-loading) {
++  background: #facc15;
++  color: #111214;
++  border-color: transparent;
++}
++:global(.dark)
++  .root
++  :global(.guan-dc-product-capsule.guan-dc-product-capsule-success) {
++  background: #16a34a;
++  color: #fff;
++  border-color: transparent;
++}
++:global(.dark)
++  .root
++  :global(.guan-dc-product-capsule.guan-dc-product-capsule-error) {
++  background: #dc2626;
++  color: #fff;
++  border-color: transparent;
++}
++.root :global(.guan-dc-product-capsule svg) {
++  flex: 0 0 17px;
++  width: 17px;
++  height: 17px;
++  fill: none;
++  stroke: currentColor;
++  stroke-linecap: round;
++  stroke-linejoin: round;
++  stroke-width: 1.75;
++  pointer-events: none;
++}
++.root :global(.guan-dc-product-capsule span) {
++  min-width: 0;
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++.root :global(.guan-dc-product-capsule:focus-visible) {
++  outline: 2px solid currentColor;
++  outline-offset: 2px;
++}
++.root :global(.guan-dc-product-capsule:disabled) {
++  cursor: wait;
++}
++:global(::view-transition-old(guan-active-product-capsule)),
++:global(::view-transition-new(guan-active-product-capsule)) {
++  animation-duration: 0.28s;
++  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
++}
++.error {
++  position: absolute;
++  top: 100%;
++  left: 0;
++  max-width: 360px;
++  padding: 8px 12px;
++  border-radius: 8px;
++  background: var(--dc-bg);
++  color: #dc2626;
++  font-size: 12px;
++  z-index: 20;
++}
++@media (max-width: 820px) {
++  .root :global(.guan-dc-product-capsule) {
++    width: clamp(82px, 11vw, 112px);
++    min-width: 82px;
++    padding: 0 8px;
++  }
++}
++@media (max-width: 640px) {
++  .root :global(.guan-dc-product-nav) {
++    gap: 4px;
++  }
++  .root :global(.guan-dc-product-capsule) {
++    width: clamp(76px, 14vw, 98px);
++    min-width: 76px;
++    height: 34px;
++    padding: 0 7px;
++    font-size: 11px;
++  }
++  .root :global(.guan-dc-product-capsule svg) {
++    width: 16px;
++    height: 16px;
++  }
++}
++@media (prefers-reduced-motion: reduce) {
++  .root :global(.guan-dc-product-capsule) {
++    animation: none !important;
++    transition: none !important;
++    transform: none !important;
++  }
++}
+--- /dev/null
++++ b/web/src/guan/旧版产品显示名.js
+@@ -0,0 +1,5 @@
++export function productDisplayName(product, index = 0) {
++  const raw = product?.title || product?.identity?.titleZh || product?.identity?.sku || `产品 ${index + 1}`;
++  const name = String(raw).split(/[|｜]/, 1)[0].trim();
++  return name || `产品 ${index + 1}`;
++}
+--- /dev/null
++++ b/web/src/guan/旧版产品胶囊状态.js
+@@ -0,0 +1,17 @@
++export function readCanvasCapsuleStatus(productId, active, storage, visible = true, acknowledge = true) {
++  const key = `guan-canvas-status:${productId}`;
++  const seenKey = `guan-canvas-status-seen:${productId}`;
++  try {
++    const raw = storage.getItem(key);
++    const parsed = raw ? JSON.parse(raw) : null;
++    const status = ["loading", "error", "success"].includes(parsed?.status) ? parsed.status : "idle";
++    const fingerprint = JSON.stringify([status, parsed?.taskId || "", parsed?.startedAt || 0]);
++    if (active && acknowledge) {
++      if (visible && parsed && status !== "loading") storage.setItem(seenKey, fingerprint);
++      return status === "loading" ? "loading" : "idle";
++    }
++    return status === "loading" ? "loading" : storage.getItem(seenKey) === fingerprint ? "idle" : status;
++  } catch {
++    return "idle";
++  }
++}
+--- /dev/null
++++ b/web/src/guan/产品任务摘要.js
+@@ -0,0 +1,32 @@
++// Aggregate all tasks, not just the most recently started task.
++function representedConfigIds(nodes, connections) {
++    const nodeById = new Map(nodes.map(node => [node.id, node]));
++    return new Set(connections.filter(connection => {
++        const source = nodeById.get(connection.fromNodeId);
++        const output = nodeById.get(connection.toNodeId);
++        return source?.type === "config" && output?.type !== "config" && source.metadata?.generationStartedAt &&
++            (output?.metadata?.generationStartedAt || 0) >= source.metadata.generationStartedAt;
++    }).map(connection => connection.fromNodeId));
++}
++
++export function canvasTaskSummary(nodes, connections = []) {
++    const representedConfigs = representedConfigIds(nodes, connections);
++    const tracked = nodes.filter(node => !representedConfigs.has(node.id)).filter(node => node.metadata?.generationStartedAt ||
++        (["image", "video", "audio", "text", "config"].includes(node.type) &&
++        (node.metadata?.generationType || node.metadata?.generationImageType || node.metadata?.videoTaskId || ["loading", "error"].includes(node.metadata?.status))));
++    const statuses = tracked.flatMap(node => [node.metadata?.status, ...(node.metadata?.images || []).map(image => image.status), ...(node.metadata?.texts || []).map(text => text.status)]);
++    const status = statuses.includes("loading") ? "loading" : statuses.includes("error") ? "error" : tracked.length ? "success" : "idle";
++    const latest = tracked.reduce((best, node) => !best || (node.metadata?.generationStartedAt || 0) > (best.metadata?.generationStartedAt || 0) ? node : best, null);
++    return { status, taskId: latest?.id || "", startedAt: latest?.metadata?.generationStartedAt || 0 };
++}
++
++export function failedTaskTargets(nodes, connections = []) {
++    const representedConfigs = representedConfigIds(nodes, connections);
++    return nodes.flatMap(node => {
++        if (representedConfigs.has(node.id) || !["image", "video", "audio", "text", "config"].includes(node.type)) return [];
++        if (node.metadata?.status === "loading" || node.metadata?.images?.some(image => image.status === "loading")) return [];
++        const failedImages = node.metadata?.images?.filter(image => image.status === "error") || [];
++        if (failedImages.length) return failedImages.map(image => ({ node, imageId: image.id }));
++        return node.metadata?.status === "error" ? [{ node }] : [];
++    });
++}
+--- a/web/src/router.tsx
++++ b/web/src/router.tsx
+@@ -3,10 +3,8 @@
+ 
+ import { productFeatures } from "@/guan/功能开关";
+ import { AnalyticsTracker } from "@/components/layout/analytics-tracker";
+-import { CanvasEntry } from "@/guan/画布入口";
++import { ProductWorkspace } from "@/guan/产品工作区";
+ import UserLayout from "@/layouts/user-layout";
+-import CanvasProjectPage from "@/pages/canvas/project";
+-import NotFound from "@/pages/not-found";
+ 
+ export const router = createBrowserRouter([
+     {
+@@ -17,10 +15,8 @@
+             </UserLayout>
+         ),
+         children: [
+-            { path: "/", element: <CanvasEntry /> },
+             ...["/image", "/video", "/assets", "/prompts", "/canvas", "/config"].map((path) => ({ path, element: <Navigate to="/" replace /> })),
+-            { path: "/canvas/:id", element: <CanvasProjectPage /> },
++            { path: "*", element: <ProductWorkspace /> },
+         ],
+     },
+-    { path: "*", element: <UserLayout><NotFound /></UserLayout> },
+ ], { window: createRouterWindow(window) });
+--- a/web/src/guan/旧版首页顶栏.tsx
++++ b/web/src/guan/旧版首页顶栏.tsx
+@@ -1,28 +1,27 @@
+ // 旧顶栏来自 server/index.mjs 的 workbenchLogoStyle/mvpNavigationStyle、
+ // shared/data-contract/index.js 的空产品 controls，SVG 路径与尺寸保持不变。
+-import { useNavigate } from "react-router-dom";
+-import { useTranslation } from "react-i18next";
++import { App } from "antd";
++import { ProductCapsules } from "./顶部产品胶囊";
++import { useProductNavigation } from "./产品操作";
+ import { AppConfigModal } from "@/components/layout/app-config-modal";
+ import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+-import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
+ import { useConfigStore } from "@/stores/use-config-store";
+ import { useThemeStore } from "@/stores/use-theme-store";
+ import styles from "./旧版顶栏.module.css";
+ 
+ export function LegacyHomeChrome() {
+-  const { t } = useTranslation();
+-  const navigate = useNavigate();
++  const { message } = App.useApp();
++  const { createProduct, busy } = useProductNavigation();
+   const theme = useThemeStore((s) => s.theme);
+   const setTheme = useThemeStore((s) => s.setTheme);
+-  const create = useCanvasStore((s) => s.createProject);
+   const openConfig = useConfigStore((s) => s.openConfigDialog);
+   const pending = "旧版业务尚未迁入；不会读取旧数据。";
+   return <><header className={styles.header} data-theme={theme} aria-label="工作台顶栏">
+     <div className={styles.brand}><img src="/guan/首页原样资源/工作台Logo.png" alt="G" /><span>AI生图工作台</span></div>
+     <div className={styles.controls}>
+-      <div className={styles.productNav} />
++      <ProductCapsules />
+       <div className={styles.actions} aria-label="画布操作">
+-        <button type="button" title="新建产品" onClick={() => navigate(`/canvas/${encodeURIComponent(create(t("canvas.defaultTitle", { count: 1 })))}`, { replace: true })}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg><span>新建产品</span></button>
++        <button type="button" title="新建产品" disabled={busy} onClick={() => { void createProduct().catch(error => message.error(error instanceof Error ? error.message : String(error))); }}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg><span>新建产品</span></button>
+         <button type="button" disabled title={pending}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg><span>导入产品</span></button>
+         <button type="button" disabled title={pending} aria-label="产品回收站"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6.5 7l.8 12h9.4l.8-12M9 7l1-3h4l1 3" /></svg></button>
+       </div>
+--- a/web/src/guan/画布入口.tsx
++++ b/web/src/guan/画布入口.tsx
+@@ -1,38 +1,22 @@
+-import { Navigate, useNavigate } from "react-router-dom";
++import { Navigate } from "react-router-dom";
+ import { useTranslation } from "react-i18next";
++import { App } from "antd";
+ import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
+ import { useThemeStore } from "@/stores/use-theme-store";
+-import { entryProjectId } from "@/guan/功能开关";
++import { sqlitePreferences } from "./上游浏览器存储桥";
++import { ACTIVE_PRODUCT_KEY, useProductNavigation } from "./产品操作";
++import { selectEntryProduct } from "./产品规则";
+ import { WorkbenchHome } from "./工作台首页";
+ 
+-// 仅替换自有空白入口；已有画布仍按已批准逻辑进入，不迁旧产品、Excel或数据。
+ export function CanvasEntry() {
+   const { t } = useTranslation();
+-  const navigate = useNavigate();
+-  const hydrated = useCanvasStore((state) => state.hydrated);
+-  const projects = useCanvasStore((state) => state.projects);
+-  const createProject = useCanvasStore((state) => state.createProject);
+-  const theme = useThemeStore((state) => state.theme);
+-  const id = entryProjectId(projects);
+-
+-  if (!hydrated)
+-    return (
+-      <main
+-        className="grid h-full place-items-center bg-background text-foreground"
+-        role="status"
+-      >
+-        {t("canvas.opening")}
+-      </main>
+-    );
+-  if (id) return <Navigate to={`/canvas/${encodeURIComponent(id)}`} replace />;
+-
+-  return (
+-    <WorkbenchHome
+-      theme={theme}
+-      onCreate={() => {
+-        const projectId = createProject(t("canvas.defaultTitle", { count: 1 }));
+-        navigate(`/canvas/${encodeURIComponent(projectId)}`, { replace: true });
+-      }}
+-    />
+-  );
++  const { message } = App.useApp();
++  const { createProduct } = useProductNavigation();
++  const hydrated = useCanvasStore(state => state.hydrated);
++  const projects = useCanvasStore(state => state.projects);
++  const theme = useThemeStore(state => state.theme);
++  const id = selectEntryProduct(projects, sqlitePreferences.getItem(ACTIVE_PRODUCT_KEY));
++  if (!hydrated) return <main className="grid h-full place-items-center bg-background text-foreground" role="status">{t("canvas.opening")}</main>;
++  if (id) return <Navigate to={"/canvas/" + encodeURIComponent(id)} replace />;
++  return <WorkbenchHome theme={theme} onCreate={() => { void createProduct().catch(error => message.error(error instanceof Error ? error.message : String(error))); }} />;
+ }
+--- a/web/src/stores/canvas/use-canvas-store.ts
++++ b/web/src/stores/canvas/use-canvas-store.ts
+@@ -3,6 +3,7 @@
+ import { persist, type PersistStorage, type StorageValue } from "zustand/middleware";
+ 
+ import { nanoid } from "nanoid";
++import { nextProductTitle } from "@/guan/产品规则";
+ import i18n from "@/i18n";
+ import { localForageStorage } from "@/lib/localforage-storage";
+ import type { CanvasBackgroundMode } from "@/lib/canvas-theme";
+@@ -68,7 +69,7 @@
+             hydrated: false,
+             projects: [],
+             deletedProjects: [],
+-            createProject: (title = i18n.t("canvas.project.untitled")) => {
++            createProject: (title = nextProductTitle(get().projects)) => {
+                 const now = new Date().toISOString();
+                 const id = nanoid();
+                 const project: CanvasProject = {
+@@ -122,9 +123,11 @@
+                 }),
+             replaceProjects: (projects, deletedProjects = []) => set({ projects, deletedProjects }),
+             updateProject: (id, patch) =>
+-                set((state) => ({
+-                    projects: state.projects.map((project) => (project.id === id ? { ...project, ...patch, updatedAt: new Date().toISOString() } : project)),
+-                })),
++                set((state) => {
++                    const current = state.projects.find((project) => project.id === id);
++                    if (!current || Object.entries(patch).every(([key, value]) => current[key as keyof CanvasProject] === value)) return state;
++                    return { projects: state.projects.map((project) => (project.id === id ? { ...project, ...patch, updatedAt: new Date().toISOString() } : project)) };
++                }),
+         }),
+         {
+             name: CANVAS_STORE_KEY,
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,3 +1,6 @@
++import { useProductActive } from "@/guan/产品界面边界";
++import { useProductCanvasSave, useProductNavigation } from "@/guan/产品操作";
++import { flushSQLiteStorage } from "@/guan/上游浏览器存储桥";
+ import { isGenerationModeEnabled } from "@/guan/精简与离线策略";
+ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+ import type { ChangeEvent as ReactChangeEvent, DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
+@@ -162,14 +165,17 @@
+     if (!container) return {};
+     const nodeRect = container.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`)?.getBoundingClientRect();
+     const panelRect = container.querySelector<HTMLElement>(`[data-node-id="${nodeId}"] [data-node-panel]`)?.getBoundingClientRect();
+-    const toolbarRect = document.querySelector<HTMLElement>(`[data-node-toolbar="${nodeId}"]`)?.getBoundingClientRect();
+-    const dockRect = document.querySelector<HTMLElement>("[data-canvas-bottom-toolbar]")?.getBoundingClientRect();
++    const toolbarRect = container.closest("[data-product-id]")?.querySelector<HTMLElement>(`[data-node-toolbar="${nodeId}"]`)?.getBoundingClientRect();
++    const dockRect = container.closest("[data-product-id]")?.querySelector<HTMLElement>("[data-canvas-bottom-toolbar]")?.getBoundingClientRect();
+     const below = nodeRect && panelRect ? panelRect.bottom - nodeRect.bottom : 0;
+     const above = nodeRect && toolbarRect ? nodeRect.top - toolbarRect.top : 0;
+     return { above, below, bottomInset: dockRect && below > 0 ? Math.max(0, container.getBoundingClientRect().bottom - dockRect.top) : 0 };
+ }
+ 
+ function InfiniteCanvasPage() {
++    const productActive = useProductActive();
++    const { createProduct } = useProductNavigation();
++    const restoredProjectIdRef = useRef<string | null>(null);
+     const { message, modal } = App.useApp();
+     const { t } = useTranslation();
+     // Subscribe to the registry version so plugin registration changes rerender the canvas.
+@@ -221,7 +227,6 @@
+     const addAsset = useAssetStore((state) => state.addAsset);
+     const cleanupAssetImages = useAssetStore((state) => state.cleanupImages);
+     const hydrated = useCanvasStore((state) => state.hydrated);
+-    const createProject = useCanvasStore((state) => state.createProject);
+     const openProject = useCanvasStore((state) => state.openProject);
+     const updateProject = useCanvasStore((state) => state.updateProject);
+     const renameProject = useCanvasStore((state) => state.renameProject);
+@@ -438,9 +443,15 @@
+         );
+     }, [t]);
+ 
++    const stopConfirmationRef = useRef<ReturnType<typeof modal.confirm> | null>(null);
++    useEffect(() => {
++        if (!productActive) stopConfirmationRef.current?.destroy();
++        return () => { stopConfirmationRef.current?.destroy(); };
++    }, [productActive]);
++
+     const confirmStopGeneration = useCallback(
+         (nodeId: string) => {
+-            modal.confirm({
++            stopConfirmationRef.current = modal.confirm({
+                 title: t("canvas.projectPage.stopTitle"),
+                 content: t("canvas.projectPage.stopDescription"),
+                 okText: t("canvas.projectPage.stop"),
+@@ -453,8 +464,10 @@
+     );
+ 
+     useEffect(() => {
+-        if (!hydrated) return;
++        if (!hydrated || restoredProjectIdRef.current === projectId) return;
++        let cancelled = false;
+         setProjectLoaded(false);
++        restoredProjectIdRef.current = null;
+         const project = openProject(projectId);
+         if (!project) {
+             navigate("/canvas", { replace: true });
+@@ -464,6 +477,7 @@
+         const restore = async () => {
+             const restoredNodes = await hydrateCanvasImages(resetInterruptedGeneration(project.nodes));
+             const restoredSessions = await hydrateAssistantImages(project.chatSessions || []);
++            if (cancelled) return;
+             setRawNodes(restoredNodes);
+             setConnections(project.connections);
+             setChatSessions(restoredSessions);
+@@ -485,9 +499,11 @@
+                 showImageInfo: project.showImageInfo || false,
+             };
+             setHistoryState({ canUndo: false, canRedo: false });
++            restoredProjectIdRef.current = projectId;
+             setProjectLoaded(true);
+         };
+         void restore();
++        return () => { cancelled = true; };
+     }, [hydrated, navigate, openProject, projectId, setRawNodes]);
+ 
+     useEffect(() => {
+@@ -537,9 +553,29 @@
+     }, [activeChatId, backgroundMode, chatSessions, connections, createHistoryEntry, nodes, projectLoaded, showImageInfo]);
+ 
+     useEffect(() => {
+-        if (!projectLoaded || historyPausedRef.current) return;
++        if (!projectLoaded || historyPausedRef.current || isNodeDragging || isNodeResizing) return;
+         updateProject(projectId, { nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo });
+-    }, [activeChatId, backgroundMode, chatSessions, connections, nodes, projectId, projectLoaded, showImageInfo, updateProject]);
++    }, [activeChatId, backgroundMode, chatSessions, connections, nodes, projectId, projectLoaded, showImageInfo, updateProject, isNodeDragging, isNodeResizing]);
++
++    const updateFlushSnapshot = useMemo(() => ({ projectId, nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport }),
++        [projectId, nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport]);
++    useProductCanvasSave(projectId, updateFlushSnapshot,
++        () => projectLoaded && restoredProjectIdRef.current === projectId && !historyPausedRef.current && nodes === nodeTransactionRef.current
++            && !dragRef.current.isDraggingNode && !isNodeDragging && !isNodeResizing && focusAnimRef.current === null,
++        async (snapshot) => {
++            const { projectId: id, ...patch } = snapshot;
++            if (restoredProjectIdRef.current !== id || snapshot.nodes !== nodeTransactionRef.current) throw new Error("Canvas commit invalidated");
++            if (!useCanvasStore.getState().projects.some(project => project.id === id)) throw new Error("Canvas unavailable");
++            updateProject(id, patch);
++            await flushSQLiteStorage();
++            // The committed snapshot includes the viewport. Cancel a queued
++            // viewport write only after this full snapshot was actually saved.
++            // Do not cancel a timer scheduled by a newer committed viewport.
++            if (viewportRef.current === snapshot.viewport) {
++                if (viewportSaveTimerRef.current) clearTimeout(viewportSaveTimerRef.current);
++                viewportSaveTimerRef.current = null;
++            }
++        });
+ 
+     useEffect(() => {
+         if (!dialogNodeId) setNodeImageSettingsOpen(false);
+@@ -991,7 +1027,7 @@
+     }, [referenceConnectedNodeIds, referencePickerNodeId]);
+ 
+     useEffect(() => {
+-        if (!referencePickerNodeId) return;
++        if (!productActive || !referencePickerNodeId) return;
+         const exit = (event: KeyboardEvent) => {
+             if (event.key !== "Escape") return;
+             event.preventDefault();
+@@ -1000,7 +1036,7 @@
+         };
+         window.addEventListener("keydown", exit, true);
+         return () => window.removeEventListener("keydown", exit, true);
+-    }, [exitNodeReferenceSelection, referencePickerNodeId]);
++    }, [productActive, exitNodeReferenceSelection, referencePickerNodeId]);
+ 
+     const deselectCanvas = useCallback(() => {
+         cancelPendingConnectionCreate();
+@@ -1245,9 +1281,8 @@
+     }, [applyHistory, createHistoryEntry, message, size.width, size.height]);
+ 
+     const createAndOpenProject = useCallback(() => {
+-        const id = createProject(t("canvas.defaultTitle", { count: useCanvasStore.getState().projects.length + 1 }));
+-        navigate(`/canvas/${id}`);
+-    }, [createProject, navigate, t]);
++        void createProduct().catch(error => message.error(error instanceof Error ? error.message : String(error)));
++    }, [createProduct, message]);
+ 
+     const deleteCurrentProject = useCallback(() => {
+         deleteProjects([projectId]);
+@@ -1515,6 +1550,7 @@
+     );
+ 
+     useEffect(() => {
++        if (!productActive) return;
+         const handlePointerUp = (event: PointerEvent) => finishNodeDrag(event.clientX, event.clientY);
+         const cancelNodeDrag = () => finishNodeDrag();
+         window.addEventListener("mousemove", handleGlobalMouseMove);
+@@ -1531,7 +1567,7 @@
+             window.removeEventListener("blur", cancelNodeDrag);
+             window.removeEventListener("pointermove", handleGlobalPointerMove);
+         };
+-    }, [finishNodeDrag, handleGlobalMouseMove, handleGlobalMouseUp, handleGlobalPointerMove]);
++    }, [productActive, finishNodeDrag, handleGlobalMouseMove, handleGlobalMouseUp, handleGlobalPointerMove]);
+ 
+     const createImageFileNode = useCallback(async (file: File, position: Position) => {
+         const image = await uploadImage(file);
+@@ -1634,6 +1670,7 @@
+     }, [createImageFileNode, createTextNodeFromClipboard, getCanvasCenter, message, t]);
+ 
+     useEffect(() => {
++        if (!productActive) return;
+         const handleKeyDown = (event: KeyboardEvent) => {
+             const target = event.target instanceof Element ? event.target : null;
+             if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement || target?.closest("[contenteditable='true'],[data-canvas-no-zoom],[data-canvas-shortcuts-ignore]")) return;
+@@ -1719,7 +1756,7 @@
+ 
+         window.addEventListener("keydown", handleKeyDown);
+         return () => window.removeEventListener("keydown", handleKeyDown);
+-    }, [copySelectedNodes, deleteConnection, deleteNodes, groupSelection, pasteCopiedNodes, pasteSystemClipboard, redoCanvas, selectedConnectionId, setConnecting, undoCanvas, ungroupSelection]);
++    }, [productActive, copySelectedNodes, deleteConnection, deleteNodes, groupSelection, pasteCopiedNodes, pasteSystemClipboard, redoCanvas, selectedConnectionId, setConnecting, undoCanvas, ungroupSelection]);
+ 
+     const handleConnectStart = useCallback(
+         (event: ReactMouseEvent, nodeId: string, handleType: "source" | "target") => {
+@@ -3482,28 +3519,28 @@
+ 
+                 <input ref={imageInputRef} type="file" multiple accept="image/*,video/*,audio/mpeg,audio/wav,audio/x-wav,.mp3,.wav" className="hidden" onChange={handleImageInputChange} />
+ 
+-                <CanvasNodeInfoModal node={infoNode} open={Boolean(infoNode)} onClose={() => setInfoNodeId(null)} />
+-                {productFeatures.nodePlugins ? <CanvasPluginManagerModal open={pluginManagerOpen} onClose={() => setPluginManagerOpen(false)} /> : null}
++                <CanvasNodeInfoModal node={infoNode} open={productActive && Boolean(infoNode)} onClose={() => setInfoNodeId(null)} />
++                {productFeatures.nodePlugins ? <CanvasPluginManagerModal open={productActive && pluginManagerOpen} onClose={() => setPluginManagerOpen(false)} /> : null}
+ 
+-                {cropNode?.metadata?.content ? <CanvasNodeCropDialog dataUrl={cropNode.metadata.content} open={Boolean(cropNode)} onClose={() => setCropNodeId(null)} onConfirm={(crop) => void cropImageNode(cropNode!, crop)} /> : null}
++                {cropNode?.metadata?.content ? <CanvasNodeCropDialog dataUrl={cropNode.metadata.content} open={productActive && Boolean(cropNode)} onClose={() => setCropNodeId(null)} onConfirm={(crop) => void cropImageNode(cropNode!, crop)} /> : null}
+ 
+                 {maskEditNode?.metadata?.content ? (
+-                    <CanvasNodeMaskEditDialog dataUrl={maskEditNode.metadata.content} open={Boolean(maskEditNode)} onClose={() => setMaskEditNodeId(null)} onConfirm={(payload) => void maskEditImageNode(maskEditNode!, payload)} />
++                    <CanvasNodeMaskEditDialog dataUrl={maskEditNode.metadata.content} open={productActive && Boolean(maskEditNode)} onClose={() => setMaskEditNodeId(null)} onConfirm={(payload) => void maskEditImageNode(maskEditNode!, payload)} />
+                 ) : null}
+ 
+-                {splitNode?.metadata?.content ? <CanvasNodeSplitDialog dataUrl={splitNode.metadata.content} open={Boolean(splitNode)} onClose={() => setSplitNodeId(null)} onConfirm={(params) => void splitImageNode(splitNode!, params)} /> : null}
++                {splitNode?.metadata?.content ? <CanvasNodeSplitDialog dataUrl={splitNode.metadata.content} open={productActive && Boolean(splitNode)} onClose={() => setSplitNodeId(null)} onConfirm={(params) => void splitImageNode(splitNode!, params)} /> : null}
+ 
+                 {upscaleNode?.metadata?.content ? (
+-                    <CanvasNodeUpscaleDialog dataUrl={upscaleNode.metadata.content} open={Boolean(upscaleNode)} onClose={() => setUpscaleNodeId(null)} onConfirm={(params) => void upscaleImageNode(upscaleNode!, params)} />
++                    <CanvasNodeUpscaleDialog dataUrl={upscaleNode.metadata.content} open={productActive && Boolean(upscaleNode)} onClose={() => setUpscaleNodeId(null)} onConfirm={(params) => void upscaleImageNode(upscaleNode!, params)} />
+                 ) : null}
+ 
+                 
+ 
+-                {angleNode?.metadata?.content ? <CanvasNodeAngleDialog dataUrl={angleNode.metadata.content} open={Boolean(angleNode)} onClose={() => setAngleNodeId(null)} onConfirm={(params) => void generateAngleNode(angleNode!, params)} /> : null}
++                {angleNode?.metadata?.content ? <CanvasNodeAngleDialog dataUrl={angleNode.metadata.content} open={productActive && Boolean(angleNode)} onClose={() => setAngleNodeId(null)} onConfirm={(params) => void generateAngleNode(angleNode!, params)} /> : null}
+ 
+                 <Modal
+                     title={t("canvas.projectPage.imageDetails")}
+-                    open={Boolean(previewContent)}
++                    open={productActive && Boolean(previewContent)}
+                     centered
+                     onCancel={() => setPreviewNodeId(null)}
+                     footer={null}
+@@ -3515,7 +3552,7 @@
+ 
+                 <Modal
+                     title={t("canvas.projectPage.clearTitle")}
+-                    open={clearConfirmOpen}
++                    open={productActive && clearConfirmOpen}
+                     centered
+                     onCancel={() => setClearConfirmOpen(false)}
+                     footer={
+@@ -3530,7 +3567,7 @@
+                     <p className="text-sm opacity-60">{t("canvas.projectPage.clearDescription")}</p>
+                 </Modal>
+ 
+-                <AssetPickerModal open={assetPickerOpen} onInsert={handleAssetInsert} onClose={() => setAssetPickerOpen(false)} />
++                <AssetPickerModal open={productActive && assetPickerOpen} onInsert={handleAssetInsert} onClose={() => setAssetPickerOpen(false)} />
+             </section>
+         </main>
+     );
+--- a/web/src/components/canvas/infinite-canvas.tsx
++++ b/web/src/components/canvas/infinite-canvas.tsx
+@@ -1,3 +1,4 @@
++import { useProductActive } from "@/guan/产品界面边界";
+ import React, { useEffect, useRef, useState } from "react";
+ 
+ import { canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
+@@ -20,6 +21,7 @@
+ 
+ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = "lines", onViewportChange, onCanvasMouseDown, onCanvasDeselect, onCanvasDoubleClick, onContextMenu, onDrop, children }: InfiniteCanvasProps) {
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
++    const productActive = useProductActive();
+     const panState = useRef({
+         isPanning: false,
+         startX: 0,
+@@ -48,6 +50,7 @@
+     );
+ 
+     useEffect(() => {
++        if (!productActive) return;
+         const handleKeyDown = (event: KeyboardEvent) => {
+             if (event.key === "Control") setIsControlPressed(true);
+             if (event.code !== "Space") return;
+@@ -81,8 +84,9 @@
+             window.removeEventListener("keydown", handleKeyDown);
+             window.removeEventListener("keyup", handleKeyUp);
+             window.removeEventListener("blur", handleBlur);
++            handleBlur();
+         };
+-    }, []);
++    }, [productActive]);
+ 
+     const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+         const target = event.target instanceof Element ? event.target : null;
+@@ -146,6 +150,7 @@
+     };
+ 
+     useEffect(() => {
++        if (!productActive) return;
+         const handlePointerMove = (event: PointerEvent) => {
+             if (!panState.current.isPanning) return;
+ 
+@@ -185,9 +190,13 @@
+             window.removeEventListener("pointermove", handlePointerMove);
+             window.removeEventListener("pointerup", handlePointerUp);
+             window.removeEventListener("pointercancel", handlePointerUp);
++            if (frameRef.current) cancelAnimationFrame(frameRef.current);
++            frameRef.current = null;
++            nextViewportRef.current = null;
++            panState.current.isPanning = false;
+             document.body.style.cursor = "";
+         };
+-    }, [onCanvasDeselect, onViewportChange]);
++    }, [productActive, onCanvasDeselect, onViewportChange]);
+ 
+     useEffect(() => {
+         const container = containerRef.current;
+--- a/web/src/components/canvas/canvas-audio-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-audio-settings-popover.tsx
+@@ -1,5 +1,5 @@
+ import { useEffect, useRef, useState, type RefObject } from "react";
+-import { createPortal } from "react-dom";
++import { createProductPortal } from "@/guan/产品界面边界";
+ import { Settings2 } from "lucide-react";
+ import { Button } from "antd";
+ 
+@@ -98,7 +98,7 @@
+         color: theme.node.text,
+     } as const;
+ 
+-    return createPortal(
++    return createProductPortal(
+         <div
+             ref={panelRef}
+             className="canvas-image-settings-popover"
+--- a/web/src/components/canvas/canvas-image-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-image-settings-popover.tsx
+@@ -1,5 +1,5 @@
+ import { useEffect, useRef, useState, type RefObject } from "react";
+-import { createPortal } from "react-dom";
++import { createProductPortal } from "@/guan/产品界面边界";
+ import { Settings2 } from "lucide-react";
+ import { Button } from "antd";
+ import { useTranslation } from "react-i18next";
+@@ -110,7 +110,7 @@
+         color: theme.node.text,
+     } as const;
+ 
+-    return createPortal(
++    return createProductPortal(
+         <div
+             ref={panelRef}
+             className="canvas-image-settings-popover"
+--- a/web/src/components/canvas/canvas-text-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-text-settings-popover.tsx
+@@ -1,5 +1,5 @@
+ import { useEffect, useRef, useState, type RefObject } from "react";
+-import { createPortal } from "react-dom";
++import { createProductPortal } from "@/guan/产品界面边界";
+ import { Settings2 } from "lucide-react";
+ import { Button, InputNumber } from "antd";
+ import { useTranslation } from "react-i18next";
+@@ -90,7 +90,7 @@
+         color: theme.node.text,
+     } as const;
+ 
+-    return createPortal(
++    return createProductPortal(
+         <div ref={panelRef} style={style} onPointerDown={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
+             <TextSettingsPanel config={config} onConfigChange={onConfigChange} theme={theme} />
+             {onCountChange ? (
+--- a/web/src/components/canvas/canvas-video-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-video-settings-popover.tsx
+@@ -1,5 +1,5 @@
+ import { useEffect, useRef, useState, type RefObject } from "react";
+-import { createPortal } from "react-dom";
++import { createProductPortal } from "@/guan/产品界面边界";
+ import { Settings2 } from "lucide-react";
+ import { Button } from "antd";
+ 
+@@ -95,7 +95,7 @@
+         color: theme.node.text,
+     } as const;
+ 
+-    return createPortal(
++    return createProductPortal(
+         <div
+             ref={panelRef}
+             className="canvas-image-settings-popover"
+--- a/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx
++++ b/web/src/components/canvas/canvas-node-mask-edit-dialog.tsx
+@@ -1,5 +1,5 @@
+ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+-import { createPortal } from "react-dom";
++import { createProductPortal } from "@/guan/产品界面边界";
+ import { Button, Input, Modal, Slider, Tooltip } from "antd";
+ import { Brush, Eraser, ImagePlus, Redo2, RotateCcw, Undo2, WandSparkles, ZoomIn, ZoomOut } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+@@ -251,7 +251,7 @@
+                     </div>
+                 </div>
+                 {brushPreview
+-                    ? createPortal(
++                    ? createProductPortal(
+                           <div
+                               className={`pointer-events-none fixed z-[1100] rounded-full border-2 ${brushPreview.adjusting ? "border-[#fbbf24] bg-black/10" : "border-white/90 bg-black/5"} shadow-[0_0_0_1px_rgba(0,0,0,.8)]`}
+                               style={{ left: brushPreview.x, top: brushPreview.y, width: Math.max(4, brushPreview.size * viewport.imageScale), aspectRatio: 1, transform: "translate(-50%, -50%)" }}
+--- a/web/src/components/canvas/canvas-prompt-chip-input.tsx
++++ b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+@@ -1,6 +1,7 @@
++import { useProductActive } from "@/guan/产品界面边界";
+ import { useEffect, useMemo, useRef, useState } from "react";
+ import type { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent } from "react";
+-import { createPortal } from "react-dom";
++import { createProductPortal } from "@/guan/产品界面边界";
+ import { Image } from "antd";
+ import { FileText, Image as ImageIcon, Music2, Video } from "lucide-react";
+ 
+@@ -40,6 +41,7 @@
+     const lastEmittedRef = useRef(value);
+     const [mention, setMention] = useState<MentionState | null>(null);
+     const [activeIndex, setActiveIndex] = useState(0);
++    const productActive = useProductActive();
+     const [imagePreview, setImagePreview] = useState<string | null>(null);
+ 
+     const activeReferences = useMemo(() => references.filter((item) => item.active), [references]);
+@@ -193,7 +195,7 @@
+             {mention && candidates.length ? (
+                 <MentionMenu rect={mention.rect} references={candidates} activeIndex={Math.min(activeIndex, candidates.length - 1)} theme={theme} onSelect={insertReference} />
+             ) : null}
+-            {imagePreview ? <Image src={imagePreview} alt={i18n.t("canvas.composer.imagePreview")} style={{ display: "none" }} preview={{ visible: true, src: imagePreview, onVisibleChange: (visible) => !visible && setImagePreview(null) }} /> : null}
++            {imagePreview ? <Image src={imagePreview} alt={i18n.t("canvas.composer.imagePreview")} style={{ display: "none" }} preview={{ visible: productActive, src: imagePreview, onVisibleChange: (visible) => !visible && setImagePreview(null) }} /> : null}
+         </div>
+     );
+ }
+@@ -222,7 +224,7 @@
+     const showAbove = anchor.bottom + gap + maxMenuHeight > window.innerHeight && anchor.top - gap - maxMenuHeight >= 0;
+     const top = showAbove ? anchor.top - gap - maxMenuHeight : anchor.bottom + gap;
+ 
+-    return createPortal(
++    return createProductPortal(
+         <div
+             data-canvas-resource-mention-menu="true"
+             className="fixed z-[1100] max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md"
+--- a/web/src/components/canvas/canvas-resource-mention-textarea.tsx
++++ b/web/src/components/canvas/canvas-resource-mention-textarea.tsx
+@@ -1,6 +1,6 @@
+ import { forwardRef, useMemo, useRef, useState } from "react";
+ import type { CSSProperties, MouseEvent, PointerEvent, TextareaHTMLAttributes } from "react";
+-import { createPortal } from "react-dom";
++import { createProductPortal } from "@/guan/产品界面边界";
+ import { FileText, Image as ImageIcon, Music2, Video } from "lucide-react";
+ 
+ import { canvasThemes } from "@/lib/canvas-theme";
+@@ -241,7 +241,7 @@
+         onSelect(reference);
+     };
+ 
+-    return createPortal(
++    return createProductPortal(
+         <div
+             data-canvas-resource-mention-menu="true"
+             className="fixed z-[120] max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md"
+--- a/web/src/components/canvas/canvas-config-composer.tsx
++++ b/web/src/components/canvas/canvas-config-composer.tsx
+@@ -1,3 +1,4 @@
++import { useProductActive } from "@/guan/产品界面边界";
+ import { useEffect, useMemo, useRef, useState } from "react";
+ import type { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent } from "react";
+ import { Button, Image } from "antd";
+@@ -40,6 +41,7 @@
+     const composingRef = useRef(false);
+     const [mention, setMention] = useState<MentionState | null>(null);
+     const [activeIndex, setActiveIndex] = useState(0);
++    const productActive = useProductActive();
+     const [imagePreview, setImagePreview] = useState<string | null>(null);
+     const tokens = useMemo(() => parseComposerTokens(value), [value]);
+     const referenceById = useMemo(() => new Map(inputs.map((input) => [input.nodeId, input])), [inputs]);
+@@ -184,7 +186,7 @@
+                 />
+                 {mention && candidates.length ? <MentionMenu inputs={candidates} allInputs={inputs} activeIndex={Math.min(activeIndex, candidates.length - 1)} theme={theme} onSelect={insertReference} /> : null}
+             </div>
+-            {imagePreview ? <Image src={imagePreview} alt={t("canvas.composer.imagePreview")} style={{ display: "none" }} preview={{ visible: true, src: imagePreview, onVisibleChange: (visible) => !visible && setImagePreview(null) }} /> : null}
++            {imagePreview ? <Image src={imagePreview} alt={t("canvas.composer.imagePreview")} style={{ display: "none" }} preview={{ visible: productActive, src: imagePreview, onVisibleChange: (visible) => !visible && setImagePreview(null) }} /> : null}
+         </div>
+     );
+ 
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -1,3 +1,4 @@
++import { useProductActive } from "@/guan/产品界面边界";
+ import { sqlitePreferences } from "@/guan/上游浏览器存储桥";
+ import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
+ import { App, Empty, Input, Popconfirm, Select, Spin, Tag } from "antd";
+@@ -554,6 +555,7 @@
+     const enabledSources = useMemo(() => sources.filter((source) => source.enabled), [sources]);
+     const [keyword, setKeyword] = useState("");
+     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
++    const productActive = useProductActive();
+     const [detail, setDetail] = useState<Prompt | null>(null);
+ 
+     const copyPrompt = async (prompt: string) => {
+@@ -587,7 +589,7 @@
+                     )) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t("canvas.sidePanel.noPrompts")} className="pt-12" />}
+                 </div>
+             </div>
+-            <PromptDetailDialog prompt={detail} onClose={() => setDetail(null)} onCopy={(prompt) => void copyPrompt(prompt)} />
++            <PromptDetailDialog prompt={productActive ? detail : null} onClose={() => setDetail(null)} onCopy={(prompt) => void copyPrompt(prompt)} />
+         </div>
+     );
+ });
+--- a/web/src/components/canvas/canvas-node-prompt-panel.tsx
++++ b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+@@ -1,3 +1,4 @@
++import { useProductActive } from "@/guan/产品界面边界";
+ import { isGenerationModeEnabled } from "@/guan/精简与离线策略";
+ import { useEffect, useState } from "react";
+ import { ArrowUp, LoaderCircle, Maximize2, Square } from "lucide-react";
+@@ -47,6 +48,7 @@
+     const hasImageContent = node.type === CanvasNodeType.Image && Boolean(node.metadata?.content);
+     const isEditingExistingContent = hasTextContent || hasImageContent;
+     const [prompt, setPrompt] = useState(node.metadata?.composerContent ?? node.metadata?.prompt ?? "");
++    const productActive = useProductActive();
+     const [expanded, setExpanded] = useState(false);
+ 
+     // Restore prompts only when switching nodes; preserve the current input after generation on the same node.
+@@ -150,7 +152,7 @@
+                     </span>
+                 </Button>
+             </div>
+-            <Modal title={t("canvas.promptPanel.editorTitle")} open={expanded} centered width={760} footer={null} onCancel={() => setExpanded(false)} destroyOnHidden>
++            <Modal title={t("canvas.promptPanel.editorTitle")} open={productActive && expanded} centered width={760} footer={null} onCancel={() => setExpanded(false)} destroyOnHidden>
+                 <div data-canvas-no-zoom className="pt-2" onWheelCapture={(event) => event.stopPropagation()}>
+                     <CanvasNodeReferenceBar nodeId={node.id} nodes={nodes} connectedNodes={connectedNodes} onDisconnect={onDisconnectReference} onStartSelection={(nodeId) => { setExpanded(false); onStartReferenceSelection?.(nodeId); }} />
+                     <CanvasPromptChipInput
+--- a/web/src/components/canvas/canvas-zoom-controls.tsx
++++ b/web/src/components/canvas/canvas-zoom-controls.tsx
+@@ -1,3 +1,4 @@
++import { useProductActive } from "@/guan/产品界面边界";
+ import type { ReactNode } from "react";
+ import { Compass, Focus, HelpCircle } from "lucide-react";
+ import { useState } from "react";
+@@ -16,6 +17,7 @@
+ };
+ 
+ export function CanvasZoomControls({ scale, onScaleChange, onReset, isMiniMapOpen, onToggleMiniMap }: CanvasZoomControlsProps) {
++    const productActive = useProductActive();
+     const [shortcutsOpen, setShortcutsOpen] = useState(false);
+     const { t } = useTranslation();
+     const colorTheme = useThemeStore((state) => state.theme);
+@@ -59,7 +61,7 @@
+                     <Button type="text" className="!h-8 !w-8 !min-w-8 !p-0" style={shortcutsOpen ? activeStyle : { color: theme.toolbar.item }} icon={<HelpCircle className="size-4" />} onClick={() => setShortcutsOpen(true)} aria-label={t("canvas.shortcuts")} />
+                 </Tooltip>
+             </div>
+-            <Modal title={t("canvas.shortcuts")} open={shortcutsOpen} onCancel={() => setShortcutsOpen(false)} footer={null} centered>
++            <Modal title={t("canvas.shortcuts")} open={productActive && shortcutsOpen} onCancel={() => setShortcutsOpen(false)} footer={null} centered>
+                 <div className="space-y-3 border-t pt-4 text-sm" style={{ borderColor: theme.node.stroke }}>
+                     <Shortcut label={`Ctrl / Space + ${t("canvas.shortcut.drag")}`} value={t("canvas.shortcut.toggleTool")} />
+                     <Shortcut label={t("canvas.shortcut.wheel")} value={t("canvas.shortcut.zoom")} />
+--- a/web/src/components/canvas/canvas-top-bar.tsx
++++ b/web/src/components/canvas/canvas-top-bar.tsx
+@@ -1,3 +1,4 @@
++import { useProductActive } from "@/guan/产品界面边界";
+ import { isCanvasMenuEnabled, productFeatures } from "@/guan/功能开关";
+ import { useEffect, useRef, useState } from "react";
+ import { BookOpen, Bot, Download, Grid2x2, Home, Images, Menu, PanelLeftClose, PanelLeftOpen, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
+@@ -61,6 +62,7 @@
+     const { t } = useTranslation();
+     const theme = canvasThemes[colorTheme];
+     const titleRef = useRef<HTMLDivElement>(null);
++    const productActive = useProductActive();
+     const [shortcutsOpen, setShortcutsOpen] = useState(false);
+     const sidePanelOpen = useCanvasSidePanelStore((state) => state.panelOpen);
+     const toggleSidePanel = useCanvasSidePanelStore((state) => state.togglePanel);
+@@ -160,7 +162,7 @@
+                     ) : null}
+                 </div>
+             </div>
+-            <Modal title={t("canvas.shortcuts")} open={shortcutsOpen} onCancel={() => setShortcutsOpen(false)} footer={null} centered>
++            <Modal title={t("canvas.shortcuts")} open={productActive && shortcutsOpen} onCancel={() => setShortcutsOpen(false)} footer={null} centered>
+                 <div className="space-y-2 border-t pt-4 text-sm" style={{ borderColor: theme.node.stroke }}>
+                     <Shortcut keys={["Ctrl / Space", t("canvas.shortcut.drag")]} value={t("canvas.shortcut.toggleTool")} />
+                     <Shortcut keys={[t("canvas.shortcut.wheel")]} value={t("canvas.shortcut.zoom")} />
+--- a/web/src/components/canvas/canvas-prompt-library.tsx
++++ b/web/src/components/canvas/canvas-prompt-library.tsx
+@@ -1,3 +1,4 @@
++import { useProductActive } from "@/guan/产品界面边界";
+ import { useState } from "react";
+ import { Button, Tooltip } from "antd";
+ import { BookOpen } from "lucide-react";
+@@ -9,6 +10,7 @@
+ 
+ export function CanvasPromptLibrary({ onSelect }: { onSelect: (prompt: string) => void }) {
+     const { t } = useTranslation();
++    const productActive = useProductActive();
+     const [open, setOpen] = useState(false);
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+ 
+@@ -24,7 +26,7 @@
+                     aria-label={t("navigation.prompts")}
+                 />
+             </Tooltip>
+-            <PromptSelectDialog open={open} onOpenChange={setOpen} onSelect={onSelect} />
++            <PromptSelectDialog open={productActive && open} onOpenChange={setOpen} onSelect={onSelect} />
+         </>
+     );
+ }
+--- a/web/src/components/canvas/canvas-node-hover-toolbar.tsx
++++ b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+@@ -1,3 +1,4 @@
++import { useProductActive } from "@/guan/产品界面边界";
+ import { sqlitePreferences } from "@/guan/上游浏览器存储桥";
+ import { useEffect, useMemo, useState, type ReactNode } from "react";
+ import { App, Modal, Segmented, Tooltip } from "antd";
+@@ -82,6 +83,7 @@
+     const [draftImageToolIds, setDraftImageToolIds] = useState<ImageQuickToolId[]>(defaultImageQuickToolIds);
+     const [draftShowImageToolLabels, setDraftShowImageToolLabels] = useState(false);
+     const [imageToolSettingsOpen, setImageToolSettingsOpen] = useState(false);
++    const productActive = useProductActive();
+     const { message } = App.useApp();
+     const { t } = useTranslation();
+     const copyText = useCopyText();
+@@ -201,7 +203,7 @@
+             </div>
+             {hasImage ? (
+                 <ImageToolSettingsModal
+-                    open={imageToolSettingsOpen}
++                    open={productActive && imageToolSettingsOpen}
+                     tools={selectableImageToolbarTools}
+                     selectedIds={draftImageToolIds}
+                     showLabels={draftShowImageToolLabels}

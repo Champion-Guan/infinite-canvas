@@ -1,0 +1,250 @@
+--- a/扩展功能/本机服务/受控会话.mjs
++++ b/扩展功能/本机服务/受控会话.mjs
+@@ -2,8 +2,7 @@
+ 
+ const same = (a, b) => ['protocol', 'workspaceId', 'origin', 'token', 'csrf', 'expiresAt'].every(key => a?.[key] === b?.[key]);
+ 
+-// 只供可信启动器进程内创建端口，不新增HTTP授权接口，不自行读取凭据或浏览器资料。
+-// 端口的交付仍须独立审查；不能将本对象序列化或当作匿名授权服务。
++// 受控会话的独立后继。重新连接仅由已授权页面的明确操作调用，绝不延长页面租期。
+ export function createSessionController({ service, origin, now = Date.now, lifetime = 8 * 60 * 60_000, renewalWindow = 30_000, overlap = 20_000, maxLeases = 16, schedule = setTimeout, cancel = clearTimeout } = {}) {
+   let address;
+   try { address = new URL(origin); } catch { /* 下面统一拒绝。 */ }
+@@ -22,7 +21,7 @@
+     cancel(lease.timer);
+     if (lease.current) service.revokeSession(lease.current.token);
+     if (lease.retired) { cancel(lease.retired.timer); service.revokeSession(lease.retired.token); }
+-    lease.current = null; lease.retired = null; leases.delete(lease);
++    lease.current = null; lease.retired = null; lease.reconnectedFrom = null; leases.delete(lease);
+   }
+   function requireLive(lease) {
+     if (!lease.closed && clock() >= lease.deadline) finish(lease, 'lease_expired');
+@@ -45,7 +44,7 @@
+       requireValue(!closed, 'session_host_closed', '会话管理器已关闭。', 401);
+       for (const lease of leases) if (clock() >= lease.deadline) finish(lease, 'lease_expired');
+       requireValue(leases.size < maxLeases, 'too_many_leases', '已授权页面数量达到上限。', 429);
+-      const lease = { deadline: clock() + lifetime, current: null, retired: null, closed: null, timer: null };
++      const lease = { deadline: clock() + lifetime, current: null, retired: null, reconnectedFrom: null, closed: null, timer: null };
+       leases.add(lease); lease.timer = timer(() => finish(lease, 'lease_expired'), lifetime);
+       return Object.freeze({
+         initialize() {
+@@ -64,12 +63,26 @@
+           if (lease.retired) { cancel(lease.retired.timer); service.revokeSession(lease.retired.token); }
+           const delay = Math.min(overlap, lease.current.expiresAt - clock());
+           lease.current = next;
++          lease.reconnectedFrom = null;
+           lease.retired = { token: previousToken, timer: timer(() => {
+             service.revokeSession(previousToken);
+             if (lease.retired?.token === previousToken) lease.retired = null;
+           }, delay) };
+           return { ...next };
+         },
++        reconnect(previous) {
++          requireLive(lease);
++          requireValue(lease.current && (same(previous, lease.current) || lease.reconnectedFrom && same(previous, lease.reconnectedFrom)),
++            'session_mismatch', '重新连接必须匹配本页面原会话。', 401);
++          // 丢失响应后，明确重试原请求返回同一会话；不再签发、不更换工作区。
++          if (lease.reconnectedFrom && same(previous, lease.reconnectedFrom) && lease.current.expiresAt > clock()) return { ...lease.current };
++          requireValue(lease.current.expiresAt <= clock(), 'reconnect_not_due', '当前数据会话未过期，不需要重新连接。', 409);
++          const next = issue(lease), old = lease.current;
++          if (lease.retired) { cancel(lease.retired.timer); service.revokeSession(lease.retired.token); }
++          lease.current = next; lease.retired = null; lease.reconnectedFrom = { ...previous };
++          service.revokeSession(old.token);
++          return { ...next };
++        },
+         close() { finish(lease, 'session_host_closed'); },
+       });
+     },
+--- a/扩展功能/本机服务/本机授权网关.mjs
++++ b/扩展功能/本机服务/本机授权网关.mjs
+@@ -98,10 +98,14 @@
+             page.port.initialize();
+             json(200, result); return true;
+           }
+-          requireValue(['initialize', 'renew', 'close'].includes(value?.operation) && exactKeys(value, value.operation === 'renew' ? ['operation', 'session'] : ['operation']), 'invalid_authorization_command', '会话操作格式无效。');
++          requireValue(['initialize', 'renew', 'reconnect', 'close'].includes(value?.operation) && exactKeys(value, ['renew', 'reconnect'].includes(value.operation) ? ['operation', 'session'] : ['operation']), 'invalid_authorization_command', '会话操作格式无效。');
+           let session = null;
+           if (value.operation === 'initialize') session = page.port.initialize();
+           if (value.operation === 'renew') session = page.port.renew(value.session);
++          if (value.operation === 'reconnect') {
++            requireValue(typeof page.port.reconnect === 'function', 'reconnect_unavailable', '当前本机服务不支持保留页面重新连接。', 503);
++            session = page.port.reconnect(value.session);
++          }
+           if (value.operation === 'close') { page.port.close(); pages.delete(digest(capability)); }
+           json(200, { protocol: AUTHORIZATION_PROTOCOL, session });
+         }
+--- a/web/src/guan/sqlite/本机授权客户端.mjs
++++ b/web/src/guan/sqlite/本机授权客户端.mjs
+@@ -43,6 +43,8 @@
+     host: Object.freeze({
+       initialize: () => command({ operation: 'initialize' }),
+       renew: session => command({ operation: 'renew', session: structuredClone(session) }),
++      // 不由定时器或业务请求触发；仅交给明确的“重新连接并保存”流程。
++      reconnect: session => command({ operation: 'reconnect', session: structuredClone(session) }),
+       async close() { if (closed) return; try { await command({ operation: 'close' }); } finally { closed = true; capability = ''; } },
+     }),
+   });
+--- a/web/src/guan/sqlite/续期数据客户端.mjs
++++ b/web/src/guan/sqlite/续期数据客户端.mjs
+@@ -1,8 +1,8 @@
+ import { createDataClient } from './浏览器适配.mjs';
+ import { PROTOCOL, StorageError, requireValue, validUUID } from './协议.mjs';
+ 
+-// 活动请求驱动续期，不后台无限延长授权；休眠至过期必须重新通过可信入口。
+-// 原客户端保持不变，续期失败不重发业务请求，不生成新的保存operationId。
++// 活动请求仅续期；过期后只能由用户明确调用reconnect恢复同工作区连接。
++// 恢复连接本身不重发业务请求、不清错误、不生成新的保存operationId。
+ export function createRenewingDataClient({ url, host, origin = globalThis.location?.origin, fetchImpl = globalThis.fetch, onStatus = () => {}, now = Date.now, renewalWindow = 30_000 } = {}) {
+   let address, pageAddress;
+   try { address = new URL(url); pageAddress = new URL(origin); } catch { /* 下面统一拒绝。 */ }
+@@ -11,7 +11,7 @@
+     host && typeof host.initialize === 'function' && typeof host.renew === 'function' && typeof host.close === 'function' &&
+     typeof fetchImpl === 'function' && typeof now === 'function' && typeof onStatus === 'function' && Number.isSafeInteger(renewalWindow) && renewalWindow > 0,
+   'invalid_session_client', '续期客户端配置无效。');
+-  let current = null, flight = null, closed = false, pending = 0, lastAck = null;
++  let current = null, flight = null, reconnectFlight = null, closed = false, pending = 0, lastAck = null;
+   const holders = new Set(), errors = new Map();
+   function clock() { const value = now(); requireValue(Number.isSafeInteger(value) && value >= 0, 'invalid_clock', '会话时钟无效。'); return value; }
+   const status = () => ({ state: errors.size ? 'error' : pending ? 'saving' : lastAck ? 'saved' : 'idle', pending, lastAck, errors: [...errors.values()] });
+@@ -28,6 +28,7 @@
+   }
+   async function acquire() {
+     requireValue(!closed, 'client_closed', '续期数据客户端已关闭。');
++    if (reconnectFlight) await reconnectFlight;
+     if (!flight && (!current || current.session.expiresAt - clock() <= renewalWindow)) {
+       flight = (async () => {
+         if (current) requireValue(current.session.expiresAt > clock(), 'session_expired', '本机数据会话已过期，未自动重新授权。', 401);
+@@ -62,6 +63,22 @@
+   }
+   return Object.freeze({
+     getStatus: status,
++    reconnect() {
++      requireValue(!closed, 'client_closed', '续期数据客户端已关闭。');
++      if (reconnectFlight) return reconnectFlight;
++      requireValue(current && !pending && !flight, 'reconnect_busy', '请等待当前保存请求结束后再重新连接。', 409);
++      requireValue(typeof host.reconnect === 'function', 'reconnect_unavailable', '当前本机服务不支持保留页面重新连接。', 503);
++      const previous = current;
++      reconnectFlight = Promise.resolve().then(async () => {
++        const session = await host.reconnect({ ...previous.session });
++        valid(session, previous.session);
++        requireValue(!closed && current === previous, 'session_mismatch', '恢复期间本机会话改变，未替换当前连接。', 401);
++        const holder = { session: { ...session }, active: 0, retired: false, client: createDataClient({ url, session, fetchImpl }) };
++        holders.add(holder); current = holder; previous.retired = true; release(previous);
++      });
++      reconnectFlight.then(() => { reconnectFlight = null; notify(); }, () => { reconnectFlight = null; notify(); });
++      return reconnectFlight;
++    },
+     readUsage: () => run('read:usage', 'readUsage', []),
+     readDocument: (collection, id, options) => run(`read:${collection}:${id}`, 'readDocument', [collection, id, options]),
+     writeDocument: input => run(`write:${input?.collection}:${input?.id}`, 'writeDocument', () => {
+@@ -70,7 +87,7 @@
+     writeMedia: blob => run('media:upload', 'writeMedia', [blob]),
+     readMedia: id => run(`media:${id}`, 'readMedia', [id]),
+     async close() {
+-      requireValue(!pending && !errors.size, 'save_not_confirmed', '仍有未确认或失败操作，不能关闭数据客户端。', 409);
++      requireValue(!pending && !errors.size && !reconnectFlight, 'save_not_confirmed', '仍有未确认或失败操作，不能关闭数据客户端。', 409);
+       if (closed) return;
+       closed = true;
+       for (const holder of holders) holder.client.close();
+--- a/web/src/guan/sqlite/工作台自动入口.mjs
++++ b/web/src/guan/sqlite/工作台自动入口.mjs
+@@ -32,7 +32,8 @@
+       await client.readUsage();
+       const view = document.defaultView;
+       if (Object.getOwnPropertyDescriptor(view, '__guanSQLiteHost')) throw Error('本页面已安装存储入口。');
+-      Object.defineProperty(view, '__guanSQLiteHost', { value: Object.freeze({ initialize: async () => app }), configurable: false, writable: false });
++      // 恢复只替换client内的会话；app、React根、页内队列及编辑缓存保持同一个实例。
++      Object.defineProperty(view, '__guanSQLiteHost', { value: Object.freeze({ initialize: async () => app, reconnect: () => client.reconnect() }), configurable: false, writable: false });
+       started = true; root.replaceChildren();
+       await loadApplication();
+       return true;
+--- a/web/src/guan/上游浏览器存储桥.ts
++++ b/web/src/guan/上游浏览器存储桥.ts
+@@ -19,19 +19,21 @@
+     retryPending(): Promise<unknown>;
+     subscribe(callback: () => void): () => void;
+ }
+-declare global { interface Window { __guanSQLiteHost?: { initialize(): Promise<SQLiteRuntime> }; } }
++declare global { interface Window { __guanSQLiteHost?: { initialize(): Promise<SQLiteRuntime>; reconnect?(): Promise<void> }; } }
+ let runtime: SQLiteRuntime | null = null;
+ let appState: SQLiteInstance, preferencesStore: SQLiteInstance;
+ const stateCache = new Map<string, string>(), preferencesCache = new Map<string, string>(), sessionCache = new Map<string, string>();
+ const writes = new Set<Promise<unknown>>(), failed = new Map<string, unknown>();
+ const scheduled = new Map<string, { value: string; timer: ReturnType<typeof setTimeout>; resolve: () => void; reject: (reason: unknown) => void; promise: Promise<void> }>();
+ let retryFlight: Promise<void> | null = null;
++let reconnecting = false, reconnectError: string | null = null;
+ function ready() { if (!runtime) throw new Error("本机存储尚未初始化，不允许退回浏览器数据库。"); return runtime; }
+ export function storageStatus() {
+     const current = runtime?.getStatus();
++    const codes = [...(current?.failures?.map(item => item.code) ?? []), ...[...failed.values()].map(error => (error as { code?: string } | null)?.code)];
+     return { state: failed.size || current?.state === "error" ? "error" : writes.size || scheduled.size || current?.pending ? "saving" : current?.state ?? "idle",
+         pending: Math.max(writes.size, current?.pending ?? 0) + scheduled.size, retrying: !!retryFlight || !!current?.retrying,
+-        conflict: current?.failures?.some(item => item.code === "revision_conflict") ?? false };
++        conflict: codes.includes("revision_conflict"), reconnectRequired: codes.includes("session_expired"), reconnecting, reconnectError };
+ }
+ function statusChanged() { if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("guan:storage-status", { detail: storageStatus() })); }
+ function track<T>(key: string, promise: Promise<T>) {
+@@ -90,12 +92,19 @@
+     await Promise.all([...writes]); await runtime!.flush();
+     if (failed.size || writes.size || scheduled.size) throw new Error("本机保存尚未确认，不能继续关闭或切换服务。");
+ }
+-export function retrySQLiteStorage(): Promise<void> {
++function retryStorage(reconnect: boolean): Promise<void> {
+     const app = ready();
+     if (!retryFlight) {
++        reconnecting = reconnect; reconnectError = null;
+         retryFlight = (async () => {
+             for (const key of [...scheduled.keys()]) startScheduled(key);
+             await Promise.allSettled([...writes]);
++            if (reconnect) {
++                if (storageStatus().conflict) throw new Error("存在版本冲突，不能通过重新连接覆盖。");
++                if (typeof window.__guanSQLiteHost?.reconnect !== "function") throw new Error("保留页面重新连接协议不可用。");
++                try { await window.__guanSQLiteHost.reconnect(); }
++                catch (error) { reconnectError = typeof (error as { code?: unknown } | null)?.code === "string" ? (error as { code: string }).code : "connection_failed"; throw error; }
++            }
+             await app.retryPending();
+             // 重试期间用户仍可能编辑；这些新操作也必须收到ACK，不能只清掉旧错误。
+             for (const key of [...scheduled.keys()]) startScheduled(key);
+@@ -103,9 +112,11 @@
+             if (writes.size || scheduled.size || app.getStatus().state === "error" || app.getStatus().pending) throw new Error("仍有未确认编辑，请勿关闭或刷新。");
+             failed.clear();
+         })();
+-        retryFlight.then(() => { retryFlight = null; statusChanged(); }, () => { retryFlight = null; statusChanged(); });
++        retryFlight.then(() => { retryFlight = null; reconnecting = false; statusChanged(); }, () => { retryFlight = null; reconnecting = false; statusChanged(); });
+         statusChanged();
+     }
+     return retryFlight;
+ }
++export function retrySQLiteStorage(): Promise<void> { return retryStorage(false); }
++export function reconnectAndRetrySQLiteStorage(): Promise<void> { return retryStorage(true); }
+ export function readSQLiteUsage() { return ready().readUsage(); }
+--- a/web/src/guan/保存状态条.tsx
++++ b/web/src/guan/保存状态条.tsx
+@@ -1,5 +1,5 @@
+ import { useEffect, useState } from "react";
+-import { retrySQLiteStorage, storageStatus } from "@/guan/上游浏览器存储桥";
++import { reconnectAndRetrySQLiteStorage, retrySQLiteStorage, storageStatus } from "@/guan/上游浏览器存储桥";
+ 
+ // 独立的声明式组件；不搜寻/改写原作者DOM，不更换画布布局或全局样式。
+ export function SQLiteSaveStatus() {
+@@ -18,13 +18,16 @@
+     }, [status.state, status.pending, status.retrying]);
+     if (!visible || status.state === "idle") return null;
+     const failed = status.state === "error";
+-    const title = status.retrying ? "正在核实并重试保存…" : failed ? "保存尚未确认" : status.state === "saving" ? "正在保存到本机…" : "已保存到本机";
++    const title = status.reconnecting ? "正在重新连接并保存…" : status.retrying ? "正在核实并重试保存…" : failed ? "保存尚未确认" : status.state === "saving" ? "正在保存到本机…" : "已保存到本机";
++    const reconnect = status.reconnectRequired && !status.conflict;
++    const expired = ["authorization_expired", "authorization_denied", "lease_expired", "session_host_closed"].includes(status.reconnectError ?? "");
+     return <aside aria-label="本机保存状态" data-save-state={status.state} style={{ position: "fixed", right: 20, bottom: 20, zIndex: 80, maxWidth: 360, padding: "12px 16px", borderRadius: 12, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", boxShadow: "0 6px 24px #0002", fontSize: 13 }}>
+         <p role={failed ? "alert" : "status"} aria-live={failed ? "assertive" : "polite"} style={{ margin: 0, fontWeight: 600 }}>{title}</p>
+         {failed && <>
+-            <p style={{ margin: "6px 0 10px" }}>{status.conflict ? "其他窗口已修改数据。请保留本页，不要刷新、关闭或强制覆盖；需要先处理版本冲突。" : "编辑仍保留在本页内存中。请勿刷新或关闭，连接恢复后点击重试。"}</p>
+-            <button type="button" disabled={status.retrying} onClick={() => { void retrySQLiteStorage().catch(() => { /* 状态事件保留错误，不能假报成功。 */ }); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", color: "inherit", cursor: status.retrying ? "wait" : "pointer" }}>
+-                {status.retrying ? "正在重试…" : "重试未确认保存"}
++            <p style={{ margin: "6px 0 10px" }}>{status.conflict ? "其他窗口已修改数据。请保留本页，不要刷新、关闭或强制覆盖；需要先处理版本冲突。" : expired ? "页面授权已结束或服务已重开，不能恢复原连接。编辑仍在本页，请保留页面，勿刷新或关闭，需先由可信入口恢复授权。" : reconnect ? "本机数据连接已过期。编辑仍保留在本页，请勿刷新或关闭；点击下方重新连接，确认后继续原保存。" : "编辑仍保留在本页内存中。请勿刷新或关闭，连接恢复后点击重试。"}</p>
++            {status.reconnectError && !expired && <p role="alert" style={{ margin: "6px 0 10px" }}>重新连接或保存尚未完成，编辑仍保留，请稍后重试。</p>}
++            <button type="button" disabled={status.retrying || status.conflict} onClick={() => { void (reconnect ? reconnectAndRetrySQLiteStorage() : retrySQLiteStorage()).catch(() => { /* 状态事件保留错误，不能假报成功。 */ }); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", color: "inherit", cursor: status.retrying ? "wait" : "pointer" }}>
++                {status.reconnecting ? "正在重新连接…" : status.retrying ? "正在重试…" : reconnect ? "重新连接并保存" : "重试未确认保存"}
+             </button>
+         </>}
+     </aside>;

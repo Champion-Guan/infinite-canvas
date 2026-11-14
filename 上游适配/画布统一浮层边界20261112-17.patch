@@ -1,0 +1,12 @@
+diff --git a/web/src/components/canvas/canvas-node-split-dialog.tsx b/web/src/components/canvas/canvas-node-split-dialog.tsx
+index 549705b..60fee72 100644
+--- a/web/src/components/canvas/canvas-node-split-dialog.tsx
++++ b/web/src/components/canvas/canvas-node-split-dialog.tsx
+@@ -1,5 +1,6 @@
+ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+-import { Button, InputNumber, Tooltip } from "antd";
++import { Button, InputNumber } from "antd";
++import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+ import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { Grid2x2, ListRestart, PanelTop, Redo2, Rows3, Trash2, Undo2, ZoomIn, ZoomOut } from "lucide-react";
+ import { useTranslation } from "react-i18next";

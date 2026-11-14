@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { variantModules } from './产品变体生成夹具.mjs';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(new URL('../.运行/3100源/画布副本/web/package.json', import.meta.url));
 const ts = require('typescript');
 function load(file, dependencies, globals) {
+    dependencies = { '@/扩展功能/画布交互/浮层可见区域': variantModules().load('画布交互/浮层可见区域.ts'), ...dependencies };
     const code = ts.transpileModule(readFileSync(new URL('../' + file, import.meta.url), 'utf8'), { compilerOptions: {
         module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX,
     } }).outputText;

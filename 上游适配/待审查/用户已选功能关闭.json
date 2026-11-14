@@ -1,0 +1,163 @@
+{
+  "状态": "待单独批准",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "用户已选关闭": [
+    "P01",
+    "P02",
+    "P03",
+    "P04",
+    "P05",
+    "P06",
+    "P07",
+    "U01",
+    "U02",
+    "U03",
+    "U04",
+    "S07",
+    "S08",
+    "G01",
+    "G02",
+    "G03",
+    "G04",
+    "G05",
+    "G06",
+    "G07",
+    "X01",
+    "X02",
+    "X03",
+    "X04",
+    "X05",
+    "X06",
+    "X07",
+    "X08",
+    "B01",
+    "B02",
+    "B03",
+    "B04"
+  ],
+  "已应用到运行副本": false,
+  "预审类型通过": true,
+  "差异SHA256": "b76672614125cf0316b27c3347bff04d1bae8a1964dd28922a9e56d5bcd1bbc8",
+  "文件": [
+    {
+      "文件": "web/src/router.tsx",
+      "原始SHA256": "d46a2157d77f0c4d72386713a3262c5e5c7fafaf1381a7455cb51685377ad833",
+      "候选SHA256": "4e22148eedc1f86d3e226496bab586b24c6d3aa71b4c9f31967792dfea6dc6aa"
+    },
+    {
+      "文件": "web/src/lib/analytics.ts",
+      "原始SHA256": "cdc17fa61d050f029cf043395fb478617193d70e9622639d4e829d3f3f4e68f8",
+      "候选SHA256": "02528fd32cb5754efef92eb23b69a87626392e45f37bca357d1033b3cc0e1290"
+    },
+    {
+      "文件": "web/src/layouts/user-layout.tsx",
+      "原始SHA256": "642e7c9201a9da51935a4202d994185e8aff586dbbcd34cf72a8d96cd01154a3",
+      "候选SHA256": "4c7918509becddaa1efe0eadf43d7c34e07d6f5d53b0b1f0b3c54ae4c6a91414"
+    },
+    {
+      "文件": "web/src/components/layout/app-top-nav.tsx",
+      "原始SHA256": "f15f55803e8111e1f5fe3882d2dafc19841b68eca18875c446da7a7d04501e4c",
+      "候选SHA256": "0cb53effb594f09622b5e4b23b6beb20ca69212a2cb016a092a504c00292f814"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-top-bar.tsx",
+      "原始SHA256": "19cae209f46102d636eae0f2c7dea2c6e525047046ff2b1bd887aa20397f9a1e",
+      "候选SHA256": "4251a6db892bbc51942b01610c8b7babfe3e0da666d9239ae2562043e5512143"
+    },
+    {
+      "文件": "web/src/stores/use-agent-store.ts",
+      "原始SHA256": "25f3c0eb8adc454c90e2814f08ec389e0061d39fe597deacf65df2fbb5d438f7",
+      "候选SHA256": "b2a6b2c29981311489e688b102ed6394f14412e37e68c7cf3ade7ae9814805ac"
+    },
+    {
+      "文件": "web/src/pages/canvas/hooks/use-agent-bridge.ts",
+      "原始SHA256": "4f0133a3eb9934ad6517c0ff8d2c614ee90b9b519421b0ee88d08d0bcaab4aa4",
+      "候选SHA256": "d24673d0f203e1d76ec7e94d7f5010142dde715a3ae26e32ad7688fca9f7a2e3"
+    },
+    {
+      "文件": "web/src/services/api/canvas-agent.ts",
+      "原始SHA256": "28b90150f7e797f899216f46d391aec9d4e99b613685b11def0ed214ce9603ba",
+      "候选SHA256": "c72107b5f69b8fefdff205db9d411613d674eaadf67c0a84347560191a1d989f"
+    },
+    {
+      "文件": "web/src/components/layout/app-config-modal.tsx",
+      "原始SHA256": "0378a605ba953805eb0d4e968290e1bb401b671f8ae8c8efd4abff8919bd59d3",
+      "候选SHA256": "c5ddad0b74425954a95f96a9462dc5365155560e03831528832057ebf1b20522"
+    },
+    {
+      "文件": "web/src/services/app-sync.ts",
+      "原始SHA256": "6c7f1712b7b9996c9b20b00439a94fc5cf661772b87674353544ca73c4117e2d",
+      "候选SHA256": "99ab180af2ca041da97e1a222af1b1c335c7ebab1e31fce1b56173b684db38fb"
+    },
+    {
+      "文件": "web/src/services/webdav-sync.ts",
+      "原始SHA256": "4facffcfbfe8406ccea59b0d66912f943413e4c4a7c2c0e9d8710e0be11634af",
+      "候选SHA256": "a6a17f1b2d19efb9d10a2a0ba751478a6c3308f08b96b223fa66de9d379b0606"
+    },
+    {
+      "文件": "web/src/guan/功能开关.ts",
+      "原始SHA256": null,
+      "候选SHA256": "cb1349043a3be329a04209691362cfe965034a68615d5027c0245ebe3ea7f7ae"
+    },
+    {
+      "文件": "web/src/constant/navigation-tools.ts",
+      "原始SHA256": "9b4e35d6cb486139ff3520d3c09546597b8a2327845e0e7ebcf111796fa96c45",
+      "候选SHA256": "ab60a70da4328cfe83322b29df7b127d92040f7ca175a1d261be013acfc64b05"
+    },
+    {
+      "文件": "web/src/components/layout/user-status-actions.tsx",
+      "原始SHA256": "07c20d1b2daca083b4f852947be49c07a6d8fcf83b1078bf10c1a01359779496",
+      "候选SHA256": "e68e79e33b86329d59545d35d74f8c90dd17786a3a26f8e348c022319efc75fe"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-toolbar.tsx",
+      "原始SHA256": "43a270c70c3de702065bda623f83b08356e3df42be2d131b58fcfdccd7d4c632",
+      "候选SHA256": "0de11b03f2e401525aac14990d8e09ab8e6e187423b5de4ff7b8cc1f68804645"
+    },
+    {
+      "文件": "web/src/pages/canvas/project.tsx",
+      "原始SHA256": "ecb88fa8b6b89128c1406d4ef6b584fde9ab64a35846d86a86aa16ddd27da534",
+      "候选SHA256": "9f488196fb74f03c890fa22d8d6a9ea557a668285424935abd6792bb4d3fba3a"
+    },
+    {
+      "文件": "web/src/hooks/use-version-check.ts",
+      "原始SHA256": "277916be956f3fcf3f38ca159ff46d76c19c434db3e45d09cfd543a3f78cbaf1",
+      "候选SHA256": "6e2b9a3c00d4a4e242e221004099fa1d0bb27e17ad67bc6a7a4a18a90e6dae97"
+    },
+    {
+      "文件": "web/src/stores/use-theme-store.ts",
+      "原始SHA256": "1d2cd753e17cb8c261da768bb20316da8fd23e518611a99c7c1f0eeb83edbe0a",
+      "候选SHA256": "d5faba252827072070030972531130a9d671e14fe80f166681219757133a75b1"
+    },
+    {
+      "文件": "web/src/i18n/index.ts",
+      "原始SHA256": "903f54a450c23bfb6a6575368c55be9ecbec6133f018ae6679cfe93b7b8b1dcc",
+      "候选SHA256": "10637e57f9e80bef58b539932e03a9148b3de731ccfba94ff32309a1a44ed311"
+    },
+    {
+      "文件": "web/src/services/api/local-proxy.ts",
+      "原始SHA256": "b26b3b68eb02beb0352d417c715475637f6f2db30ae0c7158f100a4b8731ddb5",
+      "候选SHA256": "8305915701d97ee54c574d0d23e6944f3b3bc4d3e0aa90b1a253cc2ea93049dc"
+    },
+    {
+      "文件": "web/src/stores/use-config-store.ts",
+      "原始SHA256": "9d519ec444fa816051d24c762e7c4b5d78b35bab2f9b2ab61702a94bef0d4b5b",
+      "候选SHA256": "fa16cd47a8b7a7c8f3f1ab77f0f81ccbc5766e64aea4b3cd07440f3fcd6f11fb"
+    },
+    {
+      "文件": "web/src/lib/canvas/plugin-loader.ts",
+      "原始SHA256": "deae9e1d127bea8ce4972eba49d5905c112822731a49b712f6fe11beb5f42c9d",
+      "候选SHA256": "eb7479486ae467f42962edc0edd837077831b6f2a46b25798524e7a0507e9860"
+    },
+    {
+      "文件": "web/src/lib/canvas/plugin-registry.ts",
+      "原始SHA256": "f3901e3527b1b694cbc5bf7bc012f2cf20e9beec626aaeb51ec87ed55e5cc7cc",
+      "候选SHA256": "9d426c71a8f17128769bb2043511d3af35ab47636e69a5fbe9c753c9d398ed8e"
+    },
+    {
+      "文件": "web/src/guan/画布入口.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "0016a03d66de7296d2d12d52fa84eb12560b58285397eb917ae17483bba75ee8"
+    }
+  ]
+}

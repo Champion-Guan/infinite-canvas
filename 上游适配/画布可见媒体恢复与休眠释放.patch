@@ -1,0 +1,59 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 7407208..04296c9 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -58,7 +58,8 @@ import { ImageTaskConfirmation } from "@/扩展功能/画布生成/图片任务
+ import { requestCanvasImage } from "@/扩展功能/画布生成/原画布图片调用";
+ import { readProtectedRetryPrompt } from "@/扩展功能/提示词/生成文本读取";
+ import { useCanvasPersistence } from "@/扩展功能/产品/画布保存接线";
+-import { canvasHasPendingChanges, canvasSavePending } from "@/扩展功能/产品/画布保存判定";
++import { canvasHasPendingChanges, canvasSavePending, sameCanvasValue } from "@/扩展功能/产品/画布保存判定";
++import { useVisibleCanvasMedia, hasDeferredCanvasMedia, CanvasMediaPlaceholder } from "@/扩展功能/媒体交付/可见画布媒体";
+ import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
+ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+ import { markWorkbenchStartup } from "@/扩展功能/本机存储/启动计时.mjs";
+@@ -558,13 +559,13 @@ function InfiniteCanvasPage() {
+         const sourceProject = openProject(projectId);
+         if (!sourceProject) throw Error("原产品已移除，未恢复过期画布。");
+         markWorkbenchStartup("canvas-media-start");
+-        let project = await restoreCanvasMedia(sourceProject);
++        let project = await restoreCanvasMedia(sourceProject, { deferImageNodes: true });
+         if (cancelled) return;
+         // 恢复期间的后台更新不能被先前读取的快照覆盖。
+         while (openProject(projectId) !== sourceProject && openProject(projectId) !== project) {
+             const latest = openProject(projectId);
+             if (!latest) throw Error("原产品已移除，未恢复过期画布。");
+-            project = await restoreCanvasMedia(latest);
++            project = await restoreCanvasMedia(latest, { deferImageNodes: true });
+             if (cancelled) return;
+             if (openProject(projectId) === latest) break;
+         }
+@@ -659,7 +660,7 @@ function InfiniteCanvasPage() {
+         const next = createHistoryEntry();
+         const previous = lastHistoryRef.current;
+         if (
+-            previous?.nodes === next.nodes &&
++            sameCanvasValue(previous?.nodes, next.nodes) &&
+             previous.connections === next.connections &&
+             previous.deletedNodeBatches === next.deletedNodeBatches &&
+             previous.chatSessions === next.chatSessions &&
+@@ -891,6 +892,8 @@ function InfiniteCanvasPage() {
+         left: node.position.x, top: node.position.y, right: node.position.x + node.width, bottom: node.position.y + node.height,
+     })), [nodes]);
+     const visibleNodes = useMemo(() => queryVisibleNodes(viewBounds), [queryVisibleNodes, viewBounds]);
++    useVisibleCanvasMedia({ projectId, snapshot: currentProject, nodesRef, visibleNodes,
++        ready: projectLoaded && productActive, setNodes: setRawNodes, onError: setRestoreError });
+     const nodeById = useMemo(() => new Map(nodes.map(node => [node.id, node])), [nodes]);
+     const contentNodeById = useMemo(() => new Map(contentNodes.map(node => [node.id, node])), [contentNodes]);
+     const { connectionGeometry, connectionFocus, obscuredResultIds, connectionPreviewNodeIds, setConnectionPreviewNodeIds, cardEndpointTarget, setCardEndpointTarget, cardPanelTarget, setCardPanelTarget, connectionFocusTarget, setConnectionFocusTarget, setDisplayConnectionIds, keepFocusBehindCards, portAlignmentGuide, setPortAlignmentGuide } = useCanvasConnectionSystem(connections, nodeById, selectedNodeIds, selectedConnectionId, hoveredNodeId);
+@@ -3265,7 +3268,9 @@ function InfiniteCanvasPage() {
+                     <svg data-connection-focus-layer="true" className="absolute overflow-visible" width={Math.max(1, viewBounds.right - viewBounds.left)} height={Math.max(1, viewBounds.bottom - viewBounds.top)} viewBox={`${viewBounds.left} ${viewBounds.top} ${Math.max(1, viewBounds.right - viewBounds.left)} ${Math.max(1, viewBounds.bottom - viewBounds.top)}`} style={{ left: viewBounds.left, top: viewBounds.top, pointerEvents: "none", zIndex: 51 }}><g ref={setConnectionFocusTarget} /></svg>
+                     <div ref={setCardEndpointTarget} data-card-endpoints="true" className="absolute inset-0 pointer-events-none" style={{ zIndex: 52 }} />
+                     <div ref={setCardPanelTarget} data-card-panels="true" className="absolute inset-0 pointer-events-none" style={{ zIndex: 70 }} />
+-                    {visibleNodes.map((node) => (
++                    {visibleNodes.map((node) => hasDeferredCanvasMedia(node) ? (
++                        <CanvasMediaPlaceholder key={node.id} node={node} />
++                    ) : (
+                         <CanvasNode
+                             key={node.id}
+                             data={node}

@@ -35,7 +35,7 @@ test('未识别提示词、无变量的提示词都显示资料表；已识别�
     const context = { templates: [] };
     const card = load('Excel画布/旧版参数卡片.tsx', {
         react: { useMemo: callback => callback(), useRef: value => ({ current: value }), useState: value => [value, () => {}], useEffect() {} },
-        'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': {},
+        'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': {}, antd: { Tooltip: 'Tooltip' },
         '@/lib/canvas-theme': { canvasThemes: { light: { node: {}, toolbar: {} } } },
         '@/stores/use-theme-store': { useThemeStore: callback => callback({ theme: 'light' }) },
         './旧版参数规则': rules, './Excel画布上下文': { useExcelProductId: () => 'product', useExcelPromptContext: () => context },
@@ -48,9 +48,32 @@ test('未识别提示词、无变量的提示词都显示资料表；已识别�
         './商品策划按钮': { ProductPlanningButton: 'ProductPlanningButton', ProductPlanOverview: 'ProductPlanOverview' },
         './商品策划流式预览': { ProductPlanningStreamPreview: 'ProductPlanningStreamPreview' },
         './平台规则编辑': { ProductPlatformRuleEditor: 'ProductPlatformRuleEditor' },
+        './平台规则订阅': { useGlobalPlatformRules() {} },
+        '../产品配置/功能开关': { productFeatures: { excel: false } },
     });
     const render = () => elements(card.PromptVariablesContent({ ctx: { node, getNode: () => node, getNodes: () => [node] } }));
     assert.ok(!render().some(element => element.props?.['aria-label'] === '本次制作要求'));
+    const initial = render();
+    const details = initial.find(element => element.props?.['data-product-detail-fields'] !== undefined);
+    assert.equal(details.type, 'details'); assert.equal(details.props.open, undefined);
+    const previewIndex = initial.findIndex(element => element.type === 'ProductPlanningStreamPreview');
+    const overviewIndex = initial.findIndex(element => element.type === 'ProductPlanOverview');
+    const imagesIndex = initial.findIndex(element => element.type === 'ProductMainImageUploader');
+    const platformIndex = initial.findIndex(element => element.type === 'ProductOptionSelect' && element.props.label === '上架平台');
+    assert.ok(previewIndex > 0 && previewIndex < overviewIndex && overviewIndex < platformIndex && platformIndex < imagesIndex);
+    assert.equal(initial.filter(element => element.type === 'ProductPlanningStreamPreview').length, 1);
+    assert.equal(initial.filter(element => element.type === 'ProductPlanOverview').length, 1);
+    assert.ok(initial.findIndex(element => element.type === 'ProductMainImageUploader')
+        < initial.findIndex(element => element.type === 'ProductVariantEditor'));
+    assert.ok(initial.findIndex(element => element.type === 'ProductVariantEditor')
+        < initial.findIndex(element => element.props?.['aria-label'] === '商品资料与制作要求'));
+    assert.ok(initial.findIndex(element => element.props?.['aria-label'] === '商品资料与制作要求') < initial.indexOf(details));
+    assert.equal(initial.some(element => element.props?.['aria-label'] === '提示词补充'), false);
+    const tooltips = initial.filter(element => element.type === 'Tooltip');
+    assert.equal(tooltips.length, 2);
+    assert.ok(tooltips.every(element => element.props.trigger.includes('hover') && element.props.trigger.includes('focus')));
+    node.metadata.promptVariableSupplement = '用户原有输入不迁移、不清空';
+    assert.equal(render().find(element => element.props?.['aria-label'] === '商品资料与制作要求').props.value, node.metadata.promptVariableSupplement);
     assert.equal(render().find(element => element.type === 'ProductBriefForm').props.values.nameCategory, '收纳包');
     context.templates = [{ id: 'template', route: '产品', prompts: { main: '无占位符提示词' } }];
     assert.ok(render().some(element => element.type === 'ProductBriefForm'));
@@ -61,7 +84,7 @@ test('未识别提示词、无变量的提示词都显示资料表；已识别�
     assert.equal(render().find(element => element.type === 'ProductBriefForm').props.values.nameCategory, '收纳包');
 });
 
-test('资料表所有字段可编辑，制作范围有专用控件，不重复展示实物图和语言', () => {
+test('资料表保留其他可编辑字段，各平台均移除富内容下拉和空的制作标题', () => {
     const { ProductBriefForm } = load('Excel画布/产品资料表单.tsx', {
         antd: { Tooltip: 'Tooltip' },
         'react/jsx-runtime': { jsx, jsxs: jsx }, './旧版参数规则': rules,
@@ -70,23 +93,29 @@ test('资料表所有字段可编辑，制作范围有专用控件，不重复�
     const edits = [];
     const props = { values: {}, platform: 'Ozon', onChange: (...args) => edits.push(args) };
     const tree = ProductBriefForm(props), controls = elements(tree);
-    for (const field of rules.PRODUCT_BRIEF_FIELDS) {
+    for (const field of rules.PRODUCT_BRIEF_FIELDS.filter(field => field.key !== 'richContent')) {
         const input = controls.find(element => element.props?.['aria-label'] === field.label || element.props?.label === field.label);
         assert.ok(input, field.label);
         input.props.onChange(field.kind === 'choice' ? '需要' : { target: { value: '用户填写' } });
     }
-    assert.equal(edits.length, 13);
+    assert.equal(edits.length, 12);
     const keywordIndex = controls.findIndex(element => element.props?.['aria-label'] === '需要在图片中展现的关键词');
     const styleIndex = controls.findIndex(element => element.props?.['aria-label'] === '风格或竞品参考');
     assert.ok(keywordIndex > 0 && keywordIndex < styleIndex);
     assert.equal(controls[keywordIndex].type, 'textarea');
     assert.equal(controls[keywordIndex].props.placeholder, '可选');
     assert.ok(!controls.some(element => element.props?.['aria-label'] === '轮播图张数'));
-    assert.equal(controls.find(element => element.props?.label === '富内容').type, 'ProductOptionSelect');
+    assert.ok(!controls.some(element => element.props?.label === '富内容'));
+    assert.doesNotMatch(JSON.stringify(tree), /需要制作|富内容/);
     assert.doesNotMatch(JSON.stringify(tree), /实物图|图片文字语言|未上传|已附|使用的生图工具/);
-    const wildberries = elements(ProductBriefForm({ ...props, platform: rules.WILDBERRIES_PLATFORM, values: { richContent: '不需要' } }));
-    assert.ok(!wildberries.some(element => element.props?.label === '富内容' || element.type === 'select'));
-    assert.ok(!wildberries.some(element => element.props?.['aria-label'] === '轮播图张数'));
+    for (const platform of [rules.WILDBERRIES_PLATFORM, 'Ozon', 'Amazon', '未指定']) {
+        const values = { nameCategory: '收纳包', richContent: '不需要' }, before = structuredClone(values);
+        const rendered = ProductBriefForm({ ...props, platform, values }), fields = elements(rendered);
+        assert.ok(!fields.some(element => element.props?.label === '富内容' || element.type === 'select'));
+        assert.ok(!fields.some(element => element.props?.['aria-label'] === '轮播图张数'));
+        assert.doesNotMatch(JSON.stringify(rendered), /需要制作|富内容/);
+        assert.deepEqual(values, before, '移除控件不清除既有商品资料');
+    }
 });
 
 test('未填资料不制造默认事实；已填资料、图片与语言可作为参数资源读取', () => {

@@ -1,0 +1,24 @@
+{
+  "状态": "待用户单独批准，不应用",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "范围": "只让根首页使用迁入的旧顶栏，画布页不变；不启用已关闭主题/Agent/插件，不迁旧业务和数据",
+  "预审类型通过": true,
+  "差异SHA256": "2968209314dc8a492aeb35402a252b0fcd01a7422b9225ecf5ee75b127bc95d6",
+  "文件": [
+    {
+      "文件": "web/src/layouts/user-layout.tsx",
+      "原始SHA256": "4c7918509becddaa1efe0eadf43d7c34e07d6f5d53b0b1f0b3c54ae4c6a91414",
+      "候选SHA256": "c76344a42018a0cf3c882c5dc43ecd410aac1b4ac17375c09e2dd06d7e09a970"
+    },
+    {
+      "文件": "web/src/guan/旧版首页顶栏.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "ecabc4b7b98b1ad4f3c21e14ef302b2aed59a8df8ff95fa1d5731f2d332ecd04"
+    },
+    {
+      "文件": "web/src/guan/旧版顶栏.module.css",
+      "原始SHA256": null,
+      "候选SHA256": "41d8906c3c41cf7f61f480853efab471e322d68b90d68ea9a883a899ff11c0c2"
+    }
+  ]
+}

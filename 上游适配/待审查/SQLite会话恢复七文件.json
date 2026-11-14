@@ -1,0 +1,94 @@
+{
+  "日期": "2026-10-19",
+  "状态": "待七文件精确差异批准，未接入任何工作台副本",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/Excel勾选事件-25SJER/Excel勾选事件接入记录.json",
+  "前置差异SHA256": "5d88e270b61cf32d8d8583f027c5cca7a175965753ec7f6250b22577788ea714",
+  "差异SHA256": "66224fee6704cff7f08daccaa5af3f2482df9c54e76e30ec2187ac4b8908d822",
+  "文件数": 7,
+  "完整虚拟类型检查通过": true,
+  "文件": [
+    {
+      "文件": "扩展功能/本机服务/受控会话.mjs",
+      "原始SHA256": "fe3bd4bdb24b16f9b05181e9f66720a5ef19a0f5f140c9cc672c01b695201c94",
+      "候选SHA256": "cb433c15d80b8d9f9691ecdcf9a9d55d425181cfac450c4b95e6a7539ddea9c9"
+    },
+    {
+      "文件": "扩展功能/本机服务/本机授权网关.mjs",
+      "原始SHA256": "9123692fa117e122e5b71060070303f59344f7189d40a54f174dcee017d32e09",
+      "候选SHA256": "8ef2c6ba640c9885a0d930ae49371440fdbbd4decd0d0a323a7f808c60be5eb0"
+    },
+    {
+      "文件": "web/src/guan/sqlite/本机授权客户端.mjs",
+      "原始SHA256": "6b5b33487a27cb79e7f757169506495ebd696db06cdf2f11eaf56ae50f8beea7",
+      "候选SHA256": "5a1e33894856ca9283422c6eaa69ba08553524d8e8b3e084714f9c3f9dc379fb"
+    },
+    {
+      "文件": "web/src/guan/sqlite/续期数据客户端.mjs",
+      "原始SHA256": "628d5f532b63789bec0f0962dbf58ac049e98511e568fcfa64414cd782b60d11",
+      "候选SHA256": "d3e926fb101ededc9305b84b368d1b8eb92abcfddf833ab3a5f0cc8407c0df2f"
+    },
+    {
+      "文件": "web/src/guan/sqlite/工作台自动入口.mjs",
+      "原始SHA256": "bfeb4edfd34bea53e5e8342852ed18816ecd0ef9adf80fb708ea0ea7dbb9c696",
+      "候选SHA256": "cd4153dc6d8b05378f4d6b33e7f8f1122b4daf56832d410b0228601e52d7cc00"
+    },
+    {
+      "文件": "web/src/guan/上游浏览器存储桥.ts",
+      "原始SHA256": "4ef27f5882e21323a8e8a2a10f5c5641fab462e78ff74d9eba8d5effcbb43751",
+      "候选SHA256": "9bd9d38d869ab5609870a940b0aed287b8c6b2fb978d685fc2a03d90a225e67b"
+    },
+    {
+      "文件": "web/src/guan/保存状态条.tsx",
+      "原始SHA256": "05395173a278dab7989ce2b7acbcfa8bbc3521ccd98260469491a921e8f077b6",
+      "候选SHA256": "6b040c6de5a7a1aa6036da572a97ebaa84c3782ad69f514af8c16e27b1af6d9e"
+    }
+  ],
+  "自有来源": [
+    {
+      "文件": "扩展功能/本机服务/受控会话.mjs",
+      "来源": "扩展功能/本机服务/可重连受控会话.mjs",
+      "SHA256": "cb433c15d80b8d9f9691ecdcf9a9d55d425181cfac450c4b95e6a7539ddea9c9"
+    },
+    {
+      "文件": "扩展功能/本机服务/本机授权网关.mjs",
+      "来源": "扩展功能/本机服务/可重连授权网关.mjs",
+      "SHA256": "8ef2c6ba640c9885a0d930ae49371440fdbbd4decd0d0a323a7f808c60be5eb0"
+    },
+    {
+      "文件": "web/src/guan/sqlite/本机授权客户端.mjs",
+      "来源": "扩展功能/本机存储/可重连授权客户端.mjs",
+      "SHA256": "6308e2e940009ac0da9a05567e5c54b2e1ac74b504ada8a11efbb685bc33f324"
+    },
+    {
+      "文件": "web/src/guan/sqlite/续期数据客户端.mjs",
+      "来源": "扩展功能/本机存储/可重连数据客户端.mjs",
+      "SHA256": "d3e926fb101ededc9305b84b368d1b8eb92abcfddf833ab3a5f0cc8407c0df2f"
+    },
+    {
+      "文件": "web/src/guan/sqlite/工作台自动入口.mjs",
+      "来源": "扩展功能/本机存储/可重连工作台入口.mjs",
+      "SHA256": "f0b86fb55f2916099efec86cca526fa45535612cc79f11fa93b4825cd6d0518e"
+    },
+    {
+      "文件": "web/src/guan/上游浏览器存储桥.ts",
+      "来源": "扩展功能/本机存储/可重连存储桥.ts",
+      "SHA256": "9bd9d38d869ab5609870a940b0aed287b8c6b2fb978d685fc2a03d90a225e67b"
+    },
+    {
+      "文件": "web/src/guan/保存状态条.tsx",
+      "来源": "扩展功能/存储界面/可重连保存状态条.tsx",
+      "SHA256": "6b040c6de5a7a1aa6036da572a97ebaa84c3782ad69f514af8c16e27b1af6d9e"
+    }
+  ],
+  "已接入隔离副本": false,
+  "已接入3100": false,
+  "约束": [
+    "用户主动重新连接，普通业务请求和重试不自动复活过期会话",
+    "沿用原页面能力，8小时绝对期限不延长，Host/Origin/CSRF和工作区验证不变",
+    "恢复不重建应用、页面或队列；原operationId和revision继续校验，连接成功不等于保存成功",
+    "响应丢失可明确重试；工作区变化、授权到期或服务重开保留队列并拒绝",
+    "历史来源、批准文件、保护器、已装配包和作者仓库均不修改",
+    "批准后以新独立保护器、原态事务和全新组合包进行实际浏览器/SQLite验收；本轮不接入或重启3100、不访问真实数据/Keychain、不提交发布"
+  ]
+}

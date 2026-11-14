@@ -1,0 +1,264 @@
+--- a/web/src/guan/功能开关.ts
++++ b/web/src/guan/功能开关.ts
+@@ -8,7 +8,7 @@
+     localProxy: false,
+     nodePlugins: false,
+     languageSwitch: false,
+-    themeSwitch: true,
++    themeSwitch: false,
+     authorVersion: false,
+     docsLink: false,
+ });
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -1,4 +1,3 @@
+-import { ThemePreference } from "@/guan/三态主题设置";
+ import { businessFeatures, resolveBusinessConfigTab } from "@/guan/脚本与提示词来源";
+ import { productFeatures, resolveConfigTab } from "@/guan/功能开关";
+ import { App, Button, Form, Input, Modal, Progress, Radio, Select, Switch, Tabs } from "antd";
+@@ -228,7 +227,6 @@
+                         label: t("config.tabs.preferences"),
+                         children: (
+                             <Form layout="vertical" requiredMark={false}>
+-                                <ThemePreference />
+                                 <div className="mb-2 text-sm font-semibold">{t("config.preferences.defaultModels")}</div>
+                                 <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                     {modelGroups.map((group) => (
+--- a/web/src/guan/三态主题设置.tsx
++++ b/web/src/guan/三态主题设置.tsx
+@@ -1,8 +1,7 @@
+ import { useEffect } from "react";
+-import { Form, Select } from "antd";
+-import { useThemeStore, type ThemeMode } from "./三态主题状态";
++import { useThemeStore } from "./三态主题状态";
+ 
+-// 全应用只挂载一次；系统改变时只更新解析后的颜色，不改变用户偏好。
++// 接入时仍生成历史模块路径；只挂载一份监听，不提供手动选择控件。
+ export function SystemThemeSync() {
+     useEffect(() => {
+         if (typeof window.matchMedia !== "function") return;
+@@ -14,13 +13,3 @@
+     }, []);
+     return null;
+ }
+-
+-export function ThemePreference() {
+-    const mode = useThemeStore((state) => state.mode);
+-    const setMode = useThemeStore((state) => state.setMode);
+-    return <Form.Item label="界面主题" extra="跟随系统会自动响应 macOS 外观变化；顶栏太阳/月亮按钮会切换为手动浅色或深色。">
+-        <Select aria-label="界面主题" value={mode} onChange={(value: ThemeMode) => setMode(value)} options={[
+-            { value: "system", label: "跟随系统" }, { value: "light", label: "浅色" }, { value: "dark", label: "深色" },
+-        ]} />
+-    </Form.Item>;
+-}
+--- a/web/src/guan/脚本与提示词来源.ts
++++ b/web/src/guan/脚本与提示词来源.ts
+@@ -1,16 +1,20 @@
+-// 全局界面恢复批次：恢复R02/R03；S03仍关闭，不清空来源、间隔或缓存。
+-export type BusinessFeature = "modelScripts" | "promptSources" | "promptRefresh";
++// 局部关闭：保留已有来源和单源手动刷新，拒绝新增、自动刷新及全部拉取；不重置原配置。
++export type BusinessFeature = "modelScripts" | "promptSources" | "promptRefresh" | "promptSourceCreate" | "promptRefreshAll";
+ 
+ export const businessFeatures: Readonly<Record<BusinessFeature, boolean>> = Object.freeze({
+     modelScripts: false,
+     promptSources: true,
+-    promptRefresh: true,
++    promptRefresh: false,
++    promptSourceCreate: false,
++    promptRefreshAll: false,
+ });
+ 
+ const names: Record<BusinessFeature, string> = {
+     modelScripts: "自定义模型调用脚本",
+     promptSources: "提示词来源管理与手动刷新",
+-    promptRefresh: "提示词自动刷新与缓存更新",
++    promptRefresh: "提示词自动刷新",
++    promptSourceCreate: "新增提示词来源",
++    promptRefreshAll: "全部提示词来源拉取",
+ };
+ 
+ export function requireBusinessFeature(feature: BusinessFeature): void {
+--- a/web/src/components/layout/config-prompt-sources.tsx
++++ b/web/src/components/layout/config-prompt-sources.tsx
+@@ -1,13 +1,13 @@
+-import { App, Button, Select, Switch, Tag } from "antd";
++import { App, Button, Switch, Tag } from "antd";
+ import { useQuery, useQueryClient } from "@tanstack/react-query";
+-import { Eye, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
++import { Eye, Pencil, RefreshCw, Trash2 } from "lucide-react";
+ import { useState } from "react";
+ import { useTranslation } from "react-i18next";
+ 
+ import { PromptSourceEditorDrawer } from "./prompt-source-editor-drawer";
+ import { PromptSourceContentModal } from "./prompt-source-content-modal";
+-import { fetchPromptSourceStatuses, refreshAllSources, refreshSource } from "@/services/api/prompts";
+-import { PROMPT_SOURCE_INTERVALS, usePromptSourceStore } from "@/stores/use-prompt-source-store";
++import { fetchPromptSourceStatuses, refreshSource } from "@/services/api/prompts";
++import { usePromptSourceStore } from "@/stores/use-prompt-source-store";
+ import type { PromptSource } from "@/services/api/prompt-source-presets";
+ 
+ const STATUS_QUERY_KEY = ["prompt-source-statuses"];
+@@ -17,20 +17,15 @@
+     const { i18n, t } = useTranslation();
+     const queryClient = useQueryClient();
+     const sources = usePromptSourceStore((state) => state.sources);
+-    const schedule = usePromptSourceStore((state) => state.schedule);
+-    const addSource = usePromptSourceStore((state) => state.addSource);
+     const saveSource = usePromptSourceStore((state) => state.saveSource);
+     const removeSource = usePromptSourceStore((state) => state.removeSource);
+     const toggleSource = usePromptSourceStore((state) => state.toggleSource);
+-    const updateSchedule = usePromptSourceStore((state) => state.updateSchedule);
+     const statusQuery = useQuery({ queryKey: STATUS_QUERY_KEY, queryFn: fetchPromptSourceStatuses });
+ 
+     const [editingSource, setEditingSource] = useState<PromptSource | null>(null);
+     const [viewingId, setViewingId] = useState("");
+     const [refreshingId, setRefreshingId] = useState("");
+-    const [refreshingAll, setRefreshingAll] = useState(false);
+     const viewingSource = sources.find((item) => item.id === viewingId) || null;
+-    const intervalOptions = PROMPT_SOURCE_INTERVALS.map((value) => ({ value, label: t(`config.promptSources.intervals.${intervalKey(value)}`) }));
+ 
+     const invalidatePrompts = async () => {
+         await Promise.all([
+@@ -73,28 +68,11 @@
+         }
+     };
+ 
+-    const handleRefreshAll = async () => {
+-        setRefreshingAll(true);
+-        try {
+-            const result = await refreshAllSources();
+-            updateSchedule("lastFetchedAt", new Date().toISOString());
+-            await invalidatePrompts();
+-            if (result.failureCount) message.warning(t("config.promptSources.refreshPartial", { success: result.successCount, failed: result.failureCount }));
+-            else message.success(t("config.promptSources.refreshAllSuccess", { sources: result.successCount, total: result.total }));
+-        } catch (error) {
+-            message.error(error instanceof Error ? error.message : t("config.promptSources.refreshFailed"));
+-        } finally {
+-            setRefreshingAll(false);
+-        }
+-    };
++
+ 
+     return (
+         <div>
+-            <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
+-                <Button type="primary" icon={<Plus className="size-4" />} onClick={() => setEditingSource(addSource())}>
+-                    {t("config.promptSources.add")}
+-                </Button>
+-            </div>
++
+ 
+             <div className="space-y-2">
+                 {sources.map((source) => {
+@@ -131,20 +109,7 @@
+                 })}
+             </div>
+ 
+-            <section className="mt-5 rounded-lg border border-stone-200 p-4 dark:border-stone-800">
+-                <div className="mb-3 text-sm font-semibold">{t("config.promptSources.schedule")}</div>
+-                <div className="flex flex-wrap items-center gap-3">
+-                    <div className="flex items-center gap-2">
+-                        <span className="text-xs text-stone-500">{t("config.promptSources.interval")}</span>
+-                        <Select size="small" className="w-36" value={schedule.intervalMinutes} options={intervalOptions} onChange={(value) => updateSchedule("intervalMinutes", value)} />
+-                    </div>
+-                    <Button size="small" type="primary" icon={<RefreshCw className="size-3.5" />} loading={refreshingAll} onClick={() => void handleRefreshAll()}>
+-                        {t("config.promptSources.refreshAll")}
+-                    </Button>
+-                    <span className="text-xs text-stone-500">{schedule.lastFetchedAt ? t("config.promptSources.lastFetched", { time: formatTime(schedule.lastFetchedAt, i18n.resolvedLanguage) }) : t("config.promptSources.neverScheduled")}</span>
+-                </div>
+-                <div className="mt-2 text-xs text-stone-400">{t("config.promptSources.scheduleDescription")}</div>
+-            </section>
++
+ 
+             <PromptSourceEditorDrawer open={Boolean(editingSource)} source={editingSource} onSave={handleSave} onClose={() => setEditingSource(null)} />
+             <PromptSourceContentModal source={viewingSource} onClose={() => setViewingId("")} />
+@@ -156,11 +121,3 @@
+     const date = new Date(value);
+     return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString(locale, { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+ }
+-
+-function intervalKey(value: number) {
+-    if (value === 30) return "minutes30";
+-    if (value === 60) return "hour1";
+-    if (value === 360) return "hours6";
+-    if (value === 1440) return "hours24";
+-    return "disabled";
+-}
+--- a/web/src/stores/use-prompt-source-store.ts
++++ b/web/src/stores/use-prompt-source-store.ts
+@@ -30,12 +30,13 @@
+ 
+ export const usePromptSourceStore = create<PromptSourceStore>()(
+     persist(
+-        (set) => ({
++        (set, get) => ({
+             sources: DEFAULT_PROMPT_SOURCES,
+             schedule: defaultSchedule,
+-            addSource: () => { requireBusinessFeature("promptSources"); return createPromptSource(); },
++            addSource: () => { requireBusinessFeature("promptSourceCreate"); return createPromptSource(); },
+             saveSource: (source) => {
+                 requireBusinessFeature("promptSources");
++                if (!get().sources.some((item) => item.id === source.id)) requireBusinessFeature("promptSourceCreate");
+                 return set((state) => ({
+                     sources: state.sources.some((item) => item.id === source.id)
+                         ? state.sources.map((item) => (item.id === source.id && !item.builtIn ? createPromptSource(source) : item))
+--- a/web/src/components/layout/client-root-init.tsx
++++ b/web/src/components/layout/client-root-init.tsx
+@@ -1,6 +1,4 @@
+ import type { ReactNode } from "react";
+-import { usePromptSourceScheduler } from "@/hooks/use-prompt-source-scheduler";
+ export function ClientRootInit({ children }: { children: ReactNode }) {
+-    usePromptSourceScheduler();
+     return <>{children}</>;
+ }
+--- a/web/src/services/api/prompts.ts
++++ b/web/src/services/api/prompts.ts
+@@ -173,7 +173,7 @@
+ }
+ 
+ export async function refreshAllSources(): Promise<PromptSourceRefreshSummary> {
+-    requireBusinessFeature("promptSources");
++    requireBusinessFeature("promptRefreshAll");
+     const results = await Promise.all(enabledSources().map(getOrStartRefresh));
+     return summarizeRefresh(results);
+ }
+--- a/web/src/services/api/prompt-source-presets.ts
++++ b/web/src/services/api/prompt-source-presets.ts
+@@ -25,14 +25,13 @@
+ 
+ export const DEFAULT_PROMPT_SOURCES: PromptSource[] = [
+     registrySource("banana-prompt-quicker", "Banana Prompt Quicker", "https://glidea.github.io/banana-prompt-quicker/"),
+-    registrySource("davidwu-gpt-image2-prompts", "DavidWu GPT Image 2", "https://github.com/davidwuw0811-boop/awesome-gpt-image2-prompts"),
+-    registrySource("freestylefly-gpt-image-2", "Freestylefly GPT Image 2", "https://github.com/freestylefly/awesome-gpt-image-2"),
+-    registrySource("awesome-gpt-image", "Awesome GPT Image", "https://github.com/ZeroLu/awesome-gpt-image"),
+-    registrySource("awesome-gpt4o-image-prompts", "Awesome GPT-4o", "https://github.com/ImgEdify/Awesome-GPT4o-Image-Prompts"),
+-    registrySource("youmind-gpt-image-2", "YouMind GPT Image 2", "https://github.com/YouMind-OpenLab/awesome-gpt-image-2"),
+-    registrySource("youmind-nano-banana-pro", "YouMind Nano Banana Pro", "https://github.com/YouMind-OpenLab/awesome-nano-banana-pro-prompts"),
+ ];
+ 
++// 恢复旧配置时只过滤已移除的内置来源；自定义来源和缓存不删除。
++export function filterWorkbenchPromptSources(sources: PromptSource[]): PromptSource[] {
++    return sources.filter((source) => !source.builtIn || DEFAULT_PROMPT_SOURCES.some((item) => item.id === source.id));
++}
++
+ function registrySource(id: string, name: string, homepage: string): PromptSource {
+     return { id, name, url: `${PROMPT_REGISTRY_SOURCE_BASE}/${id}.json`, homepage, enabled: true, builtIn: true };
+ }
+--- a/web/src/services/config-file.ts
++++ b/web/src/services/config-file.ts
+@@ -3,7 +3,7 @@
+ import i18n from "@/i18n";
+ import { useConfigStore, type AiConfig, type WebdavSyncConfig } from "@/stores/use-config-store";
+ import { usePromptSourceStore, type PromptSourceSchedule } from "@/stores/use-prompt-source-store";
+-import type { PromptSource } from "@/services/api/prompt-source-presets";
++import { filterWorkbenchPromptSources, type PromptSource } from "@/services/api/prompt-source-presets";
+ 
+ type AppConfigFile = {
+     app: "infinite-canvas";
+@@ -33,5 +33,5 @@
+     }
+     if (data.app !== "infinite-canvas" || data.version !== 1 || !data.config || !data.webdav || !data.promptSources) throw new Error(i18n.t("config.invalidFile"));
+     useConfigStore.setState({ config: data.config, webdav: data.webdav });
+-    usePromptSourceStore.setState(data.promptSources);
++    usePromptSourceStore.setState({ ...data.promptSources, sources: filterWorkbenchPromptSources(data.promptSources.sources) });
+ }

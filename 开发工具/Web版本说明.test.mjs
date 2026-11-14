@@ -103,7 +103,7 @@ test('当前发布遵循产品名称和功能日志规范，发布工具不再�
   const current = parseChangelog(notes)[0];
   assert.ok(current.items.length > 5);
   assert.ok(current.items.every(item => !item.content.includes('**') && !Object.hasOwn(item, 'group')));
-  assert.ok(notes.split('\n').filter(line => line.startsWith('+ ')).every(line => /^\+ \[[^\]]+\] \*\*[^*]+\*\*：/.test(line)));
+  assert.ok(notes.split('\n').filter(line => line.startsWith('+ ')).every(line => /^\+ \[[^\]]+\] [^*\s]/.test(line)));
   assert.doesNotMatch(notes, /^### /m);
   const publisher = readFileSync(join(root, '开发工具/发布Web预览版.mjs'), 'utf8');
   assert.match(publisher, /'AI-Workbench v' \+ record.version/);

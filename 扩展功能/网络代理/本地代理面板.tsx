@@ -7,7 +7,7 @@ import { useProductActive } from "../产品/产品界面边界";
 import { useProxyStatusRefresh } from "./代理状态刷新";
 
 type Status = { relayEnabled: boolean };
-type Port = { status(): Promise<Status>; toggleRelay(enabled: boolean): Promise<Status> };
+type Port = { status(): Promise<Status>; snapshot?(): Promise<Status>; toggleRelay(enabled: boolean): Promise<Status> };
 const host = () => (window as unknown as { __guanNetworkProxyHost?: Port }).__guanNetworkProxyHost;
 export function LocalProxyPanel({ active = true }: { active?: boolean }) {
     const productActive = useProductActive(), observing = active && productActive;
@@ -27,7 +27,7 @@ export function LocalProxyPanel({ active = true }: { active?: boolean }) {
         const port = host();
         if (!port) { if (mounted.current) setError("本地代理：本机服务尚未就绪"); return; }
         polling.current = true;
-        try { const status = await port.status(); if (mounted.current && revision.current === snapshot) apply(status); }
+        try { const status = await (port.snapshot ? port.snapshot() : port.status()); if (mounted.current && revision.current === snapshot) apply(status); }
         catch { if (mounted.current && revision.current === snapshot) setError("本地代理：状态读取失败，正在自动重试"); }
         finally { polling.current = false; }
     }, [apply]);

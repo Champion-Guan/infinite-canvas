@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { platformState } from './全局平台规则夹具.mjs';
+import { variantModules } from './产品变体生成夹具.mjs';
+import * as deferredMedia from '../扩展功能/本机存储/画布媒体延迟恢复.mjs';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -12,7 +14,8 @@ import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_m
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const names = ['画布生成/画布节点事务.ts', '产品/画布保存接线.ts', '画布生成/全局参考图操作.ts'];
 async function load(name, dependencies = {}, globals = {}) {
-    dependencies = { './平台规则全局状态': platformState, ...dependencies };
+    dependencies = { '@/扩展功能/画布交互/节点工具栏定位': variantModules().load('画布交互/节点工具栏定位.ts'), ...dependencies };
+    dependencies = { 'react-dom': { createPortal: children => children }, '@/扩展功能/画布交互/画布浮层容器': { CanvasFloatingBoundary: 'CanvasFloatingBoundary' }, './平台规则全局状态': platformState, '../本机存储/画布媒体延迟恢复.mjs': deferredMedia, ...dependencies };
     const file = resolve(root, '扩展功能', name);
     const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file,
         { loader: file.endsWith('.tsx') ? 'tsx' : 'ts', jsx: 'automatic', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
@@ -443,6 +446,7 @@ test('视区覆盖层保持穿透，节点与多选胶囊恢复命中并只触�
     actions.find(item => item.type === 'button' && item.props['aria-label'] === 'canvas.nodeToolbar.infoTitle').props.onClick();
     assert.equal(info, image);
     const selection = await load(resolve(source, 'components/canvas/canvas-selection-toolbar.tsx'), {
+        '@/扩展功能/媒体交付/画布下载操作': { selectedDownloadFiles: () => [] },
         ...common, '@/lib/canvas/canvas-node-geometry': { nodeBounds: () => ({ left: 0, top: 0, right: 100, bottom: 100 }) },
     });
     const selected = descendants(selection.CanvasSelectionToolbar({ nodes: [image, node('second')], viewport: { x: 0, y: 0, k: 1 },

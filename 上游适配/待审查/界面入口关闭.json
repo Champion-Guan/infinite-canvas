@@ -1,0 +1,36 @@
+{
+  "状态": "待单独批准",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置批准差异SHA256": "b76672614125cf0316b27c3347bff04d1bae8a1964dd28922a9e56d5bcd1bbc8",
+  "已应用到运行副本": false,
+  "类型预审通过": true,
+  "差异检查通过": true,
+  "差异SHA256": "d6de47120b8eb7e82125da8914ec170f0193f359c49e75e2371acdd541c899d9",
+  "文件": [
+    {
+      "文件": "web/src/components/layout/user-status-actions.tsx",
+      "原始SHA256": "e68e79e33b86329d59545d35d74f8c90dd17786a3a26f8e348c022319efc75fe",
+      "候选SHA256": "d5249013ee4e39379a430981dd2575a7e0e1ac2d030e8a57ce9ee1f8f2999654"
+    },
+    {
+      "文件": "web/src/components/layout/app-top-nav.tsx",
+      "原始SHA256": "0cb53effb594f09622b5e4b23b6beb20ca69212a2cb016a092a504c00292f814",
+      "候选SHA256": "c52f1cddb09d7ebc1994e8e7542ce074f46467b5b54672140ea8dc406f32fed7"
+    },
+    {
+      "文件": "web/src/components/layout/app-providers.tsx",
+      "原始SHA256": "efcafc8b963cb37ff7fca4ebde0ebdc6030b0b4f17ba08c6b36c045dd6780b56",
+      "候选SHA256": "cca00d3f837ad3172fa428c0ef4ea53fdb8bee1c40960d1d8e72ad15dee63e1f"
+    },
+    {
+      "文件": "web/index.html",
+      "原始SHA256": "b65f7cf226b584d1af81d3c497d120054ef3a46680da4a58e17145720937b4a4",
+      "候选SHA256": "027955222896e8478a82f3c88bde67d837763bdd8d7d72e91218ce8fcf08cba0"
+    },
+    {
+      "文件": "web/src/guan/界面入口.ts",
+      "原始SHA256": null,
+      "候选SHA256": "fe85abd3b8052e04a4c675779e2642e13f788433e62a95a8f36ae153dcf84f53"
+    }
+  ]
+}

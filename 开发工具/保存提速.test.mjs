@@ -306,6 +306,7 @@ async function canvasStore(b, initial = { state: { projects: [], deletedProjects
     '@/扩展功能/本机存储/上游浏览器存储桥': b,
     '@/扩展功能/画布生成/批量保存协调': { shouldDeferCanvasPersist: () => false },
     '@/扩展功能/图片设置/图片信息偏好': { imageInfoDefaults: {}, withCanvasAppearanceDefaults: value => value },
+    '@/扩展功能/产品配置/功能开关': { productFeatures: { excel: false } },
     '@/扩展功能/Excel/Excel产品归属': { assertWorkbookSnapshot() {}, currentWorkbookId: () => null, normalizeExcelCanvasTitles: state => state.projects },
     '@/扩展功能/产品/产品规则': { nextProductTitle: () => '测试产品' },
     '@/i18n': { default: { t: value => value } },

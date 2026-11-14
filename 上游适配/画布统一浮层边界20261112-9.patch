@@ -1,0 +1,28 @@
+diff --git a/web/src/components/canvas/canvas-prompt-chip-input.tsx b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+index 782b571..c2c81a2 100644
+--- a/web/src/components/canvas/canvas-prompt-chip-input.tsx
++++ b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+@@ -1,4 +1,5 @@
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
++import { CanvasFloatingBoundary } from "@/扩展功能/画布交互/画布浮层容器";
+ import { useEffect, useMemo, useRef, useState } from "react";
+ import type { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent } from "react";
+ import { createProductPortal } from "@/扩展功能/产品/产品界面边界";
+@@ -225,7 +226,7 @@ function MentionMenu({ rect, references, activeIndex, theme, onSelect }: { rect:
+     const top = showAbove ? anchor.top - gap - maxMenuHeight : anchor.bottom + gap;
+ 
+     return createProductPortal(
+-        <div
++        <CanvasFloatingBoundary><div
+             data-canvas-resource-mention-menu="true"
+             className="guan-scroll-region fixed z-[1100] max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md"
+             style={{ left, top, background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
+@@ -258,7 +259,7 @@ function MentionMenu({ rect, references, activeIndex, theme, onSelect }: { rect:
+                     </span>
+                 </button>
+             ))}
+-        </div>,
++        </div></CanvasFloatingBoundary>,
+         document.body,
+     );
+ }

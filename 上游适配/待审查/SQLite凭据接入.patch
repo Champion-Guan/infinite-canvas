@@ -1,0 +1,459 @@
+--- a/扩展功能/本机服务/受限工作台启动器.mjs
++++ b/扩展功能/本机服务/受限工作台启动器.mjs
+@@ -6,6 +6,7 @@
+ import { createSessionController } from './受控会话.mjs';
+ import { createLocalAuthorizationGateway } from './本机授权网关.mjs';
+ import { createBackupCoordinator } from './自动备份.mjs';
++import { openSQLiteCredentialVault } from '../本机凭据/SQLite凭据保管.mjs';
+ 
+ const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.gif': 'image/gif', '.mp4': 'video/mp4', '.mp3': 'audio/mpeg', '.txt': 'text/plain' };
+ function readStaticBundle(directory) {
+@@ -39,11 +40,11 @@
+ 
+ // 只允许动态临时端口；不接管3100、旧数据或默认生产目录，不安装常驻服务。
+ // storage由可信启动工具装配同一个已批准的四文件包，避免跨模块StorageError身份漂移。
+-export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, initialize = false, storage } = {}) {
++export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, initialize = false, storage, credentialKeyProvider } = {}) {
+   requireValue(typeof webRoot === 'string' && typeof dataRoot === 'string' && isAbsolute(dataRoot) && typeof initialize === 'boolean' &&
+-    typeof storage?.openWorkspace === 'function' && typeof storage?.startDataService === 'function', 'invalid_launcher_config', '必须明确传入静态产物、独立数据根及完整存储装配。');
++    typeof storage?.openWorkspace === 'function' && typeof storage?.startDataService === 'function' && typeof credentialKeyProvider?.read === 'function' && typeof credentialKeyProvider?.create === 'function', 'invalid_launcher_config', '必须明确传入静态产物、独立数据根及完整存储装配。');
+   const { files, scriptHashes } = readStaticBundle(webRoot);
+-  let ready = false, gateway, controller, service, workspace, backup, closing = null;
++  let ready = false, gateway, controller, service, workspace, backup, credentialPort, closing = null;
+   const server = createServer(async (req, res) => {
+     res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'no-referrer');
+     res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+@@ -82,7 +83,7 @@
+     ready = false;
+     const errors = [];
+     for (const action of [() => backup?.stop(), () => gateway?.close(), () => controller?.close(),
+-      () => server.listening ? closeHTTP() : undefined, () => service?.close(), () => workspace?.close()]) {
++      () => server.listening ? closeHTTP() : undefined, () => service?.close(), () => credentialPort?.close(), () => workspace?.close()]) {
+       try { await action(); } catch (error) { errors.push(error); }
+     }
+     if (errors.length) throw new AggregateError(errors, '隔离工作台清理不完整，请保留数据根并检查锁；没有自动清锁。');
+@@ -91,13 +92,14 @@
+     await new Promise((done, fail) => { server.once('error', fail); server.listen(0, '127.0.0.1', done); });
+     const origin = 'http://127.0.0.1:' + server.address().port;
+     workspace = storage.openWorkspace({ dataRoot, initialize });
++    credentialPort = await openSQLiteCredentialVault({ workspace, keyProvider: credentialKeyProvider, initialize });
+     service = await storage.startDataService({ workspace, allowedOrigins: [origin] });
+     requireValue(typeof service.createBackup === 'function', 'write_coordination_required', '必须装配已批准的写入/备份协调服务。');
+     backup = createBackupCoordinator({ workspaceId: workspace.workspaceId, createBackup: () => service.createBackup() });
+     // 首份真实快照失败就拒绝启动，不给浏览器授权，也不渲染默认空画布。
+     await backup.start();
+     controller = createSessionController({ service, origin });
+-    gateway = createLocalAuthorizationGateway({ origin, dataURL: service.url, controller });
++    gateway = createLocalAuthorizationGateway({ origin, dataURL: service.url, controller, credentialPort });
+     ready = true;
+     return Object.freeze({ origin, workspaceId: workspace.workspaceId,
+       issueTicket() { requireValue(ready, 'launcher_stopping', '入口正在停止。', 503); return gateway.issueTicket(); },
+--- a/扩展功能/本机服务/本机授权网关.mjs
++++ b/扩展功能/本机服务/本机授权网关.mjs
+@@ -1,5 +1,6 @@
+ import { createHash, randomBytes } from 'node:crypto';
+ import { StorageError, requireValue } from '../本机存储/协议.mjs';
++import { CREDENTIAL_FORMAT, validCredentialRef, validCredentialValue } from '../本机凭据/凭据协议.mjs';
+ 
+ export const AUTHORIZATION_PROTOCOL = 'guan-local-authorization.v1';
+ const prefix = '/__guan-local/';
+@@ -9,19 +10,19 @@
+ function localOrigin(value, data = false) {
+   try { const u = new URL(value); return u.origin === value && u.protocol === 'http:' && (data ? u.hostname === '127.0.0.1' : ['localhost', '127.0.0.1'].includes(u.hostname)) && !!u.port; } catch { return false; }
+ }
+-async function body(request) {
++async function body(request, limit = 4096) {
+   const length = request.headers['content-length'];
+-  requireValue(!length || /^\d+$/.test(length) && Number(length) <= 4096, 'body_too_large', '授权请求超过限制。', 413);
++  requireValue(!length || /^\d+$/.test(length) && Number(length) <= limit, 'body_too_large', '授权请求超过限制。', 413);
+   const chunks = []; let size = 0;
+-  for await (const bytes of request) { size += bytes.length; requireValue(size <= 4096, 'body_too_large', '授权请求超过限制。', 413); chunks.push(bytes); }
++  for await (const bytes of request) { size += bytes.length; requireValue(size <= limit, 'body_too_large', '授权请求超过限制。', 413); chunks.push(bytes); }
+   try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))); }
+   catch { throw new StorageError('invalid_json', '授权请求格式错误。'); }
+ }
+ 
+ // 自有HTTP服务器的受限处理器，不监听端口、不启动工作区、不改上游入口。
+ // 可信本机启动器仅在进程内签发一次性码；不得把码放在URL、日志或Cookie中。
+-export function createLocalAuthorizationGateway({ origin, dataURL, controller, now = Date.now, ticketTTL = 120_000, pageLifetime = 8 * 60 * 60_000, maxTickets = 4, maxPages = 16, rateLimit = 60 } = {}) {
+-  requireValue(localOrigin(origin) && localOrigin(dataURL, true) && controller && typeof controller.open === 'function' && typeof now === 'function' &&
++export function createLocalAuthorizationGateway({ origin, dataURL, controller, credentialPort, now = Date.now, ticketTTL = 120_000, pageLifetime = 8 * 60 * 60_000, maxTickets = 4, maxPages = 16, rateLimit = 60 } = {}) {
++  requireValue(localOrigin(origin) && localOrigin(dataURL, true) && controller && typeof controller.open === 'function' && (!credentialPort || typeof credentialPort.store === 'function' && typeof credentialPort.read === 'function') && typeof now === 'function' &&
+     Number.isSafeInteger(ticketTTL) && ticketTTL > 0 && ticketTTL <= 120_000 && Number.isSafeInteger(pageLifetime) && pageLifetime > 0 && pageLifetime <= 8 * 60 * 60_000 &&
+     Number.isSafeInteger(maxTickets) && maxTickets > 0 && maxTickets <= 16 && Number.isSafeInteger(maxPages) && maxPages > 0 && maxPages <= 16 &&
+     Number.isSafeInteger(rateLimit) && rateLimit > 0 && rateLimit <= 120, 'invalid_authorization_config', '本机授权配置无效。');
+@@ -54,11 +55,11 @@
+         requireValue(!request.headers['sec-fetch-site'] || request.headers['sec-fetch-site'] === 'same-origin', 'authorization_origin_denied', '拒绝跨站或跨端口授权请求。', 403);
+         requireValue(request.method === 'POST', 'method_denied', '授权入口只接受POST。', 405);
+         requireValue(request.headers['content-type'] === 'application/json' && request.headers['x-guan-local-protocol'] === AUTHORIZATION_PROTOCOL, 'authorization_headers_denied', '授权请求头不匹配。', 403);
+-        requireValue([prefix + 'authorize', prefix + 'session'].includes(request.url), 'authorization_route_denied', '授权路径不存在。', 404);
++        requireValue([prefix + 'authorize', prefix + 'session', prefix + 'credentials'].includes(request.url), 'authorization_route_denied', '授权路径不存在。', 404);
+         if (windowStart === null || time - windowStart >= 60_000) { windowStart = time; count = 0; }
+         requireValue(++count <= rateLimit, 'authorization_rate_limited', '授权请求过于频繁，请稍后从本机入口重试。', 429);
+         requireValue(active < 4, 'authorization_busy', '授权入口繁忙。', 503); active++; counted = true;
+-        const value = await body(request);
++        const value = await body(request, request.url === prefix + 'credentials' ? 16_384 : 4096);
+         const currentTime = live(); // 读取慢请求后重新核验期限，不能用请求开始时间兑换过期码。
+         if (request.url === prefix + 'authorize') {
+           requireValue(exactKeys(value, ['code']) && tokenLike(value.code), 'authorization_denied', '授权码无效、已使用或已过期。', 403);
+@@ -74,6 +75,29 @@
+           const capability = request.headers.authorization?.match(/^Bearer ([0-9a-f]{64})$/)?.[1];
+           const page = capability && pages.get(digest(capability));
+           requireValue(page, 'authorization_denied', '本页面尚未授权或授权已结束。', 401);
++          if (request.url === prefix + 'credentials') {
++            requireValue(credentialPort, 'credential_unavailable', '本机凭据保管尚未就绪。', 503);
++            requireValue(['store', 'read'].includes(value?.operation) && exactKeys(value, value.operation === 'store' ? ['operation', 'value'] : ['operation', 'ref']) &&
++              (value.operation === 'store' ? validCredentialValue(value.value) : validCredentialRef(value.ref)), 'invalid_credential', '凭据操作格式无效。');
++            // 同一页面能力、Origin和活跃数据租约，不能凭旧页面能力绕过休眠过期。
++            page.port.initialize();
++            let result;
++            try {
++              if (value.operation === 'store') {
++                const ref = await credentialPort.store(value.value);
++                requireValue(validCredentialRef(ref), 'credential_ack_invalid', '凭据写入没有有效引用。', 503);
++                result = { format: CREDENTIAL_FORMAT, ref };
++              } else {
++                const saved = await credentialPort.read(value.ref);
++                requireValue(validCredentialValue(saved), 'credential_ack_invalid', '凭据读取没有有效内容。', 503);
++                result = { format: CREDENTIAL_FORMAT, ref: value.ref, value: saved };
++              }
++            } catch { throw new StorageError('credential_unavailable', '本机凭据操作未确认；没有明文降级或替换原配置。', 503); }
++            live();
++            requireValue(pages.get(digest(capability)) === page, 'authorization_denied', '页面授权已结束。', 401);
++            page.port.initialize();
++            json(200, result); return true;
++          }
+           requireValue(['initialize', 'renew', 'close'].includes(value?.operation) && exactKeys(value, value.operation === 'renew' ? ['operation', 'session'] : ['operation']), 'invalid_authorization_command', '会话操作格式无效。');
+           let session = null;
+           if (value.operation === 'initialize') session = page.port.initialize();
+--- a/web/src/guan/sqlite/本机授权客户端.mjs
++++ b/web/src/guan/sqlite/本机授权客户端.mjs
+@@ -1,4 +1,5 @@
+ import { StorageError, requireValue } from './协议.mjs';
++import { createCredentialClient } from './凭据客户端.mjs';
+ 
+ const protocol = 'guan-local-authorization.v1';
+ function localOrigin(value, data = false) {
+@@ -17,7 +18,7 @@
+         body: JSON.stringify(value), signal: AbortSignal.timeout(5000) });
+       result = await response.json();
+     } catch { throw new StorageError('authorization_connection_failed', '本机授权响应未确认；不会重发一次性授权码，请从可信入口重新授权。', 503); }
+-    requireValue(response.ok && result?.protocol === protocol && !result.error,
++    requireValue(response.ok && (path === 'credentials' ? result?.format === 'guan-credentials.v1' : result?.protocol === protocol) && !result.error,
+       /^[a-z_]{3,64}$/.test(result?.error?.code ?? '') ? result.error.code : 'authorization_denied', '本机授权已拒绝或结束，请从可信入口重新授权。', response.status || 503);
+     return result;
+   }
+@@ -28,12 +29,17 @@
+   'invalid_authorization_response', '本机授权返回的地址、期限或能力不匹配。');
+   let capability = exchange.capability, closed = false;
+   exchange.capability = '';
++  async function credentialCommand(value) {
++    requireValue(!closed && now() < exchange.expiresAt, 'authorization_expired', '页面授权已结束，不会静默重新授权。', 401);
++    return post('credentials', value, capability);
++  }
+   async function command(value) {
+     requireValue(!closed && now() < exchange.expiresAt, 'authorization_expired', '页面授权已结束，不会静默重新授权。', 401);
+     return (await post('session', value, capability)).session;
+   }
+   return Object.freeze({
+     url: exchange.dataURL,
++    secretPort: createCredentialClient({ command: credentialCommand }),
+     host: Object.freeze({
+       initialize: () => command({ operation: 'initialize' }),
+       renew: session => command({ operation: 'renew', session: structuredClone(session) }),
+--- a/web/src/guan/sqlite/工作台自动入口.mjs
++++ b/web/src/guan/sqlite/工作台自动入口.mjs
+@@ -22,7 +22,7 @@
+       if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) throw Error('没有匹配的本机启动材料。');
+       authorization = await authorize({ code: value, origin });
+       const client = createRenewingDataClient({ ...authorization, origin });
+-      const app = createApplicationStorage({ client, readBlobUrl: async value => {
++      const app = createApplicationStorage({ client, secretPort: authorization.secretPort, readBlobUrl: async value => {
+         const url = new URL(value);
+         if (url.protocol !== 'blob:' || url.origin !== origin) throw Error('只允许当前工作台的临时媒体。');
+         const response = await fetch(url);
+--- /dev/null
++++ b/web/src/guan/sqlite/凭据协议.mjs
+@@ -0,0 +1,5 @@
++// 浏览器与本机共同使用的限制，不导入Node或操作系统能力。
++export const CREDENTIAL_FORMAT = 'guan-credentials.v1';
++export const MAX_CREDENTIAL_BYTES = 2048;
++export const validCredentialRef = value => typeof value === 'string' && /^secret:[0-9a-f]{64}$/.test(value);
++export const validCredentialValue = value => typeof value === 'string' && value.length > 0 && value.isWellFormed() && new TextEncoder().encode(value).length <= MAX_CREDENTIAL_BYTES;
+--- /dev/null
++++ b/web/src/guan/sqlite/凭据客户端.mjs
+@@ -0,0 +1,32 @@
++import { StorageError, requireValue } from './协议.mjs';
++import { CREDENTIAL_FORMAT, validCredentialRef, validCredentialValue } from './凭据协议.mjs';
++
++// command闭包由已授权页面持有；不接收URL、令牌或任意fetch端口，不做浏览器缓存。
++// 为兼容上游直连API，read仍交付页内字符串；这是落盘保护，不是浏览器内存隔离。
++export function createCredentialClient({ command } = {}) {
++  requireValue(typeof command === 'function', 'invalid_credential_client', '凭据端口必须来自已授权工作台。');
++  async function call(value) {
++    let result;
++    try { result = await command(value); }
++    catch (error) {
++      if (error instanceof StorageError) throw error;
++      throw new StorageError('credential_connection_failed', '本机凭据响应未确认；请重试保存，未回退明文。', 503);
++    }
++    requireValue(result?.format === CREDENTIAL_FORMAT, 'credential_ack_invalid', '本机凭据响应协议不符。', 503);
++    return result;
++  }
++  return Object.freeze({
++    async store(value) {
++      requireValue(validCredentialValue(value), 'invalid_credential', '凭据必须是1至2048字节的完整文本。');
++      const result = await call({ operation: 'store', value });
++      requireValue(Object.keys(result).sort().join(',') === 'format,ref' && validCredentialRef(result.ref), 'credential_ack_invalid', '凭据没有返回有效引用。', 503);
++      return result.ref;
++    },
++    async read(ref) {
++      requireValue(validCredentialRef(ref), 'invalid_secret_ref', '凭据引用无效。');
++      const result = await call({ operation: 'read', ref });
++      requireValue(Object.keys(result).sort().join(',') === 'format,ref,value' && result.ref === ref && validCredentialValue(result.value), 'credential_ack_invalid', '凭据读取没有返回匹配内容。', 503);
++      return result.value;
++    },
++  });
++}
+--- /dev/null
++++ b/扩展功能/本机凭据/凭据协议.mjs
+@@ -0,0 +1,5 @@
++// 浏览器与本机共同使用的限制，不导入Node或操作系统能力。
++export const CREDENTIAL_FORMAT = 'guan-credentials.v1';
++export const MAX_CREDENTIAL_BYTES = 2048;
++export const validCredentialRef = value => typeof value === 'string' && /^secret:[0-9a-f]{64}$/.test(value);
++export const validCredentialValue = value => typeof value === 'string' && value.length > 0 && value.isWellFormed() && new TextEncoder().encode(value).length <= MAX_CREDENTIAL_BYTES;
+--- /dev/null
++++ b/扩展功能/本机凭据/SQLite凭据保管.mjs
+@@ -0,0 +1,105 @@
++import { createCipheriv, createDecipheriv, createHash, createHmac, hkdfSync, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
++import { StorageError, requireValue, validUUID } from '../本机存储/协议.mjs';
++import { CREDENTIAL_FORMAT, validCredentialRef, validCredentialValue } from './凭据协议.mjs';
++
++const markerId = 'guan-credential-vault';
++const hash = value => createHash('sha256').update(value).digest('hex');
++const keysMatch = (value, keys) => value && !Array.isArray(value) && typeof value === 'object' && Object.keys(value).sort().join(',') === [...keys].sort().join(',');
++const same = (a, b) => a.length === b.length && timingSafeEqual(a, b);
++const unavailable = () => new StorageError('credential_unavailable', '本机凭据不可用；原配置保留，没有改为空密钥或明文保存。', 503);
++
++// 只在可信本机进程内装配。SQLite保存AES-GCM密文，独立Keychain标识保存主密钥。
++// 不增加schema、不自动删除凭据；备份自然包含密文，但没有本机主密钥不能解密。
++export async function openSQLiteCredentialVault({ workspace, keyProvider, initialize = false } = {}) {
++  requireValue(validUUID(workspace?.workspaceId) && ['readDocument', 'writeDocument', 'listDocuments'].every(name => typeof workspace[name] === 'function') &&
++    typeof keyProvider?.read === 'function' && typeof keyProvider?.create === 'function' && typeof initialize === 'boolean', 'invalid_credential_config', '凭据保管必须显式装配工作区和主密钥端口。');
++  const workspaceId = workspace.workspaceId, marker = workspace.readDocument('extension', markerId);
++  let master, cipherKey, refKey;
++  try {
++    if (!marker) {
++      requireValue(initialize, 'credential_initialization_required', '凭据保管尚未初始化；没有自动创建替代密钥。', 409);
++      // 无标记的非空业务库不能被当作新的凭据库接管。超列表上限同样拒绝。
++      requireValue(workspace.listDocuments('extension').length === 0 && workspace.listDocuments('canvas').length === 0,
++        'credential_initialization_denied', '只能在明确初始化的空工作区建立凭据保管。', 409);
++      master = await keyProvider.create(workspaceId);
++    } else master = await keyProvider.read(workspaceId);
++    requireValue(Buffer.isBuffer(master) && master.length === 32, 'credential_master_invalid', '主密钥端口没有返回有效密钥。', 503);
++    cipherKey = Buffer.from(hkdfSync('sha256', master, workspaceId, CREDENTIAL_FORMAT + ':encrypt', 32));
++    refKey = Buffer.from(hkdfSync('sha256', master, workspaceId, CREDENTIAL_FORMAT + ':reference', 32));
++    const fingerprint = createHmac('sha256', refKey).update(CREDENTIAL_FORMAT + ':' + workspaceId).digest('hex');
++    if (marker) requireValue(keysMatch(marker.value, ['format', 'workspaceId', 'fingerprint']) && marker.value.format === CREDENTIAL_FORMAT && marker.value.workspaceId === workspaceId &&
++      marker.value.fingerprint === fingerprint && marker.mediaIds.length === 0, 'credential_master_mismatch', '凭据主密钥或工作区标记不匹配；没有重新生成。', 409);
++    else {
++      const value = { format: CREDENTIAL_FORMAT, workspaceId, fingerprint }, operationId = randomUUID();
++      const ack = workspace.writeDocument({ collection: 'extension', id: markerId, value, expectedRevision: 0, operationId });
++      requireValue(ack?.persisted === true && ack.workspaceId === workspaceId && ack.id === markerId && ack.collection === 'extension' && ack.operationId === operationId && ack.revision === 1 && ack.hash === hash(JSON.stringify(value)),
++        'credential_ack_invalid', '凭据保管初始化没有收到匹配落盘确认。', 503);
++    }
++  } catch (error) {
++    cipherKey?.fill(0); refKey?.fill(0);
++    if (error instanceof StorageError) throw error;
++    throw unavailable();
++  } finally { if (Buffer.isBuffer(master)) master.fill(0); }
++  let closed = false, pending = 0, tail = Promise.resolve();
++  function run(fn) {
++    requireValue(!closed, 'credential_closed', '凭据保管已关闭。', 503);
++    pending++;
++    const task = tail.then(fn).catch(error => { if (error instanceof StorageError) throw error; throw unavailable(); })
++      .finally(() => { pending--; });
++    tail = task.then(() => {}, () => {}); return task;
++  }
++  const aad = ref => Buffer.from(CREDENTIAL_FORMAT + ':' + workspaceId + ':' + ref);
++  function decrypt(ref, doc) {
++    requireValue(doc?.workspaceId === workspaceId && doc.collection === 'extension' && doc.id === ref && doc.revision === 1 && doc.mediaIds.length === 0 &&
++      keysMatch(doc.value, ['format', 'workspaceId', 'iv', 'sealed', 'tag']) && doc.value.format === CREDENTIAL_FORMAT && doc.value.workspaceId === workspaceId &&
++      /^[0-9a-f]{24}$/.test(doc.value.iv) && /^[0-9a-f]{32}$/.test(doc.value.tag) && typeof doc.value.sealed === 'string' && /^(?:[0-9a-f]{2}){1,2048}$/.test(doc.value.sealed),
++    'credential_corrupt', '凭据密文无效或被修改；没有返回空密钥。', 409);
++    let plain;
++    try {
++      const decipher = createDecipheriv('aes-256-gcm', cipherKey, Buffer.from(doc.value.iv, 'hex'));
++      decipher.setAAD(aad(ref)); decipher.setAuthTag(Buffer.from(doc.value.tag, 'hex'));
++      plain = Buffer.concat([decipher.update(Buffer.from(doc.value.sealed, 'hex')), decipher.final()]);
++      const value = new TextDecoder('utf-8', { fatal: true }).decode(plain);
++      requireValue(validCredentialValue(value) && 'secret:' + createHmac('sha256', refKey).update(value).digest('hex') === ref, 'credential_corrupt', '凭据引用与解密内容不匹配。', 409);
++      return value;
++    } catch { throw new StorageError('credential_corrupt', '凭据解密校验未通过；原记录保留。', 409); }
++    finally { plain?.fill(0); }
++  }
++  return Object.freeze({
++    store(value) {
++      requireValue(validCredentialValue(value), 'invalid_credential', '凭据必须是1至2048字节的完整文本。');
++      return run(() => {
++        // 带密钥的引用防止用公开哈希猜测短密码；同一主密钥下重复保存和丢ACK重试复用原条目。
++        const ref = 'secret:' + createHmac('sha256', refKey).update(value).digest('hex'), existing = workspace.readDocument('extension', ref);
++        if (existing) {
++          const saved = Buffer.from(decrypt(ref, existing)), wanted = Buffer.from(value);
++          try { requireValue(same(saved, wanted), 'credential_corrupt', '凭据引用发生冲突，拒绝覆盖。', 409); }
++          finally { saved.fill(0); wanted.fill(0); }
++          return ref;
++        }
++        const iv = randomBytes(12), cipher = createCipheriv('aes-256-gcm', cipherKey, iv), plain = Buffer.from(value);
++        let sealed;
++        try { cipher.setAAD(aad(ref)); sealed = Buffer.concat([cipher.update(plain), cipher.final()]); }
++        finally { plain.fill(0); }
++        const document = { format: CREDENTIAL_FORMAT, workspaceId, iv: iv.toString('hex'), sealed: sealed.toString('hex'), tag: cipher.getAuthTag().toString('hex') };
++        const operationId = randomUUID(), ack = workspace.writeDocument({ collection: 'extension', id: ref, value: document, expectedRevision: 0, operationId });
++        requireValue(ack?.persisted === true && ack.workspaceId === workspaceId && ack.collection === 'extension' && ack.id === ref && ack.operationId === operationId && ack.revision === 1 && ack.hash === hash(JSON.stringify(document)),
++          'credential_ack_invalid', '凭据没有收到匹配落盘确认。', 503);
++        return ref;
++      });
++    },
++    read(ref) {
++      requireValue(validCredentialRef(ref), 'invalid_secret_ref', '凭据引用无效。');
++      return run(() => {
++        const doc = workspace.readDocument('extension', ref);
++        requireValue(doc, 'secret_not_found', '本机凭据缺失；没有替换为新密钥。', 404);
++        return decrypt(ref, doc);
++      });
++    },
++    getStatus: () => ({ closed, pending }),
++    close() {
++      requireValue(pending === 0, 'credential_busy', '凭据操作尚未结束，不能关闭。', 409);
++      closed = true; cipherKey.fill(0); refKey.fill(0);
++    },
++  });
++}
+--- /dev/null
++++ b/扩展功能/本机凭据/钥匙串主密钥.mjs
+@@ -0,0 +1,64 @@
++import { spawn } from 'node:child_process';
++import { createHash } from 'node:crypto';
++import { constants, closeSync, fstatSync, lstatSync, openSync, readFileSync, realpathSync } from 'node:fs';
++import { dirname, isAbsolute } from 'node:path';
++import { StorageError, requireValue, validHash, validUUID } from '../本机存储/协议.mjs';
++
++function checkedHelper(path, expected) {
++  requireValue(typeof path === 'string' && isAbsolute(path) && validHash(expected), 'invalid_keychain_helper', '必须提供已核验的本机凭据助手。');
++  const stat = lstatSync(path), parent = lstatSync(dirname(path));
++  requireValue(!stat.isSymbolicLink() && stat.isFile() && stat.nlink === 1 && stat.uid === process.getuid() && (stat.mode & 0o022) === 0 && (stat.mode & 0o100) &&
++    !parent.isSymbolicLink() && parent.isDirectory() && parent.uid === process.getuid() && (parent.mode & 0o022) === 0, 'invalid_keychain_helper', '凭据助手或目录权限不安全。');
++  const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
++  try {
++    const current = fstatSync(fd);
++    requireValue(current.ino === stat.ino && current.dev === stat.dev && current.size <= 16 * 1024 * 1024 &&
++      createHash('sha256').update(readFileSync(fd)).digest('hex') === expected, 'invalid_keychain_helper', '凭据助手指纹不匹配。');
++  } finally { closeSync(fd); }
++  return realpathSync(path);
++}
++
++// 仅通过stdin/stdout传递内部材料，不把密钥放argv、环境变量、文件、日志或shell命令。
++// 不调用security命令，不列举现有Keychain；助手只能读取本工作区的固定service/account。
++export function createMacOSMasterKeyProvider({ helperPath, helperSHA256, spawnImpl = spawn } = {}) {
++  requireValue(process.platform === 'darwin' && typeof spawnImpl === 'function', 'keychain_unavailable', '本凭据端口仅支持macOS。', 503);
++  let flight = null;
++  async function request(operation, workspaceId) {
++    requireValue(validUUID(workspaceId), 'invalid_credential_config', '凭据工作区身份无效。');
++    requireValue(!flight, 'keychain_busy', '系统凭据操作尚未结束。', 409);
++    let executable;
++    try { executable = checkedHelper(helperPath, helperSHA256); }
++    catch { throw new StorageError('invalid_keychain_helper', '凭据助手缺失、权限或指纹不匹配；没有执行。', 503); }
++    const task = new Promise((resolve, reject) => {
++      let child, timer, size = 0, done = false; const chunks = [];
++      const finish = (error, value) => { if (done) return; done = true; clearTimeout(timer); for (const chunk of chunks) chunk.fill(0); if (error) reject(error); else resolve(value); };
++      const fail = () => {
++        try { if (!done) child?.kill(); } catch { /* 子进程已结束同样拒绝，不回显系统错误。 */ }
++        finish(new StorageError('keychain_unavailable', '系统钥匙串不可用、已锁定或拒绝访问；没有重新生成或明文降级。', 503));
++      };
++      try {
++        child = spawnImpl(executable, [], { stdio: ['pipe', 'pipe', 'ignore'], env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8' }, shell: false });
++        timer = setTimeout(() => { child.kill(); fail(); }, 8000);
++        child.on('error', fail); child.stdin.on('error', fail); child.stdout.on('error', fail);
++        child.stdout.on('data', bytes => { size += bytes.length; if (size > 1024) { child.kill(); fail(); } else chunks.push(bytes); });
++        child.on('close', code => {
++          if (done) return;
++          if (code !== 0) { fail(); return; }
++          let value;
++          const output = Buffer.concat(chunks);
++          try { value = JSON.parse(output.toString('utf8')); } catch { fail(); return; }
++          finally { output.fill(0); }
++          if (Object.keys(value ?? {}).sort().join(',') !== 'material,protocol,workspaceId' || value.protocol !== 'guan-keychain-master.v1' || value.workspaceId !== workspaceId ||
++            typeof value.material !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(value.material)) { fail(); return; }
++          const material = Buffer.from(value.material, 'base64');
++          if (material.length !== 32 || material.toString('base64') !== value.material) { material.fill(0); fail(); return; }
++          value.material = ''; finish(null, material);
++        });
++        child.stdin.end(JSON.stringify({ protocol: 'guan-keychain-master.v1', operation, workspaceId }));
++      } catch { child?.kill(); fail(); }
++    });
++    flight = task;
++    try { return await task; } finally { flight = null; }
++  }
++  return Object.freeze({ read: workspaceId => request('read', workspaceId), create: workspaceId => request('create', workspaceId) });
++}
+--- /dev/null
++++ b/扩展功能/本机凭据/系统钥匙串.swift
+@@ -0,0 +1,56 @@
++import Foundation
++import Security
++import LocalAuthentication
++
++// 这是Web本机后端的受限命令行助手，不是桌面应用；不会枚举或修改旧工作台条目。
++// 在触及Keychain前完成参数校验；拒绝弹框，系统锁定/权限拒绝由启动器报告。
++func stop() -> Never { exit(1) }
++guard CommandLine.arguments.count == 1 else { stop() }
++let input = FileHandle.standardInput.readData(ofLength: 1025)
++guard input.count <= 1024,
++      let request = try? JSONSerialization.jsonObject(with: input) as? [String: String],
++      Set(request.keys) == Set(["protocol", "operation", "workspaceId"]),
++      request["protocol"] == "guan-keychain-master.v1",
++      let operation = request["operation"], ["read", "create"].contains(operation),
++      let workspace = request["workspaceId"],
++      workspace.range(of: "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", options: .regularExpression) != nil
++else { stop() }
++
++let context = LAContext()
++context.interactionNotAllowed = true
++let query: [String: Any] = [
++    kSecClass as String: kSecClassGenericPassword,
++    kSecAttrService as String: "com.guan.workbench.sqlite.master.v1",
++    kSecAttrAccount as String: workspace,
++    kSecAttrSynchronizable as String: false,
++    kSecUseAuthenticationContext as String: context,
++    kSecMatchLimit as String: kSecMatchLimitOne,
++    kSecReturnData as String: true,
++]
++var item: CFTypeRef?
++let status = SecItemCopyMatching(query as CFDictionary, &item)
++var material: Data
++if status == errSecSuccess, let existing = item as? Data, existing.count == 32 {
++    material = existing
++} else if status == errSecItemNotFound && operation == "create" {
++    var bytes = [UInt8](repeating: 0, count: 32)
++    guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else { stop() }
++    material = Data(bytes)
++    _ = bytes.withUnsafeMutableBytes { $0.initializeMemory(as: UInt8.self, repeating: 0) }
++    let addition: [String: Any] = [
++        kSecClass as String: kSecClassGenericPassword,
++        kSecAttrService as String: "com.guan.workbench.sqlite.master.v1",
++        kSecAttrAccount as String: workspace,
++        kSecAttrSynchronizable as String: false,
++        kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
++        kSecValueData as String: material,
++        kSecUseAuthenticationContext as String: context,
++    ]
++    // 竞争、权限或系统错误均失败，不覆盖已经存在的密钥。
++    guard SecItemAdd(addition as CFDictionary, nil) == errSecSuccess else { stop() }
++} else { stop() }
++guard let output = try? JSONSerialization.data(withJSONObject: [
++    "protocol": "guan-keychain-master.v1", "workspaceId": workspace, "material": material.base64EncodedString(),
++], options: [.sortedKeys]) else { stop() }
++FileHandle.standardOutput.write(output)
++material.resetBytes(in: 0..<material.count)

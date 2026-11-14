@@ -1,0 +1,21 @@
+diff --git a/web/src/components/canvas/canvas-text-settings-popover.tsx b/web/src/components/canvas/canvas-text-settings-popover.tsx
+index 45cf833..aa28205 100644
+--- a/web/src/components/canvas/canvas-text-settings-popover.tsx
++++ b/web/src/components/canvas/canvas-text-settings-popover.tsx
+@@ -13,13 +13,14 @@ type CanvasTextSettingsPopoverProps = {
+     count?: number;
+     onCountChange?: (count: number) => void;
+     buttonClassName?: string;
++    showUnsupportedNone?: boolean;
+     placement?: "topLeft" | "top" | "topRight" | "bottomLeft" | "bottom" | "bottomRight";
+ };
+-export function CanvasTextSettingsPopover({ config, onConfigChange, count, onCountChange, buttonClassName, placement = "topLeft" }: CanvasTextSettingsPopoverProps) {
++export function CanvasTextSettingsPopover({ config, onConfigChange, count, onCountChange, buttonClassName, showUnsupportedNone = false, placement = "topLeft" }: CanvasTextSettingsPopoverProps) {
+     const { t } = useTranslation();
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+     return <NativeSettingsPopover label="文本生成设置" placement={placement} theme={theme}
+-        content={<><TextSettingsPanel config={config} onConfigChange={onConfigChange} theme={theme} />
++        content={<><TextSettingsPanel config={config} onConfigChange={onConfigChange} theme={theme} showUnsupportedNone={showUnsupportedNone} />
+             {onCountChange ? <div className="mt-4 space-y-2.5">
+                 <div className="text-sm font-medium" style={{ color: theme.node.muted }}>{t("settingsPanels.text.count")}</div>
+                 <InputNumber className="w-full" min={1} max={15} precision={0} value={count} onChange={value => onCountChange(value || 1)} />

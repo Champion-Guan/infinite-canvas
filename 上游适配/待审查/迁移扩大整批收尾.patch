@@ -1,0 +1,78 @@
+--- a/画布副本/web/src/components/layout/app-config-modal.tsx
++++ b/画布副本/web/src/components/layout/app-config-modal.tsx
+@@ -226,7 +226,7 @@
+                     },
+                     {
+                         key: "local-proxy",
+-                        label: t("config.tabs.localProxy"),
++                        label: "代理设置",
+                         children: <ConfigLocalProxy />,
+                     },
+                     {
+@@ -390,7 +390,7 @@
+             width={980}
+             centered
+             onCancel={() => setConfigDialogOpen(false)}
+-            styles={{ body: { maxHeight: "72vh", overflowY: "auto", paddingRight: 12 } }}
++            styles={{ body: { height: "72vh", maxHeight: "72vh", overflowY: "auto", paddingRight: 12 } }}
+             footer={null}
+         >
+             <AppConfigPanel showDoneButton initialTab={configTab} />
+--- a/画布副本/web/src/i18n/locales/zh-CN.ts
++++ b/画布副本/web/src/i18n/locales/zh-CN.ts
+@@ -467,7 +467,7 @@
+             },
+             runtime: { requestFailed: "请求失败（{{status}}）", urlRequired: "JSON URL 不能为空", fetchFailed: "「{{name}}」拉取失败：{{error}}", noPrompts: "「{{name}}」未解析到有效提示词", invalidRoot: "「{{name}}」格式错误：根节点必须是数组" },
+         },
+-        fileSecurity: "JSON 文件包含 API Key 和 WebDAV 凭据，请妥善保管。",
++        fileSecurity: "导出的 JSON 不含 API Key、WebDAV 密码和自定义请求脚本；在新电脑上需重新配置。",
+         import: "导入配置",
+         export: "导出配置",
+         imported: "配置与用户偏好已导入",
+--- a/画布副本/web/src/i18n/locales/en-US.ts
++++ b/画布副本/web/src/i18n/locales/en-US.ts
+@@ -467,7 +467,7 @@
+             },
+             runtime: { requestFailed: "Request failed ({{status}})", urlRequired: "JSON URL is required", fetchFailed: "Failed to fetch “{{name}}”: {{error}}", noPrompts: "No valid prompts were parsed from “{{name}}”", invalidRoot: "Invalid “{{name}}” format: the root value must be an array" },
+         },
+-        fileSecurity: "The JSON file contains API keys and WebDAV credentials. Keep it secure.",
++        fileSecurity: "Exported JSON omits API keys, WebDAV passwords and custom request scripts. Set them up again on the new computer.",
+         import: "Import settings",
+         export: "Export settings",
+         imported: "Settings and preferences imported",
+--- a/画布副本/web/src/services/image-storage.ts
++++ b/画布副本/web/src/services/image-storage.ts
+@@ -1,6 +1,7 @@
+ import { sqliteForage as localforage } from "@/guan/上游浏览器存储桥";
+ 
+ import { nanoid } from "nanoid";
++import { decodeInlineImage } from "@/guan/media/内嵌图片解码.mjs";
+ import { createPersistenceCheckpoint } from "@/guan/recovery/persistence-checkpoint";
+ import { settleActivityGroup } from "@/guan/recovery/settle-activity-group";
+ const previewCheckpoint = createPersistenceCheckpoint();
+@@ -39,6 +40,10 @@
+ 
+ export async function uploadImage(input: string | Blob, options?: ImageReadOptions): Promise<UploadedImage> {
+     if (typeof input !== "string") return storeImage(input, options);
++    if (/^data:image\/(?:png|jpe?g|webp);base64,/i.test(input)) {
++        throwIfAborted(options?.signal);
++        return storeImage(decodeInlineImage(input), options);
++    }
+ 
+     let blob: Blob;
+     try {
+--- /dev/null
++++ b/画布副本/web/src/guan/media/内嵌图片解码.mjs
+@@ -0,0 +1,12 @@
++// 仅解码本机图片任务已允许的内嵌格式，不调用 fetch 或改变 CSP。
++export function decodeInlineImage(value) {
++  const match = /^data:(image\/(?:png|jpe?g|webp));base64,([A-Za-z0-9+/]*={0,2})$/i.exec(value);
++  if (!match || !match[2]) throw new Error('内嵌图片数据无效，原生成响应保留。');
++  let binary;
++  try { binary = atob(match[2]); }
++  catch { throw new Error('内嵌图片编码无效，原生成响应保留。'); }
++  if (!binary.length) throw new Error('内嵌图片为空，原生成响应保留。');
++  const bytes = new Uint8Array(binary.length);
++  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
++  return new Blob([bytes], { type: match[1].toLowerCase().replace('image/jpg', 'image/jpeg') });
++}

@@ -16,11 +16,14 @@ test("顶部空间充足，功能栏完整位于卡片外且保留14px间距", (
 });
 test("实时视区绘制在卡片外和图内切换，保持屏幕尺寸不随缩放变形", () => {
     const toolbar = { dataset: { toolbarNodeX: "100", toolbarNodeY: "100", toolbarNodeWidth: "300" }, style: {} };
-    const root = { querySelector: () => toolbar };
+    const selection = { dataset: { toolbarNodeX: "0", toolbarNodeY: "100", toolbarNodeWidth: "600", toolbarNodeOffsetY: "-8" }, style: {} };
+    const root = { querySelectorAll: () => [toolbar, selection] };
     module.exports.paintNodeToolbar(root, {x: 20, y: 200, k: .5});
     assert.deepEqual(toolbar.style, {left: "145px", top: "188px"});
+    assert.deepEqual(selection.style, {left: "170px", top: "180px"});
     module.exports.paintNodeToolbar(root, {x: 20, y: -200, k: .5});
     assert.deepEqual(toolbar.style, {left: "145px", top: "64px"});
+    assert.equal(selection.style.top, "64px", "多选工具条同样避开顶部标题区域");
     module.exports.paintNodeToolbar(null, {x: 0, y: 0, k: 1});
 });
 test("只有外侧位置触及标题区才移入图片顶部", () => {

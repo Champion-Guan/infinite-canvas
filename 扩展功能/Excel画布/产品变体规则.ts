@@ -18,7 +18,11 @@ export type ProductVariantMetadata = ProductParameterMetadata & {
     productSharedImageIds?: string[];
 };
 export const DEFAULT_VARIANT_ATTRIBUTES = ["颜色", "尺寸", "数量", "款式"];
-export const productVariants = (metadata?: CanvasNodeMetadata) => (metadata as ProductVariantMetadata | undefined)?.productVariants || [];
+export const productVariants = (metadata?: CanvasNodeMetadata) => {
+    const variants = (metadata as ProductVariantMetadata | undefined)?.productVariants || [];
+    return variants.some(variant => variant.enabled === undefined)
+        ? variants.map(variant => variant.enabled === undefined ? { ...variant, enabled: true } : variant) : variants;
+};
 export const variantLabel = (variant: ProductVariant) => variant.name.trim() || Object.values(variant.attributes).filter(value => value.trim()).join(" / ") || "未命名变体";
 
 export function newProductVariant(name = "", attributes: Record<string, string> = {}, imageIds: string[] = []): ProductVariant {

@@ -1,0 +1,1308 @@
+--- /dev/null
++++ b/web/src/guan/Excel卡片上下文.ts
+@@ -0,0 +1,53 @@
++import type { WorkbookSnapshot } from "./Excel产品归属";
++import { parseExcelPromptSpec, type ExcelPromptContext } from "./旧版参数规则";
++
++export type ProductExcelContext = ExcelPromptContext & { productId: string };
++
++// 旧readTemplates的身份边界改用显式产品ID；缓存的非当前产品不能借用地址栏或全局activeProduct。
++type ContextSnapshot = Pick<WorkbookSnapshot, "guanWorkbooks"> & {
++  projects: ReadonlyArray<Pick<WorkbookSnapshot["projects"][number], "id" | "title" | "productSetId">>;
++};
++export function productExcelContext(snapshot: ContextSnapshot, productId: string): ProductExcelContext {
++  const empty: ProductExcelContext = { productId, fileName: "", activeProductName: "", templates: [] };
++  const canvas = snapshot.projects.find(item => item.id === productId);
++  if (!canvas?.productSetId || !snapshot.guanWorkbooks) return empty;
++  const contract = snapshot.guanWorkbooks.contract;
++  const book = contract.productSets.find(item => item.id === canvas.productSetId);
++  const product = contract.products.find(item => item.id === productId && item.productSetId === canvas.productSetId);
++  if (!book || !product) return empty;
++  const route = String(product.identity.titleZh || "").trim();
++  const name = route.split(/[|｜]/, 1)[0].trim();
++  const all = book.source.promptTemplates;
++  const exact = all.filter(item => item.route.trim() === route);
++  const sameRow = (items: typeof all) => items.find(item => item.sourceRowNumber != null && Number(item.sourceRowNumber) === Number(product.sourceRowNumber));
++  let selected: typeof all = [];
++  if (exact.length) {
++    const match = sameRow(exact);
++    // 重名完整路线也必须按行消歧，不能把第一行借给另一产品。
++    selected = match ? [match] : exact.length === 1 ? exact : [];
++  } else if (book.source.role !== "prompt-products" && name) {
++    const named = all.filter(item => item.route.split(/[|｜]/, 1)[0].trim() === name);
++    const match = sameRow(named);
++    selected = match ? [match] : named.length === 1 ? named : [];
++  }
++  return { productId, fileName: book.source.fileName, activeProductName: name,
++    templates: selected.map(template => ({ ...template, prompts: Object.fromEntries(Object.entries(template.prompts).filter(([, value]) => value.trim())) })) };
++}
++
++export function excelPromptItems(context: ProductExcelContext) {
++  return context.templates.flatMap((template, templateIndex) => {
++    const name = template.route.split(/[|｜]/, 1)[0].trim() || `提示词产品 ${templateIndex + 1}`;
++    return Object.entries(template.prompts).filter(([, value]) => value.trim()).map(([key, value], index) => {
++      const spec = parseExcelPromptSpec(key, value);
++      // 保留旧列表的双位列名、标题和预览文案。
++      const label = spec.label.replace(/(详情页提示词|富内容提示词)(\d+)$/, (_, prefix: string, number: string) => prefix + number.padStart(2, "0"));
++      return { id: `guan-excel-prompts-${template.id}-${index + 1}`,
++        title: `${name} · ${label}${spec.theme ? ` · ${spec.theme}` : ""}`, prompt: value,
++        description: `来自 Excel · ${name}`, coverUrl: "", referenceImageUrls: [], tags: ["Excel", name, label],
++        preview: [spec.theme && `主题/角度：${spec.theme}`, spec.purpose && `画面任务：${spec.purpose}`].filter(Boolean).join("\n"),
++        createdAt: "", updatedAt: "", sourceUrl: "", sourceId: "guan-excel-prompts", category: "Excel 提示词", githubUrl: "",
++        excelPrompt: { ...spec, templateId: template.id, label }, productId: context.productId };
++    });
++  });
++}
++export type ExcelPromptItem = ReturnType<typeof excelPromptItems>[number];
+--- /dev/null
++++ b/web/src/guan/Excel画布上下文.tsx
+@@ -0,0 +1,20 @@
++import { createContext, useContext, useMemo, type ReactNode } from "react";
++import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
++import { productExcelContext } from "./Excel卡片上下文";
++
++const ProductIdContext = createContext<string | null>(null);
++export function ExcelCanvasScope({ productId, children }: { productId: string; children: ReactNode }) {
++  return <ProductIdContext.Provider value={productId}>{children}</ProductIdContext.Provider>;
++}
++export function useExcelProductId() {
++  const id = useContext(ProductIdContext);
++  if (!id) throw new Error("参数卡片未挂载到产品作用域，停止访问存储。");
++  return id;
++}
++export function useExcelPromptContext(productId: string) {
++  const books = useCanvasStore(state => state.guanWorkbooks);
++  const owner = useCanvasStore(state => state.projects.find(item => item.id === productId)?.productSetId);
++  const title = useCanvasStore(state => state.projects.find(item => item.id === productId)?.title);
++  // 不订阅nodes、viewport、当前路由或全局activeProduct；平移、缩放、拖动不重建Excel上下文。
++  return useMemo(() => productExcelContext({ projects: title === undefined ? [] : [{ id: productId, title, productSetId: owner }], guanWorkbooks: books }, productId), [books, productId, owner, title]);
++}
+--- /dev/null
++++ b/web/src/guan/Excel参数记忆.ts
+@@ -0,0 +1,21 @@
++import { sqlitePreferences } from "./上游浏览器存储桥";
++
++// 沿用旧版稳定产品ID键与合并/清空语义；只接入已授权SQLite，不按当前URL猜身份。
++export function parameterMemoryKey(productId: string) {
++  if (!productId) throw new Error("缺少产品身份，未读写参数。");
++  return `guan-canvas-parameter-values:${encodeURIComponent(productId)}`;
++}
++export function readProductParameterValues(productId: string): Record<string, string> {
++  const raw = sqlitePreferences.getItem(parameterMemoryKey(productId));
++  if (raw === null) return {};
++  let value: unknown;
++  try { value = JSON.parse(raw); } catch { throw new Error("产品参数记忆损坏，未作为空值覆盖。"); }
++  if (!value || typeof value !== "object" || Array.isArray(value) || Object.values(value).some(item => typeof item !== "string")) throw new Error("产品参数记忆格式异常，未覆盖。");
++  return value as Record<string, string>;
++}
++export function saveProductParameterValues(productId: string, values: Record<string, string>) {
++  if (Object.values(values).some(item => typeof item !== "string")) throw new Error("参数必须为文字。");
++  const next = { ...readProductParameterValues(productId), ...values };
++  sqlitePreferences.setItem(parameterMemoryKey(productId), JSON.stringify(next));
++  // setItem只进入现有保存队列；界面的SQLite ACK才代表已持久化。
++}
+--- /dev/null
++++ b/web/src/guan/Excel卡片事务.ts
+@@ -0,0 +1,144 @@
++import type { CanvasConnection, CanvasNodeData, CanvasNodeMetadata, CanvasNodeTypeId, Position } from "@/types/canvas";
++import { buildPromptVariablesMetadata, PROMPT_VARIABLES_NODE_TYPE, promptVariableTokens, resolvePromptVariables } from "./旧版参数规则";
++import { finalPromptPreviewTitle } from "./旧版最终提示词标题";
++import { excelPromptItems, type ProductExcelContext } from "./Excel卡片上下文";
++
++type Factory = {
++  create: (type: CanvasNodeTypeId, center: Position, metadata?: CanvasNodeMetadata) => CanvasNodeData;
++  edgeId: () => string;
++  place: (node: CanvasNodeData, occupied: CanvasNodeData[]) => CanvasNodeData;
++};
++export type ExcelInsertRequest = { productId: string; includeVideo?: boolean; templateId?: string; key?: string };
++export function createProductParameterNode(context: ProductExcelContext, center: Position, values: Record<string, string>, factory: Factory) {
++  return factory.create(PROMPT_VARIABLES_NODE_TYPE, center, buildPromptVariablesMetadata(context, undefined, undefined, values));
++}
++
++// 从旧connectNodes拆出的同笔节点/边事务；只新增预览，新建避让绝不移动两个既有端点。
++export function bindExcelParameters(nodes: CanvasNodeData[], connections: CanvasConnection[], fromNodeId: string, toNodeId: string, factory: Factory, previewGap = 96) {
++  const pair = nodes.filter(node => node.id === fromNodeId || node.id === toNodeId);
++  const parameter = pair.find(node => node.type === PROMPT_VARIABLES_NODE_TYPE);
++  const source = pair.find(node => node.type === "text" && !node.metadata?.promptVariablePreviewOf);
++  if (!parameter || !source) return null;
++  if (source.metadata?.excelPromptBindingNodeId && source.metadata.excelPromptBindingNodeId !== parameter.id) throw new Error("该提示词已连接另一张参数卡，请先断开原连线。");
++  const raw = (source.metadata?.content || source.metadata?.prompt || "").trim();
++  const tokens = promptVariableTokens(raw);
++  const values = { ...parameter.metadata?.promptVariableValues, ...Object.fromEntries(tokens.map(token => [token, parameter.metadata?.promptVariableValues?.[token] || ""])) };
++  const text = resolvePromptVariables(raw, values);
++  const existing = nodes.find(node => node.metadata?.promptVariablePreviewOf === parameter.id && node.metadata?.promptVariableSourceNodeId === source.id);
++  let preview = existing;
++  if (!preview) {
++    const draft = factory.create("text", { x: 0, y: 0 }, { content: text, prompt: text, status: "success", promptVariablePreviewOf: parameter.id, promptVariableSourceNodeId: source.id });
++    preview = factory.place({ ...draft, title: finalPromptPreviewTitle(source), position: { x: source.position.x + source.width + previewGap, y: source.position.y } }, nodes);
++  }
++  const nextNodes = nodes.map(node => {
++    if (node.id === parameter.id) return { ...node, metadata: { ...node.metadata, status: "success" as const, promptVariableRawPrompt: raw, promptVariableResolvedPrompt: text, promptVariableTokens: tokens, promptVariableValues: values, promptVariableSourceNodeId: source.id, promptVariablePreviewNodeId: preview.id } };
++    if (node.id === source.id) return { ...node, metadata: { ...node.metadata, excelPromptRaw: node.metadata?.excelPromptRaw || raw, excelPromptResolved: text, excelPromptBindingNodeId: parameter.id, excelPromptTokens: node.metadata?.excelPromptTokens?.length ? node.metadata.excelPromptTokens : tokens } };
++    if (node.id === preview.id) return { ...node, title: finalPromptPreviewTitle(source), metadata: { ...node.metadata, content: text, prompt: text, status: "success" as const } };
++    return node;
++  });
++  if (!existing) nextNodes.push(preview);
++  const nextConnections = [...connections];
++  for (const [from, to] of [[fromNodeId, toNodeId], [source.id, preview.id]]) {
++    if (!nextConnections.some(edge => edge.fromNodeId === from && edge.toNodeId === to)) nextConnections.push({ id: factory.edgeId(), fromNodeId: from, toNodeId: to });
++  }
++  return { nodes: nextNodes, connections: nextConnections };
++}
++
++export function insertExcelPromptCards(nodes: CanvasNodeData[], connections: CanvasConnection[], context: ProductExcelContext, request: ExcelInsertRequest, center: Position, factory: Factory, confirmOverwrite: (node: CanvasNodeData) => boolean | undefined, sync: (nodes: CanvasNodeData[], context: ProductExcelContext, confirm: typeof confirmOverwrite) => CanvasNodeData[]) {
++  if (request.productId !== context.productId) throw new Error("产品已切换，未向其他产品插入提示词。");
++  if ((request.key !== undefined || request.templateId !== undefined) && (!request.key || !request.templateId)) throw new Error("提示词列身份不完整，未按整批导入处理。");
++  const selected = excelPromptItems(context).filter(item => request.key ? item.excelPrompt.templateId === request.templateId && item.excelPrompt.key === request.key : request.includeVideo || item.excelPrompt.kind !== "video");
++  if (!selected.length) throw new Error("当前产品没有匹配的Excel提示词，未借用其他产品内容。");
++  let nextNodes = sync(nodes, context, confirmOverwrite), nextConnections = connections;
++  const selectedIds: string[] = [];
++  const parameter = nextNodes.find(node => node.type === PROMPT_VARIABLES_NODE_TYPE);
++  let additions = 0;
++  for (const item of selected) {
++    const meta = item.excelPrompt;
++    let source = nextNodes.find(node => node.type === "text" && !node.metadata?.promptVariablePreviewOf && (
++      node.metadata?.excelPromptKey ? node.metadata.excelPromptKey === meta.key && node.metadata.excelPromptTemplateId === meta.templateId
++        : node.metadata?.excelPromptRaw === item.prompt || node.metadata?.content === item.prompt));
++    if (!source) {
++      const draft = factory.create("text", center, { content: item.prompt, status: "success", excelPromptTemplateId: meta.templateId, excelPromptKey: meta.key, excelPromptLabel: meta.label, excelPromptTheme: meta.theme, excelPromptCompositionLock: meta.compositionLock, excelPromptPurpose: meta.purpose, excelPromptTokens: meta.tokens, excelPromptRaw: item.prompt });
++      source = factory.place({ ...draft, title: item.title, position: { ...draft.position, y: draft.position.y + additions * (draft.height + 72) } }, nextNodes);
++      additions++;
++      nextNodes = [...nextNodes, source];
++    }
++    selectedIds.push(source.id);
++    // 旧版只在一键导入且已有参数卡时自动连接；单独插入仍由用户选择连线。
++    if (!request.key && parameter && (!source.metadata?.excelPromptBindingNodeId || source.metadata.excelPromptBindingNodeId === parameter.id)) {
++      const bound = bindExcelParameters(nextNodes, nextConnections, parameter.id, source.id, factory, 72);
++      if (bound) { nextNodes = bound.nodes; nextConnections = bound.connections; }
++    }
++  }
++  return { nodes: nextNodes, connections: nextConnections, selectedIds };
++}
++
++// 只在显式编辑内容/删除关系时调用，不在viewport或拖动每帧运行。
++export function reconcileExcelPreviews(previous: CanvasNodeData[], nodes: CanvasNodeData[]) {
++  const before = new Map(previous.map(node => [node.id, node]));
++  const byId = new Map(nodes.map(node => [node.id, node]));
++  return nodes.map(node => {
++    const metadata = node.metadata;
++    if (metadata?.excelPromptBindingNodeId && before.get(node.id)?.metadata?.content !== metadata.content) {
++      const parameter = byId.get(metadata.excelPromptBindingNodeId);
++      if (parameter) return { ...node, metadata: { ...metadata, excelPromptResolved: resolvePromptVariables(metadata.content ?? metadata.prompt ?? "", parameter.metadata?.promptVariableValues) } };
++    }
++    if (!metadata?.promptVariablePreviewOf || !metadata.promptVariableSourceNodeId) return node;
++    const source = byId.get(metadata.promptVariableSourceNodeId), parameter = byId.get(metadata.promptVariablePreviewOf);
++    if (!source || !parameter) return node;
++    const old = before.get(source.id);
++    if (old?.metadata?.content === source.metadata?.content && old?.title === source.title) return node;
++    const text = resolvePromptVariables(source.metadata?.content ?? source.metadata?.prompt ?? "", parameter.metadata?.promptVariableValues);
++    return { ...node, title: finalPromptPreviewTitle(source), metadata: { ...metadata, content: text, prompt: text } };
++  });
++}
++
++export function excelDeletionIds(nodes: CanvasNodeData[], ids: Set<string>) {
++  const all = new Set(ids);
++  for (const node of nodes) if (node.metadata?.promptVariablePreviewOf &&
++    (all.has(node.metadata.promptVariablePreviewOf) || all.has(node.metadata.promptVariableSourceNodeId || ""))) all.add(node.id);
++  return all;
++}
++export function clearDeletedExcelRelations(node: CanvasNodeData, ids: Set<string>): CanvasNodeData {
++  const old = node.metadata;
++  if (!old) return node;
++  const metadata = { ...old };
++  let changed = false;
++  for (const key of ["promptVariableSourceNodeId", "promptVariablePreviewNodeId", "excelPromptBindingNodeId"] as const) {
++    if (metadata[key] && ids.has(metadata[key]!)) { metadata[key] = undefined; changed = true; }
++  }
++  if (old.promptVariableSourceNodeId && ids.has(old.promptVariableSourceNodeId)) { metadata.promptVariableRawPrompt = ""; metadata.promptVariableResolvedPrompt = ""; }
++  if (old.excelPromptBindingNodeId && ids.has(old.excelPromptBindingNodeId)) metadata.excelPromptResolved = undefined;
++  return changed ? { ...node, metadata } : node;
++}
++
++export function disconnectExcelParameters(nodes: CanvasNodeData[], connections: CanvasConnection[], id: string) {
++  const edge = connections.find(item => item.id === id);
++  if (!edge) return null;
++  const pair = nodes.filter(node => node.id === edge.fromNodeId || node.id === edge.toNodeId);
++  const parameter = pair.find(node => node.type === PROMPT_VARIABLES_NODE_TYPE);
++  const source = pair.find(node => node.metadata?.excelPromptBindingNodeId === parameter?.id);
++  if (!parameter || !source) return null;
++  // 两个方向均存在时只移除用户指定的边，剩余边仍维持绑定。
++  const rest = connections.filter(item => item.id !== id);
++  if (rest.some(item => [item.fromNodeId, item.toNodeId].includes(parameter.id) && [item.fromNodeId, item.toNodeId].includes(source.id))) return { nodes, connections: rest };
++  const previews = new Set(nodes.filter(node => node.metadata?.promptVariablePreviewOf === parameter.id && node.metadata?.promptVariableSourceNodeId === source.id).map(node => node.id));
++  return { nodes: nodes.filter(node => !previews.has(node.id)).map(node => {
++    if (node.id === source.id) return { ...node, metadata: { ...node.metadata, excelPromptBindingNodeId: undefined, excelPromptResolved: undefined } };
++    if (node.id === parameter.id && node.metadata?.promptVariableSourceNodeId === source.id) return { ...node, metadata: { ...node.metadata, promptVariableSourceNodeId: undefined, promptVariablePreviewNodeId: undefined, promptVariableRawPrompt: "", promptVariableResolvedPrompt: "" } };
++    return clearDeletedExcelRelations(node, previews);
++  }), connections: rest.filter(item => !previews.has(item.fromNodeId) && !previews.has(item.toNodeId)) };
++}
++
++export function remapCopiedExcelRelations(node: CanvasNodeData, idMap: Map<string, string>): CanvasNodeData {
++  if (!node.metadata) return node;
++  const metadata = { ...node.metadata };
++  for (const key of ["promptVariableSourceNodeId", "promptVariablePreviewNodeId", "excelPromptBindingNodeId", "promptVariablePreviewOf", "promptVariableEnglishPreviewOf", "promptVariableTranslationOf"] as const) {
++    const id = metadata[key];
++    if (id && idMap.has(id)) metadata[key] = idMap.get(id);
++    else if (id && node.type === PROMPT_VARIABLES_NODE_TYPE) metadata[key] = undefined;
++  }
++  if (node.type === PROMPT_VARIABLES_NODE_TYPE && !metadata.promptVariableSourceNodeId) { metadata.promptVariableRawPrompt = ""; metadata.promptVariableResolvedPrompt = ""; }
++  return { ...node, metadata };
++}
+--- /dev/null
++++ b/web/src/guan/Excel提示词列表.tsx
+@@ -0,0 +1,59 @@
++import { useMemo, useState, type ReactNode } from "react";
++import { BookOpen, ChevronRight } from "lucide-react";
++import { useThemeStore } from "@/stores/use-theme-store";
++import type { CanvasTheme } from "@/lib/canvas-theme";
++import type { InsertAssetPayload } from "@/components/canvas/asset-picker-modal";
++import type { Prompt } from "@/services/api/prompts";
++import { sqlitePreferences } from "./上游浏览器存储桥";
++import { useExcelProductId, useExcelPromptContext } from "./Excel画布上下文";
++import { excelPromptItems, type ExcelPromptItem } from "./Excel卡片上下文";
++import "./Excel提示词列表.css";
++
++export const EXCEL_PROMPT_DRAG_TYPE = "application/x-guan-excel-prompt";
++export function ExcelPromptGroup({ keyword, theme, onInsert, onView, renderRow }: {
++  keyword: string; theme: CanvasTheme; onInsert: (payload: InsertAssetPayload) => void;
++  onView: (item: Prompt) => void;
++  renderRow: (item: ExcelPromptItem, insert: () => void, view: () => void) => ReactNode;
++}) {
++  const productId = useExcelProductId();
++  const context = useExcelPromptContext(productId);
++  const dark = useThemeStore(state => state.theme === "dark");
++  const [open, setOpen] = useState(false);
++  const [productOpen, setProductOpen] = useState(true);
++  const [includeVideo, setIncludeVideo] = useState(() => sqlitePreferences.getItem("guan-excel-import-video-prompts-v2") === "true");
++  const items = useMemo(() => excelPromptItems(context), [context]);
++  const filtered = useMemo(() => {
++    const query = keyword.trim().toLowerCase();
++    return query ? items.filter(item => [item.title, item.prompt, ...item.tags].join(" ").toLowerCase().includes(query)) : items;
++  }, [items, keyword]);
++  if (!items.length) return null;
++  const show = open || !!keyword.trim();
++  return <div className="guan-excel-prompt-list" data-theme={dark ? "dark" : "light"}>
++    <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={show} className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1.5 text-left text-xs font-semibold opacity-75 transition hover:opacity-100">
++      <ChevronRight className={`size-3.5 transition-transform ${show ? "rotate-90" : ""}`} /><BookOpen className="size-3.5" />
++      <span className="min-w-0 flex-1 truncate">Excel 提示词</span>{show ? <span className="opacity-50">{filtered.length}</span> : null}
++    </button>
++    {show ? <div className="px-1 pb-2 pt-1">
++      <div className="guan-excel-product-toolbar">
++        <button type="button" className="guan-excel-product-menu" onClick={() => setProductOpen(value => !value)} aria-expanded={productOpen}>
++          <span style={{ transform: productOpen ? "rotate(90deg)" : "rotate(0deg)" }}>›</span>{context.activeProductName || "当前产品"}
++        </button>
++        <label className="guan-excel-video-import-toggle" title={`是否导入视频提示词：${includeVideo ? "已开启，一键导入时包含视频提示词" : "已关闭，一键导入时跳过视频提示词"}`}>
++          <input type="checkbox" role="switch" aria-label="是否导入视频提示词" checked={includeVideo} onChange={event => {
++            setIncludeVideo(event.target.checked);
++            sqlitePreferences.setItem("guan-excel-import-video-prompts-v2", String(event.target.checked));
++          }} /><span aria-hidden="true" className="guan-excel-video-track"><span /></span>
++        </label>
++        <button type="button" className="guan-excel-batch-import" onClick={() => onInsert({ kind: "excel-batch", productId, includeVideo })}>一键导入</button>
++      </div>
++      {productOpen ? <div className="space-y-1.5" style={{ color: theme.node.text }}>
++        {filtered.map(item => <div key={item.id} draggable className="cursor-grab active:cursor-grabbing" data-canvas-prompt-drag data-excel-prompt-key={item.excelPrompt.key} onDragStart={event => {
++          event.dataTransfer.effectAllowed = "copy";
++          event.dataTransfer.setData(EXCEL_PROMPT_DRAG_TYPE, JSON.stringify({ productId, templateId: item.excelPrompt.templateId, key: item.excelPrompt.key }));
++          event.dataTransfer.setData("text/plain", item.prompt);
++        }}>{renderRow(item, () => onInsert({ kind: "text", content: item.prompt, title: item.title, excelPrompt: item.excelPrompt, excelProductId: productId }), () => onView(item))}</div>)}
++        {!filtered.length ? <div className="py-4 text-center text-xs opacity-40">没有匹配的提示词</div> : null}
++      </div> : null}
++    </div> : null}
++  </div>;
++}
+--- /dev/null
++++ b/web/src/guan/Excel提示词列表.css
+@@ -0,0 +1,16 @@
++/* 旧excel-prompts-bridge的自有工具条样式原值迁入；不覆盖作者选择器、不修改DOM。 */
++.guan-excel-prompt-list .guan-excel-product-toolbar { display:flex;align-items:center;width:100%;gap:4px; }
++.guan-excel-prompt-list .guan-excel-product-menu { display:flex;align-items:center;width:100%;gap:6px;padding:6px 8px 6px 20px;margin:2px 0;border:0;border-radius:6px;background:transparent;color:inherit;font-size:12px;font-weight:600;text-align:left;cursor:pointer;opacity:.82; }
++.guan-excel-prompt-list .guan-excel-product-menu > span { display:inline-block;width:12px;font-size:16px;line-height:12px;transition:transform .15s ease; }
++.guan-excel-prompt-list .guan-excel-batch-import { display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:auto;margin:0 4px 0 6px;padding:3px 6px;border:1px solid rgba(120,113,108,.35);border-radius:5px;background:rgba(255,255,255,.55);color:inherit;font-size:10px;line-height:1.2;cursor:pointer;text-align:center; }
++.guan-excel-prompt-list .guan-excel-video-import-toggle { display:inline-flex;position:relative;align-items:center;flex:0 0 auto;width:28px;height:16px;margin:0 2px;cursor:pointer; }
++.guan-excel-prompt-list .guan-excel-video-import-toggle input { position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;z-index:1;cursor:pointer; }
++.guan-excel-prompt-list .guan-excel-video-track { display:block;width:28px;height:16px;border-radius:999px;transition:background .15s ease;background:#b8b8b8; }
++.guan-excel-prompt-list .guan-excel-video-track > span { display:block;width:12px;height:12px;margin:2px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .15s ease,background .15s ease; }
++.guan-excel-prompt-list input:checked + .guan-excel-video-track { background:#18181b; }
++.guan-excel-prompt-list input:checked + .guan-excel-video-track > span { transform:translateX(12px); }
++.guan-excel-prompt-list[data-theme="dark"] .guan-excel-video-track { background:#57534e; }
++.guan-excel-prompt-list[data-theme="dark"] input:checked + .guan-excel-video-track { background:#f5f5f4; }
++.guan-excel-prompt-list[data-theme="dark"] input:checked + .guan-excel-video-track > span { background:#18181b; }
++.guan-excel-prompt-list input:focus-visible + .guan-excel-video-track { outline:2px solid #3b82f6;outline-offset:2px; }
++@media(prefers-reduced-motion:reduce) { .guan-excel-prompt-list *, .guan-excel-prompt-list *::before, .guan-excel-prompt-list *::after { transition:none!important;animation:none!important; } }
+--- /dev/null
++++ b/web/src/guan/旧版参数规则.ts
+@@ -0,0 +1,343 @@
++import { localizePromptTheme } from "./旧版主题翻译.js";
++import type { CanvasNodeContext, CanvasNodeResource } from "@/types/canvas-plugin";
++import type { CanvasNodeData, CanvasNodeMetadata } from "@/types/canvas";
++export const PROMPT_VARIABLES_NODE_TYPE = "guan:prompt-variables";
++
++export type ExcelPromptTemplate = {
++    id: string;
++    route: string;
++    prompts: Record<string, string>;
++};
++
++export type ExcelPromptSpec = {
++    key: string;
++    label: string;
++    kind: "main" | "detail" | "rich" | "video" | "other";
++    theme: string;
++    compositionLock: string;
++    purpose: string;
++    prompt: string;
++    tokens: string[];
++};
++
++export type ExcelPromptContext = {
++    fileName: string;
++    activeProductName: string;
++    templates: ExcelPromptTemplate[];
++};
++
++
++
++const VARIABLE_PATTERN = /\[[^\]\r\n]{1,160}\]/g;
++const OMITTED_VARIABLES = [/^\[\d+\s*[-–—]\s*\d+秒/i, /^\[FILL WITH VERIFIED PRODUCT DATA\]$/i, /^\[PRODUCT PHOTO\/CAD\]$/i, /^\[待填写\]$/, /^\[我的产品变量\]$/, /^\[补充自有产品/i, /^\[node:/i, /^\[\d+\]$/];
++
++
++
++export function promptVariableTokens(prompt: string) {
++    const seen = new Set<string>();
++    const tokens: string[] = [];
++    for (const token of prompt.match(VARIABLE_PATTERN) || []) {
++        const normalized = token.trim();
++        if (!normalized || seen.has(normalized) || OMITTED_VARIABLES.some((pattern) => pattern.test(normalized))) continue;
++        seen.add(normalized);
++        tokens.push(normalized);
++    }
++    return tokens;
++}
++
++export function resolvePromptVariables(prompt: string, values: Record<string, string> = {}) {
++    const normalize = (token: string) => token.replace(/^\[|\]$/g, "").toLowerCase().replace(/[\s_-]+/g, " ").trim();
++    const normalizedValues = new Map(Object.entries(values).map(([token, value]) => [normalize(token), value]));
++    const resolved = prompt.replace(VARIABLE_PATTERN, (token) => {
++        const value = String(values[token] ?? normalizedValues.get(normalize(token)) ?? "").trim();
++        return value || token;
++    });
++    const focus = prompt.match(/(?:COMPOSITION LOCK|Theme|Visual focus|主题(?:\/角度)?|画面重点)\s*[：:]\s*([^\n.]+)/i)?.[1] || "";
++    if (!/dimension|measurement|scale|尺寸|规格/i.test(focus)) return resolved;
++    const dimensions = Object.entries(values).filter(([token, value]) => /dimension|measurement|width|height|length|depth|diameter|尺寸|宽度|高度|长度|直径/i.test(token) && value.trim()).map(([token, value]) => `${token}: ${value.trim()}`);
++    return resolved + "\n\n【当前画面优先级】本卡片以尺寸与规格展示为主题。尺寸标注仅使用已填写的真实参数，不推断或编造尺寸。核心卖点只作背景参考，不得替代尺寸信息或成为主视觉。" + (dimensions.length ? `\n已确认尺寸参数：\n${dimensions.join("\n")}` : "\n未填写尺寸参数：保留待填写项，不生成虚构的数字标注。");
++}
++
++function productName(route: string) {
++    return String(route || "").split(/[|｜]/, 1)[0].trim();
++}
++
++const VARIABLE_LABELS: Record<string, string> = {
++    "PRODUCT PHOTO/CAD": "产品图片/CAD",
++    "PRODUCT NAME": "产品名称",
++    "MY BRAND": "我的品牌",
++    "MY SKU": "我的 SKU",
++    "BODY MATERIAL": "主体材质",
++    DIMENSIONS: "尺寸",
++    "CORE FEATURE 1": "核心卖点 1",
++    "CORE FEATURE 2": "核心卖点 2",
++    "CORE FEATURE 3": "核心卖点 3",
++    "KIT CONTENTS AND QUANTITIES": "套件内容及数量",
++    "NEEDLE / THREAD SPECIFICATION": "针线规格",
++    "CASE OR STORAGE TYPE": "收纳盒/存储类型",
++    "WARRANTY AND AFTER-SALES LIMITS": "质保及售后范围",
++    "VERIFIED TEST EVIDENCE": "已验证的测试证据",
++    "ACTUAL PARAMETERS": "实际参数",
++    "SHORT RUSSIAN TITLE": "俄文短标题",
++    "MATERIAL": "材质",
++    "USE SCENARIO": "使用场景",
++    "SURFACE FINISH": "表面处理",
++    "COLOR": "颜色",
++    "KIT USE CASE": "套件用途",
++    "TOOL AND ACCESSORY LIST": "工具及配件清单",
++    "KIT QUANTITY": "套件数量",
++    "CASE SIZE": "收纳盒尺寸",
++    "STORAGE FORMAT": "收纳方式",
++    "ACCESSORIES AND QUANTITIES": "配件及数量",
++    "RUSSIAN SHORT HEADLINE": "俄文短标题",
++    "NEEDLE TYPE": "编织针类型",
++    "NEEDLE SIZE / DIAMETER": "针号/直径",
++    "NEEDLE SIZE RANGE": "针号范围",
++    "CABLE OR NEEDLE LENGTH": "连接线或针身长度",
++    "TIP MATERIAL": "针尖材质",
++    "SET CONTENTS AND QUANTITIES": "套装内容及数量",
++    "LENGTH": "长度",
++    "CONNECTION / CABLE": "连接方式/连接线",
++    "SET CONTENTS": "套装内容",
++    "BRAND NAME": "品牌名称",
++    "MODEL NUMBER": "型号",
++    "PRODUCT CATEGORY": "产品类别",
++    "PRODUCT DESCRIPTION": "产品描述",
++    "TARGET AUDIENCE": "适用人群",
++    "AGE RANGE": "适用年龄",
++    "PACKAGE CONTENTS": "包装内容",
++    "PACKAGE SIZE": "包装尺寸",
++    "PACKAGE DIMENSIONS": "包装尺寸",
++    "NET WEIGHT": "净重",
++    "GROSS WEIGHT": "毛重",
++    "LOAD CAPACITY": "承重能力",
++    "MAX LOAD": "最大承重",
++    "POWER SUPPLY": "供电方式",
++    "POWER CONSUMPTION": "耗电量",
++    "BATTERY CAPACITY": "电池容量",
++    "BATTERY LIFE": "续航时间",
++    "CHARGING TIME": "充电时间",
++    "CABLE LENGTH": "线缆长度",
++    "OPERATING TEMPERATURE": "工作温度",
++    "TEMPERATURE RANGE": "温度范围",
++    "WATERPROOF RATING": "防水等级",
++    "IP RATING": "防护等级",
++    "COMPATIBLE DEVICES": "兼容设备",
++    "COMPATIBLE MODELS": "兼容型号",
++    "MOUNTING TYPE": "安装方式",
++    "INSTALLATION METHOD": "安装方式",
++    "CARE INSTRUCTIONS": "保养说明",
++    "WASHING INSTRUCTIONS": "洗涤说明",
++    "SAFETY WARNINGS": "安全警告",
++    "COUNTRY OF ORIGIN": "原产国",
++    "SHELF LIFE": "保质期",
++    "EXPIRATION DATE": "有效期",
++    "FOOD GRADE": "食品级标准",
++    "BPA FREE": "不含双酚A",
++    "KEY BENEFITS": "主要优势",
++    "SELLING POINTS": "卖点",
++    "USE CASE": "用途",
++    "USE CASES": "用途",
++    "USAGE SCENARIO": "使用场景",
++    "USAGE SCENARIOS": "使用场景",
++    "CORE FEATURES": "核心卖点",
++    "RUSSIAN TITLE": "俄文标题",
++    "RUSSIAN HEADLINE": "俄文标题",
++    "SHORT HEADLINE": "短标题",
++    "CALL TO ACTION": "行动引导文案",
++    "ASPECT RATIO": "宽高比",
++    "BACKGROUND COLOR": "背景颜色",
++    "TEXT COLOR": "文字颜色",
++    "FONT SIZE": "字号",
++    "THREAD SIZE": "螺纹规格",
++    "THREAD COUNT": "织物纱线密度",
++    "FABRIC COMPOSITION": "面料成分",
++    "FIT TYPE": "版型",
++    "HEEL HEIGHT": "鞋跟高度",
++    "SOLE MATERIAL": "鞋底材质",
++    "HANDLE MATERIAL": "手柄材质",
++    "BLADE MATERIAL": "刀片材质",
++    "NEEDLE SIZE": "针号",
++    "NEEDLE DIAMETER": "针径",
++    "NEEDLE LENGTH": "针身长度",
++    "CONNECTION TYPE": "连接类型",
++    "SET QUANTITY": "套装数量",
++    "ACCESSORY LIST": "配件清单",
++    "ACCESSORIES LIST": "配件清单",
++};
++
++function normalizeVariableKey(key: string) {
++    return key.replace(/([a-z])([A-Z])/g, "$1 $2").toUpperCase()
++        .replace(/\((MM|CM|M|G|KG|ML|L|W|V|A|MAH|HZ|RPM|PX)\)/g, " $1 ")
++        .replace(/[_–—-]+/g, " ").replace(/\s*\/\s*/g, " / ")
++        .replace(/\s*&\s*/g, " AND ").replace(/\s+/g, " ").trim();
++}
++
++const NORMALIZED_VARIABLE_LABELS = Object.fromEntries(Object.entries(VARIABLE_LABELS).map(([key, label]) => [normalizeVariableKey(key), label]));
++// Conservative phrase composition: translate only when every part is known.
++// Never alter stored variable keys or partially guess an unknown technical term.
++const VARIABLE_WORDS: Record<string, string> = {
++    "CORE FEATURE": "核心卖点", "KEY FEATURE": "主要功能", "SELLING POINT": "卖点",
++    "USE SCENARIO": "使用场景", "USE CASE": "用途", "SURFACE FINISH": "表面处理",
++    PRODUCT: "产品", BRAND: "品牌", MODEL: "型号", MODELS: "型号", SKU: "SKU", NAME: "名称",
++    TYPE: "类型", CATEGORY: "类别", DESCRIPTION: "描述", MATERIAL: "材质", MATERIALS: "材质",
++    COLOR: "颜色", COLOUR: "颜色", COLORS: "颜色", COLOURS: "颜色", SIZE: "尺寸", SIZES: "尺寸",
++    DIMENSION: "尺寸", DIMENSIONS: "尺寸", LENGTH: "长度", WIDTH: "宽度", HEIGHT: "高度",
++    DEPTH: "深度", THICKNESS: "厚度", DIAMETER: "直径", RADIUS: "半径", WEIGHT: "重量",
++    CAPACITY: "容量", VOLUME: "容积", QUANTITY: "数量", QUANTITIES: "数量", COUNT: "数量",
++    SET: "套装", KIT: "套件", PACKAGE: "包装", PACKAGING: "包装", CONTENTS: "内容",
++    ACCESSORY: "配件", ACCESSORIES: "配件", TOOL: "工具", TOOLS: "工具", LIST: "清单",
++    SPECIFICATION: "规格", SPECIFICATIONS: "规格", PARAMETER: "参数", PARAMETERS: "参数",
++    FEATURE: "功能", FEATURES: "功能", FUNCTION: "功能", FUNCTIONS: "功能", BENEFIT: "优势", BENEFITS: "优势",
++    COMPATIBLE: "兼容", COMPATIBILITY: "兼容性", DEVICE: "设备", DEVICES: "设备",
++    POWER: "功率", VOLTAGE: "电压", CURRENT: "电流", FREQUENCY: "频率", SPEED: "速度",
++    BATTERY: "电池", CHARGING: "充电", TIME: "时间", TEMPERATURE: "温度", RANGE: "范围",
++    HANDLE: "手柄", TIP: "针尖", NEEDLE: "编织针", CABLE: "连接线", CONNECTION: "连接",
++    CASE: "收纳盒", STORAGE: "收纳", FORMAT: "方式", WARRANTY: "质保", CERTIFICATION: "认证",
++    CERTIFICATIONS: "认证", SAFETY: "安全", STANDARD: "标准", STANDARDS: "标准",
++    FABRIC: "面料", PATTERN: "图案", STYLE: "风格", SCENT: "香型", INGREDIENTS: "成分",
++    USAGE: "使用方法", INSTRUCTIONS: "说明", INSTALLATION: "安装", CLEANING: "清洁", CARE: "保养",
++    PRICE: "价格", CURRENCY: "币种", ORIGIN: "产地", COUNTRY: "国家", BRANDING: "品牌标识",
++    TITLE: "标题", HEADLINE: "标题", SUBTITLE: "副标题", TEXT: "文字", LANGUAGE: "语言",
++    BACKGROUND: "背景", LIGHTING: "光照", ANGLE: "角度", RESOLUTION: "分辨率", DURATION: "时长",
++    MY: "我的", ACTUAL: "实际", VERIFIED: "已验证", MAX: "最大", MAXIMUM: "最大", MIN: "最小", MINIMUM: "最小",
++    AND: "及", OR: "或", "/": "/",
++};
++
++function variableLabel(token: string) {
++    const key = token.replace(/^\[/, "").replace(/\]$/, "").trim();
++    if (/[\u3400-\u9fff]/.test(key)) return key;
++    const normalized = normalizeVariableKey(key);
++    if (NORMALIZED_VARIABLE_LABELS[normalized]) return NORMALIZED_VARIABLE_LABELS[normalized];
++    const parts = normalized.split(" ");
++    const translated: string[] = [];
++    for (let i = 0; i < parts.length;) {
++        let matched = false;
++        for (let length = Math.min(3, parts.length - i); length > 0; length--) {
++            const phrase = parts.slice(i, i + length).join(" ");
++            const label = NORMALIZED_VARIABLE_LABELS[phrase] || VARIABLE_WORDS[phrase];
++            if (!label) continue;
++            translated.push(label);
++            i += length;
++            matched = true;
++            break;
++        }
++        if (matched) continue;
++        // Retain numbered fields and common measurement units in the heading.
++        if (/^\d+$/.test(parts[i]) || /^(MM|CM|M|G|KG|ML|L|W|V|A|MAH|HZ|RPM|PX)$/.test(parts[i])) {
++            translated.push(` ${parts[i]}`);
++            i++;
++        } else {
++            return `变量 ${token}`;
++        }
++    }
++    return translated.some((part) => /[\u3400-\u9fff]/.test(part)) ? translated.join("") : `变量 ${token}`;
++}
++
++function promptEntries(template: ExcelPromptTemplate | undefined) {
++    return Object.entries(template?.prompts || {}).filter(([, prompt]) => String(prompt || "").trim());
++}
++
++function promptKind(key: string): ExcelPromptSpec["kind"] {
++    if (key === "Main Prompt") return "main";
++    if (/^Detail Prompt \d+$/i.test(key)) return "detail";
++    if (/^Rich Prompt \d+$/i.test(key)) return "rich";
++    if (key === "Video Prompt") return "video";
++    return "other";
++}
++
++function promptLabel(key: string) {
++    if (key === "Main Prompt") return "主图提示词";
++    if (key === "Video Prompt") return "视频提示词";
++    const detail = key.match(/^Detail Prompt (\d+)$/i);
++    if (detail) return `详情页提示词${detail[1]}`;
++    const rich = key.match(/^Rich Prompt (\d+)$/i);
++    if (rich) return `富内容提示词${rich[1]}`;
++    return key;
++}
++
++export function parseExcelPromptSpec(key: string, prompt: string): ExcelPromptSpec {
++    const text = String(prompt || "");
++    const compositionLock = text.match(/COMPOSITION LOCK:\s*([^\.\n]+)/i)?.[1]?.trim() || "";
++    const explicitTheme = text.match(/(?:主题(?:\/角度)?|Theme|核心视觉|Core visual|Visual focus|画面重点|重点|Camera angle|Shot type|拍摄角度)\s*[：:]\s*([^\.\n]+)/i)?.[1]?.trim() || compositionLock;
++    const themeRules: Array<[string, RegExp]> = [
++        ["收纳/折叠", /fold|storage|case|portable|compact|收纳|折叠|便携/i],
++        ["角度/调节", /angle|degree|tilt|viewing angle|倾角|角度|调节|截止线/i],
++        ["安装/兼容", /install|installation|fitment|compatib|adapter|安装|兼容|适配/i],
++        ["尺寸/规格", /dimension|size|specification|measurement|尺寸|规格|参数/i],
++        ["材质/结构", /material|structure|heat dissipation|散热|材质|结构/i],
++        ["配件/数量", /accessor|contents|quantity|kit|included|配件|套装|数量|清单/i],
++        ["使用场景", /scene|use case|scenario|workbench|桌面|场景|使用/i],
++        ["核心功能/卖点", /core feature|key selling|selling point|功能|卖点|优势/i],
++    ];
++    // Shared product-data/safety boilerplate is not the current card's theme.
++    const intentText = text.replace(/\[[^\]\r\n]+\]/g, "").split(/(?:PRODUCT DATA|VARIABLES|产品参数|SAFETY RULES|通用规则)\s*[:：]/i)[0];
++    const scored = themeRules.map(([label, pattern]) => [label, (intentText.match(new RegExp(pattern.source, `${pattern.flags}g`)) || []).length] as const).sort((a, b) => b[1] - a[1]);
++    const kindFallback = /^Main/i.test(key) ? "主图｜产品全貌与核心卖点" : /^Rich/i.test(key) ? "富内容｜模块化信息与证据" : /^Video/i.test(key) ? "视频｜使用场景与功能演示" : `详情图${key.match(/(\d+)/)?.[1] || ""}｜单一卖点`;
++    const theme = localizePromptTheme(explicitTheme || (scored[0]?.[1] > 0 ? scored[0][0] : kindFallback));
++    const purpose = text.match(/(?:Module purpose|模块)\s*[：:]\s*([^\.\n]+)/i)?.[1]?.trim() || "";
++    return { key, label: promptLabel(key), kind: promptKind(key), theme, compositionLock, purpose, prompt: text, tokens: promptVariableTokens(text) };
++}
++
++function promptSpecs(template: ExcelPromptTemplate | undefined) {
++    return promptEntries(template).map(([key, prompt]) => parseExcelPromptSpec(key, prompt));
++}
++
++function defaultTemplate(context: ExcelPromptContext) {
++    return context.templates.find((template) => promptEntries(template).some(([key]) => key === "Main Prompt")) || context.templates[0];
++}
++
++function defaultPromptKey(template: ExcelPromptTemplate | undefined) {
++    const entries = promptEntries(template);
++    return entries.find(([key]) => key === "Main Prompt")?.[0] || entries[0]?.[0] || "";
++}
++
++function productVariableTokens(context: ExcelPromptContext) {
++    const seen = new Set<string>();
++    const tokens: string[] = [];
++    for (const template of context.templates) {
++        for (const [, prompt] of promptEntries(template)) {
++            for (const token of promptVariableTokens(prompt)) {
++                if (!seen.has(token)) {
++                    seen.add(token);
++                    tokens.push(token);
++                }
++            }
++        }
++    }
++    return tokens;
++}
++
++export function buildPromptVariablesMetadata(context: ExcelPromptContext = { fileName: "", activeProductName: "", templates: [] }, template = defaultTemplate(context), promptKey = defaultPromptKey(template), previousValues: Record<string, string> = {}): CanvasNodeMetadata {
++    const prompt = String(template?.prompts?.[promptKey] || "");
++    const spec = parseExcelPromptSpec(promptKey, prompt);
++    const tokens = promptVariableTokens(prompt);
++    const values = { ...previousValues, ...Object.fromEntries(tokens.map((token) => [token, String(previousValues[token] || "")])) };
++    return {
++        status: "success",
++        promptVariableTemplateId: template?.id || "",
++        promptVariablePromptKey: promptKey,
++        promptVariablePromptTheme: spec.theme,
++        promptVariableCompositionLock: spec.compositionLock,
++        promptVariablePurpose: spec.purpose,
++        promptVariableSource: "excel-marker",
++        promptVariableProductName: productName(template?.route || "") || context.activeProductName,
++        promptVariableFileName: context.fileName,
++        promptVariableRawPrompt: prompt,
++        promptVariableTokens: tokens,
++        promptVariableValues: values,
++        promptVariableResolvedPrompt: resolvePromptVariables(prompt, values),
++    };
++}
++
++export function promptVariablesResource(node: CanvasNodeData): CanvasNodeResource | null {
++    const text = resolvePromptVariables(node.metadata?.promptVariableRawPrompt || "", node.metadata?.promptVariableValues);
++    return text.trim() ? { kind: "text", text } : null;
++}
++
++function pickCurrentTemplate(context: ExcelPromptContext, metadata: CanvasNodeMetadata) {
++    return context.templates.find((template) => template.id === metadata.promptVariableTemplateId) || defaultTemplate(context);
++}
++
++
++export { variableLabel, pickCurrentTemplate, productVariableTokens };
+--- /dev/null
++++ b/web/src/guan/旧版参数卡片.tsx
+@@ -0,0 +1,111 @@
++import { useEffect, useMemo } from "react";
++import { Braces } from "lucide-react";
++import { Button } from "antd";
++import { canvasThemes } from "@/lib/canvas-theme";
++import { useThemeStore } from "@/stores/use-theme-store";
++import type { CanvasNodeContext } from "@/types/canvas-plugin";
++import type { CanvasNodeMetadata } from "@/types/canvas";
++import { promptVariableTokens, resolvePromptVariables, variableLabel, productVariableTokens } from "./旧版参数规则";
++import { useExcelProductId, useExcelPromptContext } from "./Excel画布上下文";
++import { readProductParameterValues, saveProductParameterValues } from "./Excel参数记忆";
++export function PromptVariablesContent({ ctx }: { ctx: CanvasNodeContext }) {
++    const productId = useExcelProductId();
++    const theme = canvasThemes[useThemeStore((state) => state.theme)];
++    const context = useExcelPromptContext(productId);
++    const metadata = ctx.node.metadata || {};
++    const linkedPromptNode = metadata.promptVariableSourceNodeId ? ctx.getNode(metadata.promptVariableSourceNodeId) : null;
++    const linkedPrompt = linkedPromptNode ? String(linkedPromptNode.metadata?.content || linkedPromptNode.metadata?.prompt || "").trim() : "";
++    const currentPrompt = linkedPrompt || metadata.promptVariableRawPrompt || "";
++    const productTokens = useMemo(() => productVariableTokens(context), [context]);
++    const linkedTokens = ctx.getNodes().filter((node) => node.metadata?.excelPromptBindingNodeId === ctx.node.id && !node.metadata?.promptVariablePreviewOf)
++        .flatMap((node) => promptVariableTokens(node.metadata?.excelPromptRaw || node.metadata?.content || node.metadata?.prompt || ""));
++    const tokens = Array.from(new Set([...(productTokens || []), ...(metadata.promptVariableTokens || []), ...linkedTokens, ...promptVariableTokens(currentPrompt)]));
++    const values = metadata.promptVariableValues || {};
++
++    useEffect(() => {
++        // Migrate existing cards as well as restoring cards created after deletion.
++        const current = ctx.getNode(ctx.node.id)?.metadata?.promptVariableValues || {};
++        const restored = { ...current, ...readProductParameterValues(productId) };
++        saveProductParameterValues(productId, restored);
++        if (Object.keys(restored).some((token) => restored[token] !== current[token])) {
++            ctx.updateMetadata({ promptVariableValues: restored });
++        }
++    }, [ctx.node.id, productId]);
++
++    useEffect(() => {
++        if (!tokens.length) return;
++        const nextValues = { ...values, ...Object.fromEntries(tokens.map((token) => [token, String(values[token] || "")])) };
++        if (tokens.some((token) => values[token] === undefined)) ctx.updateMetadata({ promptVariableTokens: tokens, promptVariableValues: nextValues });
++    }, [ctx, tokens, values]);
++
++    const updateValue = (token: string, value: string) => {
++        const nextValues = { ...ctx.getNode(ctx.node.id)?.metadata?.promptVariableValues, [token]: value };
++        // Synchronous per-keystroke backup survives immediate deletion before autosave.
++        saveProductParameterValues(productId, { [token]: value });
++        const nextMetadata: CanvasNodeMetadata = {
++            promptVariableValues: nextValues,
++            promptVariableTokens: tokens,
++        };
++        const linkedRaw = linkedPrompt || metadata.promptVariableRawPrompt || "";
++        const resolved = resolvePromptVariables(linkedRaw, nextValues);
++        if (linkedRaw) nextMetadata.promptVariableResolvedPrompt = resolved;
++        const ops = [{ type: "update_node" as const, id: ctx.node.id, metadata: nextMetadata }];
++        const nodes = ctx.getNodes();
++        const connections = ctx.getConnections();
++        const sources = nodes.filter((node) => node.id !== ctx.node.id && !node.metadata?.promptVariablePreviewOf && (
++            node.metadata?.excelPromptBindingNodeId === ctx.node.id ||
++            connections.some((edge) => (edge.fromNodeId === ctx.node.id && edge.toNodeId === node.id) || (edge.toNodeId === ctx.node.id && edge.fromNodeId === node.id))
++        ) && typeof node.metadata?.content === "string");
++        for (const source of sources) {
++            const raw = source.metadata?.content ?? source.metadata?.excelPromptRaw ?? source.metadata?.prompt ?? "";
++            const text = resolvePromptVariables(raw, nextValues);
++            ops.push({ type: "update_node", id: source.id, metadata: { excelPromptResolved: text, excelPromptBindingNodeId: ctx.node.id } });
++            for (const preview of nodes.filter((node) => node.metadata?.promptVariablePreviewOf === ctx.node.id && node.metadata?.promptVariableSourceNodeId === source.id)) {
++                ops.push({ type: "update_node", id: preview.id, metadata: { content: text, prompt: text, status: "success" } });
++            }
++        }
++        if (ops.length > 1) {
++            ctx.applyOps(ops);
++        } else {
++            ctx.updateMetadata(nextMetadata);
++        }
++    };
++
++    return (
++        <div
++            data-canvas-no-zoom
++            className="flex h-full w-full min-h-0 flex-col overflow-hidden rounded-[inherit] p-3 text-sm"
++            style={{ color: theme.node.text }}
++            onMouseDown={(event) => { if ((event.target as HTMLElement).closest("input, textarea, select, button")) event.stopPropagation(); }}
++            onPointerDown={(event) => { if ((event.target as HTMLElement).closest("input, textarea, select, button")) event.stopPropagation(); }}
++            onWheel={(event) => event.stopPropagation()}
++        >
++            <div className="mb-2 flex items-start justify-between gap-2">
++                <div className="flex min-w-0 items-center gap-2">
++                    <span className="grid size-8 shrink-0 place-items-center rounded-lg" style={{ background: theme.toolbar.itemHover, color: theme.toolbar.activeText }}><Braces className="size-4" /></span>
++                    <div className="min-w-0">
++                        <div className="truncate text-sm font-semibold">产品参数设置</div>
++                        <div className="truncate text-[11px] opacity-60">{metadata.promptVariableProductName || context.activeProductName || "当前 Excel 产品"}</div>
++                    </div>
++                </div>
++                <Button size="small" disabled title="AI 校准需后续接入受限凭据网关；当前仅使用旧版离线主题规则，不发送提示词。">AI 校准主题</Button>
++            </div>
++
++            {!tokens.length ? (
++                <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border px-4 text-center text-xs opacity-65" style={{ borderColor: theme.node.stroke }}>
++                    {context.templates.length ? "当前提示词没有可填写的变量" : "请先上传 Excel 并识别提示词"}
++                </div>
++            ) : (
++                <div className="thin-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
++                    {tokens.map((token) => (
++                        <label key={token} className="block text-[11px] text-black dark:text-white">
++                            <span className="mb-1 block truncate" title={token}>{variableLabel(token)}</span>
++                            <input value={values[token] || ""} onChange={(event) => updateValue(token, event.target.value)} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()} className="h-8 w-full rounded-lg border bg-transparent px-2 text-xs outline-none transition focus:border-stone-700 focus:ring-2 focus:ring-stone-300/70 dark:focus:border-stone-200 dark:focus:ring-stone-500/50" style={{ borderColor: theme.node.stroke, color: theme.node.text }} placeholder={token} />
++                        </label>
++                    ))}
++                </div>
++            )}
++            <div className="mt-2 truncate text-[10px] opacity-55">{context.fileName || "未识别 Excel"} · {tokens.length} 个变量 · 连接提示词卡片后生成最终提示词</div>
++        </div>
++    );
++}
+--- /dev/null
++++ b/web/src/guan/旧版主题翻译.js
+@@ -0,0 +1,85 @@
++// Keep the plain-JS bridge localizer in sync; parity is covered by tests.
++export function localizePromptTheme(value) {
++    const theme = String(value ?? "").trim();
++    const normalize = (text) => text.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase().replace(/[._-]+/g, " ").replace(/\s*([/+&])\s*/g, " $1 ").replace(/\s+/g, " ").trim();
++    const aliases = {
++        "full product hero": "完整产品主图", "product hero": "产品主图", "main prompt": "主图提示词",
++        "detail image": "详情页图片", "detail prompt": "详情页提示词", "rich content": "富内容",
++        "rich prompt": "富内容提示词", "video prompt": "视频提示词",
++        "flat lay included contents": "平铺收纳与配件", "cropped functional part": "局部功能特写",
++        "cropped storage structure": "收纳结构特写", "hands in use": "手部使用场景",
++        "usage sequence": "使用流程", "macro material / finish": "材质与表面细节",
++        "scale / dimension visual": "尺寸规格展示", "care / storage": "保养与收纳",
++        "overview + contents narrative": "全貌与配件说明", "component selection guide": "配件选择指南",
++        "hands in use sequence": "手部使用流程", "checklist / package audit": "清单与包装核对",
++        "installation / assembly sequence": "安装与组装流程", "installation / assembly steps": "安装与组装步骤",
++        "checklist / use boundary": "使用清单与适用边界", "selection guide narrative": "选购指南",
++        "technical macro narrative": "技术细节微距展示", "assembly / structural proof": "组装与结构验证",
++        "hands in use narrative": "手部使用演示", "checklist / care storage": "清单与保养收纳",
++        "compatibility / selection guide": "兼容性与选购指南", "compatibility / selection": "兼容性与选型",
++        "material / finish": "材质与表面细节", "material / surface detail": "材质与表面细节",
++        "size / specification": "尺寸与规格", "dimensions / specifications": "尺寸与规格",
++        "before / after": "前后对比", "before and after": "前后对比",
++        "exploded view": "拆解展示", "cross section": "剖面结构", "cutaway view": "剖面展示",
++        "top view": "俯视图", "front view": "正面图", "side view": "侧面图", "rear view": "背面图",
++        "back view": "背面图", "three quarter view": "四分之三角度图", "45 degree view": "45度视角",
++        "close up": "近距离特写", "extreme close up": "超近距离特写", "macro shot": "微距特写",
++        "flat lay": "平铺展示", "white background": "白底展示", "lifestyle scene": "生活场景",
++        "in use": "使用中展示", "product in use": "产品使用展示", "step by step": "分步演示",
++        "how to use": "使用方法", "package contents": "包装内容", "included accessories": "随附配件",
++        "key features": "核心功能", "core features": "核心卖点", "selling points": "产品卖点",
++        "benefit demonstration": "优势演示", "function demonstration": "功能演示",
++        "scale reference": "尺寸参照", "size comparison": "尺寸对比", "performance comparison": "性能对比",
++        "texture detail": "纹理细节", "surface texture": "表面纹理", "material detail": "材质细节",
++        "quality proof": "品质验证", "durability test": "耐用性测试", "safety features": "安全设计",
++        "care instructions": "保养说明", "storage solution": "收纳方案", "installation guide": "安装指南",
++        "assembly guide": "组装指南", "compatibility guide": "兼容性指南", "selection guide": "选购指南",
++        "dimension display": "尺寸展示", "measurement guide": "尺寸测量指南", "size chart": "尺寸表",
++        "isometric view": "等轴测视图", "perspective view": "透视角度", "low angle": "低机位视角",
++        "high angle": "高机位视角", "eye level": "平视角度", "bird eye view": "鸟瞰视图",
++        "hero shot": "产品主视觉", "detail shot": "细节特写", "macro view": "微距展示",
++        "color options": "颜色选择", "color variants": "颜色款式", "product comparison": "产品对比",
++        "space saving": "节省空间", "ergonomic design": "人体工学设计", "water resistance": "防水展示",
++        "load capacity": "承重能力", "weight capacity": "承重能力", "use scenario": "使用场景",
++        "dimension overview": "尺寸全貌", "dimensions and weight": "尺寸与重量",
++    };
++    const words = {
++        installation: "安装", assembly: "组装", sequence: "流程", steps: "步骤", checklist: "清单",
++        "use boundary": "适用边界", "care storage": "保养收纳", care: "保养", storage: "收纳",
++        "selection guide": "选购指南", selection: "选型", compatibility: "兼容性",
++        "technical macro": "技术微距细节", technical: "技术细节", macro: "微距细节",
++        "structural proof": "结构验证", structural: "结构", proof: "验证", evidence: "验证依据",
++        "hands in use": "手部使用", narrative: "展示说明", demonstration: "演示", guide: "指南",
++        product: "产品", overview: "全貌", contents: "内容", accessories: "配件", quantity: "数量",
++        material: "材质", finish: "表面处理", texture: "纹理", detail: "细节", details: "细节",
++        dimension: "尺寸", dimensions: "尺寸", scale: "比例", specification: "规格", specifications: "规格",
++        functional: "功能", function: "功能", features: "功能", package: "包装", audit: "核对",
++        performance: "性能", comparison: "对比", benefit: "优势", benefits: "优势", safety: "安全",
++        cleaning: "清洁", maintenance: "维护", portable: "便携", portability: "便携性",
++        folding: "折叠", folded: "折叠状态", unfolded: "展开状态", adjustment: "调节",
++        size: "尺寸", measurement: "测量", measurements: "测量", width: "宽度", height: "高度",
++        length: "长度", depth: "深度", diameter: "直径", weight: "重量", capacity: "容量",
++        view: "视图", angle: "角度", shot: "拍摄", display: "展示", ergonomic: "人体工学",
++        color: "颜色", options: "选择", variants: "款式", design: "设计", resistance: "防护能力",
++        "/": "与", "+": "与", "&": "与", and: "与", visual: "展示", scene: "场景",
++    };
++    const normalized = normalize(theme);
++    if (aliases[normalized]) return aliases[normalized];
++    if (/[\u3400-\u9fff]/.test(theme)) return theme;
++    const parts = normalized.split(" ");
++    const result = [];
++    for (let i = 0; i < parts.length;) {
++        let matched = false;
++        for (let length = Math.min(4, parts.length - i); length > 0; length--) {
++            const phrase = parts.slice(i, i + length).join(" ");
++            const translated = aliases[phrase] || words[phrase];
++            if (!translated) continue;
++            result.push(translated);
++            i += length;
++            matched = true;
++            break;
++        }
++        if (!matched) return theme;
++    }
++    return result.join("") || theme;
++}
+--- /dev/null
++++ b/web/src/guan/旧版提示词同步.ts
+@@ -0,0 +1,47 @@
++import type { CanvasNodeData } from "@/types/canvas";
++import { parseExcelPromptSpec, resolvePromptVariables, type ExcelPromptContext } from "./旧版参数规则";
++
++// Update existing cards in place. No nodes, edges or generated assets are removed.
++// undefined means a hidden canvas should defer asking until it becomes active.
++export function syncExcelPromptNodes(nodes: CanvasNodeData[], context: ExcelPromptContext, confirmOverwrite: (node: CanvasNodeData) => boolean | undefined) {
++    let changed = false;
++    const sources = nodes.map((node) => {
++        const metadata = node.metadata;
++        if (!metadata?.excelPromptKey || metadata.promptVariablePreviewOf) return node;
++        const template = context.templates.find((item) => item.id === metadata.excelPromptTemplateId)
++            || (context.templates.length === 1 ? context.templates[0] : undefined);
++        const raw = template?.prompts[metadata.excelPromptKey];
++        // Removed Excel columns must not silently erase existing work.
++        if (!raw || raw === metadata.excelPromptRaw || raw === metadata.excelPromptSkippedValue) return node;
++        const edited = String(metadata.content ?? metadata.prompt ?? "") !== String(metadata.excelPromptRaw ?? "");
++        if (edited) {
++            const decision = confirmOverwrite(node);
++            if (decision === undefined) return node;
++            if (!decision) {
++                changed = true;
++                return { ...node, metadata: { ...metadata, excelPromptSkippedValue: raw } };
++            }
++        }
++        const spec = parseExcelPromptSpec(metadata.excelPromptKey, raw);
++        const parameters = nodes.find((item) => item.id === metadata.excelPromptBindingNodeId);
++        changed = true;
++        return { ...node, metadata: { ...metadata,
++            content: raw, prompt: raw, excelPromptRaw: raw, excelPromptSkippedValue: undefined,
++            excelPromptResolved: resolvePromptVariables(raw, parameters?.metadata?.promptVariableValues),
++            excelPromptTemplateId: template!.id, excelPromptTokens: spec.tokens,
++            excelPromptTheme: spec.theme, excelPromptCompositionLock: spec.compositionLock, excelPromptPurpose: spec.purpose,
++        } };
++    });
++    const next = sources.map((preview) => {
++        const metadata = preview.metadata;
++        if (!metadata?.promptVariablePreviewOf || !metadata.promptVariableSourceNodeId) return preview;
++        const source = sources.find((node) => node.id === metadata.promptVariableSourceNodeId);
++        const oldSource = nodes.find((node) => node.id === metadata.promptVariableSourceNodeId);
++        const parameters = sources.find((node) => node.id === metadata.promptVariablePreviewOf);
++        if (!source || source === oldSource || !parameters || source.metadata?.excelPromptRaw === oldSource?.metadata?.excelPromptRaw) return preview;
++        const text = resolvePromptVariables(source.metadata?.excelPromptRaw || "", parameters.metadata?.promptVariableValues);
++        changed = true;
++        return { ...preview, metadata: { ...metadata, content: text, prompt: text } };
++    });
++    return changed ? next : nodes;
++}
+--- /dev/null
++++ b/web/src/guan/旧版最终提示词标题.ts
+@@ -0,0 +1,11 @@
++import type { CanvasNodeData } from "@/types/canvas";
++export function finalPromptPreviewTitle(promptNode?: CanvasNodeData): string {
++    const sourceLabel = String(promptNode?.metadata?.excelPromptLabel || promptNode?.title || "").trim();
++    if (/主图/.test(sourceLabel)) return "最终生成提示图 · 主图";
++    const detail = sourceLabel.match(/详情页提示词\s*0*(\d+)/i);
++    if (detail) return `最终生成提示图 · 详情页${String(Number(detail[1])).padStart(2, "0")}`;
++    const rich = sourceLabel.match(/富内容提示词\s*0*(\d+)/i);
++    if (rich) return `最终生成提示图 · 富内容${String(Number(rich[1])).padStart(2, "0")}`;
++    if (/视频提示词/i.test(sourceLabel)) return "最终生成提示图 · 视频";
++    return "最终生成提示图";
++}
+--- /dev/null
++++ b/web/src/guan/Excel参数节点注册.tsx
+@@ -0,0 +1,7 @@
++import { Settings2 } from "lucide-react";
++import { registerNodeDefinitions } from "@/lib/canvas/node-registry";
++import { PROMPT_VARIABLES_NODE_TYPE, promptVariablesResource } from "./旧版参数规则";
++import { PromptVariablesContent } from "./旧版参数卡片";
++export function registerExcelParameterNode() {
++registerNodeDefinitions([{ type: PROMPT_VARIABLES_NODE_TYPE, title: "产品参数设置", description: "产品参数设置", icon: <Settings2 className="size-4" />, minimapColor: "#14b8a6", Content: PromptVariablesContent, resource: promptVariablesResource, hidePanel: true, showInCreateMenu: false, defaultSize: { width: 420, height: 520 }, defaultMetadata: { status: "success" } }]);
++}
+--- a/web/src/types/canvas.ts
++++ b/web/src/types/canvas.ts
+@@ -86,6 +86,38 @@
+     videoTaskProvider?: "openai" | "gemini";
+     groupId?: string;
+     interactive?: boolean; // Plugin node interaction/move state; see CanvasNodeDefinition.interactionToggle.
++    // Values and source prompt used by the adaptive Excel prompt-variable node.
++    promptVariableTemplateId?: string;
++    promptVariablePromptKey?: string;
++    promptVariablePromptTheme?: string;
++    promptVariableCompositionLock?: string;
++    promptVariablePurpose?: string;
++    promptVariableSource?: "excel-marker" | "manual" | "ai";
++    promptVariableProductName?: string;
++    promptVariableFileName?: string;
++    promptVariableRawPrompt?: string;
++    promptVariableResolvedPrompt?: string;
++    promptVariableTokens?: string[];
++    promptVariableValues?: Record<string, string>;
++    promptVariablePreviewNodeId?: string;
++    promptVariableSourceNodeId?: string;
++    promptVariablePreviewOf?: string;
++    promptVariableEnglishPreviewOf?: string;
++    promptVariableTranslationOf?: string;
++    promptVariableTranslationLanguage?: "en" | "zh";
++    // Excel prompt-card metadata. The prompt card owns this schema; values
++    // are supplied by a connected adaptive product-parameter node.
++    excelPromptTemplateId?: string;
++    excelPromptKey?: string;
++    excelPromptLabel?: string;
++    excelPromptTheme?: string;
++    excelPromptCompositionLock?: string;
++    excelPromptPurpose?: string;
++    excelPromptTokens?: string[];
++    excelPromptRaw?: string;
++    excelPromptSkippedValue?: string;
++    excelPromptResolved?: string;
++    excelPromptBindingNodeId?: string;
+ };
+ 
+ export type CanvasNodeData = {
+--- a/web/src/components/canvas/asset-picker-modal.tsx
++++ b/web/src/components/canvas/asset-picker-modal.tsx
+@@ -7,7 +7,7 @@
+ import { getImagePreviewRevision, subscribeImagePreviews } from "@/services/image-storage";
+ import { assetCoverUrl, useAssetStore, type Asset } from "@/stores/use-asset-store";
+ 
+-export type InsertAssetPayload = { kind: "text"; content: string; title: string } | { kind: "image"; dataUrl: string; title: string; storageKey?: string } | { kind: "video"; url: string; title: string; storageKey?: string; width?: number; height?: number };
++export type InsertAssetPayload = { kind: "excel-batch"; productId: string; includeVideo: boolean } | { kind: "text"; content: string; title: string; excelProductId?: string; excelPrompt?: { templateId?: string; key?: string; label?: string; theme?: string; compositionLock?: string; purpose?: string; tokens?: string[] } } | { kind: "image"; dataUrl: string; title: string; storageKey?: string } | { kind: "video"; url: string; title: string; storageKey?: string; width?: number; height?: number };
+ 
+ type Props = {
+     open: boolean;
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -12,6 +12,8 @@
+ import { getNodeDefinition } from "@/lib/canvas/node-registry";
+ import { cn } from "@/lib/utils";
+ import { PromptDetailDialog } from "@/pages/prompts/components/prompt-detail-dialog";
++import { useExcelProductId, useExcelPromptContext } from "@/guan/Excel画布上下文";
++import { ExcelPromptGroup } from "@/guan/Excel提示词列表";
+ import { fetchSourcePrompts, type Prompt } from "@/services/api/prompts";
+ import { uploadMediaFile } from "@/services/file-storage";
+ import { previewUrlFor, subscribeImagePreviews, getImagePreviewRevision, uploadImage } from "@/services/image-storage";
+@@ -553,6 +555,8 @@
+     const { t } = useTranslation();
+     const sources = usePromptSourceStore((state) => state.sources);
+     const enabledSources = useMemo(() => sources.filter((source) => source.enabled), [sources]);
++    const localExcel = useExcelPromptContext(useExcelProductId());
++    const hasExcelPrompts = localExcel.templates.some(template => Object.values(template.prompts).some(value => value.trim()));
+     const [keyword, setKeyword] = useState("");
+     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+     const productActive = useProductActive();
+@@ -574,6 +578,7 @@
+             </div>
+             <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+                 <div className="space-y-1">
++                    <ExcelPromptGroup keyword={keyword} theme={theme} onInsert={onInsert} onView={setDetail} renderRow={(item, insert, view) => <PromptRow item={item} theme={theme} onInsert={insert} onView={view} />} />
+                     {enabledSources.length ? enabledSources.map((source) => (
+                         <PromptSourceGroup
+                             key={source.id}
+@@ -586,7 +591,7 @@
+                             onInsert={onInsert}
+                             onView={setDetail}
+                         />
+-                    )) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t("canvas.sidePanel.noPrompts")} className="pt-12" />}
++                    )) : !hasExcelPrompts ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t("canvas.sidePanel.noPrompts")} className="pt-12" /> : null}
+                 </div>
+             </div>
+             <PromptDetailDialog prompt={productActive ? detail : null} onClose={() => setDetail(null)} onCopy={(prompt) => void copyPrompt(prompt)} />
+--- a/web/src/components/canvas/canvas-toolbar.tsx
++++ b/web/src/components/canvas/canvas-toolbar.tsx
+@@ -2,7 +2,7 @@
+ import { useEffect, useRef, useState } from "react";
+ import { productFeatures } from "@/guan/功能开关";
+ import { Button, Segmented, Switch } from "antd";
+-import { CircleDot, Eraser, Grid2x2, Group, Hand, Image as ImageIcon, Info, LocateFixed, Moon, MousePointer2, Music2, Palette, Puzzle, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Upload, Video } from "lucide-react";
++import { Braces, CircleDot, Eraser, Grid2x2, Group, Hand, Image as ImageIcon, Info, LocateFixed, Moon, MousePointer2, Music2, Palette, Puzzle, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Upload, Video } from "lucide-react";
+ 
+ import { canvasThemes, type CanvasBackgroundMode, type CanvasColorTheme, type CanvasTheme } from "@/lib/canvas-theme";
+ import { getNodePluginId, listNodeDefinitions, useNodeRegistryVersion } from "@/lib/canvas/node-registry";
+@@ -22,6 +22,7 @@
+     onAddVideo,
+     onAddAudio,
+     onAddText,
++    onAddPromptVariables,
+     onAddConfig,
+     onAddGroup,
+     onAddExtensionNode,
+@@ -45,6 +46,7 @@
+     onAddVideo: () => void;
+     onAddAudio: () => void;
+     onAddText: () => void;
++    onAddPromptVariables: () => void;
+     onAddConfig: () => void;
+     onAddGroup: () => void;
+     onAddExtensionNode: (type: string) => void;
+@@ -108,6 +110,9 @@
+                     <LocateFixed className="size-4.5" />
+                 </ToolbarButton>
+                 <Divider theme={theme} />
++                <ToolbarButton id="tool-prompt-variables" label={"产品参数设置"} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onAddPromptVariables}>
++                    <Braces className="size-4.5" />
++                </ToolbarButton>
+                 <ToolbarButton id="tool-text" label={t("canvas.toolbar.text")} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onAddText}>
+                     <Type className="size-4.5" />
+                 </ToolbarButton>
+@@ -361,6 +366,7 @@
+ }
+ 
+ function toolLabel(id: string, t: (key: string) => string) {
++    if (id === "tool-prompt-variables") return "产品参数设置";
+     if (id === "tool-select") return t("canvas.toolbar.select");
+     if (id === "tool-pan") return t("canvas.toolbar.pan");
+     if (id === "tool-undo") return t("canvas.undo");
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,3 +1,10 @@
++import { ExcelCanvasScope, useExcelPromptContext } from "@/guan/Excel画布上下文";
++import { registerExcelParameterNode } from "@/guan/Excel参数节点注册";
++import { PROMPT_VARIABLES_NODE_TYPE } from "@/guan/旧版参数规则";
++import { readProductParameterValues } from "@/guan/Excel参数记忆";
++import { syncExcelPromptNodes } from "@/guan/旧版提示词同步";
++import { bindExcelParameters, createProductParameterNode, insertExcelPromptCards, reconcileExcelPreviews, excelDeletionIds, clearDeletedExcelRelations, disconnectExcelParameters, remapCopiedExcelRelations, type ExcelInsertRequest } from "@/guan/Excel卡片事务";
++import { EXCEL_PROMPT_DRAG_TYPE } from "@/guan/Excel提示词列表";
+ import { useProductActive } from "@/guan/产品界面边界";
+ import { useProductCanvasSave, useProductNavigation } from "@/guan/产品操作";
+ import { flushSQLiteStorage } from "@/guan/上游浏览器存储桥";
+@@ -102,6 +109,8 @@
+ 
+ // Register built-in nodes in the shared registry once when the module loads.
+ registerBuiltinNodes();
++registerExcelParameterNode();
++const excelFactory = { create: createCanvasNode, edgeId: nanoid, place: placeCanvasNode };
+ 
+ type CanvasClipboard = {
+     nodes: CanvasNodeData[];
+@@ -184,6 +193,7 @@
+     const navigate = useNavigate();
+     const [searchParams] = useSearchParams();
+     const projectId = params.id || "";
++    const excelContext = useExcelPromptContext(projectId);
+     const localAgentConnected = useAgentStore((state) => state.connected);
+     const localAgentActivity = useAgentStore((state) => state.activity);
+     const localAgentEnabled = useAgentStore((state) => state.enabled);
+@@ -244,7 +254,7 @@
+     // the same pure transaction. Existing cards and user drag positions stay untouched.
+     const setNodes = useCallback((update: CanvasNodeData[] | ((previous: CanvasNodeData[]) => CanvasNodeData[])) => {
+         const previous = nodeTransactionRef.current;
+-        setRawNodes(placeNewCanvasNodes(previous, typeof update === "function" ? update(previous) : update));
++        setRawNodes(placeNewCanvasNodes(previous, reconcileExcelPreviews(previous, typeof update === "function" ? update(previous) : update)));
+     }, [setRawNodes]);
+     const [connections, setConnections] = useState<CanvasConnection[]>([]);
+     const [chatSessions, setChatSessions] = useState<CanvasAssistantSession[]>([]);
+@@ -658,6 +668,22 @@
+ 
+     const hideNodeToolbar = useCallback(() => {}, []);
+ 
++    const insertExcelCards = useCallback((request: ExcelInsertRequest, center?: Position) => {
++        if (!productActive || !projectLoaded || restoredProjectIdRef.current !== projectId) return;
++        try {
++            const result = insertExcelPromptCards(nodesRef.current, connectionsRef.current, excelContext, request, center || getCanvasCenter(), excelFactory,
++                node => window.confirm(`「${node.title || "提示词"}」已手动修改，是否使用 Excel 新内容覆盖？`), syncExcelPromptNodes);
++            setNodes(result.nodes); connectionsRef.current = result.connections; setConnections(result.connections);
++            setSelectedNodeIds(new Set(result.selectedIds)); setSelectedConnectionId(null);
++        } catch (error) { message.error(error instanceof Error ? error.message : "Excel提示词插入失败，原画布保留"); }
++    }, [productActive, projectLoaded, projectId, excelContext, getCanvasCenter, setNodes, message]);
++
++    useEffect(() => {
++        if (!projectLoaded) return;
++        const next = syncExcelPromptNodes(nodesRef.current, excelContext, node => productActive ? window.confirm(`「${node.title || "提示词"}」已手动修改，是否使用 Excel 新内容覆盖？`) : undefined);
++        if (next !== nodesRef.current) setNodes(next);
++    }, [excelContext, projectLoaded, productActive, setNodes]);
++
+     const connectNodes = useCallback(
+         (current: ConnectionHandle, targetNodeId: string) => {
+             if (current.nodeId === targetNodeId) return;
+@@ -670,7 +696,11 @@
+             const { fromNodeId, toNodeId } = connection;
+             const exists = connectionsRef.current.some((conn) => conn.fromNodeId === fromNodeId && conn.toNodeId === toNodeId);
+             if (!exists) {
+-                setConnections((prev) => [...prev, { id: `conn-${Date.now()}`, fromNodeId, toNodeId }]);
++                try {
++                const bound = bindExcelParameters(nodesRef.current, connectionsRef.current, fromNodeId, toNodeId, excelFactory);
++                if (bound) { setNodes(bound.nodes); connectionsRef.current = bound.connections; setConnections(bound.connections); }
++                else setConnections((prev) => [...prev, { id: nanoid(), fromNodeId, toNodeId }]);
++                } catch (error) { message.warning(error instanceof Error ? error.message : "参数连接失败"); }
+             }
+             setContextMenu(null);
+         },
+@@ -686,8 +716,9 @@
+                 message.warning(t("canvas.projectPage.configConnection"));
+                 return;
+             }
+-            setNodes((prev) => [...prev, newNode]);
+-            setConnections((prev) => [...prev, { id: nanoid(), ...connection }]);
++            const bound = bindExcelParameters([...nodesRef.current, newNode], connectionsRef.current, connection.fromNodeId, connection.toNodeId, excelFactory);
++            if (bound) { setNodes(bound.nodes); connectionsRef.current = bound.connections; setConnections(bound.connections); }
++            else { setNodes((prev) => [...prev, newNode]); setConnections((prev) => [...prev, { id: nanoid(), ...connection }]); }
+             setSelectedNodeIds(new Set([newNode.id]));
+             setSelectedConnectionId(null);
+             if (type !== CanvasNodeType.Text && type !== CanvasNodeType.Audio) setDialogNodeId(newNode.id);
+@@ -890,7 +921,7 @@
+                       }
+                     : undefined;
+             const currentViewport = viewportRef.current;
+-            const newNode = placeCanvasNode(createCanvasNode(type, targetPosition, configMetadata), nodesRef.current, position ? undefined : {
++            const newNode = placeCanvasNode(type === PROMPT_VARIABLES_NODE_TYPE ? createProductParameterNode(excelContext, targetPosition, readProductParameterValues(projectId), excelFactory) : createCanvasNode(type, targetPosition, configMetadata), nodesRef.current, position ? undefined : {
+                 x: (24 - currentViewport.x) / currentViewport.k,
+                 y: (80 - currentViewport.y) / currentViewport.k,
+                 width: (size.width - 48) / currentViewport.k,
+@@ -915,7 +946,7 @@
+                     : isBuiltinType(type) && type !== CanvasNodeType.Text && type !== CanvasNodeType.Audio && type !== CanvasNodeType.Group;
+             if (wantsPanel) setDialogNodeId(newNode.id);
+         },
+-        [effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, getCanvasCenter, size.width, size.height, setNodes],
++        [effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, getCanvasCenter, size.width, size.height, setNodes, excelContext, projectId],
+     );
+ 
+     useLayoutEffect(() => {
+@@ -936,10 +967,11 @@
+     const deleteNodes = useCallback(
+         (ids: Set<string>) => {
+             if (!ids.size) return;
+-            const allIds = new Set(ids);
++            const allIds = excelDeletionIds(nodesRef.current, ids);
+             setNodes((prev) => {
+                 const next = prev.filter((node) => !allIds.has(node.id));
+                 return next.map((node) => {
++                    node = clearDeletedExcelRelations(node, allIds);
+                     const groupId = node.metadata?.groupId;
+                     if (groupId && allIds.has(groupId)) return { ...node, metadata: { ...node.metadata, groupId: undefined } };
+                     return node;
+@@ -995,14 +1027,17 @@
+     }, []);
+ 
+     const deleteConnection = useCallback((connectionId: string) => {
+-        setConnections((prev) => prev.filter((conn) => conn.id !== connectionId));
++        const detached = disconnectExcelParameters(nodesRef.current, connectionsRef.current, connectionId);
++        if (detached) { setNodes(detached.nodes); connectionsRef.current = detached.connections; setConnections(detached.connections); }
++        else setConnections((prev) => prev.filter((conn) => conn.id !== connectionId));
+         setSelectedConnectionId((current) => (current === connectionId ? null : current));
+         setContextMenu((current) => (current?.type === "connection" && current.connectionId === connectionId ? null : current));
+     }, []);
+ 
+     const disconnectNodeReference = useCallback((fromNodeId: string, toNodeId: string) => {
+-        setConnections((prev) => prev.filter((connection) => connection.fromNodeId !== fromNodeId || connection.toNodeId !== toNodeId));
+-    }, []);
++        const edge = connectionsRef.current.find(connection => connection.fromNodeId === fromNodeId && connection.toNodeId === toNodeId);
++        if (edge) deleteConnection(edge.id);
++    }, [deleteConnection]);
+ 
+     const startNodeReferenceSelection = useCallback((nodeId: string) => {
+         setReferencePickerNodeId(nodeId);
+@@ -1134,7 +1169,8 @@
+             };
+         });
+ 
+-        const pastedNodes = nextNodes.map((node) => {
++        const pastedNodes = nextNodes.map((node: CanvasNodeData) => {
++            node = remapCopiedExcelRelations(node, idMap);
+             const groupId = node.metadata?.groupId;
+             if (!groupId) return node;
+             return { ...node, metadata: { ...node.metadata, groupId: idMap.get(groupId) } };
+@@ -2372,6 +2408,15 @@
+     const handleDrop = useCallback(
+         (event: ReactDragEvent<HTMLDivElement>) => {
+             event.preventDefault();
++            const excelDrag = event.dataTransfer.getData(EXCEL_PROMPT_DRAG_TYPE);
++            if (excelDrag) {
++                try {
++                    const request: unknown = JSON.parse(excelDrag);
++                    if (!request || typeof request !== "object" || !("productId" in request) || !("templateId" in request) || !("key" in request) || typeof request.productId !== "string" || typeof request.templateId !== "string" || typeof request.key !== "string") throw Error("Excel拖入数据格式错误");
++                    insertExcelCards({ productId: request.productId, templateId: request.templateId, key: request.key }, screenToCanvas(event.clientX, event.clientY));
++                } catch (error) { message.warning(error instanceof Error ? error.message : "Excel拖入失败"); }
++                return;
++            }
+             const files = Array.from(event.dataTransfer.files).filter(
+                 (item) => item.type.startsWith("image/") || item.type.startsWith("video/") || isAudioFile(item),
+             );
+@@ -2391,7 +2436,7 @@
+                 }
+             }
+         },
+-        [createAudioFileNode, createImageFileNode, createVideoFileNode, screenToCanvas],
++        [createAudioFileNode, createImageFileNode, createVideoFileNode, screenToCanvas, insertExcelCards, message],
+     );
+ 
+     const startTitleEditing = useCallback(() => {
+@@ -3111,7 +3156,11 @@
+ 
+     const handleAssetInsert = useCallback(
+         (payload: InsertAssetPayload) => {
+-            if (payload.kind === "text") {
++            if (payload.kind === "excel-batch") {
++                insertExcelCards(payload);
++            } else if (payload.kind === "text" && payload.excelPrompt) {
++                insertExcelCards({ productId: payload.excelProductId || "", templateId: payload.excelPrompt.templateId, key: payload.excelPrompt.key });
++            } else if (payload.kind === "text") {
+                 insertAssistantText(payload.content, payload.title);
+             } else if (payload.kind === "video") {
+                 const spec = NODE_DEFAULT_SIZE[CanvasNodeType.Video];
+@@ -3136,7 +3185,7 @@
+             }
+             setAssetPickerOpen(false);
+         },
+-        [insertAssistantImage, insertAssistantText, screenToCanvas, size.height, size.width],
++        [insertAssistantImage, insertAssistantText, screenToCanvas, size.height, size.width, insertExcelCards],
+     );
+ 
+     // Memoize every callback and render function passed to CanvasNode.
+@@ -3252,7 +3301,7 @@
+     if (!projectLoaded) return <CanvasRefreshShell />;
+ 
+     return (
+-        <main className="flex h-full min-h-0 overflow-hidden" style={{ background: theme.canvas.background, color: theme.node.text }}>
++        <ExcelCanvasScope productId={projectId}><main className="flex h-full min-h-0 overflow-hidden" style={{ background: theme.canvas.background, color: theme.node.text }}>
+             <CanvasSidePanel nodes={nodes} selectedNodeIds={selectedNodeIds} onFocusNode={focusNode} onPreviewNode={setPreviewNodeId} onHoverNode={setHoverPreviewNodeId} onInsertAsset={handleAssetInsert} />
+             <section className="relative min-w-0 flex-1 overflow-hidden">
+                 <CanvasTopBar
+@@ -3471,6 +3520,7 @@
+                     onAddText={() => createNode(CanvasNodeType.Text)}
+                     onAddConfig={() => createNode(CanvasNodeType.Config)}
+                     onAddGroup={() => createNode(CanvasNodeType.Group)}
++                    onAddPromptVariables={() => createNode(PROMPT_VARIABLES_NODE_TYPE)}
+                     onAddExtensionNode={(type) => createNode(type)}
+                     onUndo={undoCanvas}
+                     onRedo={redoCanvas}
+@@ -3567,6 +3617,6 @@
+ 
+                 <AssetPickerModal open={productActive && assetPickerOpen} onInsert={handleAssetInsert} onClose={() => setAssetPickerOpen(false)} />
+             </section>
+-        </main>
++        </main></ExcelCanvasScope>
+     );
+ }

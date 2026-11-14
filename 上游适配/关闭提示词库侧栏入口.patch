@@ -1,0 +1,30 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index efe4aa6..6610a57 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -1,3 +1,4 @@
++import { businessFeatures } from "@/扩展功能/产品配置/脚本与提示词来源";
+ import { isAudioFile } from "@/lib/canvas/canvas-generation-helpers";
+ import { MediaThumbnail } from "@/扩展功能/媒体交付/媒体缩略图";
+ import { ASSET_DRAG_TYPE, assetDragData } from "@/扩展功能/素材/上传资产规则";
+@@ -160,7 +161,7 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+                 <div ref={tabsRef} className="relative flex items-center gap-5 px-4 pt-3.5">
+                     <TabButton label={t("canvas.sidePanel.canvas")} active={tab === "canvas"} theme={theme} onClick={() => setTab("canvas")} />
+                     <TabButton label={t("canvas.sidePanel.assets")} active={tab === "assets"} theme={theme} onClick={() => setTab("assets")} />
+-                    <TabButton label={t("canvas.sidePanel.prompts")} active={tab === "prompts"} theme={theme} onClick={() => setTab("prompts")} />
++                    {businessFeatures.promptLibrary ? <TabButton label={t("canvas.sidePanel.prompts")} active={tab === "prompts"} theme={theme} onClick={() => setTab("prompts")} /> : null}
+                     <TabButton label="生成历史" active={tab === "history"} theme={theme} onClick={() => setTab("history")} />
+                     <TabButton label="回收站" active={tab === "trash"} theme={theme} onClick={() => setTab("trash")} />
+                     <span data-unified-tab-indicator aria-hidden="true" className="pointer-events-none absolute -bottom-px rounded-full" style={{ ...TAB_INDICATOR_BASE_STYLE, background: theme.toolbar.activeText }} />
+@@ -174,9 +175,9 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+                         <CanvasGenerationHistoryTab key={projectId} nodes={nodes} connections={connections} getCurrentNode={getCurrentNode} onPreviewNode={onPreviewNode} onRetryNode={onRetryNode} theme={theme} />
+                     ) : tab === "trash" ? (
+                         <CanvasRecycleBinTab key={projectId} batches={deletedNodeBatches} activeNodes={nodes} onRestore={onRestoreDeletedNodes} onPermanentlyDelete={onPermanentlyDeleteNodes} theme={theme} />
+-                    ) : (
++                    ) : tab === "prompts" && businessFeatures.promptLibrary ? (
+                         <CanvasPromptsTab onInsert={onInsertAsset} theme={theme} />
+-                    )}
++                    ) : null}
+                 </TabContentTransition>
+                 <button type="button" className="absolute inset-y-0 right-0 z-40 w-4 translate-x-1/2 cursor-col-resize touch-none"
+                     role="separator" aria-orientation="vertical" aria-valuemin={CANVAS_SIDE_PANEL_MIN_WIDTH} aria-valuemax={CANVAS_SIDE_PANEL_MAX_WIDTH} aria-valuenow={width}

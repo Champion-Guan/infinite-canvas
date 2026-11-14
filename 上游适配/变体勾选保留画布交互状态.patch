@@ -1,0 +1,29 @@
+diff --git a/web/src/pages/canvas/hooks/use-agent-bridge.ts b/web/src/pages/canvas/hooks/use-agent-bridge.ts
+index 4404672..e609ad8 100644
+--- a/web/src/pages/canvas/hooks/use-agent-bridge.ts
++++ b/web/src/pages/canvas/hooks/use-agent-bridge.ts
+@@ -52,15 +52,18 @@ export function useAgentBridge(params: AgentBridgeParams) {
+             );
+             nodesRef.current = next.nodes;
+             connectionsRef.current = next.connections;
+-            selectedNodeIdsRef.current = new Set(next.selectedNodeIds);
+             viewportRef.current = next.viewport;
+             setAgentUndoSnapshot(before);
+             setNodes(next.nodes);
+-            setConnections(next.connections);
+-            setSelectedNodeIds(new Set(next.selectedNodeIds));
+-            setSelectedConnectionId(null);
+-            setViewport(next.viewport);
+-            setContextMenu(null);
++            if (next.connections !== before.connections) setConnections(next.connections);
++            const metadataOnly = safeOps.length > 0 && safeOps.every(op => op.type === "update_node" && !op.patch);
++            if (!metadataOnly) {
++                selectedNodeIdsRef.current = new Set(next.selectedNodeIds);
++                setSelectedNodeIds(selectedNodeIdsRef.current);
++                setSelectedConnectionId(null);
++                setContextMenu(null);
++            }
++            if (next.viewport !== before.viewport) setViewport(next.viewport);
+             if (generationOps.length) {
+                 queueMicrotask(() =>
+                     generationOps.forEach((op) => {

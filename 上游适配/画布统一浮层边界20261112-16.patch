@@ -1,0 +1,14 @@
+diff --git a/web/src/components/canvas/canvas-prompt-library.tsx b/web/src/components/canvas/canvas-prompt-library.tsx
+index 9b8317c..f401f0b 100644
+--- a/web/src/components/canvas/canvas-prompt-library.tsx
++++ b/web/src/components/canvas/canvas-prompt-library.tsx
+@@ -1,7 +1,8 @@
+ import { businessFeatures } from "@/扩展功能/产品配置/脚本与提示词来源";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { useState } from "react";
+-import { Button, Tooltip } from "antd";
++import { Button } from "antd";
++import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+ import { BookOpen } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 

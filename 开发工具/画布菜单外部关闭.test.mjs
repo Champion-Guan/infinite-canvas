@@ -41,6 +41,7 @@ function fixture() {
         '@/stores/use-canvas-side-panel-store': { useCanvasSidePanelStore: select => select({ panelOpen: true, togglePanel() {} }) },
         '@/stores/use-theme-store': { useThemeStore: select => select({ theme: 'light' }) },
         '@/扩展功能/本机存储/上游浏览器存储桥': {},
+        '@/扩展功能/存储界面/保存状态条': { SaveStatus: 'SaveStatus' },
     };
     const source = readFileSync(new URL('../.运行/3100源/画布副本/web/src/components/canvas/canvas-top-bar.tsx', import.meta.url), 'utf8');
     const code = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;

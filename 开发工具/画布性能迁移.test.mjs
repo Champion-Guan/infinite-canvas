@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
+import { variantModules } from './产品变体生成夹具.mjs';
 
 async function load(file, dependencies = {}) {
+    dependencies = { '@/扩展功能/画布交互/浮层可见区域': variantModules().load('画布交互/浮层可见区域.ts'), ...dependencies };
     const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file, { loader: file.endsWith('tsx') ? 'tsx' : 'ts', jsx: 'automatic', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
     const module = { exports: {} };
     new Function('require', 'module', 'exports', code)(id => { assert.ok(Object.hasOwn(dependencies, id), id); return dependencies[id]; }, module, module.exports);

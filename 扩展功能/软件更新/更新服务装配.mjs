@@ -20,8 +20,11 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
     if (closed) throw new UpdateError('update_service_stopped');
     const controller = new AbortController();
     requests.add(controller);
+    const signal = options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
     let lease;
     try {
+      if (options.network !== 'direct') await networkProxy.waitUntilReady?.({ signal });
+      signal.throwIfAborted();
       if (options.network === 'proxy' || options.network !== 'direct' && networkProxy.getStatus().enabled) {
         try { lease = networkProxy.acquireRoute('proxy'); } catch { throw new UpdateError('proxy_unavailable'); }
       }
@@ -30,7 +33,6 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
         const url = new URL(lease.proxyURL);
         url.username = lease.username; url.password = lease.password; proxyUrl = url.href;
       }
-      const signal = options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
       return await operation({ ...options, proxyUrl, signal });
     } finally { requests.delete(controller); lease?.release(); }
   };
@@ -42,10 +44,12 @@ export function assembleSoftwareUpdates({ dataRoot, origin, authorize, networkPr
   updates.proxyUrl = () => networkProxy.getStatus().enabled ? 'managed-proxy' : null;
   const coordinator = createIdleUpgradeCoordinator({ updates, pages: updatePages, generation });
   const status = async () => {
-    const value = await updates.status();
+    const [value, blockers, taskSummary] = await Promise.all([
+      updates.status(), generation?.updateBlockers() || [], generation?.taskSummary() || { failedWithoutResult: 0 },
+    ]);
     return { ...value, channel: webPackage ? `GitHub Public / Web ${value.preferences.developerMode ? 'Beta + Stable' : 'Stable'}` : value.channel,
-      install: { ...(!manager ? { allowed: false, state: 'source-development', reason: 'web_release_required' } : value.install), coordination: coordinator.status(), blockers: await generation?.updateBlockers() || [] },
-      taskSummary: await generation?.taskSummary() || { failedWithoutResult: 0 } };
+      install: { ...(!manager ? { allowed: false, state: 'source-development', reason: 'web_release_required' } : value.install), coordination: coordinator.status(), blockers },
+      taskSummary };
   };
   const handle = async (request, response) => {
     if (readinessProbe && await readinessProbe.handle(request, response, origin)) return true;

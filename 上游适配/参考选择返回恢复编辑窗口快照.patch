@@ -1,0 +1,31 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 0c4d9ac..69ecc5a 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -349,6 +349,9 @@ function InfiniteCanvasPage() {
+     const [dropTargetGroupId, setDropTargetGroupId] = useState<string | null>(null);
+     const [referencePickerNodeId, setReferencePickerNodeId] = useState<string | null>(null);
+     const [expandedEditorNodeId, setExpandedEditorNodeId] = useState<string | null>(null);
++    const expandedEditorRef = useRef(expandedEditorNodeId);
++    expandedEditorRef.current = expandedEditorNodeId;
++    const referenceEditorResume = useRef<string | null>(null);
+     useEffect(() => {
+         if (!dialogNodeId && !referencePickerNodeId) setExpandedEditorNodeId(null);
+     }, [dialogNodeId, referencePickerNodeId]);
+@@ -1124,6 +1127,7 @@ function InfiniteCanvasPage() {
+     }, [deleteConnection]);
+ 
+     const startNodeReferenceSelection = useCallback((nodeId: string) => {
++        referenceEditorResume.current = expandedEditorRef.current === nodeId ? nodeId : null;
+         setReferencePickerNodeId(nodeId);
+         setSelectedNodeIds(new Set([nodeId]));
+         setSelectedConnectionId(null);
+@@ -1134,6 +1138,8 @@ function InfiniteCanvasPage() {
+         if (!referencePickerNodeId) return;
+         setSelectedNodeIds(new Set([referencePickerNodeId]));
+         setDialogNodeId(referencePickerNodeId);
++        setExpandedEditorNodeId(referenceEditorResume.current);
++        referenceEditorResume.current = null;
+         setReferencePickerNodeId(null);
+     }, [referencePickerNodeId]);
+ 

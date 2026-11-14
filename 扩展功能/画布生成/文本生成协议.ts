@@ -1,6 +1,8 @@
 import type { AiTextMessage } from "@/services/api/image";
+import { requireTextReasoningEffort, type TextReasoningEffort } from "./文本推理强度";
 
-type TextConfig = { apiFormat: string; model: string; baseUrl: string; systemPrompt: string; reasoningEffort: string };
+type TextConfig = { apiFormat: string; model: string; baseUrl: string; systemPrompt: string; reasoningEffort: string;
+    modelReasoningEfforts?: readonly TextReasoningEffort[] };
 
 // 沿用旧版 Responses/Gemini 消息协议，交给既有本机任务端口发送。
 export function prepareTextRequest(config: TextConfig, messages: AiTextMessage[]) {
@@ -30,13 +32,16 @@ export function prepareTextRequest(config: TextConfig, messages: AiTextMessage[]
         payload = {
             model: config.model,
             input: input.map(item => ({ role: item.role, content: typeof item.content === "string" ? item.content : item.content.map(part => part.type === "text" ? { type: "input_text", text: part.text } : { type: "input_image", image_url: part.image_url.url }) })),
-            ...(config.reasoningEffort === "auto" ? {} : { reasoning: { effort: config.reasoningEffort } }),
+            reasoning: { effort: requireTextReasoningEffort(config.reasoningEffort, config.modelReasoningEfforts) },
             stream: true,
         };
     }
     const bytes = new TextEncoder().encode(JSON.stringify(payload));
+    if (bytes.byteLength > 100 * 1024 * 1024) throw Object.assign(
+        Error(`策划/文本请求超过 100MiB（当前 ${(bytes.byteLength / 1024 ** 2).toFixed(1)}MiB），请减少参考图或文字；未创建或提交新任务。`),
+        { code: "generation_request_too_large" });
     let binary = "";
-    for (const byte of bytes) binary += String.fromCharCode(byte);
+    for (let index = 0; index < bytes.length; index += 32768) binary += String.fromCharCode(...bytes.subarray(index, index + 32768));
     return { method: "POST" as const, path, contentType: "application/json", body: btoa(binary) };
 }
 

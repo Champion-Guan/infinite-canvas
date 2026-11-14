@@ -1,0 +1,78 @@
+{
+  "状态": "待单独批准",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置精简SHA256": "14d9d721685d0930ad929f732e8aa6dcf4da27dcff62cbf5a060d6b9d095cca0",
+  "恢复编号": [
+    "A02",
+    "A03",
+    "V03",
+    "V04",
+    "R02",
+    "R03",
+    "C15"
+  ],
+  "保持关闭": [
+    "S03自定义模型脚本",
+    "S06网址凭据导入",
+    "AI超分占位",
+    "P01–P07独立页面",
+    "Agent、节点插件及其他既有关闭项"
+  ],
+  "已应用到运行副本": false,
+  "语法预审通过": true,
+  "完整类型预审通过": true,
+  "标准差异检查通过": true,
+  "差异SHA256": "d7a30ab2fee42b88be4d531caf014febc876106725c87d14159a41818bbbf4df",
+  "文件": [
+    {
+      "文件": "web/src/guan/精简与离线策略.ts",
+      "原始SHA256": "d1d27e25cbead30dd6aa5b8b70a07a16ee5d4493e54939d77eeae2578caf6072",
+      "候选SHA256": "4a6025946df2a6436d6ebb966c1ce33c7ee4bebf111a0e16956ec64f1c43fa12"
+    },
+    {
+      "文件": "web/src/components/layout/app-config-modal.tsx",
+      "原始SHA256": "6783926b6c82746cb9c38145580878892880931876fece7123b60b983dcfaf8c",
+      "候选SHA256": "f9a19edfefc7407c702ba70f586d6d48d8cdf5fd847471376c4ab8bfcab43596"
+    },
+    {
+      "文件": "web/src/guan/脚本与提示词来源.ts",
+      "原始SHA256": "2702cfc88877c4dac8639350b5a4aeda012af5b2e3e9ccaf5cc445c88a0a4d1e",
+      "候选SHA256": "c1d69054432cbe6e0eb58f3e8b3153ba544bfdef2986d22339343592a7e42105"
+    },
+    {
+      "文件": "web/src/components/layout/config-prompt-sources.tsx",
+      "原始SHA256": "46f0f1ad6bbe57ed20afd6f175535f52155d6c25642264b8cd773d9f5e0fb6c1",
+      "候选SHA256": "e4b578ffeb7f26eb6b52f18af3287699b8092c0c84997f9e7c719eba08bf1d94"
+    },
+    {
+      "文件": "web/src/services/api/prompts.ts",
+      "原始SHA256": "ea907f00d3d3ef47bd5bc62ae8d7f239186553b22e53c0f3128e8b2448cc65e3",
+      "候选SHA256": "758bea924e710e5f5a281dafe2885710a45425a6863f9468675edbe8e475db19"
+    },
+    {
+      "文件": "web/src/services/api/prompt-source-runtime.ts",
+      "原始SHA256": "59030ea1546e4437ac7a7e906c72ef876083fa887e849425384c0c182d2872ec",
+      "候选SHA256": "2f48f6d7ae8280148f152316cffd96dd028af8203ecbc00f262847892816edae"
+    },
+    {
+      "文件": "web/src/components/layout/prompt-source-content-modal.tsx",
+      "原始SHA256": "7332db8386887a6beb60bfe2b8dba0efca92552a6c7b3d28034c305a2c4d606b",
+      "候选SHA256": "dd2aab7fe4255c51edf5a41b07787da30ac4e6e15859097bd7ca1ecd7edd9c2d"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-node-hover-toolbar.tsx",
+      "原始SHA256": "315ca54ffdccc44c33bb164e0903b0a8f678347029e4f0c25f5d6d984542fcc2",
+      "候选SHA256": "7966114fa8cc81a512ea2b723699a8420e38add0f24e4af87e8cc3472c565af7"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-image-toolbar-tools.tsx",
+      "原始SHA256": "a60e18a90ae80c66c1aa1b334aeee20ce005775c5b8fde6fbbd610f6a6451def",
+      "候选SHA256": "8b8308d2a55afdbe2668f5e8261076f2b6a963fe75686e45614245a5d83bd1b4"
+    },
+    {
+      "文件": "web/src/pages/canvas/project.tsx",
+      "原始SHA256": "2d5514d4dda5199e0f9464675925f7736ab6529d72d39a64dccd7e1b86a65404",
+      "候选SHA256": "fe73c19869458069c14b4e0bf86134f82c9e789879b8d64225bc8bd0b78fb331"
+    }
+  ]
+}

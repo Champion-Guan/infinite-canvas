@@ -60,7 +60,7 @@ export function createHistorySortMotion() {
     };
 }
 
-export function useHistorySortMotion(sorted: boolean) {
+export function useHistorySortMotion(sorted: boolean | string) {
     const root = useRef<HTMLDivElement>(null);
     const reduced = useReducedMotion();
     const motion = useRef<ReturnType<typeof createHistorySortMotion> | null>(null);

@@ -1,0 +1,18 @@
+--- a/web/src/guan/画布入口.tsx
++++ b/web/src/guan/画布入口.tsx
+@@ -11,12 +11,13 @@
+ export function CanvasEntry() {
+   const { t } = useTranslation();
+   const { message } = App.useApp();
+-  const { createProduct } = useProductNavigation();
++  const { createProduct, busy } = useProductNavigation();
+   const hydrated = useCanvasStore(state => state.hydrated);
+   const projects = useCanvasStore(state => state.projects);
+   const theme = useThemeStore(state => state.theme);
+   const id = selectEntryProduct(projects, sqlitePreferences.getItem(ACTIVE_PRODUCT_KEY));
+   if (!hydrated) return <main className="grid h-full place-items-center bg-background text-foreground" role="status">{t("canvas.opening")}</main>;
+-  if (id) return <Navigate to={"/canvas/" + encodeURIComponent(id)} replace />;
++  // 创建事务完成前不能因新产品已入内存而抢先挂载画布；持久化成功后由统一出口导航。
++  if (id && !busy) return <Navigate to={"/canvas/" + encodeURIComponent(id)} replace />;
+   return <WorkbenchHome theme={theme} onCreate={() => { void createProduct().catch(error => message.error(error instanceof Error ? error.message : String(error))); }} />;
+ }

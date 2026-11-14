@@ -1,0 +1,216 @@
+{
+  "授权依据": "用户明确确认原轮播图片开源并要求直接迁入；保留来源记录，不虚构具体许可证或将图片归为作者MIT授权。",
+  "来源目录": "/Users/guanchengbin/CodexProjects/guan-ai-workbench-projects/guan-ai-workbench/public/assets/media/tools",
+  "文件": [
+    {
+      "原文件": "detail-page-1-1-1.webp",
+      "来源": "界面资源/首页轮播/第1组-商品图1.webp",
+      "产物": "web/public/guan/首页轮播/第1组-商品图1.webp",
+      "字节": 13210,
+      "SHA256": "e7df78ccd6b2b17ab356254d21b1c8d658773ba1271eaf3d8611f1f7149677ba"
+    },
+    {
+      "原文件": "detail-page-1-1-2.webp",
+      "来源": "界面资源/首页轮播/第1组-商品图2.webp",
+      "产物": "web/public/guan/首页轮播/第1组-商品图2.webp",
+      "字节": 11248,
+      "SHA256": "3ebd3609922ea385f5a8ea7760887a5de15ee0da7b0ff2d375364db3bf2a0e99"
+    },
+    {
+      "原文件": "detail-page-1-1-3.webp",
+      "来源": "界面资源/首页轮播/第1组-商品图3.webp",
+      "产物": "web/public/guan/首页轮播/第1组-商品图3.webp",
+      "字节": 13746,
+      "SHA256": "6f16978d75037dcebdcc17849fcf69e2ab666cc5191aff07b2d91139b96df976"
+    },
+    {
+      "原文件": "detail-page-1-2-1.webp",
+      "来源": "界面资源/首页轮播/第1组-详情长图1.webp",
+      "产物": "web/public/guan/首页轮播/第1组-详情长图1.webp",
+      "字节": 54116,
+      "SHA256": "6e8e99cea127a7f63f8e87a28911564c5ed7486ab62b2b82acd2fe01a8dfa31f"
+    },
+    {
+      "原文件": "detail-page-1-3-1.webp",
+      "来源": "界面资源/首页轮播/第1组-效果图1.webp",
+      "产物": "web/public/guan/首页轮播/第1组-效果图1.webp",
+      "字节": 16742,
+      "SHA256": "f4693d3a222f60b997fa96f2be202135dfc0b631b24dc2f784745227be9b1b89"
+    },
+    {
+      "原文件": "detail-page-1-3-2.webp",
+      "来源": "界面资源/首页轮播/第1组-效果图2.webp",
+      "产物": "web/public/guan/首页轮播/第1组-效果图2.webp",
+      "字节": 24050,
+      "SHA256": "e358ac5d9e6101ed8a9eae3c85239d00ca93fb4e4310afc6d7e677503054a0dd"
+    },
+    {
+      "原文件": "detail-page-1-3-3.webp",
+      "来源": "界面资源/首页轮播/第1组-效果图3.webp",
+      "产物": "web/public/guan/首页轮播/第1组-效果图3.webp",
+      "字节": 24640,
+      "SHA256": "b3f3c2a62b2c89d321921b84c3a3967864955790feba2083ac52c2f034647976"
+    },
+    {
+      "原文件": "detail-page-1-3-4.webp",
+      "来源": "界面资源/首页轮播/第1组-效果图4.webp",
+      "产物": "web/public/guan/首页轮播/第1组-效果图4.webp",
+      "字节": 18630,
+      "SHA256": "dd4903c04ae1ffb47eb47bde0e16473d1b813caa4d33a3d06aff21d96edd858f"
+    },
+    {
+      "原文件": "detail-page-1-3-5.webp",
+      "来源": "界面资源/首页轮播/第1组-效果图5.webp",
+      "产物": "web/public/guan/首页轮播/第1组-效果图5.webp",
+      "字节": 17556,
+      "SHA256": "fd9251f997f44761519c78b2c08a6f17973d43709c029600b5784672a571c3bb"
+    },
+    {
+      "原文件": "detail-page-1-3-6.webp",
+      "来源": "界面资源/首页轮播/第1组-效果图6.webp",
+      "产物": "web/public/guan/首页轮播/第1组-效果图6.webp",
+      "字节": 22630,
+      "SHA256": "bf17604babb3f8f97bdb59843505c3f56a59d78369779c286940c4e73616bb35"
+    },
+    {
+      "原文件": "detail-page-2-1-1.webp",
+      "来源": "界面资源/首页轮播/第2组-商品图1.webp",
+      "产物": "web/public/guan/首页轮播/第2组-商品图1.webp",
+      "字节": 13700,
+      "SHA256": "8d2e745d704543604edf96fc3e03a31ffbd294bea9fabacfb4f4b604144cb276"
+    },
+    {
+      "原文件": "detail-page-2-1-2.webp",
+      "来源": "界面资源/首页轮播/第2组-商品图2.webp",
+      "产物": "web/public/guan/首页轮播/第2组-商品图2.webp",
+      "字节": 10668,
+      "SHA256": "639d2caee3029f5489c181588630976c7ba90b6341546b73144057e46049e8c1"
+    },
+    {
+      "原文件": "detail-page-2-1-3.webp",
+      "来源": "界面资源/首页轮播/第2组-商品图3.webp",
+      "产物": "web/public/guan/首页轮播/第2组-商品图3.webp",
+      "字节": 11420,
+      "SHA256": "eeb41a5189cb9f7eef3944e62e0011f5b943069707717db6363df23437e270e6"
+    },
+    {
+      "原文件": "detail-page-2-2-1.webp",
+      "来源": "界面资源/首页轮播/第2组-详情长图1.webp",
+      "产物": "web/public/guan/首页轮播/第2组-详情长图1.webp",
+      "字节": 64576,
+      "SHA256": "3d9236d85e6054dd24945ebaff9d072e337726878c696bc560bde042ca9ddcf9"
+    },
+    {
+      "原文件": "detail-page-2-3-1.webp",
+      "来源": "界面资源/首页轮播/第2组-效果图1.webp",
+      "产物": "web/public/guan/首页轮播/第2组-效果图1.webp",
+      "字节": 18884,
+      "SHA256": "43a6b4f37351c3985daf251f3e6d592cde8975e68707466823d4d92c86bf3aa5"
+    },
+    {
+      "原文件": "detail-page-2-3-2.webp",
+      "来源": "界面资源/首页轮播/第2组-效果图2.webp",
+      "产物": "web/public/guan/首页轮播/第2组-效果图2.webp",
+      "字节": 24326,
+      "SHA256": "92106f4884794ee4e6525cd1ca270a0ed0ac2e97ed861e369d4606ba5046bd45"
+    },
+    {
+      "原文件": "detail-page-2-3-3.webp",
+      "来源": "界面资源/首页轮播/第2组-效果图3.webp",
+      "产物": "web/public/guan/首页轮播/第2组-效果图3.webp",
+      "字节": 35672,
+      "SHA256": "3296911028bc2993867cf627d8c8282b2b5677d5ef92f052dd94c8ce942fe389"
+    },
+    {
+      "原文件": "detail-page-2-3-4.webp",
+      "来源": "界面资源/首页轮播/第2组-效果图4.webp",
+      "产物": "web/public/guan/首页轮播/第2组-效果图4.webp",
+      "字节": 26194,
+      "SHA256": "e0db58b66cadece538543716341c4d005911eca2966188f2a9f405238850d090"
+    },
+    {
+      "原文件": "detail-page-2-3-5.webp",
+      "来源": "界面资源/首页轮播/第2组-效果图5.webp",
+      "产物": "web/public/guan/首页轮播/第2组-效果图5.webp",
+      "字节": 23170,
+      "SHA256": "84925d23621910cc2ae6758fa2d161f6a7bb7f1e804b719faae80b111dfbb6e1"
+    },
+    {
+      "原文件": "detail-page-2-3-6.webp",
+      "来源": "界面资源/首页轮播/第2组-效果图6.webp",
+      "产物": "web/public/guan/首页轮播/第2组-效果图6.webp",
+      "字节": 21716,
+      "SHA256": "15d9587f92899303878f721bda4947ac193869f1cb084cf71739ab8439d26977"
+    },
+    {
+      "原文件": "detail-page-3-1-1.webp",
+      "来源": "界面资源/首页轮播/第3组-商品图1.webp",
+      "产物": "web/public/guan/首页轮播/第3组-商品图1.webp",
+      "字节": 9462,
+      "SHA256": "0579b9dce8f35f9cc035730412c266c8afece4d1041c1374ab133f943e195337"
+    },
+    {
+      "原文件": "detail-page-3-1-2.webp",
+      "来源": "界面资源/首页轮播/第3组-商品图2.webp",
+      "产物": "web/public/guan/首页轮播/第3组-商品图2.webp",
+      "字节": 12382,
+      "SHA256": "53449f5ffd6d7b5d8441177ce50a3053d20415e18c0939b8a4c309e975ad7234"
+    },
+    {
+      "原文件": "detail-page-3-1-3.webp",
+      "来源": "界面资源/首页轮播/第3组-商品图3.webp",
+      "产物": "web/public/guan/首页轮播/第3组-商品图3.webp",
+      "字节": 11240,
+      "SHA256": "0444d1ca4c9a7619ca9afba69091318a4ac9d6b21900579ee85f59f934693e53"
+    },
+    {
+      "原文件": "detail-page-3-2-1.webp",
+      "来源": "界面资源/首页轮播/第3组-详情长图1.webp",
+      "产物": "web/public/guan/首页轮播/第3组-详情长图1.webp",
+      "字节": 42872,
+      "SHA256": "7dc239e897b80f5f7baaca49bf93ffd9f1a24e92907b6884f6520f491912b36a"
+    },
+    {
+      "原文件": "detail-page-3-3-1.webp",
+      "来源": "界面资源/首页轮播/第3组-效果图1.webp",
+      "产物": "web/public/guan/首页轮播/第3组-效果图1.webp",
+      "字节": 13520,
+      "SHA256": "594c72ba082a54d6e30e2a658db7d78d98cf7ef0e3a61f1542a4f4ba1255523f"
+    },
+    {
+      "原文件": "detail-page-3-3-2.webp",
+      "来源": "界面资源/首页轮播/第3组-效果图2.webp",
+      "产物": "web/public/guan/首页轮播/第3组-效果图2.webp",
+      "字节": 10122,
+      "SHA256": "6a1cd29e893c193f65003ac3b7fc36d5396fd38ad8406b4970e7c78c66250e04"
+    },
+    {
+      "原文件": "detail-page-3-3-3.webp",
+      "来源": "界面资源/首页轮播/第3组-效果图3.webp",
+      "产物": "web/public/guan/首页轮播/第3组-效果图3.webp",
+      "字节": 12024,
+      "SHA256": "ac5eab972b8d808e84e1c71797ec75c56e8c0a5a4dd305f7279bc0d8db79422b"
+    },
+    {
+      "原文件": "detail-page-3-3-4.webp",
+      "来源": "界面资源/首页轮播/第3组-效果图4.webp",
+      "产物": "web/public/guan/首页轮播/第3组-效果图4.webp",
+      "字节": 32280,
+      "SHA256": "e2dc254a36dfb860ef4e7205d1c25d54ff59d2c9675d1a6b291e85e79c6e9be4"
+    },
+    {
+      "原文件": "detail-page-3-3-5.webp",
+      "来源": "界面资源/首页轮播/第3组-效果图5.webp",
+      "产物": "web/public/guan/首页轮播/第3组-效果图5.webp",
+      "字节": 20538,
+      "SHA256": "2253c8e0325ac9d6d682a56a80d3614468f651f822ed2a6d3cef89e255ac9baf"
+    },
+    {
+      "原文件": "detail-page-3-3-6.webp",
+      "来源": "界面资源/首页轮播/第3组-效果图6.webp",
+      "产物": "web/public/guan/首页轮播/第3组-效果图6.webp",
+      "字节": 14758,
+      "SHA256": "161fb719ffc4423594e515a9b860851ec6ba47a74bcb16d626df40539ef3ccfa"
+    }
+  ]
+}

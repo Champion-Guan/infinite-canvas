@@ -10,6 +10,8 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
 import { historyDownloadFiles } from '../扩展功能/生成历史/历史下载文件.js';
 import { historyMediaInfo } from '../扩展功能/生成历史/历史媒体详情.js';
+import { failedTaskTargets } from '../扩展功能/生成历史/任务摘要.js';
+import { imageSizeRetryBlocked } from '../扩展功能/媒体交付/生成图片尺寸交付.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(resolve(root, '.运行/3100源/画布副本/web/package.json'));
@@ -255,7 +257,8 @@ test('选择模式缩略图仅预览、文字才勾选；隐藏产品卸下展�
         'lucide-react': Object.fromEntries(['ArrowDownWideNarrow', 'Download', 'Image', 'LayoutGrid', 'ListChecks', 'RotateCcw', 'Video'].map(key => [key, key])),
         'motion/react': { motion: { div: 'motion.div' }, AnimatePresence: 'Presence' }, '@/lib/utils': { cn: (...values) => values.filter(Boolean).join(' ') },
         '../主题/选择模式动效': { SelectionInline: 'SelectionInline', SelectionFooter: 'SelectionFooter' },
-        '@/lib/image-utils': { formatBytes: () => '文件大小' }, './任务摘要': { failedTaskTargets: () => [] }, './历史失败重试': { runHistoryRetries: async () => {} },
+        '@/lib/image-utils': { formatBytes: () => '文件大小' }, './任务摘要': { failedTaskTargets }, './历史失败重试': { runHistoryRetries: async () => {} },
+        '../媒体交付/生成图片尺寸交付.mjs': { imageSizeRetryBlocked },
         './历史下载文件': { historyDownloadFiles }, './历史媒体详情': { historyMediaInfo }, './历史排序': { sortGenerationHistory: value => value },
         './历史下载操作': { useHistoryDownloads: () => ({ downloading: false, downloadFile: () => {}, downloadAll: () => {} }) },
         './历史选择操作': selection, './历史总览面板': { HistoryOverviewPanel: 'Overview' },
@@ -313,6 +316,12 @@ test('选择模式缩略图仅预览、文字才勾选；隐藏产品卸下展�
     assert.ok(failedRow.some(item => item.props['aria-label'] === '失败的图片暂无成功图片'));
     assert.ok(!failedRow.some(item => item.props['aria-label'] === '查看失败的图片'));
     assert.ok(!elements(tree).some(item => item.type === 'span' && item.props.children === '查看'));
+    assert.ok(elements(tree).some(item => item.props?.['aria-label'] === '重试失败的图片'));
+    failedOnly.metadata.images[0].errorDetails = '图片尺寸不符：要求 1152 × 1536，上游返回 1024 × 1536。';
+    failedOnly.metadata.errorDetails = failedOnly.metadata.images[0].errorDetails;
+    tree = runtime.render(() => CanvasGenerationHistoryTab({ nodes: [failedOnly], connections: [], getCurrentNode: () => undefined, onPreviewNode: () => {}, onRetryNode: () => {}, theme }));
+    assert.ok(!elements(tree).some(item => item.props?.['aria-label'] === '重试失败的图片'));
+    assert.equal(elements(tree).find(item => item.type === 'button' && item.props?.className?.includes('guan-history-retry-all')).props.disabled, true);
 });
 
 test('新历史模块Hook调用顺序及依赖检查通过', () => {

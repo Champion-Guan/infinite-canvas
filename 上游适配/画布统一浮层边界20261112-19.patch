@@ -1,0 +1,15 @@
+diff --git a/web/src/styles/globals.css b/web/src/styles/globals.css
+index b8717f7..bd552ca 100644
+--- a/web/src/styles/globals.css
++++ b/web/src/styles/globals.css
+@@ -917,8 +917,8 @@
+     }
+ 
+     .canvas-image-settings-popover .ant-popover-inner-content {
+-        max-height: calc(100vh - 96px);
+-        overflow-y: auto;
++        max-height: none;
++        overflow: visible;
+     }
+ 
+     .canvas-image-settings-popover .ant-segmented {

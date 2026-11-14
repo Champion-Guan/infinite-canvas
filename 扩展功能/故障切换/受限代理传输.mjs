@@ -9,11 +9,13 @@ import { 解析代理公网地址 } from '../网络代理/代理域名解析.mjs
 
 // 生成POST只发送一次。CONNECT失败、超时、未知响应均不会暗中直连或换出口重发。
 export async function requestThroughManagedProxy(options) { return proxyRequest(options); }
-async function proxyRequest({ url, method, headers, bytes, signal, route, timeout = 600_000, testOrigins = [], testCA, includeHeaders = false, onConnection, onChunk }, resolverAddress) {
+async function proxyRequest({ url, method, headers, bytes, signal, route, timeout = 600_000, testOrigins = [], testCA, includeHeaders = false, onConnection, onChunk, allowImageRedirect = false }, resolverAddress) {
   requireValue(url instanceof URL && url.protocol === 'https:' && ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'PROPFIND', 'MKCOL', 'MOVE', 'COPY'].includes(method) && Buffer.isBuffer(bytes) && bytes.length <= MAX_REQUEST_BYTES &&
     Number.isSafeInteger(timeout) && timeout > 0 && timeout <= 600_000 && route?.proxyURL && typeof route.username === 'string' && typeof route.password === 'string' &&
     !/[:\r\n\0]/.test(route.username) && !/[\r\n\0]/.test(route.password), 'proxy_transport_invalid', '受管代理参数无效。');
   const proxy = new URL(route.proxyURL);
+  requireValue(!allowImageRedirect || method === 'GET' && !bytes.length && headers.accept === 'image/*'
+    && Object.keys(headers).every(name => ['accept', 'accept-encoding'].includes(name)), 'provider_redirect_denied', '仅匿名图片读取允许返回跳转目标。');
   requireValue(proxy.protocol === 'http:' && proxy.hostname === '127.0.0.1' && !!proxy.port && proxy.pathname === '/' && !proxy.username && !proxy.password && !proxy.search && !proxy.hash && !headers['proxy-authorization'], 'proxy_transport_invalid', '只允许本机受管代理。');
   signal?.throwIfAborted();
   // 测试缝仅允许调用方显式提供的临时本机TLS端口；生产装配不传入这两个字段。
@@ -64,6 +66,10 @@ async function proxyRequest({ url, method, headers, bytes, signal, route, timeou
         agent.createConnection = () => secure;
         upstream = httpsRequest(url, { method, headers, agent }, response => {
           const encoding = response.headers['content-encoding'];
+          if (allowImageRedirect && [301, 302, 303, 307, 308].includes(response.statusCode)
+              && typeof response.headers.location === 'string' && response.headers.location.length <= 16384) {
+            finish(null, { status: response.statusCode, redirectLocation: response.headers.location }); return;
+          }
           if (response.statusCode >= 300 && response.statusCode < 400 || encoding && encoding !== 'identity') { fail(); return; }
           const chunks = []; let size = 0;
           response.on('data', chunk => {

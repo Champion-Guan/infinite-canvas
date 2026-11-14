@@ -1,0 +1,12 @@
+--- a/web/src/guan/旧版Excel样式.css
++++ b/web/src/guan/旧版Excel样式.css
+@@ -707,3 +707,9 @@
+ @media(max-width:820px) { .guan-dc-file-picker { width:min(210px,30vw); min-width:140px; } }
+ @media(max-width:640px) { .guan-dc-file-picker { width:min(175px,34vw); min-width:118px; } .guan-dc-file-trigger { height:40px; padding-left:10px; font-size:12px; } }
+ @media(prefers-reduced-motion:reduce) { .guan-excel-scope *, .guan-excel-scope *::before, .guan-excel-scope *::after { animation:none!important; transition:none!important; } }
++
++/* 恢复旧宿主的行高与字体平滑；仅约束自有 Excel 弹窗，不改变作者全局 reset。 */
++.guan-excel-scope .guan-dc-excel-import-modal {
++  line-height: 1.5;
++  -webkit-font-smoothing: antialiased;
++}

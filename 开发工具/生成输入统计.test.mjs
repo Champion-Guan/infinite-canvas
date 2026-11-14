@@ -124,7 +124,8 @@ test('无变体产品图和额外连线图均按ID去重，预览数字与提交
 });
 test('真实统计组件四类输入显示每变体范围，键盘与悬停可查看同一份明细', () => {
     const jsx = (type, props) => ({ type, props }), f = fixture();
-    const ui = variantModules({ 'react/jsx-runtime': { jsx, jsxs: jsx }, antd: { Tooltip: 'Tooltip' } }).load('画布生成/生成输入统计.tsx');
+    const ui = variantModules({ 'react/jsx-runtime': { jsx, jsxs: jsx },
+        '../主题/原生可关闭浮层': { OutsideTooltip: 'Tooltip' } }).load('画布生成/生成输入统计.tsx');
     const labels = { textCount: '提示词', imageCount: '参考图', videoCount: '参考视频', audioCount: '参考音频' };
     const tree = ui.GenerationInputChips({ summary: summary(f), labels, style: {} });
     assert.equal(tree.props['aria-label'], '生成输入 · 2 个变体分别提交');
@@ -133,6 +134,23 @@ test('真实统计组件四类输入显示每变体范围，键盘与悬停可�
     assert.equal(image.props.children.props['aria-label'], '参考图 1 张/变体');
     assert.equal(image.props.children.props.tabIndex, 0);
     assert.deepEqual(image.props.trigger, ['hover', 'focus']);
-    assert.match(image.props.title.props.children, /红色/);
-    assert.match(image.props.title.props.children, /蓝色/);
+    assert.deepEqual(image.props.title.props.summary.variants.map(item => item.name), ['红色', '蓝色']);
+    assert.equal(image.props.title.props.showImages, true);
+    assert.equal(tree.props.children[0].props.title.props.showImages, false);
+});
+
+test('大量变体保留完整数量和文件名，悬停明细使用可滚动表格，提示词统计不重复列参考图文件', () => {
+    const jsx = (type, props) => ({ type, props }), f = fixture();
+    const ui = variantModules({ 'react/jsx-runtime': { jsx, jsxs: jsx },
+        '../主题/原生可关闭浮层': { OutsideTooltip: 'Tooltip' } }).load('画布生成/生成输入统计.tsx');
+    const base = summary(f), many = { ...base, variants: Array.from({ length: 100 }, (_, index) => ({
+        ...base.variants[0], id: `variant-${index}`, name: `变体 ${index}`, images: [`变体${index}__原图.png`, '共用尺寸参考.png'],
+    })) };
+    const elements = node => !node || typeof node !== 'object' ? [] : [node, ...[node.props?.children].flat(Infinity).flatMap(elements)];
+    const details = elements(ui.GenerationInputDetails({ summary: many, showImages: true }));
+    assert.equal(details.find(node => node.props?.['aria-label'] === '变体输入明细').props.style.maxHeight, 'min(320px, 50dvh)');
+    assert.equal(details.filter(node => node.type === 'th' && node.props.scope === 'row').length, 100);
+    assert.equal(details.filter(node => node.type === 'li').length, 200);
+    assert.ok(details.some(node => node.props?.children === '变体99__原图.png'));
+    assert.equal(elements(ui.GenerationInputDetails({ summary: many, showImages: false })).filter(node => node.type === 'li').length, 0);
 });

@@ -1,0 +1,43 @@
+diff --git a/web/src/components/prompts/prompt-select-dialog.tsx b/web/src/components/prompts/prompt-select-dialog.tsx
+index 123f2d4..32178ce 100644
+--- a/web/src/components/prompts/prompt-select-dialog.tsx
++++ b/web/src/components/prompts/prompt-select-dialog.tsx
+@@ -8,6 +8,7 @@ import { ALL_PROMPTS_OPTION } from "@/services/api/prompts";
+ import { cn } from "@/lib/utils";
+ import { PromptCard } from "./prompt-card";
+ import { usePromptList } from "./use-prompt-list";
++import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+ 
+ export function PromptSelectDialog({ open, onOpenChange, onSelect }: { open: boolean; onOpenChange: (open: boolean) => void; onSelect: (prompt: string) => void }) {
+     const { message } = App.useApp();
+@@ -41,7 +42,7 @@ export function PromptSelectDialog({ open, onOpenChange, onSelect }: { open: boo
+                     <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-stone-400 dark:text-stone-500">{t("prompts.category")}</div>
+                     <div className="flex flex-wrap gap-1.5">
+                         {promptCategories.map((category) => (
+-                            <Tag.CheckableTag key={category} checked={selectedCategory === category} className={cn("prompt-filter-tag", selectedCategory === category && "is-active")} onChange={() => setSelectedCategory(category)}>
++                            <Tag.CheckableTag key={category} checked={selectedCategory === category} className={cn("prompt-filter-tag !font-normal select-none", selectedCategory === category && "is-active")} onChange={() => { setSelectedCategory(category); setSelectedTags([]); }}>
+                                 {category === ALL_PROMPTS_OPTION ? t("common.all") : category}
+                             </Tag.CheckableTag>
+                         ))}
+@@ -60,17 +61,19 @@ export function PromptSelectDialog({ open, onOpenChange, onSelect }: { open: boo
+                 </aside>
+                 <section className="flex min-h-0 min-w-0 flex-col">
+                     <Input size="large" prefix={<Search className="size-4 text-stone-400" />} value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder={t("prompts.searchTitle")} />
+-                    <div className="guan-scroll-region thin-scrollbar mt-4 min-h-0 flex-1 overflow-y-auto pr-2" data-canvas-no-zoom onScroll={handleListScroll} onWheelCapture={(event) => event.stopPropagation()}>
++                    <div className="guan-scroll-region thin-scrollbar mt-4 min-h-0 flex-1 overflow-y-auto pr-2" style={{ scrollbarGutter: "stable" }} data-canvas-no-zoom aria-busy={query.isFetching} onScroll={handleListScroll} onWheelCapture={(event) => event.stopPropagation()}>
+                         {query.isLoading ? (
+                             <div className="flex h-40 items-center justify-center">
+                                 <Spin />
+                             </div>
+                         ) : null}
+-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
++                        <TabContentTransition transitionKey={query.data?.pages[0]?.items.map(item => item.id).join(":") || "empty"} enabled={open}>
++                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" inert={query.isPlaceholderData}>
+                             {items.map((item) => (
+                                 <PromptCard key={item.id} item={item} onOpen={() => selectPrompt(item.prompt)} onCopy={() => selectPrompt(item.prompt)} compact />
+                             ))}
+                         </div>
++                        </TabContentTransition>
+                         {!query.isLoading && items.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t("prompts.empty")} className="py-8" /> : null}
+                         {query.isFetchingNextPage ? (
+                             <div className="py-4 text-center">

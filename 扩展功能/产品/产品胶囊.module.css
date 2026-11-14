@@ -88,12 +88,12 @@
   opacity: 0;
   pointer-events: none;
   transform: translateY(-50%) translateX(var(--edge-offset));
-  transition: opacity var(--guan-motion-fast) var(--guan-motion-gentle), transform var(--guan-motion-normal) var(--guan-motion-gentle);
+  transition: opacity 180ms var(--guan-motion-gentle), transform var(--guan-motion-normal) var(--guan-motion-gentle);
 }
 .left { left: 0; --edge-offset: -6px; }
 .right { right: 0; --edge-offset: 6px; }
 .edgeHint[data-visible="true"] {
-  opacity: 1;
+  opacity: var(--capsule-edge-opacity, 1);
   pointer-events: auto;
   transform: translateY(-50%) translateX(0);
 }
@@ -296,8 +296,12 @@
 .root :global(.guan-product-file-note) { padding: 10px; border-radius: 8px; background: var(--dc-soft, #f5f5f5); }
 .root :global(.guan-dc-confirm-card.guan-product-trash-card) { display: block; width: min(520px, calc(100vw - 32px)); }
 .root :global(.guan-product-trash-card h2) { margin: 0 0 10px; font-size: 18px; }
+.trashHeading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.root .trashClose { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-width: 32px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--dc-muted, #72757a); cursor: pointer; }
+.root .trashClose:hover { background: var(--muted); }
 .root :global(.guan-product-trash-card p) { color: var(--dc-muted, #72757a); font-size: 13px; }
-.root :global(.guan-product-trash-list) { max-height: min(55vh, 420px); overflow-y: auto; margin: 16px 0; }
+.root :global(.guan-product-trash-list) { max-height: min(55vh, 420px); overflow-y: auto; margin: 12px 0 0; }
+.root :global(.guan-product-trash-row:last-child) { border-bottom: 0; padding-bottom: 0; }
 .root :global(.guan-product-trash-row) { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--dc-border, #eee); animation: guan-dc-row-in .28s cubic-bezier(.22,1,.36,1) both; }
 .root :global(.guan-product-trash-row > div) { flex: 1; min-width: 0; }
 .root :global(.guan-product-trash-row strong), .root :global(.guan-product-trash-row small) { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

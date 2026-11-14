@@ -1,0 +1,14 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index 3126235..55ece7e 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -363,7 +363,8 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                     {
+                         key: "local-storage",
+                         label: t("config.tabs.localStorage"),
+-                        children: <ConfigLocalStorage active={active && activeTab === "local-storage"} />,
++                        forceRender: true,
++                        children: <ConfigLocalStorage active={active && activeTab === "local-storage"} settingsOpen={active} />,
+                     },
+                     {
+                         key: "software-updates",

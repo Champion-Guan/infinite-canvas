@@ -1,0 +1,12 @@
+diff --git a/web/src/components/canvas/canvas-node-crop-dialog.tsx b/web/src/components/canvas/canvas-node-crop-dialog.tsx
+index c61f771..c25f936 100644
+--- a/web/src/components/canvas/canvas-node-crop-dialog.tsx
++++ b/web/src/components/canvas/canvas-node-crop-dialog.tsx
+@@ -1,5 +1,6 @@
+ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+-import { Button, Segmented, Tooltip } from "antd";
++import { Button, Segmented } from "antd";
++import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+ import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { Check, X, ZoomIn, ZoomOut } from "lucide-react";
+ import { useTranslation } from "react-i18next";

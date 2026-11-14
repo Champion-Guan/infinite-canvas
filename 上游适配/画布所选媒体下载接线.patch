@@ -1,0 +1,22 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 8c1ff5a..f67737f 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1851,7 +1851,7 @@ function InfiniteCanvasPage() {
+         setNodes((prev) => prev.map((node) => (node.id === nodeId ? applyNodeConfigPatch(node, sharedImageCountPatch(node, patch)) : node)));
+     }, []);
+ 
+-    const { downloadNodeImage, downloadBatchImage } = useCanvasMediaDownloads(message);
++    const { downloadNodeImage, downloadBatchImage, downloadSelected, downloadingSelection } = useCanvasMediaDownloads(message);
+ 
+     const captureVideoNodeFrame = useCallback(
+         protectProductCanvasWork(projectId, async (nodeId: string, position: VideoFramePosition) => {
+@@ -3441,6 +3441,8 @@ function InfiniteCanvasPage() {
+                         onGroup={groupSelection}
+                         onUngroup={ungroupSelection}
+                         onOrganize={() => organizeOverlappingNodes(new Set(selectedNodeIdsRef.current))}
++                        onDownload={() => void downloadSelected(selectedNodes)}
++                        downloading={downloadingSelection}
+                     />
+                 ) : null}
+ 

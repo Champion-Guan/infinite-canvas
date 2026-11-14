@@ -1,0 +1,51 @@
+diff --git a/web/src/components/model-picker.tsx b/web/src/components/model-picker.tsx
+index f440790..6703560 100644
+--- a/web/src/components/model-picker.tsx
++++ b/web/src/components/model-picker.tsx
+@@ -1,4 +1,6 @@
+ import { showMissingModelConfiguration } from "@/扩展功能/产品配置/模型配置门禁";
++import { TextModelReasoningMenu } from "@/扩展功能/画布生成/文本模型推理菜单";
++import type { TextReasoningEffort } from "@/扩展功能/画布生成/文本推理强度";
+ import { useEffect, useId, useRef, useState } from "react";
+ import { useFallbackRevision } from "@/扩展功能/故障切换/浏览器状态";
+ import { Cpu, Repeat2 } from "lucide-react";
+@@ -18,9 +20,10 @@ type ModelPickerProps = {
+     fullWidth?: boolean;
+     placeholder?: string;
+     onMissingConfig?: () => void;
++    onReasoningEffortChange?: (model: string, effort: TextReasoningEffort) => void;
+ };
+ 
+-export function ModelPicker({ config, value, onChange, capability, className, fullWidth = false, placeholder, onMissingConfig }: ModelPickerProps) {
++export function ModelPicker({ config, value, onChange, capability, className, fullWidth = false, placeholder, onMissingConfig, onReasoningEffortChange }: ModelPickerProps) {
+     const { t } = useTranslation();
+     const pickerId = useId();
+     const [open, setOpen] = useState(false);
+@@ -40,15 +43,22 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
+         return () => window.removeEventListener("model-picker-open", closeOtherPicker);
+     }, [pickerId]);
+ 
++    const changeOpen = (nextOpen: boolean) => {
++        if (nextOpen && !options.length) { showMissingModelConfiguration(capability || "image"); setOpen(false); return; }
++        if (nextOpen) window.dispatchEvent(new CustomEvent("model-picker-open", { detail: pickerId }));
++        setOpen(nextOpen);
++    };
++    if (capability === "text" && onReasoningEffortChange) return <TextModelReasoningMenu config={config} options={options}
++        value={current} open={open} onOpenChange={changeOpen} onSelect={onReasoningEffortChange}
++        renderModel={model => <ModelLabel config={config} model={model} />} placeholder={pickerPlaceholder}
++        className={cn("canvas-composer-model-picker flex h-8 max-w-full items-center gap-2 rounded-full border border-input bg-transparent px-3 text-sm font-normal shadow-sm transition-colors",
++            fullWidth ? "w-full min-w-0 justify-start" : "w-fit min-w-[9rem] justify-start", className)} />;
++
+     return (
+         <Select
+             open={open}
+             value={current}
+-            onOpenChange={(nextOpen) => {
+-                if (nextOpen && !options.length) { showMissingModelConfiguration(capability || "image"); setOpen(false); return; }
+-                if (nextOpen) window.dispatchEvent(new CustomEvent("model-picker-open", { detail: pickerId }));
+-                setOpen(nextOpen);
+-            }}
++            onOpenChange={changeOpen}
+             onValueChange={onChange}
+         >
+             <SelectTrigger

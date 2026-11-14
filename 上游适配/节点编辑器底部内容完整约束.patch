@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/canvas-node-prompt-panel.tsx b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+index ac976ed..842c2c7 100644
+--- a/web/src/components/canvas/canvas-node-prompt-panel.tsx
++++ b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+@@ -89,7 +89,7 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+     return (
+         <div
+             data-canvas-no-zoom
+-            className="flex min-h-0 flex-col rounded-2xl border p-3 shadow-2xl backdrop-blur"
++            className="flex min-h-0 flex-col overflow-hidden rounded-2xl border p-3 shadow-2xl backdrop-blur"
+             style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text, maxHeight: "var(--canvas-panel-max-height, calc(100dvh - 96px))" }}
+             onMouseDown={(event) => event.stopPropagation()}
+             onPointerDown={(event) => event.stopPropagation()}

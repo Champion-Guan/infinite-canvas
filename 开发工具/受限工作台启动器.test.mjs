@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, symlinkSync, linkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, rmSync, symlinkSync, linkSync } from 'node:fs';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -117,6 +117,59 @@ test('只兼容过期的上传登记分块；其他旧资源及缺少当前登�
   const appWithoutModule = await start(missing);
   try { assert.equal((await fetch(appWithoutModule.origin + '/assets/Wor850_f.js')).status, 404); }
   finally { await appWithoutModule.close(); }
+});
+
+test('开发版成功构建立即通知最新版本，只提供当前资源；无变化或失败不发布，重连可追上新版本', async () => {
+  const f = fixture();
+  const update = version => {
+    for (const name of readdirSync(join(f.webRoot, 'assets'))) if (name.startsWith('settings-') || name.startsWith('shared-')) rmSync(join(f.webRoot, 'assets', name));
+    writeFileSync(join(f.webRoot, 'assets', `settings-${version}123456.js`), `import './shared-${version}123456.js';export const version="${version}";`);
+    writeFileSync(join(f.webRoot, 'assets', `shared-${version}123456.js`), `export const shared="${version}";`);
+    writeFileSync(join(f.webRoot, '入口.mjs'), `export const current="${version}";`);
+  };
+  update('a');
+  const app = await start(f, { developmentReload: true });
+  const abort = new AbortController();
+  let reader;
+  try {
+    const navigate = { 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Dest': 'document' };
+    const home = await raw(app.origin, '/', navigate);
+    const version = home.body.match(/name="guan-development-version" content="([a-f0-9]{64})"/)[1];
+    assert.equal(home.status, 200);
+    for (const headers of [{ Origin: 'http://evil.invalid' }, { 'Sec-Fetch-Site': 'cross-site' }])
+      assert.equal((await raw(app.origin, '/__guan_dev/events', headers)).status, 403);
+    const response = await fetch(app.origin + '/__guan_dev/events', { signal: abort.signal });
+    assert.equal(response.headers.get('content-type'), 'text/event-stream; charset=utf-8');
+    reader = response.body.getReader();
+    const receive = async () => JSON.parse(new TextDecoder().decode((await reader.read()).value).trim().slice(6)).version;
+    assert.equal(await receive(), version);
+    assert.deepEqual(app.reloadWebBundle(), { changed: false, version });
+    update('b'); const next = app.reloadWebBundle();
+    assert.equal(next.changed, true); assert.notEqual(next.version, version);
+    assert.equal(await receive(), next.version);
+    update('c'); const last = app.reloadWebBundle(); assert.equal(await receive(), last.version);
+    assert.equal((await fetch(app.origin + '/assets/settings-a123456.js')).status, 404);
+    assert.equal((await fetch(app.origin + '/assets/shared-b123456.js')).status, 404);
+    assert.match(await (await fetch(app.origin + '/assets/settings-c123456.js')).text(), /version="c"/);
+    assert.equal(await (await fetch(app.origin + '/入口.mjs')).text(), 'export const current="c";');
+    rmSync(join(f.webRoot, 'index.html'));
+    assert.throws(() => app.reloadWebBundle(), error => error.code === 'invalid_web_bundle');
+    assert.equal(await (await fetch(app.origin + '/入口.mjs')).text(), 'export const current="c";');
+    const reconnected = await fetch(app.origin + '/__guan_dev/events', { signal: abort.signal });
+    const second = reconnected.body.getReader();
+    assert.match(new TextDecoder().decode((await second.read()).value), new RegExp(last.version));
+    await second.cancel();
+  } finally { abort.abort(); await reader?.cancel().catch(() => {}); await app.close(); }
+  assert.equal(existsSync(join(f.root, '页面资源缓存')), false);
+});
+
+test('客户安装版不交付开发版本标记，不开放开发通知入口', async () => {
+  const f = fixture(), app = await start(f);
+  try {
+    const home = await raw(app.origin, '/', { 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Dest': 'document' });
+    assert.doesNotMatch(home.body, /guan-development-version/);
+    assert.equal((await raw(app.origin, '/__guan_dev/events')).status, 404);
+  } finally { await app.close(); }
 });
 
 test('授权→本机API→SQLite ACK→停止→独立冷重开，工作区不依赖浏览器Origin', async () => {

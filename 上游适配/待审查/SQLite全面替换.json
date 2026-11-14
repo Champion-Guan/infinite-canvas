@@ -1,0 +1,162 @@
+{
+  "状态": "待具体差异批准，禁止应用或重启",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "已应用到运行副本": false,
+  "完整类型预审通过": true,
+  "差异SHA256": "bd8181def99766ff5324dfec0266e00923ff71b48358896dc05b8ee36bbba4fa",
+  "前置缺口": [
+    "正式启动器授权交付与续期尚未接入",
+    "安全凭据端口尚未实现生产接入；含凭据配置会明确拒绝保存",
+    "单命名空间2MiB上限和全量JSON写入尚需大项目验证",
+    "真实数据迁移属于阶段11，不在本补丁中"
+  ],
+  "文件": [
+    {
+      "文件": "web/src/services/image-storage.ts",
+      "原始SHA256": "ba05c5b8ff8f5f7e4f9b259602df23b3bed8d8778d786ea1d5d7e41ea99e3d13",
+      "候选SHA256": "eacb130b7da127eda2dd73b7a93b5464cdbec9034c4130e08e2cab96cddb31cb"
+    },
+    {
+      "文件": "web/src/services/file-storage.ts",
+      "原始SHA256": "369417bf29047c925f2d164b5367968acb870fdbeefd31e19be9c612f0e44e05",
+      "候选SHA256": "ce93d52de423bd69db70d91b0748b2232be71540684a97d6b3767ec575ec25a7"
+    },
+    {
+      "文件": "web/src/services/app-sync.ts",
+      "原始SHA256": "99ab180af2ca041da97e1a222af1b1c335c7ebab1e31fce1b56173b684db38fb",
+      "候选SHA256": "b25fa072a72631e80116e0e629116c336c5a33b3de3a875e49fd20619248f15d"
+    },
+    {
+      "文件": "web/src/services/api/prompts.ts",
+      "原始SHA256": "83fe8bf112b5eed667493285d87ddefbc286f0dc2d7ff509dfd7431491c7827d",
+      "候选SHA256": "418a36fae0db71c26a5e636b4c16340550e830f33e234f5f847a7239b25af16d"
+    },
+    {
+      "文件": "web/src/pages/image/index.tsx",
+      "原始SHA256": "7c19ef9974e866517d6be8b2b5b0fa4cc57f930ba46a0d79ec5bfa4ccdbd8d8d",
+      "候选SHA256": "358b899458b3d8354a6166740312dfa1680c310c0bbf6bf2240f1f7143a08b98"
+    },
+    {
+      "文件": "web/src/pages/video/index.tsx",
+      "原始SHA256": "cb7c2de364fddfbeedc101af49f9abfffe26cc3b33b59adc4a830e391d2da79a",
+      "候选SHA256": "6d34c725f2d3b040418e111012c385e7cae8caeeca5782b7f342f5b33623fc3b"
+    },
+    {
+      "文件": "web/src/lib/canvas/canvas-event-bus.ts",
+      "原始SHA256": "58c5fa8892ed82743441953357346fed1c098e521fce3047498ad8863311fc7b",
+      "候选SHA256": "f57ea1f671849d8cf8477c56b7fdf8a50dc3189539ebb2fd84195ddcdc4b595d"
+    },
+    {
+      "文件": "web/src/lib/localforage-storage.ts",
+      "原始SHA256": "f8532c39dde86b6fae154d56480b54c4a48c820b9e5101e4988171f2a5b01430",
+      "候选SHA256": "96900bef01b6c6a9d90a33ba63e60980803dc7c47596303dd13b55a49539a42e"
+    },
+    {
+      "文件": "web/src/i18n/index.ts",
+      "原始SHA256": "10637e57f9e80bef58b539932e03a9148b3de731ccfba94ff32309a1a44ed311",
+      "候选SHA256": "5a25a860f23f77f0e5fe7c84e65c753a79ce95b2798c77191835935916757f5c"
+    },
+    {
+      "文件": "web/src/stores/use-canvas-side-panel-store.ts",
+      "原始SHA256": "36dc242349e3a12ac7d08e59906d4b66b4038ae1afcb5e37bd188a3034074a5a",
+      "候选SHA256": "ff230f1e854ab937607d33ee5b74857ab1c501211cda72a3097933ea889ac6c3"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-side-panel.tsx",
+      "原始SHA256": "d4f70e0d4a1e0b019d89d2263ac5145cdcb0a1c77cf9ae1e379f13697deb762d",
+      "候选SHA256": "9b99e29adbfe1ae53b65285dff243d00fa65748c623308a81cac74cd592ad2be"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-node-hover-toolbar.tsx",
+      "原始SHA256": "7966114fa8cc81a512ea2b723699a8420e38add0f24e4af87e8cc3472c565af7",
+      "候选SHA256": "3e92413e2a9c84c05eee4fee0e5c50578605cd2972dfc764864742bff00a340e"
+    },
+    {
+      "文件": "web/src/stores/use-agent-store.ts",
+      "原始SHA256": "b2a6b2c29981311489e688b102ed6394f14412e37e68c7cf3ade7ae9814805ac",
+      "候选SHA256": "f75c52e844212f1ca8e5729a9c187d2f5e813397802fc555549976ae1f65b725"
+    },
+    {
+      "文件": "web/src/components/agent/agent-panel.tsx",
+      "原始SHA256": "3f43e636dcf342a38a14b0e3122ef0ecf8c20320041bf1b743368f02540ae4b7",
+      "候选SHA256": "bd26e3e4f0353c35f07b4a88ad52c156b7bd08d6794ca31f51815523fff975e6"
+    },
+    {
+      "文件": "web/src/components/agent/local-agent-panel.tsx",
+      "原始SHA256": "cb5fec23d9be21eaa12dc7b9830d441fd143e803e00811625010f3dde502c05c",
+      "候选SHA256": "5a76d7199c2316d4e0e33c88daef845c02efb6a3dc5274b906f87308678680a4"
+    },
+    {
+      "文件": "web/src/stores/use-config-store.ts",
+      "原始SHA256": "943b278ff193ef82583d083124f9a8dbefd2cc35877427ee1a1e5b9c5c9f50fa",
+      "候选SHA256": "59c9a53e2319382cfa09ee490606f2e62bc88e33892ca90705e171a320f43b6e"
+    },
+    {
+      "文件": "web/src/stores/use-prompt-source-store.ts",
+      "原始SHA256": "00fafa85685e52dde244b6575c9b41cd6ed78300cd83783d5c0fe05103fe5248",
+      "候选SHA256": "a524dbf5288483914c7ee73678ed2e8787c0014eee4b4477f183b66fc30e194d"
+    },
+    {
+      "文件": "web/src/guan/三态主题状态.ts",
+      "原始SHA256": "71e538bcbbe7a152ef068520a53559acb134e9c090ca4c6cd06d525f96a0fc55",
+      "候选SHA256": "bf074f12c1f7b0ea907ee52f4d0da6655378b7d8fc32b191243a441658e87eab"
+    },
+    {
+      "文件": "web/src/stores/canvas/use-canvas-store.ts",
+      "原始SHA256": "1a5bffb3ad4b2116946ecf5e39acf0e00e73ae65dd38736253ad5beac1bc0bad",
+      "候选SHA256": "f89bc2f968429f397159f8faeb9f16526b9acbff976f878a460eb0f2b9f77548"
+    },
+    {
+      "文件": "web/src/services/local-storage-usage.ts",
+      "原始SHA256": "42269f86ceeb191cdaf7c1be0f6b88e950edb27ef5350106c8039fc6952b218e",
+      "候选SHA256": "6fc828038688b19b86804d2753ef1f765f8e5b018590b7b24bd293db12e644d2"
+    },
+    {
+      "文件": "web/src/i18n/locales/zh-CN.ts",
+      "原始SHA256": "101b9f4b88beece847cdf22aa5a7942947d3bc8c88c1e9844ffc9ad52ee2cf39",
+      "候选SHA256": "5b0d8efae9fbcc8767fffac5c18960daa04a5713eb379619b978e0ba54174395"
+    },
+    {
+      "文件": "web/src/i18n/locales/en-US.ts",
+      "原始SHA256": "adf44f789de78132e5ea2f993dd2486d0080fdf42f3eaadd08ee1c6918863792",
+      "候选SHA256": "af12800021cd138a51f049aa976b10798c3a4ad09d9d909ee17598e1d003cc7b"
+    },
+    {
+      "文件": "web/src/guan/SQLite应用入口.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "e44c0a5ab834351de511d7c470b96f8ba6b1468e52735a7ecc18416c5ce0e381"
+    },
+    {
+      "文件": "web/src/guan/上游浏览器存储桥.ts",
+      "原始SHA256": null,
+      "候选SHA256": "ce97cdb0b813447d2f82f55c96da5a3808e7b1df2ae7cd00cb35b497ba519cc6"
+    },
+    {
+      "文件": "web/src/main.tsx",
+      "原始SHA256": "9c22792703e73739c094cb38d513d8924ebc86204d21bcdc661c46834ded7952",
+      "候选SHA256": "8c52275caa20e851df2aed18cb8f40460e0c2692da7be335201bdf61ddf58231"
+    }
+  ],
+  "自有依赖": [
+    {
+      "文件": "扩展功能/本机存储/应用值编码.mjs",
+      "SHA256": "ef0ab5cde710b405755cb4cf63688f91c9a965e321d63a9d655411a3756a863f"
+    },
+    {
+      "文件": "扩展功能/本机存储/应用存储适配.mjs",
+      "SHA256": "4c665bfa4db2b3fd388dafbfa926023f796d7a0faf1db32826f5b939e07cc1f9"
+    },
+    {
+      "文件": "扩展功能/本机存储/浏览器适配.mjs",
+      "SHA256": "54a9772480928c9660e495816acbc8cb4098c44ff258c8502635d862e5fa8da3"
+    },
+    {
+      "文件": "扩展功能/本机服务/数据服务.mjs",
+      "SHA256": "aff5145a09b2e27707c6ed3fbe38bc2b7937b7bbfb4fb56aa95007768731846b"
+    },
+    {
+      "文件": "扩展功能/本机存储/SQLite工作区.mjs",
+      "SHA256": "8ec1b80dafb66627812b7e5d8b631662d7d7aab70a18de916d43851449c08e69"
+    }
+  ]
+}

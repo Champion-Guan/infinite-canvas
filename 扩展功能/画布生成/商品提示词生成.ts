@@ -99,7 +99,8 @@ export function buildProductGenerationContext(nodeId: string, nodes: CanvasNodeD
     const referenceAudios = resources.flatMap(input => input.audio ? [input.audio] : []);
     const references = referenceImages.map((image, index) => `Image ${index + 1}: reference ID "${image.id}", filename "${image.name}".`).join("\n");
     const language = productImageLanguageRequirement((parameter.metadata as ProductVariantMetadata).productLanguage);
-    return { prompt: [expanded, references && `Attached product references in order:\n${references}`, language].filter(Boolean).join("\n\n"), referenceImages, referenceVideos, referenceAudios,
+    const supplement = (parameter.metadata as ProductVariantMetadata).productGenerationSupplement?.trim();
+    return { prompt: [expanded, references && `Attached product references in order:\n${references}`, language, supplement].filter(Boolean).join("\n\n"), referenceImages, referenceVideos, referenceAudios,
         textCount: resources.filter(input => input.type === "text").length, imageCount: referenceImages.length,
         videoCount: referenceVideos.length, audioCount: referenceAudios.length };
 }

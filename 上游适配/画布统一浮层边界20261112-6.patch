@@ -1,0 +1,51 @@
+diff --git a/web/src/components/canvas/canvas-config-composer.tsx b/web/src/components/canvas/canvas-config-composer.tsx
+index da0a029..dc98681 100644
+--- a/web/src/components/canvas/canvas-config-composer.tsx
++++ b/web/src/components/canvas/canvas-config-composer.tsx
+@@ -1,4 +1,6 @@
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
++import { CanvasFloatingBoundary } from "@/扩展功能/画布交互/画布浮层容器";
++import { createProductPortal } from "@/扩展功能/产品/产品界面边界";
+ import { useEffect, useMemo, useRef, useState } from "react";
+ import type { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent } from "react";
+ import { Button, Image } from "antd";
+@@ -184,7 +186,7 @@ export function CanvasConfigComposer({ nodeId, nodes, value, inputs, connectedNo
+                     }}
+                     onBlur={() => window.setTimeout(closeMention, 120)}
+                 />
+-                {mention && candidates.length ? <MentionMenu inputs={candidates} allInputs={inputs} activeIndex={Math.min(activeIndex, candidates.length - 1)} theme={theme} onSelect={insertReference} /> : null}
++                {mention && candidates.length && editorRef.current ? <MentionMenu anchor={editorRef.current} inputs={candidates} allInputs={inputs} activeIndex={Math.min(activeIndex, candidates.length - 1)} theme={theme} onSelect={insertReference} /> : null}
+             </div>
+             {imagePreview ? <Image src={imagePreview} alt={t("canvas.composer.imagePreview")} style={{ display: "none" }} preview={{ visible: productActive, src: imagePreview, onVisibleChange: (visible) => !visible && setImagePreview(null) }} /> : null}
+         </div>
+@@ -192,7 +194,7 @@ export function CanvasConfigComposer({ nodeId, nodes, value, inputs, connectedNo
+ 
+ }
+ 
+-function MentionMenu({ inputs, allInputs, activeIndex, theme, onSelect }: { inputs: NodeGenerationInput[]; allInputs: NodeGenerationInput[]; activeIndex: number; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; onSelect: (input: NodeGenerationInput) => void }) {
++function MentionMenu({ anchor, inputs, allInputs, activeIndex, theme, onSelect }: { anchor: HTMLElement; inputs: NodeGenerationInput[]; allInputs: NodeGenerationInput[]; activeIndex: number; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; onSelect: (input: NodeGenerationInput) => void }) {
+     const selectedRef = useRef(false);
+     const activeItemRef = useRef<HTMLButtonElement | null>(null);
+ 
+@@ -206,8 +208,10 @@ function MentionMenu({ inputs, allInputs, activeIndex, theme, onSelect }: { inpu
+         onSelect(input);
+     };
+ 
+-    return (
+-        <div className="guan-scroll-region absolute left-2 top-[calc(100%+6px)] z-[90] max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border }}>
++    const rect = anchor.getBoundingClientRect();
++    return createProductPortal(
++        <CanvasFloatingBoundary><div data-canvas-no-zoom className="guan-scroll-region fixed z-[1200] max-h-56 w-64 overflow-y-auto rounded-xl border p-1 shadow-2xl" style={{ left: rect.left, top: rect.bottom + 6, background: theme.toolbar.panel, borderColor: theme.toolbar.border }}
++            onPointerDown={event => event.stopPropagation()}>
+             {inputs.map((input, index) => (
+                 <button
+                     key={input.nodeId}
+@@ -228,7 +232,7 @@ function MentionMenu({ inputs, allInputs, activeIndex, theme, onSelect }: { inpu
+                     </span>
+                 </button>
+             ))}
+-        </div>
++        </div></CanvasFloatingBoundary>, document.body,
+     );
+ }
+ 

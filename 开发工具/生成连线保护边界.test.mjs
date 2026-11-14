@@ -7,6 +7,7 @@ import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_m
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 async function load(file, dependencies) {
+    dependencies = { '@/扩展功能/画布交互/画布浮层容器': { CanvasFloatingBoundary: 'CanvasFloatingBoundary' }, ...dependencies };
     const { code } = await transformWithEsbuild(readFileSync(resolve(root, file), 'utf8'), file, { loader: file.endsWith('.tsx') ? 'tsx' : 'ts', jsx: 'automatic', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
     const module = { exports: {} };
     new Function('require', 'module', 'exports', code)(id => {

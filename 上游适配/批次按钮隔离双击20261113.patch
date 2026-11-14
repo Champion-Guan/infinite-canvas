@@ -1,0 +1,33 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index ea14e72..22547fc 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -401,6 +401,10 @@ export const CanvasNode = React.memo(function CanvasNode({
+                     }
+                 }}
+                 onDoubleClick={(event) => {
++                    if ((event.target as Element).closest("button,[role='button']")) {
++                        event.stopPropagation();
++                        return;
++                    }
+                     if (referenceSelectionState) {
+                         event.stopPropagation();
+                         return;
+@@ -671,6 +675,8 @@ function TextContent({ node, theme, promptHighlightSource: source, promptHighlig
+                     className="absolute right-2.5 top-2.5 z-30 flex h-8 items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-semibold shadow-[0_6px_18px_rgba(28,25,23,.12)] backdrop-blur-md transition hover:scale-[1.02]"
+                     style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.activeText }}
+                     aria-label={batchExpanded ? t("canvas.node.textBatchExpanded") : t("canvas.node.textBatchCollapsed")}
++                    aria-expanded={batchExpanded}
++                    onDoubleClick={(event) => event.stopPropagation()}
+                     onClick={(event) => {
+                         event.stopPropagation();
+                         onToggleBatch?.();
+@@ -928,6 +934,8 @@ function ImageContent({
+                     className="absolute right-2.5 top-2.5 z-30 flex h-8 items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-semibold shadow-[0_6px_18px_rgba(28,25,23,.16)] backdrop-blur-md transition hover:scale-[1.02]"
+                     style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.activeText }}
+                     aria-label={batchExpanded ? t("canvas.node.batchExpanded") : t("canvas.node.batchCollapsed")}
++                    aria-expanded={batchExpanded}
++                    onDoubleClick={(event) => event.stopPropagation()}
+                     onClick={(event) => {
+                         event.stopPropagation();
+                         onToggleBatch?.();

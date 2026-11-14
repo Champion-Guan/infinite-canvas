@@ -9,6 +9,13 @@
 .guan-fallback .local-canvas-fallback-switch button.is-active{background:#fff;color:#24262a;box-shadow:0 1px 4px rgba(20,24,32,.16);font-weight:600}
 .guan-fallback .local-canvas-fallback-group{margin-top:14px;padding-top:14px;border-top:1px solid #eceef1}
 .guan-fallback .local-canvas-fallback-group-head{display:flex;align-items:center;gap:10px}
+.guan-fallback .local-canvas-fallback-global{margin-top:12px}
+.guan-fallback .local-canvas-fallback-switch{position:relative}
+.guan-fallback .local-canvas-fallback-switch button{position:relative;z-index:1}
+.guan-fallback .local-canvas-fallback-switch button.is-active{background:transparent;box-shadow:none}
+.guan-fallback .local-canvas-fallback-indicator{position:absolute;left:0;top:3px;bottom:3px;width:0;border-radius:7px;background:#fff;box-shadow:0 1px 4px rgba(20,24,32,.16);pointer-events:none;transform-origin:left center}
+html.dark .guan-fallback .local-canvas-fallback-indicator{background:#44403c}
+html.dark .guan-fallback .local-canvas-fallback-switch button.is-active{background:transparent;box-shadow:none}
 .guan-fallback .local-canvas-fallback-group-head label{font-size:12px;color:#34363b;font-weight:650;cursor:pointer}
 .guan-fallback .local-canvas-fallback-group-head small{margin-left:auto;color:#8b9098;font-size:11px}
 .guan-fallback .local-canvas-fallback-group-head button{border:1px solid #d9dce2;border-radius:6px;padding:3px 7px;background:#fff;color:#666b73;font-size:11px;cursor:pointer;white-space:nowrap}
@@ -28,3 +35,5 @@ html[data-theme="dark"] .guan-fallback .local-canvas-fallback-switch,html.dark .
 html[data-theme="dark"] .guan-fallback .local-canvas-fallback-switch button,html.dark .guan-fallback .local-canvas-fallback-switch button{color:#aeb4bf}
 html[data-theme="dark"] .guan-fallback .local-canvas-fallback-switch button:hover,html.dark .guan-fallback .local-canvas-fallback-switch button:hover{color:#8ab4ff}
 html[data-theme="dark"] .guan-fallback .local-canvas-fallback-switch button.is-active,html.dark .guan-fallback .local-canvas-fallback-switch button.is-active{background:#44403c;color:#f4f4f5;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+html[data-theme="dark"] .guan-fallback .local-canvas-fallback-switch button.is-active,html.dark .guan-fallback .local-canvas-fallback-switch button.is-active{background:transparent;box-shadow:none}
+html[data-theme="dark"] .guan-fallback .local-canvas-fallback-indicator{background:#44403c}

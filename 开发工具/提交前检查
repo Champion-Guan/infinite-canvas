@@ -1,0 +1,3 @@
+#!/bin/sh
+set -eu
+exec node 开发工具/检查上游保护.mjs

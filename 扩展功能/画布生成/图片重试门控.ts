@@ -1,5 +1,6 @@
 import type { CanvasNodeData } from "@/types/canvas";
 import type { CanvasGenerationRequest } from "./并发生成状态";
+import { imageSizeRetryBlocked } from "../媒体交付/生成图片尺寸交付.mjs";
 
 export function imageRetryKey(nodeId: string, imageId?: string): string {
     return JSON.stringify([nodeId, imageId || null]);
@@ -11,6 +12,8 @@ export function canRetryCanvasNode(node: CanvasNodeData | undefined, imageId: st
     if (!node) return false;
     const slot = node.type === "image" && imageId ? node.metadata?.images?.find(image => image.id === imageId) : undefined;
     if (imageId && !slot) return false;
+    if (slot ? imageSizeRetryBlocked(slot) : imageSizeRetryBlocked(node.metadata)
+        || node.metadata?.images?.some(image => image.status === "error" && imageSizeRetryBlocked(image))) return false;
     const key = imageRetryKey(node.id, imageId);
     if (key !== ownKey && retries.has(key)) return false;
     if (retries.has(imageRetryKey(node.id)) && key !== imageRetryKey(node.id)) return false;

@@ -15,6 +15,7 @@ import { bindChannelConfiguration } from '../扩展功能/本机凭据/页面凭
 import { ts } from './检查首批功能适配.mjs';
 import { 构建原版图片协议, 图片原来源 } from './构建原版图片协议.mjs';
 import { 根目录 } from './公共.mjs';
+import { prepareGeneratedDelivery } from '../扩展功能/媒体交付/生成图片尺寸交付.mjs';
 
 const hash = value => createHash('sha256').update(value).digest('hex');
 const binding = 'provider:' + 'a'.repeat(64);
@@ -55,6 +56,19 @@ test('先保存任务身份再提交，原产品结果保存之后才读取检�
   assert.deepEqual(f.events, ['record', 'submit', 'result', 'save', 'checkpoint', 'applied']);
   assert.equal(f.commands.find(item => item.operation === 'submit').task.id, f.records[0].taskId);
 });
+test('生成勾选只在本机确认接受原任务后取消，准备、记录及提交失败均保留', async () => {
+  const f = fixture();
+  await runCanvasImageTask({ ...f.options, onSubmitted: () => f.events.push('uncheck') });
+  assert.deepEqual(f.events, ['record', 'submit', 'uncheck', 'result', 'save', 'checkpoint', 'applied']);
+  for (const phase of ['prepare', 'recordTask', 'submit']) {
+    const failed = fixture();
+    const options = { ...failed.options, onSubmitted: () => assert.fail('提交失败不能取消勾选') };
+    const fail = async () => { throw Error('合成提交失败'); };
+    if (phase === 'submit') options.host = { ...options.host, submit: fail };
+    else options[phase] = fail;
+    await assert.rejects(runCanvasImageTask(options), /合成提交失败/);
+  }
+});
 test('批量结果保存被整批延后时工作线程先退出，最终画布ACK后沿用原任务确认', async () => {
   const f = fixture();
   const result = await runCanvasImageTask({ ...f.options, deferConfirm: () => true });
@@ -79,6 +93,25 @@ test('应用失败后保留成功响应；重新交付不重新准备、绑定�
   await runCanvasImageTask({ ...f.options, previous: f.records[0], retry: true,
     prepare: async () => assert.fail('不可重建请求'), bind: async () => assert.fail('不可重新绑定') });
   assert.equal(f.jobs.get(id).applied, true); assert.equal(f.commands.filter(item => item.operation === 'submit').length, 1);
+});
+test('尺寸验收失败保留原任务响应；再次交付仍只读取原任务，不确认合格或重新计费', async () => {
+  const f = fixture();
+  const applyAndSave = async () => prepareGeneratedDelivery(new Blob(['original-response']), { width: 1024, height: 1536 }, { targetSize: '1152x1536' });
+  await assert.rejects(runCanvasImageTask({ ...f.options, applyAndSave }), code('image_delivery_size_mismatch'));
+  const previous = f.records[0], before = structuredClone(f.jobs.get(previous.taskId));
+  await assert.rejects(runCanvasImageTask({ ...f.options, previous, retry: true, applyAndSave,
+    prepare: async () => assert.fail('不重新准备请求'), bind: async () => assert.fail('不重新绑定渠道'),
+  }), code('image_delivery_size_mismatch'));
+  assert.deepEqual(f.jobs.get(previous.taskId), before);
+  assert.equal(before.state, 'succeeded'); assert.equal(before.applied, false);
+  assert.equal(f.commands.filter(command => command.operation === 'submit').length, 1);
+  assert.equal(f.commands.filter(command => command.operation === 'result').length, 2);
+  assert.equal(f.commands.filter(command => command.operation === 'applied' || command.operation === 'checkpoint').length, 0);
+  await assert.rejects(f.options.host.deliver({ id: previous.taskId, productId: 'product-A', nodeId: 'node-A' },
+    { applyAndSave: async job => {
+      assert.equal(hash(Buffer.from(job.bytes, 'base64')), f.response.id, '上游原始响应字节仍可读取');
+      throw Error('只读核对后停止');
+    } }), /只读核对后停止/);
 });
 test('同一图片同时点击被门禁拦截，不重复提交', async () => {
   const f = fixture(), gate = deferred();

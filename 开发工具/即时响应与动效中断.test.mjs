@@ -158,6 +158,7 @@ test('滚轮及捕获阶段指针按下先交还手动控制，层内卡片停�
         react: { useEffect() {}, useLayoutEffect: fn => fn(), useRef: current => ({ current }), useState: value => [value, () => {}] },
         'react/jsx-runtime': { jsx, jsxs: jsx },
         '@/扩展功能/画布交互/快捷键边界': {},
+        '@/扩展功能/画布交互/浮层可见区域': { CANVAS_FLOATING_CHANGE: 'guan-canvas-floating-change' },
         '@/扩展功能/产品/产品界面边界': { useProductActive: () => true },
         '@/扩展功能/画布布局/画布平移调度': { createCanvasPanScheduler: () => ({
             begin() { calls.push('begin'); }, move() { calls.push('move'); }, flush() {}, dispose() {},

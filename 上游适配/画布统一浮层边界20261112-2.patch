@@ -1,0 +1,18 @@
+diff --git a/web/src/components/canvas/infinite-canvas.tsx b/web/src/components/canvas/infinite-canvas.tsx
+index 0e0f405..93503d3 100644
+--- a/web/src/components/canvas/infinite-canvas.tsx
++++ b/web/src/components/canvas/infinite-canvas.tsx
+@@ -1,4 +1,5 @@
+ import { canvasPointerAction, focusCanvasFromPointer, ignoreCanvasShortcut } from "@/扩展功能/画布交互/快捷键边界";
++import { CANVAS_FLOATING_CHANGE } from "@/扩展功能/画布交互/浮层可见区域";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+ import { createCanvasPanScheduler } from "@/扩展功能/画布布局/画布平移调度";
+@@ -67,6 +68,7 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+                 panel.style.transform = `translateX(-50%) scale(${1 / next.k})`;
+             });
+             callbacksRef.current.onViewportPreview?.(next);
++            window.dispatchEvent(new Event(CANVAS_FLOATING_CHANGE));
+         },
+         commit: next => callbacksRef.current.onViewportChange(next),
+         frame: callback => requestAnimationFrame(callback), cancel: id => cancelAnimationFrame(id), now: () => performance.now(),

@@ -74,6 +74,7 @@ export type ProductBriefField = typeof PRODUCT_BRIEF_FIELDS[number]["key"];
 export type ProductBriefValues = Partial<Record<ProductBriefField | "carouselCount" | "generationTool", string>>;
 
 export type ProductParameterMetadata = CanvasNodeMetadata & {
+    productGenerationSupplement?: string;
     productConfirmations?: ConfirmationAnswer[];
     productMainImages?: ProductMainImage[];
     productBrief?: ProductBriefValues;
@@ -110,7 +111,7 @@ export function productParameterSupplement(metadata?: CanvasNodeMetadata) {
     const rules = productPlatformRules(metadata);
     const richContentRequirement = value?.productPlatform === WILDBERRIES_PLATFORM && usesDefaultProductPlatformRules(value)
         ? "富内容必须制作6张：800 x 500 px，PNG，单张最大5MB。" : "";
-    return [productBriefSupplement(metadata), user, rules, richContentRequirement].filter(Boolean).join("\n\n");
+    return [productBriefSupplement(metadata), user, value?.productGenerationSupplement?.trim(), rules, richContentRequirement].filter(Boolean).join("\n\n");
 }
 
 export function productBriefSupplement(metadata?: CanvasNodeMetadata) {

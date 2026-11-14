@@ -1,9 +1,16 @@
 import { MAX_APPLICATION_VALUE_DEPTH, MAX_MEDIA_BATCH_BYTES, MAX_MEDIA_BATCH_COUNT, MEDIA_TYPES, StorageError, requireValue, validHash } from './协议.mjs';
 import { isChannelBinding, sealedCredentialRef } from '../本机凭据/页面凭据引用.mjs';
 import { validCredentialRef } from '../本机凭据/凭据协议.mjs';
+import { deferCanvasMediaUrl, releaseDeferredCanvasMedia } from './画布媒体延迟恢复.mjs';
 
 const LEGACY_CHUNK_BYTES = 16 * 1024 * 1024;
 const credentialKey = /^(api[_-]?key|authorization|password|token|access[_-]?token|refresh[_-]?token|private[_-]?key|secret)$/i;
+const imageDataPrefix = 'data:' + 'image/';
+async function inlineImageBlob(value) {
+  const match = /^data:(image\/[\w.+-]+);base64,([A-Za-z0-9+/=\r\n]+)$/.exec(value);
+  requireValue(match && MEDIA_TYPES.includes(match[1]), 'invalid_media', '内嵌图片编码无效，原图片未修改。');
+  return new Blob([Uint8Array.from(atob(match[2]), char => char.charCodeAt(0))], { type: match[1] });
+}
 
 // 值使用带类型的树，保留逻辑storageKey，不把临时网址或Blob对象写进JSON。
 // 凭据只能交给显式注入的安全端口；没有端口时拒绝，不删字段、不明文降级。
@@ -12,6 +19,7 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
   const loadedMedia = new Map(), decodedUrls = new Map(), mediaWrites = new WeakMap();
   let savedBlobs = new WeakMap();
   const credentialChecks = new Map();
+  const deferredUrls = new Set();
   function credentialCheck(key, operation) {
     if (!credentialChecks.has(key)) {
       const flight = Promise.resolve().then(operation);
@@ -116,12 +124,13 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
         return ['number', item];
       }
       if (typeof item === 'string') {
-        if (!item.startsWith('blob:')) return ['string', item];
+        const inlineImage = key === 'url' && typeof parent?.storageKey === 'string' && item.startsWith(imageDataPrefix);
+        if (!item.startsWith('blob:') && !inlineImage) return ['string', item];
         if (savedUrls.has(item)) return ['blob-url', reuse(savedUrls.get(item))];
-        requireValue(legacyUrlBlobs.has(item) || typeof readBlobUrl === 'function', 'transient_url_unresolved', '临时媒体尚未转为本机文件；未保存失效网址。');
+        requireValue(inlineImage || legacyUrlBlobs.has(item) || typeof readBlobUrl === 'function', 'transient_url_unresolved', '临时媒体尚未转为本机文件；未保存失效网址。');
         const existing = legacyUrlBlobs.get(item);
         if (!existing) stats.blobReads++;
-        const blob = existing || await readBlobUrl(item);
+        const blob = existing || (inlineImage ? await inlineImageBlob(item) : await readBlobUrl(item));
         requireValue(blob instanceof Blob, 'transient_url_unresolved', '无法读取临时媒体。');
         const descriptor = await binary(blob);
         if (descriptor.size > 0 && descriptor.id === null) pendingBlobUrls.push({ url: item, descriptor });
@@ -201,7 +210,7 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
       return matches.length ? matches : stableKeys.filter(key => Object.entries(item).some(([field, value]) => field === 'storageKey' && value === key));
     }
     async function reuseStableMedia(item, name, entry, stableKeys) {
-      if (!stableKeys.length || (!((typeof entry === 'string' && entry.startsWith('blob:')) || entry instanceof Blob || entry instanceof ArrayBuffer))) return null;
+      if (!stableKeys.length || (!((typeof entry === 'string' && (entry.startsWith('blob:') || name === 'url' && entry.startsWith(imageDataPrefix))) || entry instanceof Blob || entry instanceof ArrayBuffer))) return null;
       const key = stableKeys.find(candidate => stableMediaMatches(item, candidate, savedMediaKeys.get(candidate)));
       const descriptor = key ? savedMediaKeys.get(key) : undefined;
       if (!descriptor || !Object.hasOwn(descriptor, 'id')) return null;
@@ -246,13 +255,19 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
     if (performance.now() - started > 500) console.debug('[存储性能] 值编码 ' + JSON.stringify({ elapsedMs: Math.round(performance.now() - started), ...stats }));
     return { tree, mediaIds: [...mediaIds].sort() };
   }
-  async function decode(tree) {
+  async function decode(tree, { deferMediaUrls = false, yieldToMain = () => globalThis.scheduler?.yield
+    ? globalThis.scheduler.yield() : new Promise(resolve => setTimeout(resolve, 0)) } = {}) {
     const decodedMedia = new Map(), mediaPartSizes = new Map();
-    async function binary(value) {
+    let visited = 0, sliceStarted = performance.now();
+    function validateBinary(value) {
       requireValue(value && typeof value.mime === 'string' && (!value.mime || MEDIA_TYPES.includes(value.mime)) && Number.isSafeInteger(value.size) && value.size >= 0, 'invalid_value', '本机媒体描述不完整。');
       const direct = Object.hasOwn(value, 'id');
       if (direct) requireValue(Object.keys(value).length === 3 && (value.size === 0 ? value.id === null : validHash(value.id)), 'invalid_value', '本机单体媒体描述无效。');
       else requireValue(Array.isArray(value.parts) && value.parts.every(validHash) && value.parts.length === Math.ceil(value.size / LEGACY_CHUNK_BYTES), 'invalid_value', '本机旧分片媒体描述不完整。');
+      return direct;
+    }
+    async function binary(value) {
+      const direct = validateBinary(value);
       const identity = direct ? JSON.stringify([value.mime, value.size, value.id]) : JSON.stringify([value.mime, value.size, value.parts]);
       if (decodedMedia.has(identity)) return decodedMedia.get(identity);
       const pending = (async () => {
@@ -283,7 +298,15 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
       try { return await pending; }
       catch (error) { if (decodedMedia.get(identity) === pending) decodedMedia.delete(identity); throw error; }
     }
-    async function visit(node, depth = 0, key = '', parent) {
+    // 普通JSON节点同步恢复；仅遇到媒体或凭据I/O时挂起，避免每个字段创建微任务。
+    function visit(node, depth = 0, key = '', parent) {
+      // 大画布按时间片解码，让加载反馈和用户输入持续绘制；小快照不增加等待。
+      if (++visited % 256 === 0 && performance.now() - sliceStarted >= 8) {
+        return Promise.resolve().then(yieldToMain).then(() => {
+          sliceStarted = performance.now();
+          return visit(node, depth, key, parent);
+        });
+      }
       requireValue(depth <= MAX_APPLICATION_VALUE_DEPTH && Array.isArray(node), 'invalid_value', '本机应用值格式无效。');
       const [tag, value] = node;
       if (tag === 'null' && node.length === 1) return null;
@@ -295,35 +318,64 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
       if (tag === 'date' && typeof value === 'string' && Number.isFinite(Date.parse(value))) return new Date(value);
       if (tag === 'secret') {
         requireValue(validCredentialRef(value) && secretPort?.inspect, 'secret_port_required', '凭据端口不可用，没有用空密钥替代。');
-        const sealed = await credentialCheck(value, () => secretPort.inspect(value));
-        requireValue(sealed === 'guan-vault:' + value, 'secret_not_found', '凭据检查无效，没有用空密钥替代。');
-        if (key === 'apiKey' && typeof parent?.baseUrl === 'string' && ['openai', 'gemini'].includes(parent.apiFormat) && secretPort.resolveChannel) {
-          const profile = { kind: parent.apiFormat, endpoint: parent.baseUrl, credentialRef: value };
-          return await credentialCheck(JSON.stringify(profile), () => secretPort.resolveChannel(profile)) || sealed;
-        }
-        return sealed;
+        return (async () => {
+          const sealed = await credentialCheck(value, () => secretPort.inspect(value));
+          requireValue(sealed === 'guan-vault:' + value, 'secret_not_found', '凭据检查无效，没有用空密钥替代。');
+          if (key === 'apiKey' && typeof parent?.baseUrl === 'string' && ['openai', 'gemini'].includes(parent.apiFormat) && secretPort.resolveChannel) {
+            const profile = { kind: parent.apiFormat, endpoint: parent.baseUrl, credentialRef: value };
+            return await credentialCheck(JSON.stringify(profile), () => secretPort.resolveChannel(profile)) || sealed;
+          }
+          return sealed;
+        })();
       }
       if (tag === 'provider') {
         requireValue(isChannelBinding(value) && secretPort?.describeChannel, 'secret_port_required', '渠道绑定检查尚未接入。');
-        await credentialCheck(value, () => secretPort.describeChannel(value));
-        return value;
+        return credentialCheck(value, () => secretPort.describeChannel(value)).then(() => value);
       }
       if (tag === 'blob' || tag === 'blob-url' || tag === 'array-buffer') {
         const identity = tag === 'blob-url' ? JSON.stringify(value) : null;
         if (identity && decodedUrls.has(identity)) return decodedUrls.get(identity);
-        const blob = await binary(value);
-        if (Object.hasOwn(value, 'id')) savedBlobs.set(blob, structuredClone(value));
-        if (tag === 'blob') return blob;
-        if (tag === 'array-buffer') return blob.arrayBuffer();
-        const url = createObjectURL(blob); urls.add(url);
-        if (Object.hasOwn(value, 'id')) savedUrls.set(url, structuredClone(value));
-        else legacyUrlBlobs.set(url, blob);
-        decodedUrls.set(identity, url); return url;
+        if (tag === 'blob-url' && deferMediaUrls) {
+          validateBinary(value);
+          const descriptor = structuredClone(value);
+          const url = deferCanvasMediaUrl(async () => {
+            const blob = await binary(descriptor);
+            const source = createObjectURL(blob); urls.add(source);
+            savedUrls.set(source, descriptor);
+            return source;
+          }, source => {
+            revokeObjectURL(source); urls.delete(source);
+            const direct = Object.hasOwn(descriptor, 'id');
+            const identity = direct ? JSON.stringify([descriptor.mime, descriptor.size, descriptor.id])
+              : JSON.stringify([descriptor.mime, descriptor.size, descriptor.parts]);
+            decodedMedia.delete(identity);
+          });
+          deferredUrls.add(url);
+          savedUrls.set(url, descriptor);
+          decodedUrls.set(identity, url);
+          return url;
+        }
+        return binary(value).then(blob => {
+          if (Object.hasOwn(value, 'id')) savedBlobs.set(blob, structuredClone(value));
+          if (tag === 'blob') return blob;
+          if (tag === 'array-buffer') return blob.arrayBuffer();
+          const url = createObjectURL(blob); urls.add(url);
+          if (Object.hasOwn(value, 'id')) savedUrls.set(url, structuredClone(value));
+          else legacyUrlBlobs.set(url, blob);
+          decodedUrls.set(identity, url); return url;
+        });
       }
       if (tag === 'array' && Array.isArray(value)) {
         const result = [];
-        for (const entry of value) result.push(await visit(entry, depth + 1));
-        return result;
+        const fill = (start = 0) => {
+          for (let index = start; index < value.length; index++) {
+            const child = visit(value[index], depth + 1);
+            if (child instanceof Promise) return child.then(entry => { result.push(entry); return fill(index + 1); });
+            result.push(child);
+          }
+          return result;
+        };
+        return fill();
       }
       if (tag === 'object' && Array.isArray(value)) {
         const result = {}, keys = new Set();
@@ -333,11 +385,17 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
           keys.add(pair[0]);
           if (['baseUrl', 'apiFormat'].includes(pair[0]) && pair[1]?.[0] === 'string' && typeof pair[1][1] === 'string') Object.defineProperty(context, pair[0], { value: pair[1][1], enumerable: true });
         }
-        for (const pair of value) {
-          Object.defineProperty(result, pair[0], { value: await visit(pair[1], depth + 1, pair[0], context), enumerable: true, writable: true, configurable: true });
-        }
-        registerStableMediaRefs(result);
-        return result;
+        const assign = (key, value) => Object.defineProperty(result, key, { value, enumerable: true, writable: true, configurable: true });
+        const fill = (start = 0) => {
+          for (let index = start; index < value.length; index++) {
+            const pair = value[index], child = visit(pair[1], depth + 1, pair[0], context);
+            if (child instanceof Promise) return child.then(entry => { assign(pair[0], entry); return fill(index + 1); });
+            assign(pair[0], child);
+          }
+          registerStableMediaRefs(result);
+          return result;
+        };
+        return fill();
       }
       throw new StorageError('invalid_value', '无法识别本机应用值，不作空值处理。');
     }
@@ -357,7 +415,9 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
   }
   function invalidateMedia() {
     // 保留正在显示的对象URL；只撤销已落盘缓存，重新导入相同字节必须重新确认上传。
+    const deferred = [...deferredUrls].map(url => [url, savedUrls.get(url)]).filter(([, descriptor]) => descriptor);
     savedBlobs = new WeakMap(); savedUrls.clear(); savedMediaKeys.clear(); loadedMedia.clear(); decodedUrls.clear();
+    for (const [url, descriptor] of deferred) savedUrls.set(url, descriptor);
   }
-  return { encode, decode, invalidateMedia, close() { for (const url of urls) revokeObjectURL(url); urls.clear(); savedUrls.clear(); legacyUrlBlobs.clear(); savedBlobs = new WeakMap(); savedMediaKeys.clear(); loadedMedia.clear(); decodedUrls.clear(); credentialChecks.clear(); } };
+  return { encode, decode, invalidateMedia, close() { for (const url of urls) revokeObjectURL(url); for (const url of deferredUrls) releaseDeferredCanvasMedia(url); deferredUrls.clear(); urls.clear(); savedUrls.clear(); legacyUrlBlobs.clear(); savedBlobs = new WeakMap(); savedMediaKeys.clear(); loadedMedia.clear(); decodedUrls.clear(); credentialChecks.clear(); } };
 }

@@ -1,0 +1,1094 @@
+{
+  "日期": "2026-10-20",
+  "状态": "扩大批次候选，待具体差异批准；未隔离接入或切换3100",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/凭据网关任务-qD9PwY/凭据网关任务接入记录.json",
+  "前置差异SHA256": "723841e0f57b5fb3bd21d9071b9223706833d4532ca3b3a463633e409eb1fb05",
+  "文件数": 14,
+  "差异SHA256": "bf3ca4807a964c13ea82e858c62b8b0410a109a90aac712cdb79b62978fa23d6",
+  "完整虚拟类型检查通过": true,
+  "类型检查依赖": {
+    "临时目录": "/var/folders/kz/mjz6y1q970lfz57ldzrpyfnw0000gn/T/guan-type-dependencies-JS9F1r",
+    "锁文件": [
+      {
+        "文件": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/3a6b64b602ad062b29fac66902ed18a7ef5fd9dc/web/node_modules/.pnpm/lock.yaml",
+        "SHA256": "3904f54c8433ecf5be03e16c883b08215ac99b72c698fadc17be6a3daa0493e3"
+      },
+      {
+        "文件": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/node_modules/.pnpm/lock.yaml",
+        "SHA256": "268f9072e5453582d61ffb5392d0fbf0dbf97d86fc14cb406ec9f1efdc1541ec"
+      }
+    ],
+    "声明与元数据文件数": 2764,
+    "包": [
+      {
+        "name": "react",
+        "version": "19.2.5",
+        "integrity": "sha512-llUJLzz1zTUBrskt2pwZgLq59AemifIftw4aB7JxOqf1HY2FDaGDxgwpAPVzHU1kdWabH7FauP4i1oEeer2WCA=="
+      },
+      {
+        "name": "@types/react",
+        "version": "19.1.12",
+        "integrity": "sha512-cMoR+FoAf/Jyq6+Df2/Z41jISvGZZ2eTlnsaJRptmZ76Caldwy1odD4xTr/gNV9VLj0AWgg/nmkevIyUfIIq5w=="
+      },
+      {
+        "name": "@vitejs/plugin-react",
+        "version": "5.2.0",
+        "integrity": "sha512-YmKkfhOAi3wsB1PhJq5Scj3GXMn3WvtQ/JC0xoopuHoXSdmtdStOpFrYaT1kie2YgFBcIe64ROzMYRjCrYOdYw=="
+      },
+      {
+        "name": "vite",
+        "version": "7.3.7",
+        "integrity": "sha512-AHEzTORMbi7/7aXp7w7KZ5+DCUdSeLsJz0grY8xHpc9DHdYb0vQu6DqJfm2tOw3gDExNgPgnJTXxM6syYFHaCA=="
+      },
+      {
+        "name": "@types/node",
+        "version": "20.19.43",
+        "integrity": "sha512-6oYBAi5ikg4Pl+kGsoYtawUMBT2zZMCvPNF7pVLnHZfd1zf38DRiWn/gT01RYCdUqkv7Fhr+C9ot4/tb+2sVvA=="
+      },
+      {
+        "name": "jiti",
+        "version": "2.7.0",
+        "integrity": "sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ=="
+      },
+      {
+        "name": "lightningcss",
+        "version": "1.32.0",
+        "integrity": "sha512-NXYBzinNrblfraPGyrbPoD19C1h9lfI/1mzgWYvXUTe414Gz/X1FD2XBZSZM7rRTrMA8JL3OtAaGifrIKhQ5yQ=="
+      },
+      {
+        "name": "csstype",
+        "version": "3.2.3",
+        "integrity": "sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ=="
+      },
+      {
+        "name": "@babel/core",
+        "version": "7.29.7",
+        "integrity": "sha512-RgHBCvtjbOK2gXSNBNIkNoEc9qoVEtau3hj8gEqKQuL3HZAibKarWFEI3Lfm6EYKkLalOh8eSrj9b+ch9H/VBA=="
+      },
+      {
+        "name": "@types/babel__core",
+        "version": "7.20.5",
+        "integrity": "sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA=="
+      },
+      {
+        "name": "undici-types",
+        "version": "6.21.0",
+        "integrity": "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="
+      },
+      {
+        "name": "typescript",
+        "version": "5.9.3",
+        "integrity": "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="
+      },
+      {
+        "name": "rollup",
+        "version": "4.64.3",
+        "integrity": "sha512-iIMWbptLYsZdGTJMH8ngApXdsCatE6bCMv2eqGIfGE1++kwh7TCWBdWKK0FKC0yx++196vGK5VdagzRXSLMa8A=="
+      },
+      {
+        "name": "esbuild",
+        "version": "0.28.2",
+        "integrity": "sha512-HKVLS8dvII+xoKW9kmqxbRKrnWEXfJJr/FZhhJmiqIB0e053QNYFqOBouTMO/k5sID4MvCiUCvv8b9M4h32wIA=="
+      },
+      {
+        "name": "postcss",
+        "version": "8.5.29",
+        "integrity": "sha512-49cGhUbXj8Qenv0iTMxA1cFBzxXoctpC9Ujd77t1WcbJIr6nF/eI7g/8MgxrYldFRuAXvja7xQRwavoW7kgrxQ=="
+      },
+      {
+        "name": "@types/estree",
+        "version": "1.0.9",
+        "integrity": "sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg=="
+      },
+      {
+        "name": "source-map-js",
+        "version": "1.2.2",
+        "integrity": "sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw=="
+      },
+      {
+        "name": "@types/babel__generator",
+        "version": "7.27.0",
+        "integrity": "sha512-ufFd2Xi92OAVPYsy+P4n7/U7e68fex0+Ee8gSG9KX7eo084CWiQ4sdxktvdl0bOPupXtVJPY19zk6EwWqUQ8lg=="
+      },
+      {
+        "name": "@babel/parser",
+        "version": "7.29.9",
+        "integrity": "sha512-CjXrNHTnvqBVqHgdBysY3vk2T8tpJHb5/RMeHJBTyVa9xgugCB0CJTx/3oO8RV2QRQP391RWpB7D6hLjm8V9uA=="
+      },
+      {
+        "name": "@types/babel__template",
+        "version": "7.4.4",
+        "integrity": "sha512-h/NUaSyG5EyxBIp8YRxo4RMe2/qQgvyowRwVMzhYhBCONbW8PUsg4lkFMrhgZhUe5z3L3MiLDuvyJ/CaPa2A8A=="
+      },
+      {
+        "name": "@types/babel__traverse",
+        "version": "7.28.0",
+        "integrity": "sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q=="
+      },
+      {
+        "name": "@babel/types",
+        "version": "7.29.8",
+        "integrity": "sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg=="
+      },
+      {
+        "name": "zustand",
+        "version": "5.0.15",
+        "integrity": "sha512-MpSEjRiBkA9crSYeOUH32rJC7SVqAbm0Fqcqge/bUi2PPoLcBWKOsG+C8mevmpr8TwXHBVkChbbJiyvkE+i/3A=="
+      },
+      {
+        "name": "use-sync-external-store",
+        "version": "1.7.0",
+        "integrity": "sha512-6L+EeigHMQhdaIPNIFUKwfWJSwWFQ8gJbJ2DLOs5sDIegTwR9fRxvnM3uciHKjIZhFz+KAv2emhWMRvDmMcY8A=="
+      },
+      {
+        "name": "i18next",
+        "version": "26.4.2",
+        "integrity": "sha512-RX+R0VLg13IbvRuJSxnqykUFS9vQZTl8wYpWPCIUDWVrSGjsQywB5Y+pjzrkboxGAuYfJZVH1InFTdgBdxq6ug=="
+      },
+      {
+        "name": "react-i18next",
+        "version": "17.0.16",
+        "integrity": "sha512-7uImVD9hG5yUOaP5KHVied1x0A004Di/KU031ULR35Ma+9e9H5GdnNZHgQEIByyAz+IAXBkRDTedNVzjPUH8ZA=="
+      },
+      {
+        "name": "nanoid",
+        "version": "5.1.16",
+        "integrity": "sha512-kVrnsrJqMR8+oLJnGEmSWw9BivK5mt7H3FZatVRjrc5wGqFYuBxX1yG7+A7Gi5AefkX6t/oCkizcQgpu0cY1dQ=="
+      },
+      {
+        "name": "react-router-dom",
+        "version": "7.18.4",
+        "integrity": "sha512-yrfmJHIpDG7taCpqKjT1G5B6q3O2K+RN8/fgNf0lTjCwiPbQ0ei6vXX9ZjQR+7ld8Tr7Z5xmyMnZ8YJrphWQUw=="
+      },
+      {
+        "name": "react-dom",
+        "version": "19.2.5",
+        "integrity": "sha512-J5bAZz+DXMMwW/wV3xzKke59Af6CHY7G4uYLN1OvBcKEsWOs4pQExj86BBKamxl/Ik5bx9whOrvBlSDfWzgSag=="
+      },
+      {
+        "name": "react-router",
+        "version": "7.18.4",
+        "integrity": "sha512-PUPQcMhMGRAslLcvtlPz/kmzBEWPhLdgLFrL7pLNepBL6dX0lWj4WD2cUYVgYCuT3jxvghYFg81cDTj44DhetQ=="
+      },
+      {
+        "name": "cookie",
+        "version": "1.1.1",
+        "integrity": "sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ=="
+      },
+      {
+        "name": "antd",
+        "version": "6.6.5",
+        "integrity": "sha512-biJB/aORNU2lvZZCX783S/g8atfE8akrEKRjRrsXVttoMtJbSHLf/Z29niv0blzt6H3BgKvhkQgHoUn5MgCx7w=="
+      },
+      {
+        "name": "@rc-component/input",
+        "version": "1.3.1",
+        "integrity": "sha512-iFvTUT9W+JC/MSin2aGAk8NqsVlTzcExNC9DZariON1IWirju9NoNeEk47an4Q8iHazkoVI/y1LnDi88+CPcig=="
+      },
+      {
+        "name": "@rc-component/util",
+        "version": "1.13.0",
+        "integrity": "sha512-IXf2zBfZrbQGT+G8LxnoICDBGnMHIPIiq5HCRn3EDfKUx28x1rnbZBj46ULJf4sM8ImTG1SepqfNBdxZziqQ4w=="
+      },
+      {
+        "name": "@types/react-dom",
+        "version": "19.1.9",
+        "integrity": "sha512-qXRuZaOsAdXKFyOhRBg6Lqqc0yay13vN7KrIg4L7N4aaHN68ma9OK3NE1BoDFgFOTfM7zg+3/8+2n8rLUH3OKQ=="
+      },
+      {
+        "name": "@rc-component/dialog",
+        "version": "1.10.0",
+        "integrity": "sha512-eDukNlz9vNszAGv7i3zKXdxEd3wgVmNxuJijYt8zvTh17QwTu8KK/bdURRd/lU4qaMzhO1HKKmMrwOnkaw0BvQ=="
+      },
+      {
+        "name": "@rc-component/form",
+        "version": "1.8.6",
+        "integrity": "sha512-1EXVsSKPZC6kGrIqxVck7kAWM6T65b6et/n5wIcyiaIa41VrDshD0nVLHoBDEIZr2ATQsOP6icb4XQkNFMLBAw=="
+      },
+      {
+        "name": "@rc-component/picker",
+        "version": "1.12.2",
+        "integrity": "sha512-ZB1A+tzTQkgtR4flPrAMvxIAOelIIOOOsp22fU2Nad6PbZcJacnyGJUJqUH7ZS9mwxeUwurf1pLMKXrVsK1tlA=="
+      },
+      {
+        "name": "dayjs",
+        "version": "1.11.23",
+        "integrity": "sha512-QDTCU0M0MxR3hQfnlDJfwekQiaanm1ubOD231u73WBckQ/fsamwRLiE2GBz6D3a/xF1NgfiDLJjXBa1hYOYTtQ=="
+      },
+      {
+        "name": "@rc-component/trigger",
+        "version": "3.10.1",
+        "integrity": "sha512-mXlDN0IXdtV8Yqqm8195ECCyrbmfvvfKvwVvSlH0+qvKD6BUF8gRhEjSy0FOcD1+CcDRHgTiX99LoxfQrmh3Cw=="
+      },
+      {
+        "name": "@rc-component/motion",
+        "version": "1.3.3",
+        "integrity": "sha512-Xh3IszxvlSv3/PLYFyC2UZi9LNB83yOnkB/LNmRzaypZLvkhqUIPS7MQpGZcCMWrNsXV2p6YTSWbSGvFpEle9A=="
+      },
+      {
+        "name": "@rc-component/resize-observer",
+        "version": "1.1.2",
+        "integrity": "sha512-t/Bb0W8uvL4PYKAB3YcChC+DlHh0Wt5kM7q/J+0qpVEUMLe7Hk5zuvc9km0hMnTFPSx5Z7Wu/fzCLN6erVLE8Q=="
+      },
+      {
+        "name": "@rc-component/portal",
+        "version": "2.2.1",
+        "integrity": "sha512-ck+r1kW/JSv0wxPji3KN2ss9K6Z0qqwusw/mf/0JobXhZ8hC2ejZwCJObW/SvDi0uhA0VzmCnx0CaCci95tcmA=="
+      },
+      {
+        "name": "@rc-component/tooltip",
+        "version": "1.5.2",
+        "integrity": "sha512-VLq4BclU3LgRe46g2hTr2bdsM8tFYs7dVwpuD88rPNNg4lCGe8mBSS4FiRzYzS+ffnZ46y4SI8KYKo9K7qBnhw=="
+      },
+      {
+        "name": "@ant-design/cssinjs",
+        "version": "2.1.2",
+        "integrity": "sha512-2Hy8BnCEH31xPeSLbhhB2ctCPXE2ZnASdi+KbSeS79BNbUhL9hAEe20SkUk+BR8aKTmqb6+FKFruk7w8z0VoRQ=="
+      },
+      {
+        "name": "@ant-design/cssinjs-utils",
+        "version": "2.1.2",
+        "integrity": "sha512-5fTHQ158jJJ5dC/ECeyIdZUzKxE/mpEMRZxthyG1sw/AKRHKgJBg00Yi6ACVXgycdje7KahRNvNET/uBccwCnA=="
+      },
+      {
+        "name": "scroll-into-view-if-needed",
+        "version": "3.1.0",
+        "integrity": "sha512-49oNpRjWRvnU8NyGVmUaYG4jtTkNonFZI86MmGRDqBphEK2EXT9gdEUoQPZhuBM8yWHxCWbobltqYO5M4XrUvQ=="
+      },
+      {
+        "name": "compute-scroll-into-view",
+        "version": "3.1.1",
+        "integrity": "sha512-VRhuHOLoKYOy4UbilLbUzbYg93XLjv2PncJC50EuTWPA3gaja1UjBsUP/D/9/juV3vQFr6XBEzn9KCAHdUvOHw=="
+      },
+      {
+        "name": "@rc-component/pagination",
+        "version": "1.4.0",
+        "integrity": "sha512-CW1g7P9V8u+e8JQdUsl2RWg+GCsoee0mtJjZUCCxn/vb3jzOwDKm6hAdwddHCVBfWJ58eGUBZz3IvnU8rRktjw=="
+      },
+      {
+        "name": "@rc-component/select",
+        "version": "1.10.1",
+        "integrity": "sha512-H+yQsl+qED9NilQ3g6zdpsMwUgwVjrcMTkNHAWRVU/MoNCYgTbDgU+MIMgZDK+rVdd2JUfI/MkysMcZZ0cyQKw=="
+      },
+      {
+        "name": "@rc-component/virtual-list",
+        "version": "1.5.2",
+        "integrity": "sha512-igfe7NP9cOmDAhLy5z+Juz8fhjOMzMbF7TRoR/yqXIsbU6XZm4TU7ogcm5O553P0rLF6n0j5F6J+n15Izb1tqg=="
+      },
+      {
+        "name": "@rc-component/table",
+        "version": "1.11.1",
+        "integrity": "sha512-OWdS6DMmeWb7bJBGqPxYZpQbzBlBiXZUu2sqo6Ii7Sjs9GeK1IsrXrWk26SL2c6KEseabswdxrRj7WUm9LdECw=="
+      },
+      {
+        "name": "@rc-component/checkbox",
+        "version": "2.0.0",
+        "integrity": "sha512-3CXGPpAR9gsPKeO2N78HAPOzU30UdemD6HGJoWVJOpa6WleaGB5kzZj3v6bdTZab31YuWgY/RxV3VKPctn0DwQ=="
+      },
+      {
+        "name": "@rc-component/menu",
+        "version": "1.5.0",
+        "integrity": "sha512-RjvzPsZkwVEg3xu+/jDDqDeUCBJAnWylONFlGeQgg5enlNAnlpybqhaMGE/UPEIvr6hL90PGhjFBguJqj0Qb2Q=="
+      },
+      {
+        "name": "@rc-component/tour",
+        "version": "2.4.0",
+        "integrity": "sha512-aui4r4TqmTzwaBgcQxHYep8kM8PTjZFufjokObpy35KfFeZ0k9ArquWFZqegQlH24P14t+F0qO0mGTgzlav1yg=="
+      },
+      {
+        "name": "@rc-component/upload",
+        "version": "1.1.1",
+        "integrity": "sha512-GvYWSKeaJTOxxC5p6+nOSadzfvXA1h8C/iHFPFZX+szH3JUXrvs+DLiW8YUTBgvMh8m63mJeHrlYlJzAlg+pDA=="
+      },
+      {
+        "name": "@rc-component/tabs",
+        "version": "1.13.0",
+        "integrity": "sha512-3FXr+9ZII8tFLWuDWrgjRaxZd2mazkKJAGRFEfVmp4r1qnBglOlxQ78l54Td1aj6/iFaaEReKSAF2HToztU5uw=="
+      },
+      {
+        "name": "@rc-component/dropdown",
+        "version": "1.0.3",
+        "integrity": "sha512-YTST/N6kpqpDz3IMuM/PSSZnrDpSOA6dgHv12gPA90ZTSLv2CoqkZ0+9NtwTY6BeO7dstPblSic2QJg7dSFy/g=="
+      },
+      {
+        "name": "@rc-component/cascader",
+        "version": "1.22.0",
+        "integrity": "sha512-SffrA57aS9oub3VuI7ajPhJTPtaNxngSvtRhD40Rd8dwJ5vfWPSrVanWgeepdWFGBt7EHftIK5RUU0u3rCTwWw=="
+      },
+      {
+        "name": "@rc-component/collapse",
+        "version": "1.2.0",
+        "integrity": "sha512-ZRYSKSS39qsFx93p26bde7JUZJshsUBEQRlRXPuJYlAiNX0vyYlF5TsAm8JZN3LcF8XvKikdzPbgAtXSbkLUkw=="
+      },
+      {
+        "name": "@rc-component/color-picker",
+        "version": "3.1.1",
+        "integrity": "sha512-OHaCHLHszCegdXmIq2ZRIZBN/EtpT6Wm8SG/gpzLATHbVKc/avvuKi+zlOuk05FTWvgaMmpxAko44uRJ3M+2pg=="
+      },
+      {
+        "name": "@ant-design/fast-color",
+        "version": "3.0.1",
+        "integrity": "sha512-esKJegpW4nckh0o6kV3Tkb7NPIZYbPnnFxmQDUmL08ukXZAvV85TZBr70eGuke/CIArLaP6aw8lt9KILjnWuOw=="
+      },
+      {
+        "name": "@rc-component/drawer",
+        "version": "1.4.2",
+        "integrity": "sha512-1ib+fZEp6FBu+YvcIktm+nCQ+Q+qIpwpoaJH6opGr4ofh2QMq+qdr5DLC4oCf5qf3pcWX9lUWPYX652k4ini8Q=="
+      },
+      {
+        "name": "@rc-component/image",
+        "version": "1.10.0",
+        "integrity": "sha512-BjeZCRQ+hw+4WAhvrw8rJvy5fckA2xpf/X2XQEOABUHvLTNB9inB98X3Mp54jYQ7g10DfWERQWHXeC4ylxp1Uw=="
+      },
+      {
+        "name": "@rc-component/input-number",
+        "version": "1.6.2",
+        "integrity": "sha512-Gjcq7meZlCOiWN1t1xCC+7/s85humHVokTBI7PJgTfoyw5OWF74y3e6P8PHX104g9+b54jsodFIzyaj6p8LI9w=="
+      },
+      {
+        "name": "@rc-component/mini-decimal",
+        "version": "1.1.4",
+        "integrity": "sha512-xiuXcaCwyOWpD8a8scdExFl+bntNphAW8XeenL1ig2en0AAZY0Pcp4pC0dI22qJ+NvxKn9RoNIoRdqYU3BLH4w=="
+      },
+      {
+        "name": "@rc-component/listy",
+        "version": "1.2.3",
+        "integrity": "sha512-IXiMjV5s0rczLBlfh7G5nB4M3365mrEeedjwKtf5I+Ns3PqRUsebR2h5u8CeFarsVfLUPC2I5p0h09TNoOWyvQ=="
+      },
+      {
+        "name": "@rc-component/mentions",
+        "version": "1.12.0",
+        "integrity": "sha512-v5MBx8zDcqCT+uybJgKpcx3Fgrvj0m3u+A/15RlSBaMx12lLoJZTTYggC3pbYYfohcKujWWUyBz6O6Gp2vGiNA=="
+      },
+      {
+        "name": "@rc-component/notification",
+        "version": "2.0.9",
+        "integrity": "sha512-jQT5IVSWSHPTNFXQM2YQONPptjiKXZa4A4Kzwh2xkh3MkL31gRzyjb98N3QHBzLxsyGGJK1aNpn9j9aSO/O0dg=="
+      },
+      {
+        "name": "@rc-component/qrcode",
+        "version": "2.0.0",
+        "integrity": "sha512-aAv3QhPP1xyafuTZOxub6a54pCeBnN3IwQkpETrBtthq4BL5IgxnCbuoBWPDpdLw1y1j6BgBUCAKV92+yX06Dw=="
+      },
+      {
+        "name": "@ant-design/icons",
+        "version": "6.3.4",
+        "integrity": "sha512-kDoUlppczVyCUTFthF6cHmPzMBYqNZQhu9j6EyIX/YIdM9j9CZNZoJUjzVw7/1v1VO8WwVMmPp15r/uwIAS0AQ=="
+      },
+      {
+        "name": "@ant-design/icons-svg",
+        "version": "4.6.0",
+        "integrity": "sha512-PRomU725ABMf/lnQp5HiB7my1kjEbFY0D10N4lXYxK6TIB1gKjIVD5MRThpDaezLgw1D774J8eOeeDB0M6wHrQ=="
+      },
+      {
+        "name": "@rc-component/segmented",
+        "version": "1.4.0",
+        "integrity": "sha512-NZlpKGSplOYlmF5ukUF1fCLr0ns5WfjNoqMlMkf4AHP0iu90wyiP7hn2qZKRHEuRlG4CvEEz/lF9qRiYnLTofQ=="
+      },
+      {
+        "name": "@rc-component/slider",
+        "version": "1.1.1",
+        "integrity": "sha512-LSzgWGYDgeCDgR4r1XlU29gbYws6HpLnvJd/uMhLeW/vQgxldeR+Wb4uzHDCHiYEbr1bnEHWdjkPxjJRHxuiig=="
+      },
+      {
+        "name": "@rc-component/steps",
+        "version": "1.2.3",
+        "integrity": "sha512-/b9gHcvDGjTDWJZW7+1kKFvzs0jrEeQ8mFvvIgX+h7xNT0FsOYODJYKjyJR4fPbvMBCfCOEqaBK66HBxov5BQA=="
+      },
+      {
+        "name": "@rc-component/switch",
+        "version": "1.0.3",
+        "integrity": "sha512-Jgi+EbOBquje/XNdofr7xbJQZPYJP+BlPfR0h+WN4zFkdtB2EWqEfvkXJWeipflwjWip0/17rNbxEAqs8hVHfw=="
+      },
+      {
+        "name": "@rc-component/tree",
+        "version": "1.4.0",
+        "integrity": "sha512-dGsJGDJQedA0BqqVgj3F8BvHXTSZijyhTXdbAdkcx8lynzZkty/CV3Z3LOm/fxz+BCfl3dfGiAQpb7Q5XNvl0Q=="
+      },
+      {
+        "name": "@rc-component/tree-select",
+        "version": "1.16.1",
+        "integrity": "sha512-a1Oi6EJhqAhdOxxupdJi6fP0RPHMKn5TcfkX2+llaQ4lF4nwfH7b6SCHcnsybaa2s+pk1yZYwVyeOYkDnEBRdg=="
+      },
+      {
+        "name": "@ant-design/react-slick",
+        "version": "2.0.0",
+        "integrity": "sha512-HMS9sRoEmZey8LsE/Yo6+klhlzU12PisjrVcydW3So7RdklyEd2qehyU6a7Yp+OYN72mgsYs3NFCyP2lCPFVqg=="
+      },
+      {
+        "name": "@rc-component/rate",
+        "version": "1.0.1",
+        "integrity": "sha512-bkXxeBqDpl5IOC7yL7GcSYjQx9G8H+6kLYQnNZWeBYq2OYIv1MONd6mqKTjnnJYpV0cQIU2z3atdW0j1kttpTw=="
+      },
+      {
+        "name": "clsx",
+        "version": "2.1.1",
+        "integrity": "sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA=="
+      },
+      {
+        "name": "tailwind-merge",
+        "version": "3.7.0",
+        "integrity": "sha512-XPPUyAc+cvspz3lHTcR/QgPfW2A0lv/xQNIjX3HGhLR+Nq2lHaLq5MtTesHn8GUr3W3DguT2KT5x3NVgRtYwmA=="
+      },
+      {
+        "name": "lucide-react",
+        "version": "1.53.0",
+        "integrity": "sha512-OxJ7elNku+iqVzOolk5caxq2LM8Mck6lhA6uZx3g2PlZ53+FvBnT6PlJxGCukCa6oF5wQwgSatn9cH1b4olWmQ=="
+      },
+      {
+        "name": "streamdown",
+        "version": "2.7.0",
+        "integrity": "sha512-SHYTCveHpRJfcIC8r+5EANczK21R0iNYo4i7wNaLeLeQjEnaVk4xMFhgV4E/mix69BpFSBui1NOESEXKlZfReA=="
+      },
+      {
+        "name": "remend",
+        "version": "1.4.0",
+        "integrity": "sha512-mHiYhhwphs1IgIZmkToKLwJn0U99IjPXuutkA2acrNcG0vlEq2G4TGnd2eT0saIHwh2KjaCpvleHcsd5SAz96A=="
+      },
+      {
+        "name": "unified",
+        "version": "11.0.5",
+        "integrity": "sha512-xKvGhPWw3k84Qjh8bI3ZeJjqnyadK+GEFtazSfZv/rKeTkTjOJho6mFqh2SM96iIcZokxiOpg78GazTSg8+KHA=="
+      },
+      {
+        "name": "@types/hast",
+        "version": "3.0.5",
+        "integrity": "sha512-rp/ezSWaD1m44dPKICGhiskI13nVr7qTloFwDa/IYkhhf5nzwP+zIQcIJh3WIFSBOy/H1PzB40jPjMDksN4F+g=="
+      },
+      {
+        "name": "remark-rehype",
+        "version": "11.1.2",
+        "integrity": "sha512-Dh7l57ianaEoIpzbp0PC9UKAdCSVklD8E5Rpw7ETfbTl3FqcOOgq5q2LVDhgGCkaBv7p24JXikPdvhhmHvKMsw=="
+      },
+      {
+        "name": "vfile",
+        "version": "6.0.3",
+        "integrity": "sha512-KzIbH/9tXat2u30jf+smMwFCsno4wHVdNmzFyL+T/L3UGqqk6JKfVqOFOZEpZSHADH1k40ab6NUIXZq422ov3Q=="
+      },
+      {
+        "name": "vfile-message",
+        "version": "4.0.3",
+        "integrity": "sha512-QTHzsGd1EhbZs4AsQ20JX1rC3cOlt/IWJruk893DfLRr57lcnOeMaWG4K0JrRta4mIJZKth2Au3mM3u03/JWKw=="
+      },
+      {
+        "name": "@types/unist",
+        "version": "3.0.3",
+        "integrity": "sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q=="
+      },
+      {
+        "name": "trough",
+        "version": "2.2.0",
+        "integrity": "sha512-tmMpK00BjZiUyVyvrBK7knerNgmgvcV/KLVyuma/SC+TQN167GrMRciANTz09+k3zW8L8t60jWO1GpfkZdjTaw=="
+      },
+      {
+        "name": "mdast-util-to-hast",
+        "version": "13.2.1",
+        "integrity": "sha512-cctsq2wp5vTsLIcaymblUriiTcZd0CwWtCbLvrOzYCDZoWyMNV8sZ7krj09FSnsiJi3WVsHLM4k6Dq/yaPyCXA=="
+      },
+      {
+        "name": "@types/mdast",
+        "version": "4.0.4",
+        "integrity": "sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA=="
+      },
+      {
+        "name": "copy-to-clipboard",
+        "version": "4.0.2",
+        "integrity": "sha512-gklSft7IuhriZKHKpuoA1fpJSLPNgvUMWMo5BlnzAJm0zNKnznoSv23IjtNqclx8eKi6ZcdvFFzYEER/+U1LoQ=="
+      },
+      {
+        "name": "axios",
+        "version": "1.20.0",
+        "integrity": "sha512-r8aOh8j9cGKpgQAqpzrUHnSIc6a59Y3Xf/cv8sy1DrHCkZHzQGEuoq1tARk6qSyDdtQGSDgpb9kFlruzPvrgwg=="
+      },
+      {
+        "name": "@tanstack/react-query",
+        "version": "5.104.1",
+        "integrity": "sha512-Zz70EgjahNI7aCz8BZxM3vUGU44ycxEAzMuCUjLeA7SVhhOkg3ZgPjPJPvHjs6Rmky/dtmnu1WzjGHNHmhCoZQ=="
+      },
+      {
+        "name": "@tanstack/query-core",
+        "version": "5.104.1",
+        "integrity": "sha512-TiRghcrGkUTE+M4JBxvpPSpBhxvIzQairw+cksrHYGr+2uwC77yW1SY9nYxnYRYOppvucf8rEg6b5byoz4rTpw=="
+      },
+      {
+        "name": "embla-carousel-react",
+        "version": "8.6.0",
+        "integrity": "sha512-0/PjqU7geVmo6F734pmPqpyHqiM99olvyecY7zdweCw+6tKEXnrE90pBiBbMMU8s5tICemzpQ3hi5EpxzGW+JA=="
+      },
+      {
+        "name": "react",
+        "version": "19.3.1",
+        "integrity": "sha512-QNhWdt7nrgVWWQG58QuGsAR3jv3Hbe4mb4vz7w2csnHavciZJgda1CPNaldF6eVxv90ud3jUXpKlHL69gO38yw=="
+      },
+      {
+        "name": "embla-carousel-autoplay",
+        "version": "8.6.0",
+        "integrity": "sha512-OBu5G3nwaSXkZCo1A6LTaFMZ8EpkYbwIaH+bPqdBnDGQ2fh4+NbzjXjs2SktoPNKCtflfVMc75njaDHOYXcrsA=="
+      },
+      {
+        "name": "embla-carousel",
+        "version": "8.6.0",
+        "integrity": "sha512-SjWyZBHJPbqxHOzckOfo8lHisEaJWmwd23XppYFYVh10bU66/Pn5tkVkbkCMZVdbUE5eTCI2nD8OyIP4Z+uwkA=="
+      },
+      {
+        "name": "fflate",
+        "version": "0.8.3",
+        "integrity": "sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA=="
+      },
+      {
+        "name": "file-saver",
+        "version": "2.0.5",
+        "integrity": "sha512-P9bmyZ3h/PRG+Nzga+rbdI4OEpNDzAVyy74uVO9ATgzLK6VtAsYybF/+TOCvrc0MO793d6+42lLyZTw7/ArVzA=="
+      },
+      {
+        "name": "@types/file-saver",
+        "version": "2.0.7",
+        "integrity": "sha512-dNKVfHd/jk0SkR/exKGj2ggkB45MAkzvWCaqLUUgkyjITkGNzH8H+yUwr+BLJUBjZOe9w8X3wgmXhZDRg1ED6A=="
+      },
+      {
+        "name": "radix-ui",
+        "version": "1.7.0",
+        "integrity": "sha512-x+z5TV2v6u0QpAQ4dQfNMcvtIdSQ1Op2oqBEyfDXjNldRZbMTP+hcjr5Iie31bep81Axeioa+70Ww7pZDzTEQQ=="
+      },
+      {
+        "name": "@radix-ui/react-accessible-icon",
+        "version": "1.1.16",
+        "integrity": "sha512-I+T/Hc6SY3WbFVZ9Ne1o0DJbpjQpTpLIBZcVzYiHCQ9z1yGUd/G88u5SKyM6eJ223txAOS7bp7bb9k0Ocfkjwg=="
+      },
+      {
+        "name": "@radix-ui/react-accordion",
+        "version": "1.2.21",
+        "integrity": "sha512-2fmc6COuKLq2k3P7JZrOt9Zf8HT9nTQhHN5V+A3ih7ftqoyDcoEUrPoLq8ngr7QwTd7hpQ2xoUKWtvy1Xw9RAQ=="
+      },
+      {
+        "name": "@radix-ui/react-alert-dialog",
+        "version": "1.1.24",
+        "integrity": "sha512-dRvB59HhcjIWcCPKzK5Px1yQ8pIULQQrxqgyepCqin7tNXi/xvmC86WkyMOKhuCbjz3+v9Q6oE7/tUN5NQ9dCg=="
+      },
+      {
+        "name": "@radix-ui/react-aspect-ratio",
+        "version": "1.1.16",
+        "integrity": "sha512-w2u6oiTzb7WkWwV3ZClX/llYYlTbilUOkHIKkwb+PWWytQ/IdEVRNLIChjbcXy/mkqcKKM3wEhrOilJW+uPHDg=="
+      },
+      {
+        "name": "@radix-ui/react-avatar",
+        "version": "1.2.7",
+        "integrity": "sha512-6AizCpbU3Zngojp9vQak8Lt4AXwdKJ2lkRYAfpoETraT+qKVNeRqytiADzneHetFEB0Wu4+qeSfmZEq0PiVDmQ=="
+      },
+      {
+        "name": "@radix-ui/react-checkbox",
+        "version": "1.3.12",
+        "integrity": "sha512-gNOS2lLrpQxNLWHhCX0sayfVRiyB5gQp7nQIzpl+PM1Hkab52utsKtD27alAr78uqhpvX51kwqDp71hM5hNSwg=="
+      },
+      {
+        "name": "@radix-ui/react-collapsible",
+        "version": "1.1.21",
+        "integrity": "sha512-IzkusZHCZBnED5skW+b+syl8d+e3+zelvxZ2Ed9lfawqEBfa5osPj53sTJ+q/uNmGAj9e7wMYgyzwPu/luWJ4Q=="
+      },
+      {
+        "name": "@radix-ui/react-context-menu",
+        "version": "2.3.8",
+        "integrity": "sha512-s8ABBkEuAOyhDub0Y99f8lVRlVsd28mUnOHtuqGg8LuHnefkmPN5rYzA2g8MAPLjAZMisnDHhN4dBHUM7ZF7Rg=="
+      },
+      {
+        "name": "@radix-ui/react-dialog",
+        "version": "1.2.0",
+        "integrity": "sha512-l5CX8HdNL+9cc4s7HkNyplumSA3FIx68sg9dttBHKr286fRBwq1MBniDVTeI/tkof92/APntMQvC1YG1Khb0Cg=="
+      },
+      {
+        "name": "@radix-ui/react-direction",
+        "version": "1.1.5",
+        "integrity": "sha512-/NlO/rOqQabmg+GGr86vCmbJVhqTv85NfM9g6Gknf/JVygXeZ6e6HM/RW1omerW9HsFtecwNqgEAKV6UqDsvpA=="
+      },
+      {
+        "name": "@radix-ui/react-dropdown-menu",
+        "version": "2.1.25",
+        "integrity": "sha512-45QO76jn/a+cRl6OPgZKCKnIMdfYZaOa6SuAJeKHFiM3orX6bnscuFQJDx3qS4Agp/RE+eKv+9gmUL8t3Ma7bw=="
+      },
+      {
+        "name": "@radix-ui/react-form",
+        "version": "0.2.0",
+        "integrity": "sha512-5ELeC+bQUHXEjU51svw11DynjGFlaUjo5QOUCr5hptvLLtBiqWtva2O3IWdjrFWQwitw6k6KpHHEyI61/kCVeg=="
+      },
+      {
+        "name": "@radix-ui/react-hover-card",
+        "version": "1.1.24",
+        "integrity": "sha512-0w/tZHRo1fv4WsfcyaOdi5eDftFA8wQkr8WCOOuxw7fx9S2ERfshQioM269aFZsmyAHd0X1LWoZ2BQTlA/JYUw=="
+      },
+      {
+        "name": "@radix-ui/react-label",
+        "version": "2.1.16",
+        "integrity": "sha512-2vTQj72YFmeoTxWKJEMbO/9uQt6zzLgbzi0+nWBffq49oo6KhIDP/D+fA2im0wsxBCAX7QfaF3xgsYBVdDbNFQ=="
+      },
+      {
+        "name": "@radix-ui/react-menubar",
+        "version": "1.1.25",
+        "integrity": "sha512-JIQiKcXsgl6BtwcMe7BMLvCGH2p9Czgcmxl6Ie9Zoi+MW1mmitkcm5We01m/ndLYVI8PpRJnM/RcLV0eOCxaJQ=="
+      },
+      {
+        "name": "@radix-ui/react-navigation-menu",
+        "version": "1.3.0",
+        "integrity": "sha512-hZqTqDwc8Z5aI4rGIyPqCSJ2JoSNorqX/F1/gqNHkZzWJO6JuYzL7hn5sWOZJjpkfT+cbxWWRbKVU/IeiOM9ag=="
+      },
+      {
+        "name": "@radix-ui/react-one-time-password-field",
+        "version": "0.1.17",
+        "integrity": "sha512-+6jmOqjSNBr7F1uSc7HSDqD3XL54A2qA99I9rIH4JoOD/jDScw8tUmDz6HCAkjytbrE/cdL66i+QkeDyZ0WNyw=="
+      },
+      {
+        "name": "@radix-ui/react-password-toggle-field",
+        "version": "0.1.12",
+        "integrity": "sha512-+SWSgf3HRpE4zUira+p6t5KUR473PSqewtQgj9qzl3znZPRWPCGycwXNTfHwkiRTD3tEXwNIXJg0i1NTteiULw=="
+      },
+      {
+        "name": "@radix-ui/react-popover",
+        "version": "1.2.0",
+        "integrity": "sha512-e70Nh+0iQ+hRAIM2nAGib5BhaDL2Rjlzxw9kIzsU2nz+t3/t82Z5qtPhY5nTnfj8FbmrU6RRIKH8RF3ynCe+vw=="
+      },
+      {
+        "name": "@radix-ui/react-portal",
+        "version": "1.1.18",
+        "integrity": "sha512-ygFIJ+QXNKf72AAq8x3hd22+ws7pYpmc1S0E4kW0Je+qD4qEb3FvxeKVQRGrVDMOkQaYfsB+Qs+KDh81a1gAOw=="
+      },
+      {
+        "name": "@radix-ui/react-progress",
+        "version": "1.1.17",
+        "integrity": "sha512-A+RfMARd9u+UaVbLQDmysGlAGuaFQrF+uxF3v+7+xU8tkKoYxtCSs+6HHnIKJVgam2sGZ7c0hLRPWSnmnFyGJQ=="
+      },
+      {
+        "name": "@radix-ui/react-radio-group",
+        "version": "1.4.8",
+        "integrity": "sha512-MaOOZ1TlaYoOeSDnHeVIONss0rp5ngOTY5HJY+Xkq16PAopnj21iU9r9m0O/77cBYu8Ksaq3BcjlaOdpbfbzzg=="
+      },
+      {
+        "name": "@radix-ui/react-scroll-area",
+        "version": "1.3.0",
+        "integrity": "sha512-1WSuAXaahfeLmFX/dfYo/ftg1filMfaWjVye2d40VlgtWMMq/NOVocfukZEXkG+dwrAoNI+qpo9bjhNSJ/XC8g=="
+      },
+      {
+        "name": "@radix-ui/react-select",
+        "version": "2.3.8",
+        "integrity": "sha512-Tz9xOpV9Rbca5WTk7pzmfAECV3zb++uScT9mP3Px7ziAhH7SlK53b0uwMw8VubPhRK4x7uDKCy5fwevT8I0fAg=="
+      },
+      {
+        "name": "@radix-ui/react-separator",
+        "version": "1.1.16",
+        "integrity": "sha512-vugPjGQBXbJVVkftKqv/BVeZ108SyRGT3FR1oa14az6qyLgX8jPhnZYHgdSB7Gw8UJusqwb9eaK6mluOnsn/Vg=="
+      },
+      {
+        "name": "@radix-ui/react-slider",
+        "version": "1.5.0",
+        "integrity": "sha512-ZOBLK7KZvGL02V+4VwVbj8NYM4vPrAtyZdrgHSv+AMS9VL+5yAdnQF3DZT4Y8cbCp1Yn4xdp92orvez8fJa77w=="
+      },
+      {
+        "name": "@radix-ui/react-slot",
+        "version": "1.4.0",
+        "integrity": "sha512-IuMVHZ+Ah5fkctu3X3qeFrV/ZrBcuWuDTFUUPfS/L5hvoTjzhp/HdWGE14CsQombPdEidsa33HVlYZXi49PZ1Q=="
+      },
+      {
+        "name": "@radix-ui/react-switch",
+        "version": "1.3.8",
+        "integrity": "sha512-rr+zuoAeHWK3m6H4HgjOUiu3VsrQ/9JkjwY/uMnTgHJGPe9WNzDP/MOuIV7S+65p42DIxjGL0hAHktqBq82+2A=="
+      },
+      {
+        "name": "@radix-ui/react-tabs",
+        "version": "1.1.22",
+        "integrity": "sha512-GmVH+P3wx1ZPMuH7WajQzygZIbqgnsb5h8z4Ow3sQMuDqgcqISSBNom6MLVNJvfrkuJTtqfXc3ZolHjX+w0CHg=="
+      },
+      {
+        "name": "@radix-ui/react-toast",
+        "version": "1.2.24",
+        "integrity": "sha512-XR9pDEz9CH0ez98zPXQZOpF46anvbarkoOpjXpPSX7gm21vEl5Tzoe1PSQd3EY1OTOHac4lNq+TPx/2Z7jObdQ=="
+      },
+      {
+        "name": "@radix-ui/react-toggle",
+        "version": "1.1.19",
+        "integrity": "sha512-l7FQHtuZjUJ0vKLdhKu5LzZ8Jw6K60QEC1tC22QNLuXN2PkydSoqEhKTCqwxBFZJ52NTCjzudDvl9sUsZeUbPw=="
+      },
+      {
+        "name": "@radix-ui/react-toggle-group",
+        "version": "1.1.20",
+        "integrity": "sha512-O+Sjiv64DfnByHYtnKEXmn63uUskU/X61vjf69X1v8JFn/ZvuNNLdJTBfYurVTSDv4/RJnJGtGgb/uvuS/rRJw=="
+      },
+      {
+        "name": "@radix-ui/react-toolbar",
+        "version": "1.1.20",
+        "integrity": "sha512-5gyzL6B5/zjBwU3ATBWAVZ4xXQC5F8E9CB4BmYC1UvZ08pN2OJQoooeIwJtZZ/2rz4sTiQmbGfdDvmU73wRJCQ=="
+      },
+      {
+        "name": "@radix-ui/react-tooltip",
+        "version": "1.3.0",
+        "integrity": "sha512-4HM4b1Cft1CBXCGDRDG3S/fh8GedBuVOMNh145wMIfTbVqcuv+tyj03nZqYgFevWJMYo58H0s+8P6s6NaUHWtA=="
+      },
+      {
+        "name": "@radix-ui/react-visually-hidden",
+        "version": "1.2.12",
+        "integrity": "sha512-/iPLVHRBzKWvekN+5xaDmXw80f+nleYYceomVORrGjuJe0LF2SCbSH4f/LG4hu32q92QSuPZx4hmSACYBVBfzQ=="
+      },
+      {
+        "name": "@radix-ui/react-context",
+        "version": "1.2.2",
+        "integrity": "sha512-RHCUGwKHDr0hDGg4X7ma4JG4/+12qxw8rkh5QKdDldlCvtja6nUx1Ef/8HVrJze81lEsgLQlqjzjGNHantgnQA=="
+      },
+      {
+        "name": "@radix-ui/react-primitive",
+        "version": "2.1.11",
+        "integrity": "sha512-RzcaSw5aKl0OPhBJ1wbolKSF6nVvN+0o/QLeIVq+09npiPdnCkPggy2k6gI6yetxl4ZyrlBPYFgCB8BQJZwXcQ=="
+      },
+      {
+        "name": "@radix-ui/react-dismissable-layer",
+        "version": "1.1.20",
+        "integrity": "sha512-35WHRrycfnj2m4LvPiKMKHGLM3Y2WvUA744CkRdxjs1BGDX1c8PVMfmiSGTUwnHRbqdtIoxveYTXvcJSt7VfgQ=="
+      },
+      {
+        "name": "@radix-ui/react-focus-scope",
+        "version": "1.2.0",
+        "integrity": "sha512-I5S7vsAOozx2lWSBAyuXjWIJ/A8qx4fjbv6115WoaRYQSb1yZDaeNHonUAQzXyE8oD+0whJHbQRl4HIE2gQ0Xw=="
+      },
+      {
+        "name": "@radix-ui/react-menu",
+        "version": "2.1.25",
+        "integrity": "sha512-e8JaQc0ijBbTx37YVI09Nfq8ThUWJ4L1rvZ3Hvaufehco9/ug9+U3PHz9ue6w3gKd91UcKf9fgDWejeSO+VSKQ=="
+      },
+      {
+        "name": "@radix-ui/react-popper",
+        "version": "1.3.8",
+        "integrity": "sha512-y92/9iIdG1FyNvow0Y0qP5WJZ7oRTAKDVKCy9kJnhZfItwIKYtt0KKQeOhBKfXz0ETizduKwDRbrQHrTQScs5A=="
+      },
+      {
+        "name": "@radix-ui/react-roving-focus",
+        "version": "1.1.20",
+        "integrity": "sha512-+ZjbkU21fTSJdn4nq/IFKUdKS+JSZHORBZ8ma1f6YpOMNzRt0xf3sVAWVK/+ktHCajPy4HYDsyHXZIZmOMxzIA=="
+      },
+      {
+        "name": "@radix-ui/react-arrow",
+        "version": "1.1.16",
+        "integrity": "sha512-nXPI1tzJsnQw8oXvB2r49rO9TIbbJ8VFeaWDiBsqY8+iwO5xb7WjUsrXDagjAgPKTdhW8WODQnAltUhBx8I+sg=="
+      },
+      {
+        "name": "@radix-ui/rect",
+        "version": "1.1.3",
+        "integrity": "sha512-JtyZR+mqgBibTo8xea3B6ZRmzZiM/YeVBtUkas6zMuXjAlfIFIW2FgqeM9eLyvEaYX66vr6DJMK+4U6LV0KhNw=="
+      },
+      {
+        "name": "@ant-design/pro-components",
+        "version": "3.0.0-beta.3",
+        "integrity": "sha512-ehdIGlDcy4J5kv6E3fZ8e4YLQY4+7S3ZsIZnZ//vtfd+s0Qkv13hQ65CepoMiC/x6gNBlDnHozKANNi7JOtJAw=="
+      },
+      {
+        "name": "@ant-design/cssinjs",
+        "version": "1.24.0",
+        "integrity": "sha512-K4cYrJBsgvL+IoozUXYjbT6LHHNt+19a9zkvpBPxLjFHas1UpPM2A5MlhROb0BT8N8WoavM5VsP9MeSeNK/3mg=="
+      },
+      {
+        "name": "safe-stable-stringify",
+        "version": "2.5.0",
+        "integrity": "sha512-b3rppTKm9T+PsVCBEOUR46GWI7fdOs00VKZ1+9c1EWDaDMvjQc6tUwuFyIprgGgTcWoVHSKrU8H31ZHA2e0RHA=="
+      },
+      {
+        "name": "rc-field-form",
+        "version": "2.7.1",
+        "integrity": "sha512-vKeSifSJ6HoLaAB+B8aq/Qgm8a3dyxROzCtKNCsBQgiverpc4kWDQihoUwzUj+zNWJOykwSY4dNX3QrGwtVb9A=="
+      },
+      {
+        "name": "rc-steps",
+        "version": "6.0.1",
+        "integrity": "sha512-lKHL+Sny0SeHkQKKDJlAjV5oZ8DwCdS2hFhAkIjuQt1/pB81M0cA0ErVFdHq9+jmPmFw1vJB2F5NBzFXLJxV+g=="
+      },
+      {
+        "name": "@umijs/route-utils",
+        "version": "4.0.3",
+        "integrity": "sha512-zPEcYhl1cSfkSRDzzGgoD1mDvGjxoOTJFvkn55srfgdQ3NZe2ZMCScCU6DEnOxuKP1XDVf8pqyqCDVd2+RCQIw=="
+      },
+      {
+        "name": "rc-table",
+        "version": "7.55.1",
+        "integrity": "sha512-mtZkOHQ+474hxw6usr5rrT6tTZvFlv7jRqao/oG4Y4mwOaXU7ZL1OZ3Vp7xO+zPhB2PPKLFnKr53EitryoLJyQ=="
+      },
+      {
+        "name": "motion",
+        "version": "12.43.0",
+        "integrity": "sha512-BQgQbSa9Hn3/mtbib0MK53y6JSANa+YKUKlaYnWzAVDH424RYQ5LVpV3pNiWH00BA2z4ojsSdMzqT7g2FQwjuQ=="
+      },
+      {
+        "name": "framer-motion",
+        "version": "12.43.0",
+        "integrity": "sha512-1eaL3RvR/kAlbG7UYcpMptEyzPoENO0c6w7ZnB3/hh2vSAz/6uGAFn6fdoqTBguNstf3MsFhJHsD/0DHiclG+g=="
+      },
+      {
+        "name": "motion-dom",
+        "version": "12.43.0",
+        "integrity": "sha512-azKON4d9S65PEoFUiQTMTgPheEmzf2QngdRc50AKfJp9Q9mmcBVw22c8eMq9k8kxOFHdL7+WZY7N/5F/lwiDag=="
+      },
+      {
+        "name": "motion-utils",
+        "version": "12.39.0",
+        "integrity": "sha512-8nadJAJjTtqRkmRF36FoJTrywK9nnFmnPwnSMyxaOCU7GDjN9RTMJIxx9De8ErM+vpPhMccr/6fo5WciyQLnMQ=="
+      },
+      {
+        "name": "@codemirror/lang-javascript",
+        "version": "6.2.5",
+        "integrity": "sha512-zD4e5mS+50htS7F+TYjBPsiIFGanfVqg4HyUz6WNFikgOPf2BgKlx+TQedI1w6n/IqRBVBbBWmGFdLB/7uxO4A=="
+      },
+      {
+        "name": "@uiw/react-codemirror",
+        "version": "4.25.12",
+        "integrity": "sha512-RE0Gj/QesD7/JWPnJREG8Kq8brGv2NAH17iUECcBrLkqXzzEAgsj/4Qqvz/OlK8XWKmzlsenLRkObT9H+gYQ0w=="
+      },
+      {
+        "name": "@babel/runtime",
+        "version": "8.0.7",
+        "integrity": "sha512-k0hagDDq/6w4v+0Sp4wFvIz/yswH5O7Va6aRTnD7N62Tnborp4X+YB+H3XUcWVSR4aE47WPEXiIIZchBs0GmYg=="
+      },
+      {
+        "name": "@codemirror/state",
+        "version": "6.7.6",
+        "integrity": "sha512-kAz+AncRtKuIknedxT1bq4XwXv4UowhbkHU1myPrtVb/jZtImWuV5BXzv5vK6i3kYACsdiZiQKFQQ5Mq7elW8w=="
+      },
+      {
+        "name": "@codemirror/theme-one-dark",
+        "version": "6.1.3",
+        "integrity": "sha512-NzBdIvEJmx6fjeremiGp3t/okrLPYT0d9orIc7AFun8oZcRk58aejkqhv6spnz4MLAevrKNPMQYXEWMg4s+sKA=="
+      },
+      {
+        "name": "@codemirror/view",
+        "version": "6.43.14",
+        "integrity": "sha512-hC45YnmJNR1rz42OF57BLoQNFMV12/13drnvibDsR2quNDmldcb4WvYVV81hFQg56i9lcqQMEDqilhX2QDcGQQ=="
+      },
+      {
+        "name": "codemirror",
+        "version": "6.0.2",
+        "integrity": "sha512-VhydHotNW5w1UGK0Qj96BwSk/Zqbp9WbnyK2W/eVMv4QyF41INRGpjUhFJY7/uDNuudSc33a/PKr4iDqRduvHw=="
+      },
+      {
+        "name": "@codemirror/language",
+        "version": "6.13.1",
+        "integrity": "sha512-zfvU2r3TyylQLMj/te+5CnQ0rSqZi8B1oTCBbQkagcLW4Xc6imab6qN+pEJhsuNOLaJqiRyBXp9UhWA1DhVvDw=="
+      },
+      {
+        "name": "@codemirror/autocomplete",
+        "version": "6.20.3",
+        "integrity": "sha512-tlosUqb+3BbxCxZdu4tKeRghPFC+QM7q4X5YhKV2eCmPG+1r2F3f4AaSz5sCrFqUtX4Jh20VFTKecl16MgiV9g=="
+      },
+      {
+        "name": "@codemirror/lint",
+        "version": "6.9.7",
+        "integrity": "sha512-28/+iWLYxKxsvGYhSYL7zaCZqLz5+FFFDq9tVsvGv9kv8RY4fFAchJ5WX9M3YrrRlTIsECjsXPqeNgnSmNP2dg=="
+      },
+      {
+        "name": "@lezer/common",
+        "version": "1.5.3",
+        "integrity": "sha512-H0iErY4e43LpXbYDyBci5W4v/RwTgGV3YzYOlJPiGZ8RY8w51kVE+xLn1tg3Z6UmSfyETvtsUK3r7YsgDQEI7Q=="
+      },
+      {
+        "name": "@lezer/lr",
+        "version": "1.4.11",
+        "integrity": "sha512-UwgZcl1R66H2hDzBrA7kWyYmX6s8p5TQ+e/t7CuvgCtBEPxbEPaHYHu+pJBvTvDotEJpuQkJjbXuHiw5Cixxgw=="
+      },
+      {
+        "name": "@lezer/highlight",
+        "version": "1.2.5",
+        "integrity": "sha512-O1GMVKgtf5YspFaRzpmqkVgMtIk2HG9uMAbH6wdAIdNh3TVzCsch/+cRi+6l2//UGDKe6NB9BW3cvuR5ezMQ0w=="
+      },
+      {
+        "name": "style-mod",
+        "version": "4.1.4",
+        "integrity": "sha512-XXWIQt633/EpAFx8aZDOTjBzrCaGmhvEQlQo6MVPfa2OzO2cWo+4hV9h+6UkHYlXGfy+ODXKUdP7Pthmcu5ATw=="
+      },
+      {
+        "name": "@codemirror/streamparser",
+        "version": "6.0.0",
+        "integrity": "sha512-JTFPF6xrfjt0mnfGPgzcLiMwYmvIyNaoizp8BYzv8FE8KrT6GBGDZ190rtt+O7Wke3gG/MFHyiY9YGNeimof4w=="
+      },
+      {
+        "name": "@uiw/codemirror-extensions-basic-setup",
+        "version": "4.25.12",
+        "integrity": "sha512-wR5lz7jbVcBGyiiLEObAmDikcc39KNqrrd4bdUhav85WZu48ttgnSf1YV+grHuMsj5l/WCw6u+r9ZuSfURJgiA=="
+      },
+      {
+        "name": "@codemirror/commands",
+        "version": "6.11.1",
+        "integrity": "sha512-O/4hG3SC1YwcmQ0d2UVNDs+AsaNWd1iHVxbTeEBuqH+6bExAiPK3iS/BvpY6rZGURALv4ZD3sIgcCmRvw3ehBg=="
+      },
+      {
+        "name": "@codemirror/search",
+        "version": "6.7.2",
+        "integrity": "sha512-gUYkYhT2+n/+VGZ+8EzE5WFkYZUZYm1VOKDudIsNqh42uRVQJ0a6Yss9sdKT3MeOYfuL1N6AZA57oza0Oyr0LA=="
+      }
+    ],
+    "说明": "从现有pnpm实路径取得精确版本，经公开npmmirror注册表核对包名/版本，并逐包匹配原pnpm锁文件SHA512后读取临时副本。未更换任何原有依赖文件或跳过类型声明。"
+  },
+  "旧来源目录": "/Users/guanchengbin/CodexProjects/guan-ai-workbench-projects/guan-ai-workbench",
+  "旧来源指纹": {
+    "src/canvas/services/config-file.ts": "b778666823951ebe597a0a443b3ca6b58097f43d3ad6318bdb2dcd639bdff1bf",
+    "src/canvas/lib/config-portability.ts": "c30486f832bfd5018c928a85ca66a492dd4ff440f01e102055bf212b78d64c47",
+    "src/canvas/lib/recovery-read-gate.ts": "dda24b04617e8849b714217d3aca2f2aa5941f60b9eadc59251233ab4167ac82",
+    "src/canvas/lib/persistence-checkpoint.ts": "4ea8db7b50699adcf3b96450c2d9bfc7e82418979e94d129ecce67952b090edb",
+    "src/canvas/lib/update-activity.ts": "1512cf30a4ee4ae369b80548b62d36b83576591de7a250d5d6bca95d5c4a5ffb",
+    "src/canvas/lib/settle-activity-group.ts": "cf6f772980dbd9f48d63c840c9dda750a0ae6c36262de87a7b30f6806c2ad327",
+    "src/canvas/lib/canvas/prompt-generation-mode.ts": "2af4914578fcf360406e39e08d2c3ccaa1cd11882f078d589d886604fab3d3f5",
+    "src/canvas/services/file-storage.ts": "332b7a04acce97dc7437028d7be1e5823b2abb402a5f4015ac6d5a3d4037d3d3",
+    "src/canvas/services/image-storage.ts": "1c4fb9464264f33510f54284b21aa42eaa2da05a63a4c71d7fbdf032e7c298b7",
+    "src/canvas/services/api/video.ts": "32126f385f83abf151021a8021d5d82cb8ba9ab342963ce0686b153b54fe789d",
+    "src/canvas/stores/use-asset-store.ts": "1838a6ea55da2d0833f88020202940cab7fd8ef35cf9b922c824c2cddf86f62c",
+    "src/canvas/pages/canvas/project.tsx": "1fa007d1bdac287c1bee26ac1e186d5a69e544d89b7c57907843bfc8678e0bfb",
+    "src/canvas/components/canvas/canvas-toolbar.tsx": "dadf9b13c4c91bb7e5066882accf3f794454cdf4d28d56572a8d841a83e7f45b",
+    "src/canvas/types/canvas.ts": "fb02101c01e2d028075270606ce809129b972a3ac3b7165b1c0f92a12c67cf95"
+  },
+  "自有来源": [
+    {
+      "文件": "扩展功能/配置文件/配置文件安全.ts",
+      "SHA256": "f703e850d553a23e83a0c51922db19a3f96128c70e9bf0c41836630f7ea69b50"
+    },
+    {
+      "文件": "扩展功能/安全与批量/recovery-read-gate.ts",
+      "SHA256": "dda24b04617e8849b714217d3aca2f2aa5941f60b9eadc59251233ab4167ac82"
+    },
+    {
+      "文件": "扩展功能/安全与批量/persistence-checkpoint.ts",
+      "SHA256": "4ea8db7b50699adcf3b96450c2d9bfc7e82418979e94d129ecce67952b090edb"
+    },
+    {
+      "文件": "扩展功能/安全与批量/update-activity.ts",
+      "SHA256": "1512cf30a4ee4ae369b80548b62d36b83576591de7a250d5d6bca95d5c4a5ffb"
+    },
+    {
+      "文件": "扩展功能/安全与批量/settle-activity-group.ts",
+      "SHA256": "cf6f772980dbd9f48d63c840c9dda750a0ae6c36262de87a7b30f6806c2ad327"
+    },
+    {
+      "文件": "扩展功能/安全与批量/prompt-generation-mode.ts",
+      "SHA256": "2af4914578fcf360406e39e08d2c3ccaa1cd11882f078d589d886604fab3d3f5"
+    }
+  ],
+  "工具来源": [
+    {
+      "文件": "开发工具/预审安全与批量迁移.mjs",
+      "SHA256": "f6b0e758813340c6d1e601a08db4b4a6a54167dc538ac7c4e5260a3e4b897a98"
+    },
+    {
+      "文件": "开发工具/类型依赖只读镜像.mjs",
+      "SHA256": "8a5ed40faa0d62e45b22e68df9779e36d48d1560a51abe7526fbd52b61e4d05f"
+    },
+    {
+      "文件": "开发工具/安全与批量迁移.test.mjs",
+      "SHA256": "9ccd66eaebd9f3a5cbc52c99cacdd77b05ddfafe00d0199700a9f582bfcc81c9"
+    },
+    {
+      "文件": "开发工具/检查安全与批量迁移代码.mjs",
+      "SHA256": "80bea9856538a4937b921bcefec8f007944e81b15d56e416b2fbe1a5ffac18b8"
+    },
+    {
+      "文件": "开发工具/预审配置文件安全.mjs",
+      "SHA256": "ecc0bd52c0237b2dc0eefb03e83901dd5bfc557b910869f9db6316a44470618a"
+    },
+    {
+      "文件": "开发工具/配置文件安全.test.mjs",
+      "SHA256": "d44817ea1adaf5f12811ba0dc5b4bb843ccb5ca5a46efc36010c6d1a34f1ad30"
+    },
+    {
+      "文件": "开发工具/检查配置文件安全代码.mjs",
+      "SHA256": "49719c7c0ebdaa3ff58b1d232fb5e84311c18c302071fd1bbe40808ae939b3fa"
+    }
+  ],
+  "文件": [
+    {
+      "文件": "web/src/guan/config/配置文件安全.ts",
+      "原始SHA256": null,
+      "候选SHA256": "f703e850d553a23e83a0c51922db19a3f96128c70e9bf0c41836630f7ea69b50"
+    },
+    {
+      "文件": "web/src/services/config-file.ts",
+      "原始SHA256": "d2cf5f0c0f7bc06b483ace9dee627f17a0d714fc5d92415c64bc8b3dcd9df65f",
+      "候选SHA256": "c68b067cfda7c9042dc5efc7be2fe3149cfd6374572cd9c223d2c73a249adcb8"
+    },
+    {
+      "文件": "web/src/guan/recovery/recovery-read-gate.ts",
+      "原始SHA256": null,
+      "候选SHA256": "dda24b04617e8849b714217d3aca2f2aa5941f60b9eadc59251233ab4167ac82"
+    },
+    {
+      "文件": "web/src/guan/recovery/persistence-checkpoint.ts",
+      "原始SHA256": null,
+      "候选SHA256": "4ea8db7b50699adcf3b96450c2d9bfc7e82418979e94d129ecce67952b090edb"
+    },
+    {
+      "文件": "web/src/guan/recovery/update-activity.ts",
+      "原始SHA256": null,
+      "候选SHA256": "1512cf30a4ee4ae369b80548b62d36b83576591de7a250d5d6bca95d5c4a5ffb"
+    },
+    {
+      "文件": "web/src/guan/recovery/settle-activity-group.ts",
+      "原始SHA256": null,
+      "候选SHA256": "cf6f772980dbd9f48d63c840c9dda750a0ae6c36262de87a7b30f6806c2ad327"
+    },
+    {
+      "文件": "web/src/guan/recovery/prompt-generation-mode.ts",
+      "原始SHA256": null,
+      "候选SHA256": "2af4914578fcf360406e39e08d2c3ccaa1cd11882f078d589d886604fab3d3f5"
+    },
+    {
+      "文件": "web/src/stores/use-asset-store.ts",
+      "原始SHA256": "d715877830d624b5070c584e81218e95721b976e54c64af87f54d7fe1cdea525",
+      "候选SHA256": "552ac4db25480a6e6113609d5882d201811c9f4dccad2435f965472b1ebf5e25"
+    },
+    {
+      "文件": "web/src/services/file-storage.ts",
+      "原始SHA256": "ce93d52de423bd69db70d91b0748b2232be71540684a97d6b3767ec575ec25a7",
+      "候选SHA256": "16830a09559729e7ee9ce20fdfbd596cecf48fecd7b5d2c72c72c98e8c601fc4"
+    },
+    {
+      "文件": "web/src/services/api/video.ts",
+      "原始SHA256": "1760b253ec42ce3520d6ae90c0a6c9f7af97c5d9134c669bbcc89857aac13414",
+      "候选SHA256": "41abca18df5299966a58d45f36e26da2816b1e78d6f35400bb874c58e817cdea"
+    },
+    {
+      "文件": "web/src/services/image-storage.ts",
+      "原始SHA256": "eacb130b7da127eda2dd73b7a93b5464cdbec9034c4130e08e2cab96cddb31cb",
+      "候选SHA256": "3a443fb06547cc7235a602d3ff68e9f14c3a7af96c83bb4dee6899c933cdac88"
+    },
+    {
+      "文件": "web/src/pages/canvas/project.tsx",
+      "原始SHA256": "8d38ae979a2ab6ca0c0c4f738564e5fcd466893057acd19b9610f403ade5c88b",
+      "候选SHA256": "296529b4ddc2bc8dcc8197a0b52d23185bd1a304457c58cf85a95fc8bfac695f"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-toolbar.tsx",
+      "原始SHA256": "4ca2eb587cc94eea527193e683e1dfb7ea60e5925fa033fed98c6f84286032ed",
+      "候选SHA256": "cda2da9e9c90254b90f92c9953fc34e560bb7166ea5820786192487be68f1d99"
+    },
+    {
+      "文件": "web/src/types/canvas.ts",
+      "原始SHA256": "a062284b21c5a942721ea3356b5aed65de0dc8cb63a88014367b27ff0feeb93a",
+      "候选SHA256": "4384e7401d24db9774b8a47747ac04dc59b8a75095bc999e5bb9ce90bfd48b42"
+    }
+  ],
+  "覆盖": [
+    "GAP-01 配置脱敏及安全导入",
+    "GAP-06 素材恢复读失败写入保护",
+    "GAP-07 不完整引用清单下自动保留媒体",
+    "GAP-13 批量补齐配置",
+    "GAP-14 最多3并发批量生成",
+    "GAP-15 一键补齐并生成及旧菜单",
+    "GAP-33 媒体缓存失败传播",
+    "GAP-34 有限解码等待、原图先交付、缩略图失败可重试"
+  ],
+  "部分覆盖": [
+    "GAP-16 批量补齐时识别模式、像素和比例并快照；单条及拖连识别未迁"
+  ],
+  "边界": [
+    "覆盖表示候选代码，未做真实React界面、磁盘隔离包构建或日常接入验收",
+    "未接普通画布到受限凭据网关/持久任务账本，未迁视频未知远端任务保护GAP-04",
+    "未迁节点回收站GAP-35、代理/Fallback及其他生成历史/交付增强",
+    "读门禁保护磁盘原素材；失败action可能先改变页内状态，需重试恢复",
+    "活动计数和checkpoint只记录本批局部证据，不是应用全域维护或停机门禁",
+    "配置仍沿用兼容页内凭据及加密SQLite；两个store不是断电原子事务；不处理任意正文中的秘密",
+    "媒体自动扫描只报告候选；显式删除保留，尚未建立可自动删除的完整引用清单",
+    "媒体元数据超时采用旧尺寸兜底，不冒充真实探测尺寸",
+    "批量沿用旧筛选：任意已有出线即跳过；调用沿用现有生成入口与现有错误语义"
+  ],
+  "已改作者仓库或历史批准": false,
+  "已访问正式数据或真实凭据": false,
+  "已切换3100": false
+}

@@ -76,10 +76,11 @@ test('任务格式严格：不接受任意URL、请求头、凭据与非规范ba
   validateSubmission(base);
   for (const extra of [{ url: 'https://evil.example' }, { headers: { authorization: 'secret' } }, { body: '$#' }]) assert.throws(() => validateSubmission({ ...base, request: { ...base.request, ...extra } }));
 });
-test('32MiB正文规范base64不耗尽正则栈，超限及伪造尾部拒绝', () => {
+test('100MiB正文规范base64不耗尽正则栈，超限及伪造尾部拒绝', () => {
   const body = Buffer.alloc(MAX_REQUEST_BYTES, 120).toString('base64');
   const value = { id: randomUUID(), productId: 'p', nodeId: 'n', binding: 'provider:' + 'a'.repeat(64), request: { method: 'POST', path: '/v1/images/edits', contentType: 'application/json', body } };
   assert.equal(validateSubmission(value), value);
+  assert.equal(canonicalBase64(body + 'eHh4', MAX_REQUEST_BYTES), false);
   for (const invalid of ['A', '====', 'AA=A', 'Zh==', 'Zm9=', 'AA\n=', 'AAA$', body.slice(0, -1) + 'A']) assert.equal(canonicalBase64(invalid, MAX_REQUEST_BYTES), false);
   for (const valid of ['', 'Zg==', 'Zm8=', 'Zm9v']) assert.equal(canonicalBase64(valid, MAX_REQUEST_BYTES), true);
 });

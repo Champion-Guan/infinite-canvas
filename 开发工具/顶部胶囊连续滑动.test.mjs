@@ -28,7 +28,7 @@ function fixture(reduced = false) {
         getBoundingClientRect() { return { left: this.parentElement.offsetLeft - container.scrollLeft, right: this.parentElement.offsetLeft + 128 - container.scrollLeft }; }
     }
     const container = {
-        clientWidth: 265, scrollWidth: 394, scrollLeft: 0, dataset: {},
+        clientWidth: 265, scrollWidth: 394, scrollLeft: 0, dataset: {}, style: { setProperty(key, value) { this[key] = value; } },
         querySelector: () => tabs.find(tab => tab.id === active),
         querySelectorAll: () => tabs,
         getBoundingClientRect: () => ({ left: 0, right: container.clientWidth }),
@@ -79,8 +79,12 @@ function fixture(reduced = false) {
     const imports = {
         react, 'react/jsx-runtime': { jsx, jsxs: jsx },
         '@/stores/canvas/use-canvas-store': { useCanvasStore: select => select({ projects }) },
-        '../本机存储/上游浏览器存储桥': { sqlitePreferences: { getItem: () => null, setItem: (...args) => writes.push(args) } },
+        '../本机存储/上游浏览器存储桥': { sqlitePreferences: { getItem: () => null, setItem: (...args) => writes.push(args) }, storageStatus: () => ({ state: 'ready' }) },
+        '../存储界面/保存错误通知': { reportSaveFailure() {} },
+        '../主题/状态详情': { StatusDetails: 'StatusDetails' },
         '../Excel/Excel产品归属': { orderedWorkbookProjects: items => items, visibleWorkbookId: () => owner },
+        './产品导航范围': { navigationOwner: () => owner, navigationProducts: state => state.projects },
+        '../产品配置/功能开关': { productFeatures: { excel: true } },
         './产品规则': { orderedProducts: items => items },
         './产品操作': { useProductNavigation: () => ({ activeId: active, busy, selectProduct: async id => { calls.push(id); if (fail) throw Error('合成切换失败'); active = id; } }) },
         './产品任务摘要.js': { canvasTaskSummary: () => ({ status: taskStatus }) },
@@ -327,7 +331,8 @@ test('失败切换保留原选中背景，错误可见；CSS取消浏览器快�
     const f = fixture(); f.render(); f.fail();
     f.tab('B').props.onClick({ detail: 0 }); await Promise.resolve(); await Promise.resolve(); f.render();
     assert.equal(f.indicator().props['data-product-indicator'], 'A');
-    assert.ok(f.elements().some(item => item.props.role === 'alert' && item.props.children === '合成切换失败'));
+    assert.ok(f.elements().some(item => item.type === 'StatusDetails' && item.props.failed));
+    assert.ok(f.elements().some(item => item.type === 'p' && item.props.children === '合成切换失败'));
     const css = readFileSync('扩展功能/产品/产品胶囊.module.css', 'utf8');
     assert.match(css, /overflow-x: auto/);
     assert.match(css, /\.guan-dc-product-nav \*\)[\s\S]*?view-transition-name: none/);
@@ -413,4 +418,20 @@ test('连续滑动跨过可见边界时不改选中产品，卸载移除滚动�
     stale();
     assert.equal(f.scrolls.length, scrollCount);
     assert.deepEqual(f.calls, []);
+});
+
+test('当前胶囊临近边缘时黑色提示连续淡出，反向滚动从当前透明度返回，不改业务选择', () => {
+    const f = fixture(); f.render(); f.effects();
+    const values = [];
+    for (const offset of [80, 50, 20, 3, 0]) {
+        f.scroll(offset);
+        values.push(Number(f.container.style['--capsule-edge-opacity']));
+    }
+    assert.equal(values[0], 1);
+    assert.equal(values.at(-1), 0);
+    for (let index = 1; index < values.length; index++) assert.ok(values[index] < values[index - 1]);
+    f.scroll(20);
+    assert.ok(Number(f.container.style['--capsule-edge-opacity']) > 0);
+    assert.deepEqual(f.calls, []);
+    assert.deepEqual(f.writes, []);
 });

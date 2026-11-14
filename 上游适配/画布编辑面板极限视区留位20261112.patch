@@ -1,0 +1,35 @@
+diff --git a/web/src/components/canvas/infinite-canvas.tsx b/web/src/components/canvas/infinite-canvas.tsx
+index 93503d3..0a77cbe 100644
+--- a/web/src/components/canvas/infinite-canvas.tsx
++++ b/web/src/components/canvas/infinite-canvas.tsx
+@@ -1,5 +1,5 @@
+ import { canvasPointerAction, focusCanvasFromPointer, ignoreCanvasShortcut } from "@/扩展功能/画布交互/快捷键边界";
+-import { CANVAS_FLOATING_CHANGE } from "@/扩展功能/画布交互/浮层可见区域";
++import { CANVAS_FLOATING_CHANGE, CANVAS_PANEL_REVEAL, revealCanvasPanel } from "@/扩展功能/画布交互/浮层可见区域";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+ import { createCanvasPanScheduler } from "@/扩展功能/画布布局/画布平移调度";
+@@ -329,6 +329,23 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+         return () => container.removeEventListener("wheel", preventWheelScroll);
+     }, [containerRef]);
+ 
++    useEffect(() => {
++        if (!productActive) return;
++        const reveal = (event: Event) => {
++            const source = event.target instanceof Element ? event.target : null;
++            const container = containerRef.current;
++            if (!container || source?.closest(".guan-canvas-viewport") !== container) return;
++            const { node, bounds } = (event as CustomEvent).detail;
++            const next = revealCanvasPanel(liveViewportRef.current, node, bounds, container.getBoundingClientRect());
++            callbacksRef.current.onManualViewportStart?.();
++            schedulerRef.current?.begin(liveViewportRef.current);
++            schedulerRef.current?.move(next);
++            schedulerRef.current?.flush();
++        };
++        window.addEventListener(CANVAS_PANEL_REVEAL, reveal);
++        return () => window.removeEventListener(CANVAS_PANEL_REVEAL, reveal);
++    }, [containerRef, productActive]);
++
+     const temporaryTool = isControlPressed || isSpacePressed;
+     const activeTool = temporaryTool ? (tool === "select" ? "pan" : "select") : tool;
+     const cursor = isPanning ? "grabbing" : activeTool === "pan" ? "grab" : undefined;

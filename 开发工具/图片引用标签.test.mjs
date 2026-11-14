@@ -80,7 +80,7 @@ test('实际商品卡编辑可读标签后只将原ID交回元数据，中英文
     const jsx = (type, props) => ({ type, props });
     const loader = variantModules({
         react: { useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}],
-            useRef: current => ({ current }), useEffect() {} },
+            useRef: current => ({ current }), useMemo: fn => fn(), useEffect() {} },
         'react/jsx-runtime': { jsx, jsxs: jsx },
         'lucide-react': { Languages: 'Languages', RotateCcw: 'RotateCcw' }, antd: { Segmented: 'Segmented' },
         './Excel画布上下文': { useExcelProductId: () => 'product' },

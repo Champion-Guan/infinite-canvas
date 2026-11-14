@@ -39,15 +39,16 @@ function fixture(responses, hooks = {}) {
     Object.assign(base.parameter.metadata, { productPlatform: '未指定', productVariants: undefined, productSharedImageIds: undefined,
         productImagePlan: { pendingFacts: [], confirmations: [structuredClone(confirmation)] } });
     let sequence = 0, responseIndex = 0, taskSequence = 0, f;
-    const events = [], requests = [], snapshots = [], operations = [], notices = [], phases = [], confirmed = [];
+    const events = [], requests = [], snapshots = [], operations = [], notices = [], noticeScopes = [], phases = [], confirmed = [];
     const loader = variantModules({
         nanoid: { nanoid: () => `new-${++sequence}` },
         '@/stores/use-config-store': { useConfigStore: { getState: () => ({
             config: { imageModel: 'synthetic-image', model: 'synthetic-text' }, isAiConfigReady: () => true,
         }) } },
         '@/lib/canvas/canvas-generation-helpers': { buildGenerationConfig: config => ({ ...config, model: 'synthetic-text' }) },
-        './商品策划完成通知': { notifyProductPlanning: (_productId, _parameterId, completed) => {
+        './商品策划完成通知': { notifyProductPlanning: (_productId, _parameterId, completed, configNodeIds) => {
             events.push(completed ? 'notice-complete' : 'notice-start'); notices.push(completed);
+            if (completed) noticeScopes.push(configNodeIds ? [...configNodeIds] : []);
         } },
         '../产品/产品操作': { saveProductCanvas: async () => {
             const count = snapshots.length + 1;
@@ -124,7 +125,7 @@ function fixture(responses, hooks = {}) {
     };
     const controller = new AbortController();
     f = { loader, rules, parameter: base.parameter, nodes, prompts, configs, connections, ctx, controller,
-        events, requests, snapshots, operations, notices, phases, confirmed,
+        events, requests, snapshots, operations, notices, noticeScopes, phases, confirmed,
         run: (options = {}) => loader.load('Excel画布/商品策划请求.ts').planProductImages(ctx, 'product', controller.signal, phase => phases.push(phase), options) };
     return f;
 }
@@ -307,7 +308,8 @@ test('最终结果ACK失败或清标记ACK失败后只补保存并确认原任�
         assert.equal(f.operations.length, 1);
         assert.equal(f.notices.includes(true), false);
         const marker = structuredClone(f.parameter.metadata.productPlanningPendingCommit);
-        assert.deepEqual(marker, { slotId: 'product-image-plan', taskId: 'task-1' });
+        assert.deepEqual(marker, { slotId: 'product-image-plan', taskId: 'task-1', configNodeIds: f.configs.map(node => node.id) });
+        f.nodes.push({ id: 'later-config', type: 'config', metadata: { prompt: '后来手工添加' } });
         f.prompts[0].metadata.productImagePrompt.prompt.chinese += '用户在失败后的新编辑';
         const start = f.events.length;
         await f.run();
@@ -321,6 +323,7 @@ test('最终结果ACK失败或清标记ACK失败后只补保存并确认原任�
         assert.ok(resumed.indexOf(`save-${failAt + 1}-ack`) < resumed.indexOf('confirm-task-1'));
         assert.ok(resumed.indexOf('confirm-task-1') < resumed.indexOf(`save-${failAt + 2}-ack`));
         assert.equal(f.notices.filter(Boolean).length, 1);
+        assert.deepEqual(f.noticeScopes, [marker.configNodeIds]);
     }
 });
 
@@ -443,13 +446,30 @@ test('确认原收据失败保留pendingCommit，下次仅补保存及确认，�
     await assert.rejects(f.run(), /保存尚未确认/);
     await assert.rejects(f.run(), /确认端口暂不可用/);
     assert.equal(f.requests.length, 1); assert.equal(f.operations.length, 1);
-    assert.deepEqual(f.parameter.metadata.productPlanningPendingCommit, { slotId: 'product-image-plan', taskId: 'task-1' });
+    assert.deepEqual(f.parameter.metadata.productPlanningPendingCommit, { slotId: 'product-image-plan', taskId: 'task-1',
+        configNodeIds: f.configs.map(node => node.id) });
     assert.equal(f.notices.includes(true), false);
     failConfirmation = false;
     await f.run();
     assert.equal(f.requests.length, 1); assert.equal(f.operations.length, 1);
     assert.equal(f.parameter.metadata.productPlanningPendingCommit, undefined);
     assert.equal(f.notices.filter(Boolean).length, 1);
+    assert.deepEqual(f.noticeScopes, [f.configs.map(node => node.id)], '恢复保存使用原策划的清单，不扫描整张画布');
+});
+
+test('策划成功通知只包含本次新增或更新的配置，排除手工卡、其他参数卡和退出用途', async () => {
+    const plan = planData(); plan.images.pop();
+    plan.confirmations[0].imageKeys = ['main'];
+    const f = fixture([plan]);
+    f.nodes.push({ id: 'manual', type: 'config', metadata: { prompt: '手工配置保留' } },
+        { id: 'other-parameter-prompt', type: 'guan:product-prompt', metadata: {
+            productImagePrompt: { ...plan.images[0], parameterId: 'other-parameter', generatedSignature: 'old' } } },
+        { id: 'other-parameter-config', type: 'config', metadata: { productPromptConfigKey: 'other-parameter-prompt' } });
+    await f.run();
+    assert.deepEqual(f.noticeScopes, [[f.configs[0].id]]);
+    assert.equal(f.configs[1].metadata.productPromptRetired, true);
+    assert.equal(f.nodes.find(node => node.id === 'manual').metadata.prompt, '手工配置保留');
+    assert.equal(f.nodes.find(node => node.id === 'other-parameter-config').metadata.productPromptRetired, undefined);
 });
 
 test('客户旧版卡片已出现但没有pendingCommit时，继续保存只确认原任务，不重复策划或改卡', async () => {
@@ -587,5 +607,71 @@ test('真实缺失任务收口入口仅get确认不存在才retire，现存或�
     } finally {
         if (original) Object.defineProperty(globalThis, 'window', original);
         else delete globalThis.window;
+    }
+});
+
+test('真实复制参数卡后修改商品并完成新策划，原卡的候选、收据、配置和提示词全部保持', async () => {
+    const f=fixture([planData()]);
+    f.parameter.title='产品参数设置';
+    f.configs.forEach((node,index)=>Object.assign(node,{position:{x:1100,y:index*700},width:340,height:240}));
+    Object.assign(f.parameter.metadata,{
+        productPlanningPendingCommit:{taskId:'original-task',slotId:'product-image-plan',configNodeIds:['original-config']},
+        productPlanningCandidate:{taskId:'original-task',response:'原商品方案',requestKey:'old-source'},
+        productPlanningTaskSources:{'product-image-plan':'old-source'},
+        gatewayGenerationTasks:[{taskId:'original-task',slotId:'product-image-plan'}],
+        gatewayGenerationReceipts:[{taskId:'original-task',responseHash:'original-hash'}],
+        productPlanningTaskOwner:{nodeId:f.parameter.id,productId:'product',taskId:'original-task'},
+    });
+    const original=structuredClone(f.parameter), oldPrompts=structuredClone(f.prompts),oldConfigs=structuredClone(f.configs);
+    const copy=f.loader.load('画布布局/节点复制操作.ts');
+    const copied=copy.prepareCopiedNodes(copy.captureCopiedNodes(f.nodes,f.connections,new Set([f.parameter.id])),
+        {x:1000,y:1000},f.nodes,()=> 'copied-parameter').nodes[0];
+    Object.assign(f.parameter,copied);
+    f.nodes.push(original);
+    f.parameter.metadata.productBrief={...f.parameter.metadata.productBrief,nameCategory:'复制后修改的新商品'};
+    await f.run();
+    assert.equal(f.requests.length,1);
+    assert.equal(f.requests[0].previous,undefined);
+    assert.equal(f.requests[0].scope.nodeId,'copied-parameter');
+    assert.match(JSON.stringify(f.requests[0].messages),/复制后修改的新商品/);
+    assert.equal(f.parameter.metadata.productPlanningTaskOwner.nodeId,'copied-parameter');
+    assert.deepEqual(f.nodes.find(node=>node.id===original.id),original);
+    assert.deepEqual(f.prompts,oldPrompts);assert.deepEqual(f.configs,oldConfigs);
+    assert.equal(f.parameter.metadata.productImagePlan.imageCount,2);
+    assert.ok(f.snapshots.some(item=>item.persisted&&item.nodes.some(node=>node.id==='copied-parameter')));
+    assert.ok(f.confirmed.every(item=>item.scope.nodeId==='copied-parameter'));
+});
+
+test('明确请求校验拒绝只收口未接受的任务，保留资料且下一次操作可以明确重新策划', async () => {
+    let blocked = true;
+    const f = fixture([planData()], { beforeApply: () => {
+        if (blocked) throw Object.assign(Error('生成请求格式或大小不支持。'), { code: 'invalid_generation_request' });
+    } });
+    await assert.rejects(f.run(), /生成请求格式或大小/);
+    const task = f.parameter.metadata.gatewayGenerationTasks.at(-1);
+    assert.equal(f.parameter.metadata.productPlanningResolution.taskId, task.taskId);
+    assert.equal(f.parameter.metadata.productPlanningResolution.status, 'failed');
+    assert.ok(f.events.includes(`retire-${task.taskId}`));
+    assert.equal(f.loader.load('Excel画布/商品策划恢复入口.ts').productPlanningRecovery(f.parameter), undefined);
+    assert.equal(f.requests.length, 1);
+    blocked = false;
+    await f.run();
+    assert.equal(f.parameter.metadata.productPlanningTask.status, 'success');
+});
+
+test('查询确认本机未接受旧任务后结束旧记录，本次不发送模型请求；未知连接失败仍保留查询入口', async () => {
+    for (const code of ['generation_not_found', 'generation_connection_unknown']) {
+        const f = fixture([], { query: () => { throw Object.assign(Error('查询失败'), { code }); } });
+        f.parameter.metadata.gatewayGenerationTasks = [{ taskId: 'missing-task', slotId: 'product-image-plan' }];
+        await assert.rejects(f.run({ recoverOnly: true }), code === 'generation_not_found' ? /已确认原策划未提交/ : /查询失败/);
+        assert.equal(f.requests.length, 0);
+        const recovery = f.loader.load('Excel画布/商品策划恢复入口.ts').productPlanningRecovery(f.parameter);
+        if (code === 'generation_not_found') {
+            assert.equal(recovery, undefined);
+            assert.ok(f.events.includes('retire-missing-task'));
+        } else {
+            assert.equal(recovery.kind, 'query');
+            assert.ok(!f.events.includes('retire-missing-task'));
+        }
     }
 });

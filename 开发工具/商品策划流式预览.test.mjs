@@ -94,6 +94,8 @@ function componentFixture(t, defer = value => value) {
         './图片引用标签规则': { imageReferenceCatalog: () => [] },
         './图片引用标签': { ImageReferenceText: 'ImageReferenceText' },
         './商品策划恢复入口': { productPlanningRecovery: () => undefined },
+        './策划自动保存': { useAutomaticPlanningSave() {} },
+        './商品策划副本规则': { inheritedProductPlanningPatch: () => undefined },
     });
     t.after(() => subscriptions.forEach(unsubscribe => unsubscribe()));
     return ui;
@@ -142,9 +144,12 @@ test('策划按钮只在收到真实正文后显示生成中，校验和保存�
         './商品提示词画布': {},
         '../主题/苹果交互按钮': { AppleActionButton: 'Button' },
         '../主题/任务阶段反馈': { TextTaskStatus: 'Status' },
+        '../主题/状态详情': { StatusDetail: 'StatusDetail' },
         './商品待确认编辑': {},
         './商品策划流式预览': { useProductPlanningText: () => currentText },
         './商品策划恢复入口': { productPlanningRecovery: () => undefined },
+        './策划自动保存': { useAutomaticPlanningSave() {} },
+        './商品策划副本规则': { inheritedProductPlanningPatch: () => undefined },
         './图片引用标签规则': { imageReferenceCatalog: () => [] },
         './图片引用标签': { ImageReferenceText: 'ImageReferenceText' },
     });

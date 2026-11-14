@@ -29,6 +29,7 @@ function callbackSource(name) {
   visit(ast); assert.ok(found, '找不到真实画布回调：' + name); return found;
 }
 async function callback(name, scope) {
+  scope = { ...variantModules().load('画布生成/图片失败状态保存.ts'), ...scope };
   const { code } = await transformWithEsbuild('module.exports = ' + callbackSource(name), '真实画布回调.tsx', { loader: 'tsx', jsx: 'automatic', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
   const module = { exports: {} };
   new Function(...Object.keys(scope), 'module', code)(...Object.values(scope), module);
@@ -150,6 +151,7 @@ test('真实单卡回调在读取图片及创建结果卡之前拒绝15张参考
 
 const jsx = (type, props) => ({ type, props });
 const { CanvasConfigNodePanel } = await load('.运行/3100源/画布副本/web/src/components/canvas/canvas-config-node-panel.tsx', {
+  '@/扩展功能/画布生成/文本推理强度': variantModules().load('画布生成/文本推理强度.ts'),
   '@/扩展功能/主题/页签内容过渡': { TabContentTransition: 'TabContentTransition' },
   'react/jsx-runtime': { jsx, jsxs: jsx }, '@/扩展功能/产品配置/精简与离线策略': { isGenerationModeEnabled: () => true },
   '@/扩展功能/画布生成/配置节点状态显示': { configNodeGenerationStatus: () => '渠道 · 生成中' },

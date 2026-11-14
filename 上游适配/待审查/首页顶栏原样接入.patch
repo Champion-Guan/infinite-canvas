@@ -1,0 +1,85 @@
+--- a/web/src/layouts/user-layout.tsx
++++ b/web/src/layouts/user-layout.tsx
+@@ -1,14 +1,17 @@
+ import type { ReactNode } from "react";
++import { useLocation } from "react-router-dom";
++import { LegacyHomeChrome } from "@/guan/旧版首页顶栏";
+ 
+ import { productFeatures } from "@/guan/功能开关";
+ import { AgentPanel } from "@/components/agent/agent-panel";
+ import { AppTopNav } from "@/components/layout/app-top-nav";
+ 
+ export default function UserLayout({ children }: { children: ReactNode }) {
++    const isHome = useLocation().pathname === "/";
+     return (
+         <div className="flex h-dvh overflow-hidden bg-background text-foreground">
+             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+-                <AppTopNav />
++                {isHome ? <LegacyHomeChrome /> : <AppTopNav />}
+                 <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+             </div>
+             {productFeatures.externalAgent ? <AgentPanel /> : null}
+--- /dev/null
++++ b/web/src/guan/旧版首页顶栏.tsx
+@@ -0,0 +1,33 @@
++// 旧顶栏来自 server/index.mjs 的 workbenchLogoStyle/mvpNavigationStyle、
++// shared/data-contract/index.js 的空产品 controls，SVG 路径与尺寸保持不变。
++import { useNavigate } from "react-router-dom";
++import { useTranslation } from "react-i18next";
++import { AppConfigModal } from "@/components/layout/app-config-modal";
++import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
++import { useConfigStore } from "@/stores/use-config-store";
++import { useThemeStore } from "@/stores/use-theme-store";
++import styles from "./旧版顶栏.module.css";
++
++export function LegacyHomeChrome() {
++  const { t } = useTranslation();
++  const navigate = useNavigate();
++  const theme = useThemeStore((s) => s.theme);
++  const create = useCanvasStore((s) => s.createProject);
++  const openConfig = useConfigStore((s) => s.openConfigDialog);
++  const pending = "旧版业务尚未迁入；不会读取旧数据。";
++  return <><header className={styles.header} data-theme={theme} aria-label="工作台顶栏">
++    <div className={styles.brand}><img src="/guan/首页原样资源/工作台Logo.png" alt="G" /><span>AI生图工作台</span></div>
++    <div className={styles.controls}>
++      <div className={styles.productNav} />
++      <div className={styles.actions} aria-label="画布操作">
++        <button type="button" title="新建产品" onClick={() => navigate(`/canvas/${encodeURIComponent(create(t("canvas.defaultTitle", { count: 1 })))}`, { replace: true })}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg><span>新建产品</span></button>
++        <button type="button" disabled title={pending}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg><span>导入产品</span></button>
++        <button type="button" disabled title={pending} aria-label="产品回收站"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6.5 7l.8 12h9.4l.8-12M9 7l1-3h4l1 3" /></svg></button>
++      </div>
++      <span className={styles.sheetLabel}>当前工作表：</span>
++      <button type="button" className={styles.fileTrigger} aria-label="选择已上传的 Excel 文件" disabled title={pending}><span>暂无已上传 Excel</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>
++    </div>
++    <button type="button" className={styles.themeButton} disabled aria-label="主题切换已关闭" title="按当前功能取舍，主题切换保持关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg></button>
++    <button type="button" className={styles.settingsButton} aria-label="画布设置" title="画布设置" onClick={() => openConfig(false)}><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg></button>
++  </header><AppConfigModal /></>;
++}
+--- /dev/null
++++ b/web/src/guan/旧版顶栏.module.css
+@@ -0,0 +1,25 @@
++/* 旧顶栏样式迁入并局部化。没有覆盖作者选择器，没有固定在弹窗上方。 */
++.header { display: flex; position: relative; height: 84px; min-height: 84px; flex: 0 0 84px; align-items: center; padding: 0 24px; border-bottom: 1px solid #e5e5e5; background: #fff; color: #161719; font: 14px/20px "Guan Home Geist", "Guan Home Geist Fallback", ui-sans-serif, system-ui, sans-serif; }
++.header[data-theme="dark"] { background: #171717; color: #f4f4f5; border-color: rgb(255 255 255 / 10%); }
++.brand { display: inline-flex; width: auto; min-width: max-content; height: 32px; margin-left: 24px; align-items: center; gap: 10px; flex: 0 0 auto; }
++.brand img { width: 32px; height: 32px; object-fit: contain; }
++.header[data-theme="dark"] .brand img { filter: invert(1) brightness(1.3); }
++.brand span { font: 650 16px/1 "Guan Home Geist", ui-sans-serif, system-ui, sans-serif; letter-spacing: -.01em; white-space: nowrap; user-select: none; }
++.controls { display: flex; align-items: center; justify-content: flex-start; gap: 8px; flex: 1 1 0; min-width: 0; margin-left: 24px; padding-right: 104px; }
++.productNav { flex: 1 1 0; min-width: 0; }
++.actions { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; margin-left: 10px; }
++.actions button { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 9px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: 12px/1.2 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; cursor: pointer; }
++.actions svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; }
++.sheetLabel { font-size: 13px; white-space: nowrap; }
++.fileTrigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: min(250px,26vw); min-width: 160px; height: 46px; flex: 0 0 auto; padding: 0 14px 0 16px; border: 1px solid rgb(20 24 32 / 12%); border-radius: 13px; background: #fff; color: #17181a; font: 13px/1.2 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
++.fileTrigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
++.fileTrigger svg { width: 20px; height: 20px; flex: 0 0 20px; fill: none; stroke: #71757a; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
++.header[data-theme="dark"] .fileTrigger { border-color: rgb(255 255 255 / 14%); background: rgb(29 30 32 / 97%); color: #f4f4f5; }
++.themeButton, .settingsButton { position: absolute; top: 21px; display: inline-flex; width: 42px; height: 42px; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 12px; background: transparent; color: inherit; cursor: pointer; }
++.themeButton { right: 76px; }
++.settingsButton { right: 24px; }
++.themeButton svg, .settingsButton svg { width: 24px; height: 24px; }
++.header button:disabled { cursor: not-allowed; }
++.header button:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
++@media(max-width:820px) { .brand { margin-left:0; } .brand span { display:none; } .fileTrigger { width:min(210px,30vw); min-width:140px; } }
++@media(max-width:640px) { .header { padding:0 12px; } .controls { overflow-x:auto; margin-left:8px; } .sheetLabel { display:none; } .fileTrigger { min-width:118px; } }

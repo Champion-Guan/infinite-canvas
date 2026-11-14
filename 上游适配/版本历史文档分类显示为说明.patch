@@ -1,0 +1,13 @@
+diff --git a/web/src/i18n/locales/zh-CN.ts b/web/src/i18n/locales/zh-CN.ts
+index 6e7a05f..3fbce47 100644
+--- a/web/src/i18n/locales/zh-CN.ts
++++ b/web/src/i18n/locales/zh-CN.ts
+@@ -369,7 +369,7 @@ export default {
+         changelogFailed: "更新日志读取失败",
+         updated: "已获取最新版本信息",
+         updateFailed: "获取最新版本信息失败",
+-        types: { added: "新增", fixed: "修复", changed: "调整", optimized: "优化", docs: "文档" },
++        types: { added: "新增", fixed: "修复", changed: "调整", optimized: "优化", docs: "说明" },
+     },
+     config: {
+         title: "配置与用户偏好",

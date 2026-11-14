@@ -1,0 +1,559 @@
+--- /dev/null
++++ b/web/src/guan/产品回收规则.ts
+@@ -0,0 +1,57 @@
++import type { CanvasProject, CanvasDeletedProject } from "@/stores/canvas/use-canvas-store";
++import { canvasTaskSummary } from "./产品任务摘要.js";
++import { orderedProducts } from "./产品规则";
++
++export type RecycledProduct = CanvasDeletedProject & {
++  project: CanvasProject;
++  nextProductId: string;
++};
++type ProductState = {
++  projects: CanvasProject[];
++  deletedProjects: CanvasDeletedProject[];
++};
++
++export function recycledProducts(state: ProductState): RecycledProduct[] {
++  return state.deletedProjects.filter((entry): entry is RecycledProduct =>
++    Boolean(entry.project && entry.project.id === entry.id),
++  );
++}
++
++// 旧版先右邻、再左邻；不因updatedAt或数组倒序误选产品。
++export function planProductRecycle(state: ProductState, id: string, deletedAt: string): ProductState {
++  const project = state.projects.find((item) => item.id === id);
++  if (!project) {
++    if (recycledProducts(state).some((entry) => entry.id === id)) return state;
++    throw new Error("该产品已不存在，请刷新后重试。");
++  }
++  if (canvasTaskSummary(project.nodes, project.connections).status === "loading")
++    throw new Error("该产品有生成任务运行中，请等待任务结束后再删除。");
++  const ids = orderedProducts(state.projects).map((item) => item.id), index = ids.indexOf(id);
++  const entry: RecycledProduct = {
++    id, deletedAt, project: structuredClone(project),
++    nextProductId: ids[index + 1] || ids[index - 1] || "",
++  };
++  // 同一canvas_store根的原子一代同时带回收快照和移除结果；不删除媒体。
++  return {
++    projects: state.projects.filter((item) => item.id !== id),
++    deletedProjects: [...state.deletedProjects.filter((item) => item.id !== id), entry],
++  };
++}
++
++export function planProductRestore(state: ProductState, id: string): ProductState {
++  const archived = recycledProducts(state).find((entry) => entry.id === id);
++  const current = state.projects.find((item) => item.id === id);
++  if (current) {
++    if (archived) throw new Error("当前产品和回收站有相同ID，为保护数据已停止恢复。");
++    return state; // 上次已落盘但ACK丢失后的幂等重试，不覆盖已恢复产品。
++  }
++  if (!archived) throw new Error("没有可恢复的完整画布，未把旧删除标记当作备份。");
++  return {
++    projects: [structuredClone(archived.project), ...state.projects],
++    deletedProjects: state.deletedProjects.filter((item) => item.id !== id),
++  };
++}
++
++export function projectsWithRecycleMedia(state: ProductState): CanvasProject[] {
++  return [...state.projects, ...recycledProducts(state).map((entry) => entry.project)];
++}
+--- /dev/null
++++ b/web/src/guan/产品回收面板.tsx
+@@ -0,0 +1,98 @@
++import { useId, useRef, useState, type ReactNode } from "react";
++import { Modal } from "antd";
++import { retrySQLiteStorage } from "@/guan/上游浏览器存储桥";
++import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
++import { useProductNavigation } from "./产品操作";
++import { recycledProducts } from "./产品回收规则";
++import { useThemeStore } from "@/stores/use-theme-store";
++import styles from "./产品胶囊.module.css";
++
++// 旧确认框/回收站的真实结构、SVG和文案迁入React；仅用现有Modal提供焦点圈与关闭清理。
++export function ProductTrashIcon() {
++  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6.5 7l.8 12h9.4l.8-12M9 7l1-3h4l1 3" /></svg>;
++}
++
++function LegacyProductDialog({ title, busy, onClose, children }: {
++  title: string; busy: boolean; onClose: () => void; children: ReactNode;
++}) {
++  const dark = useThemeStore((state) => state.theme === "dark");
++  return <Modal open title={title} footer={null} closable={false} maskClosable={!busy}
++    keyboard={!busy} onCancel={onClose} width="auto" centered transitionName="" maskTransitionName=""
++    className={styles.legacyModal} styles={{ container: { padding: 0, background: "transparent", boxShadow: "none" }, mask: { background: dark ? "rgba(0,0,0,.48)" : "rgba(9,10,12,.32)", backdropFilter: "blur(8px)" } }}
++    modalRender={() => <div className={styles.root}>{children}</div>}
++  />;
++}
++
++function errorText(error: unknown) {
++  return error instanceof Error ? error.message : String(error);
++}
++
++export function ProductDeleteDialog({ id, name, onClose }: { id: string; name: string; onClose: () => void }) {
++  const { recycleProduct, busy } = useProductNavigation();
++  const [error, setError] = useState("");
++  const [retrying, setRetrying] = useState(false);
++  const submitting = useRef(false), title = useId();
++  async function submit(retry = false) {
++    if (submitting.current || busy) return;
++    submitting.current = true; setError(""); setRetrying(retry);
++    try {
++      if (retry) await retrySQLiteStorage();
++      await recycleProduct(id); onClose();
++    } catch (reason) { setError(errorText(reason)); }
++    finally { submitting.current = false; setRetrying(false); }
++  }
++  return <LegacyProductDialog title={`删除「${name}」及对应画布？`} busy={busy || retrying} onClose={onClose}>
++    <section className="guan-dc-confirm-card" role="document" aria-labelledby={title}>
++      <div className="guan-dc-confirm-icon" aria-hidden="true"><ProductTrashIcon /></div>
++      <div className="guan-dc-confirm-copy">
++        <h2 id={title}>删除「{name}」及对应画布？</h2>
++        <p>产品和对应画布将移入产品回收站，可恢复。原始 Excel 和其他产品不受影响。</p>
++        <p className="guan-product-file-note">已生成图片、视频等文件将保留，不会一并删除；恢复产品后可继续查看和下载。</p>
++        {error ? <p role="alert">{error} 保存未确认时请勿刷新或关闭工作台。</p> : null}
++      </div>
++      <div className="guan-dc-confirm-actions">
++        <button type="button" disabled={busy || retrying} onClick={onClose}>取消</button>
++        {error ? <button type="button" disabled={busy || retrying} onClick={() => void submit(true)}>重试保存后继续</button> : null}
++        <button type="button" className="danger" disabled={busy || retrying} onClick={() => void submit()}>删除</button>
++      </div>
++    </section>
++  </LegacyProductDialog>;
++}
++
++export function ProductTrashEntry() {
++  const [open, setOpen] = useState(false), [error, setError] = useState("");
++  const [retrying, setRetrying] = useState(false);
++  const { busy, restoreProduct } = useProductNavigation();
++  const projects = useCanvasStore((state) => state.deletedProjects);
++  const entries = recycledProducts({ projects: [], deletedProjects: projects });
++  const pendingId = useRef(""), submitting = useRef(false), title = useId();
++  async function restore(id: string, retry = false) {
++    if (submitting.current || busy) return;
++    submitting.current = true; pendingId.current = id; setError(""); setRetrying(retry);
++    try {
++      if (retry) await retrySQLiteStorage();
++      await restoreProduct(id); pendingId.current = "";
++    } catch (reason) { setError(errorText(reason)); }
++    finally { submitting.current = false; setRetrying(false); }
++  }
++  return <>
++    <button type="button" disabled={busy} title="产品回收站" aria-label="产品回收站" onClick={() => setOpen(true)}><ProductTrashIcon /></button>
++    {open ? <LegacyProductDialog title="产品回收站" busy={busy || retrying} onClose={() => setOpen(false)}>
++      <section className="guan-dc-confirm-card guan-product-trash-card" role="document" aria-labelledby={title}>
++        <h2 id={title}>产品回收站</h2>
++        <p>恢复产品会同时恢复对应画布；已生成文件仍保留。</p>
++        <div className="guan-product-trash-list">
++          {entries.length ? entries.map((entry) => <div key={entry.id} className="guan-product-trash-row">
++            <div><strong>{entry.project.title}</strong><small>{new Date(entry.deletedAt).toLocaleString()}</small></div>
++            <button type="button" disabled={busy || retrying} onClick={() => void restore(entry.id)}>恢复</button>
++          </div>) : <p>暂无已删除产品</p>}
++        </div>
++        {error ? <p role="alert">{error} 保存未确认时请勿刷新或关闭工作台。</p> : null}
++        <div className="guan-dc-confirm-actions">
++          {error && pendingId.current ? <button type="button" disabled={busy || retrying} onClick={() => void restore(pendingId.current, true)}>重试保存后继续</button> : null}
++          <button type="button" disabled={busy || retrying} onClick={() => setOpen(false)}>关闭</button>
++        </div>
++      </section>
++    </LegacyProductDialog> : null}
++  </>;
++}
+--- a/web/src/stores/canvas/use-canvas-store.ts
++++ b/web/src/stores/canvas/use-canvas-store.ts
+@@ -26,6 +26,8 @@
+ export type CanvasDeletedProject = {
+     id: string;
+     deletedAt: string;
++    project?: CanvasProject;
++    nextProductId?: string;
+ };
+ 
+ type CanvasStore = {
+--- a/web/src/stores/use-asset-store.ts
++++ b/web/src/stores/use-asset-store.ts
+@@ -1,4 +1,5 @@
+ import { create } from "zustand";
++import { projectsWithRecycleMedia } from "@/guan/产品回收规则";
+ import { persist, type PersistStorage, type StorageValue } from "zustand/middleware";
+ 
+ import { nanoid } from "nanoid";
+@@ -97,8 +98,9 @@
+             cleanupImages: (extra) => {
+                 window.setTimeout(async () => {
+                     const { useCanvasStore } = await import("@/stores/canvas/use-canvas-store");
+-                    await cleanupUnusedImages({ assets: get().assets, projects: useCanvasStore.getState().projects, extra });
+-                    await cleanupUnusedMedia({ assets: get().assets, projects: useCanvasStore.getState().projects, extra });
++                    const projects = projectsWithRecycleMedia(useCanvasStore.getState());
++                    await cleanupUnusedImages({ assets: get().assets, projects, extra });
++                    await cleanupUnusedMedia({ assets: get().assets, projects, extra });
+                 }, 0);
+             },
+         }),
+--- a/web/src/guan/产品操作.ts
++++ b/web/src/guan/产品操作.ts
+@@ -10,16 +10,20 @@
+ import { flushSQLiteStorage, sqlitePreferences } from "@/guan/上游浏览器存储桥";
+ import { ProductOperationGate, ProductSaveRegistry } from "./产品规则";
+ import { ProductCommitCheckpoint } from "./产品保存检查点";
++import { planProductRecycle, planProductRestore, recycledProducts } from "./产品回收规则";
++import { orderedProducts } from "./产品规则";
+ 
+ export const ACTIVE_PRODUCT_KEY = "guan-products:active:v1";
+ const operations = new ProductOperationGate();
+ const saves = new ProductSaveRegistry();
++const deletionGuards = new Map<string, () => boolean>();
+ 
+ export function useProductCanvasSave<T>(
+   projectId: string,
+   snapshot: T,
+   ready: () => boolean,
+   persist: (snapshot: T) => Promise<void>,
++  canDelete: () => boolean = () => true,
+ ) {
+   const [ticket, requestRender] = useState(0);
+   const checkpointRef = useRef<ProductCommitCheckpoint<T> | null>(null);
+@@ -27,18 +31,22 @@
+     checkpointRef.current = new ProductCommitCheckpoint(requestRender);
+   const checkpoint = checkpointRef.current;
+   const persistRef = useRef(persist);
++  const canDeleteRef = useRef(canDelete);
+   useLayoutEffect(() => {
+     checkpoint.mount();
++    deletionGuards.set(projectId, () => canDeleteRef.current());
+     const unregister = saves.register(projectId, () =>
+       checkpoint.flush((value) => persistRef.current(value)),
+     );
+     return () => {
+       unregister();
++      deletionGuards.delete(projectId);
+       checkpoint.unmount();
+     };
+   }, [checkpoint, projectId]);
+   useLayoutEffect(() => {
+     persistRef.current = persist;
++    canDeleteRef.current = canDelete;
+     checkpoint.commit(ticket, snapshot, ready());
+   });
+ }
+@@ -103,5 +111,44 @@
+       }),
+     [commitCurrent, enter],
+   );
+-  return { activeId, busy, createProduct, selectProduct };
++  const recycleProduct = useCallback(
++    (id: string) => operations.run(async () => {
++      const ensureStopped = () => {
++        if (deletionGuards.get(id)?.() === false)
++          throw new Error("该产品有生成任务运行中，请等待任务结束后再删除。");
++      };
++      ensureStopped();
++      await commitCurrent();
++      if (id !== activeId && deletionGuards.has(id)) await saves.flush(id);
++      ensureStopped();
++      const before = useCanvasStore.getState();
++      const planned = planProductRecycle(before, id, new Date().toISOString());
++      if (planned !== before) useCanvasStore.setState(planned);
++      // 失败不回滚/覆盖已确认代；完整快照仍在回收站及待确认队列，允许原UI显式重试。
++      await flushSQLiteStorage();
++      if (activeId === id) {
++        const current = useCanvasStore.getState();
++        const next = recycledProducts(current).find(entry => entry.id === id)?.nextProductId;
++        const target = current.projects.find(item => item.id === next)?.id || orderedProducts(current.projects)[0]?.id;
++        if (target) await enter(target);
++        else {
++          sqlitePreferences.removeItem(ACTIVE_PRODUCT_KEY);
++          await flushSQLiteStorage();
++          navigate("/", { replace: true });
++        }
++      }
++    }),
++    [activeId, commitCurrent, enter, navigate],
++  );
++  const restoreProduct = useCallback(
++    (id: string) => operations.run(async () => {
++      await commitCurrent();
++      const before = useCanvasStore.getState(), planned = planProductRestore(before, id);
++      if (planned !== before) useCanvasStore.setState(planned);
++      await flushSQLiteStorage();
++      await enter(id);
++    }),
++    [commitCurrent, enter],
++  );
++  return { activeId, busy, createProduct, selectProduct, recycleProduct, restoreProduct };
+ }
+--- a/web/src/guan/顶部产品胶囊.tsx
++++ b/web/src/guan/顶部产品胶囊.tsx
+@@ -15,6 +15,7 @@
+ import { productDisplayName } from "./旧版产品显示名.js";
+ import { readCanvasCapsuleStatus } from "./旧版产品胶囊状态.js";
+ import styles from "./产品胶囊.module.css";
++import { ProductDeleteDialog, ProductTrashIcon } from "./产品回收面板";
+ 
+ type Summary = {
+   id: string;
+@@ -102,6 +103,7 @@
+     getVisibility,
+   );
+   const [error, setError] = useState("");
++  const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
+   const current = products.find((item) => item.id === activeId);
+   const entering = lastSelectedId !== activeId;
+   useLayoutEffect(() => {
+@@ -167,10 +169,18 @@
+                 </svg>
+                 <span>{label}</span>
+               </button>
++              <button type="button" className="guan-product-delete"
++                aria-label={`删除${label}及对应画布`}
++                title={product.status === "loading" ? "生成任务运行中，暂不能删除" : "删除产品及对应画布"}
++                disabled={busy || product.status === "loading"}
++                onClick={(event) => { event.stopPropagation(); setDeleting({ id: product.id, name: label }); }}>
++                <ProductTrashIcon />
++              </button>
+             </div>
+           );
+         })}
+       </div>
++      {deleting ? <ProductDeleteDialog id={deleting.id} name={deleting.name} onClose={() => setDeleting(null)} /> : null}
+       {error ? (
+         <span role="alert" className={styles.error}>
+           {error}
+--- a/web/src/guan/产品胶囊.module.css
++++ b/web/src/guan/产品胶囊.module.css
+@@ -182,3 +182,135 @@
+     transform: none !important;
+   }
+ }
++
++/* 下列实际样式来自锁定旧项目；仅局部化选择器及现有.dark主题。 */
++.root :global(.guan-product-delete) { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 4px; border: 0; border-radius: 50%; background: var(--dc-bg, #fff); color: #dc2626; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .22s cubic-bezier(.22,1,.36,1), background-color .18s ease; }
++.root :global(.guan-product-delete:hover) { transform: translateY(-50%) scale(1.08); background: color-mix(in srgb, #dc2626 10%, var(--dc-bg, #fff)); }
++.root :global(.guan-product-delete:active) { transform: translateY(-50%) scale(.92); }
++.root :global(.guan-product-delete svg) { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; }
++.root :global(.guan-product-capsule-wrap:hover .guan-product-delete), .root :global(.guan-product-capsule-wrap:focus-within .guan-product-delete) { opacity: 1; pointer-events: auto; }
++.root :global(.guan-product-capsule-wrap:hover .guan-dc-product-capsule), .root :global(.guan-product-capsule-wrap:focus-within .guan-dc-product-capsule) { padding-right: 32px; }
++.root :global(.guan-product-delete:disabled) { color: var(--dc-muted, #888); cursor: not-allowed; }
++.root :global(.guan-product-delete:focus-visible) { outline: 2px solid #dc2626; outline-offset: 2px; }
++:global(.dark) .root :global(.guan-product-delete) { background: #27282b; color: #f87171; }
++:global(.dark) .root :global(.guan-product-delete:disabled) { color: #71717a; }
++.root :global(.guan-product-file-note) { padding: 10px; border-radius: 8px; background: var(--dc-soft, #f5f5f5); }
++.root :global(.guan-dc-confirm-card.guan-product-trash-card) { display: block; width: min(520px, calc(100vw - 32px)); }
++.root :global(.guan-product-trash-card h2) { margin: 0 0 10px; font-size: 18px; }
++.root :global(.guan-product-trash-card p) { color: var(--dc-muted, #72757a); font-size: 13px; }
++.root :global(.guan-product-trash-list) { max-height: min(55vh, 420px); overflow-y: auto; margin: 16px 0; }
++.root :global(.guan-product-trash-row) { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--dc-border, #eee); animation: guan-dc-row-in .28s cubic-bezier(.22,1,.36,1) both; }
++.root :global(.guan-product-trash-row > div) { flex: 1; min-width: 0; }
++.root :global(.guan-product-trash-row strong), .root :global(.guan-product-trash-row small) { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
++.root :global(.guan-product-trash-row small) { margin-top: 5px; font-size: 11px; color: var(--dc-muted, #72757a); }
++.root :global(.guan-product-trash-row button) { border: 1px solid var(--dc-border, #ddd); background: var(--dc-bg, #fff); color: inherit; border-radius: 8px; padding: 7px 12px; cursor: pointer; transition: transform .18s cubic-bezier(.22,1,.36,1), background-color .18s ease, box-shadow .18s ease; }
++.root :global(.guan-product-trash-row button:hover) { transform: translateY(-1px); box-shadow: 0 6px 18px rgb(0 0 0 / 10%); }
++.root :global(.guan-product-trash-row button:active) { transform: scale(.96); }
++.root :global(.guan-product-trash-row button:disabled) { opacity: .55; cursor: wait; }
++@media (hover: none) { .root :global(.guan-product-delete) { opacity: 1; pointer-events: auto; } .root :global(.guan-product-capsule-wrap .guan-dc-product-capsule) { padding-right: 32px; } }
++@keyframes guan-dc-row-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
++.root :global(.guan-dc-confirm-card) {
++  position: relative;
++  pointer-events: auto;
++  display: grid;
++  grid-template-columns: auto minmax(0, 1fr);
++  gap: 14px;
++  width: min(440px, calc(100vw - 40px));
++  box-sizing: border-box;
++  padding: 22px;
++  border: 1px solid var(--dc-border);
++  border-radius: 20px;
++  background: var(--dc-bg);
++  box-shadow: 0 28px 80px rgba(0, 0, 0, .28);
++  animation: guan-dc-confirm-in .18s cubic-bezier(.16, 1, .3, 1) both;
++}
++.root :global(.guan-dc-confirm[data-state="closing"] .guan-dc-confirm-card) {
++  animation: guan-dc-confirm-out .15s cubic-bezier(.4, 0, .2, 1) both;
++}
++.root :global(.guan-dc-confirm-icon) {
++  display: grid;
++  place-items: center;
++  width: 38px;
++  height: 38px;
++  border-radius: 12px;
++  background: rgba(220, 38, 38, .1);
++  color: #c62828;
++}
++.root :global(.guan-dc-confirm-icon svg) {
++  width: 20px;
++  height: 20px;
++  fill: none;
++  stroke: currentColor;
++  stroke-linecap: round;
++  stroke-linejoin: round;
++  stroke-width: 1.8;
++}
++.root :global(.guan-dc-confirm-copy h2) {
++  margin: 1px 0 6px;
++  color: var(--dc-text);
++  font-size: 17px;
++  line-height: 1.25;
++}
++.root :global(.guan-dc-confirm-copy p) {
++  margin: 0;
++  color: var(--dc-muted);
++  font-size: 13px;
++  line-height: 1.55;
++}
++.root :global(.guan-dc-confirm-copy strong) {
++  color: var(--dc-text);
++  font-weight: 600;
++}
++.root :global(.guan-dc-confirm-actions) {
++  grid-column: 2;
++  display: flex;
++  justify-content: flex-end;
++  gap: 8px;
++  margin-top: 4px;
++}
++.root :global(.guan-dc-confirm-actions button) {
++  min-width: 72px;
++  padding: 9px 14px;
++  border: 1px solid var(--dc-border);
++  border-radius: 10px;
++  background: var(--dc-bg);
++  color: var(--dc-text);
++  cursor: pointer;
++  font: 13px/1.2 inherit;
++  transition: background .14s ease, border-color .14s ease, transform .14s ease;
++}
++.root :global(.guan-dc-confirm-actions button:hover) {
++  background: var(--dc-soft);
++}
++.root :global(.guan-dc-confirm-actions button:active) {
++  transform: translateY(1px);
++}
++.root :global(.guan-dc-confirm-actions button.danger) {
++  border-color: #c62828;
++  background: #c62828;
++  color: #fff;
++}
++.root :global(.guan-dc-confirm-actions button.danger:hover) {
++  border-color: #a91f1f;
++  background: #a91f1f;
++}
++.root :global(.guan-dc-confirm-actions button:disabled) {
++  cursor: wait;
++  opacity: .58;
++}
++:global(.dark) .root :global(.guan-dc-confirm-icon) {
++  background: rgba(248, 113, 113, .14);
++  color: #f87171;
++}
++@keyframes guan-dc-confirm-in {
++  from { opacity: 0; transform: translateY(8px) scale(.97); }
++  to { opacity: 1; transform: translateY(0) scale(1); }
++}
++@keyframes guan-dc-confirm-out {
++  from { opacity: 1; transform: translateY(0) scale(1); }
++  to { opacity: 0; transform: translateY(5px) scale(.98); }
++}
++.root { --dc-muted: #72757a; --dc-border: rgba(20, 24, 32, .12); --dc-soft: #f5f5f5; }
++:global(.dark) .root { --dc-muted: #a1a1aa; --dc-border: rgba(255, 255, 255, .14); --dc-soft: #27282b; }
++.legacyModal { max-width: calc(100vw - 32px); }
++@media (prefers-reduced-motion: reduce) { .root :global(.guan-product-delete), .root :global(.guan-dc-confirm-card), .root :global(.guan-product-trash-row), .root :global(.guan-product-trash-row button) { animation: none !important; transition: none !important; } }
+--- a/web/src/guan/旧版首页顶栏.tsx
++++ b/web/src/guan/旧版首页顶栏.tsx
+@@ -2,6 +2,7 @@
+ // shared/data-contract/index.js 的空产品 controls，SVG 路径与尺寸保持不变。
+ import { App } from "antd";
+ import { ProductCapsules } from "./顶部产品胶囊";
++import { ProductTrashEntry } from "./产品回收面板";
+ import { useProductNavigation } from "./产品操作";
+ import { AppConfigModal } from "@/components/layout/app-config-modal";
+ import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+@@ -23,7 +24,7 @@
+       <div className={styles.actions} aria-label="画布操作">
+         <button type="button" title="新建产品" disabled={busy} onClick={() => { void createProduct().catch(error => message.error(error instanceof Error ? error.message : String(error))); }}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg><span>新建产品</span></button>
+         <button type="button" disabled title={pending}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg><span>导入产品</span></button>
+-        <button type="button" disabled title={pending} aria-label="产品回收站"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6.5 7l.8 12h9.4l.8-12M9 7l1-3h4l1 3" /></svg></button>
++        <ProductTrashEntry />
+       </div>
+       <span className={styles.sheetLabel}>当前工作表：</span>
+       <button type="button" className={styles.fileTrigger} aria-label="选择已上传的 Excel 文件" disabled title={pending}><span>暂无已上传 Excel</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>
+--- a/web/src/guan/画布入口.tsx
++++ b/web/src/guan/画布入口.tsx
+@@ -1,4 +1,4 @@
+-import { Navigate } from "react-router-dom";
++import { Navigate, useMatch } from "react-router-dom";
+ import { useTranslation } from "react-i18next";
+ import { App } from "antd";
+ import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
+@@ -14,10 +14,13 @@
+   const { createProduct, busy } = useProductNavigation();
+   const hydrated = useCanvasStore(state => state.hydrated);
+   const projects = useCanvasStore(state => state.projects);
++  const routeId = useMatch("/canvas/:id")?.params.id;
++  const removedRouteProduct = useCanvasStore(state => Boolean(routeId && !state.projects.some(project => project.id === routeId) && state.deletedProjects.some(entry => entry.id === routeId && entry.project)));
+   const theme = useThemeStore(state => state.theme);
+   const id = selectEntryProduct(projects, sqlitePreferences.getItem(ACTIVE_PRODUCT_KEY));
+   if (!hydrated) return <main className="grid h-full place-items-center bg-background text-foreground" role="status">{t("canvas.opening")}</main>;
+   // 创建事务完成前不能因新产品已入内存而抢先挂载画布；持久化成功后由统一出口导航。
+-  if (id && !busy) return <Navigate to={"/canvas/" + encodeURIComponent(id)} replace />;
++  // 删除或后续导航保存未确认时，不由缺失路由的兜底入口抢先导航。
++  if (id && !busy && !removedRouteProduct) return <Navigate to={"/canvas/" + encodeURIComponent(id)} replace />;
+   return <WorkbenchHome theme={theme} onCreate={() => { void createProduct().catch(error => message.error(error instanceof Error ? error.message : String(error))); }} />;
+ }
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -174,7 +174,7 @@
+ 
+ function InfiniteCanvasPage() {
+     const productActive = useProductActive();
+-    const { createProduct } = useProductNavigation();
++    const { createProduct, recycleProduct } = useProductNavigation();
+     const restoredProjectIdRef = useRef<string | null>(null);
+     const { message, modal } = App.useApp();
+     const { t } = useTranslation();
+@@ -230,7 +230,6 @@
+     const openProject = useCanvasStore((state) => state.openProject);
+     const updateProject = useCanvasStore((state) => state.updateProject);
+     const renameProject = useCanvasStore((state) => state.renameProject);
+-    const deleteProjects = useCanvasStore((state) => state.deleteProjects);
+     const currentProject = useCanvasStore((state) => state.projects.find((project) => project.id === projectId));
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+     const [nodes, setNodeState] = useState<CanvasNodeData[]>([]);
+@@ -575,7 +574,7 @@
+                 if (viewportSaveTimerRef.current) clearTimeout(viewportSaveTimerRef.current);
+                 viewportSaveTimerRef.current = null;
+             }
+-        });
++        }, () => generationRequestsRef.current.size === 0 && runningNodeId === null);
+ 
+     useEffect(() => {
+         if (!dialogNodeId) setNodeImageSettingsOpen(false);
+@@ -1285,10 +1284,8 @@
+     }, [createProduct, message]);
+ 
+     const deleteCurrentProject = useCallback(() => {
+-        deleteProjects([projectId]);
+-        cleanupAssetImages();
+-        navigate("/canvas");
+-    }, [cleanupAssetImages, deleteProjects, navigate, projectId]);
++        void recycleProduct(projectId).catch(error => message.error(error instanceof Error ? error.message : String(error)));
++    }, [recycleProduct, message, projectId]);
+ 
+     const exportCurrentProject = useCallback(async () => {
+         const project = useCanvasStore.getState().projects.find((item) => item.id === projectId);
+@@ -2699,7 +2696,7 @@
+                         position: reuseAudioNode ? sourceNode.position : { x: parent.x + (sourceNode?.width || spec.width) + 96, y: parent.y + ((sourceNode?.height || spec.height) - spec.height) / 2 },
+                         width: reuseAudioNode ? sourceNode.width : spec.width,
+                         height: reuseAudioNode ? sourceNode.height : spec.height,
+-                        metadata: { prompt: effectivePrompt, status: NODE_STATUS_LOADING, ...buildAudioGenerationMetadata(generationConfig) },
++                        metadata: { prompt: effectivePrompt, status: NODE_STATUS_LOADING, ...buildAudioGenerationMetadata(generationConfig), generationStartedAt },
+                     };
+                     pendingChildIds = [audioId];
+                     setNodes((prev) =>
+@@ -2741,6 +2738,7 @@
+                         model: generationConfig.model,
+                         reasoningEffort: generationConfig.reasoningEffort,
+                         textCount,
++                        generationStartedAt,
+                         texts: textIds.map((id) => ({ id, status: NODE_STATUS_LOADING, content: "" })),
+                         primaryTextId: textIds[0],
+                     },

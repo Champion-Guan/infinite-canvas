@@ -4,6 +4,7 @@ import type { CanvasConnection, CanvasNodeData, Position } from "@/types/canvas"
 import type { ProductExcelContext } from "./Excel卡片上下文";
 import { bindExcelParameters, createProductParameterNode, disconnectExcelParameters, type Factory } from "./Excel卡片事务";
 import { readProductParameterValues } from "./Excel参数记忆";
+import { productFeatures } from "../产品配置/功能开关";
 
 type ExcelParameterPort = {
     projectId: string;
@@ -16,7 +17,8 @@ type ExcelParameterPort = {
 };
 export function useExcelParameterOperations({ projectId, excelContext, nodesRef, connectionsRef, setNodes, setConnections, factory }: ExcelParameterPort) {
     const createParameterNode = useCallback((center: Position) => {
-        return createProductParameterNode(excelContext, center, readProductParameterValues(projectId), factory);
+        const context = productFeatures.excel ? excelContext : { productId: projectId, fileName: "", activeProductName: "", templates: [] };
+        return createProductParameterNode(context, center, readProductParameterValues(projectId), factory);
     }, [excelContext, projectId, factory]);
 
     const commit = useCallback((result: { nodes: CanvasNodeData[]; connections: CanvasConnection[] } | null) => {

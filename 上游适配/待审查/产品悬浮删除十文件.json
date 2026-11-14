@@ -1,0 +1,87 @@
+{
+  "日期": "2026-10-18",
+  "状态": "待具体差异批准，未接入或启动",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/产品入口竞态-gLU7Bv/产品入口竞态接入记录.json",
+  "前置差异SHA256": "98cd30ccf0da6a3cf170857e5ea32e081db064d6367088a6d3082c745d8bb505",
+  "旧来源指纹": {
+    "src/shared/data-contract/index.js": "1b14b228241b07fa1a4f6fea8956c7f60112ef61bbfc8c33ec151bce5de7bb22",
+    "src/shared/data-contract/index.css": "169d3c6de95793d5648e1f673e92307d804a9599010522941e932378d1baccff",
+    "src/shared/data-contract/workbook-canvas-products.js": "8bb43e6bf44f74e3c6c18bacc46e2d9135a6170bc05eaead8922f79dccfb61bb",
+    "src/canvas/services/product-recycle-bridge.ts": "f774657e2d22c7863ac025c3c0b8383d75706827e09642928abfdda4aaf5e66a",
+    "src/canvas/lib/canvas/task-summary.js": "d7b665601ae5ebffd3d259092a6abd1bc906b5733f05b84ffc9aad09b6b74f6a",
+    "src/canvas/lib/render-commit-checkpoint.ts": "5554e368fc3c95828fdf4effa2b9481f02246f3cbbffdaa4863de1ca8b1580fc",
+    "public/assets/local-canvas/canvas.js": "b0c9863c11a7dc51b7a86b94426ca8b515cfd54afb526d9b8da0b312aa3e757f",
+    "src/canvas/services/canvas-visibility.ts": "9648251ff389731853f20216eb59d5e392e2a432ad6bc7d20b707590b33e38fa",
+    "src/canvas/stores/canvas/use-canvas-store.ts": "7c842cb39e73702686378c99d94abb5cc186d57e437c4083ccc0ab207ffcd9e4",
+    "src/canvas/pages/canvas/project.tsx": "1fa007d1bdac287c1bee26ac1e186d5a69e544d89b7c57907843bfc8678e0bfb"
+  },
+  "自有来源": {
+    "扩展功能/产品/产品回收规则.ts": "26a63a44ddff99c1c14325d3957735f84c17d6456ebf7c8df1512ed348d07dbc",
+    "扩展功能/产品/产品回收面板.tsx": "c5cc95485faadf2aaed4bcc4427c0bd22a8c6b26d65f58f91c6c694e27757071"
+  },
+  "差异SHA256": "afed13930d9200d55060344253d1b10d89b1354b79ac371b8d3d424b52999d2b",
+  "文件数": 10,
+  "文件": [
+    {
+      "文件": "web/src/guan/产品回收规则.ts",
+      "原始SHA256": null,
+      "候选SHA256": "26a63a44ddff99c1c14325d3957735f84c17d6456ebf7c8df1512ed348d07dbc"
+    },
+    {
+      "文件": "web/src/guan/产品回收面板.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "c5cc95485faadf2aaed4bcc4427c0bd22a8c6b26d65f58f91c6c694e27757071"
+    },
+    {
+      "文件": "web/src/stores/canvas/use-canvas-store.ts",
+      "原始SHA256": "2dc8c7523e666e53e9970443443052fdb1f59c064c33b85c0ebe43bc82ef8b22",
+      "候选SHA256": "4aa876e429bb344638886cf99d6827d84eb45bfa4cd521ce0c043570435e44e6"
+    },
+    {
+      "文件": "web/src/stores/use-asset-store.ts",
+      "原始SHA256": "d8147b882d7a7a2f63d3406bb104f66db5028908ebe202cd2ff97a649cd88d48",
+      "候选SHA256": "d715877830d624b5070c584e81218e95721b976e54c64af87f54d7fe1cdea525"
+    },
+    {
+      "文件": "web/src/guan/产品操作.ts",
+      "原始SHA256": "31c1ab53a8c76ce982d4d0d445d5c62b4396ba037c77b44d5f97df42e7565745",
+      "候选SHA256": "600f316d4299dc838de1ca73ffc75e0a2408077a476388de933a0ff408077b3f"
+    },
+    {
+      "文件": "web/src/guan/顶部产品胶囊.tsx",
+      "原始SHA256": "5940f5a473ab9af82f3e4713c0dba7ed3e67b05f02b2500f62d038a2d5396d73",
+      "候选SHA256": "73f38136362ccd46c856e755aaea5a79ca702b4fa72df23e9ec0f02480b16a3e"
+    },
+    {
+      "文件": "web/src/guan/产品胶囊.module.css",
+      "原始SHA256": "d0f30316f5d18d64a2d15338a7159a680eecdd6db4eec84564451a5cf0c82933",
+      "候选SHA256": "81ab42f8966323d183c85f358a32325ca8002a9d6d3bd05729e1b1be44c30195"
+    },
+    {
+      "文件": "web/src/guan/旧版首页顶栏.tsx",
+      "原始SHA256": "20a329a0bd038b7039be0bf5902ea9cbd69cabc7de8ce1e19576772b71dc6e76",
+      "候选SHA256": "19a0d7ef85a09b4134e0bd92681e4cb9276e1d1c7c37ac59824981f0da52d146"
+    },
+    {
+      "文件": "web/src/guan/画布入口.tsx",
+      "原始SHA256": "39d9dc3af9bbb8f6c118828ca01fa29288ab14e2630850b2f2604ffcfed94801",
+      "候选SHA256": "4a7977dfee57f0b05c4ce5ac340aac4ddcaf573551c84412054fff356372de27"
+    },
+    {
+      "文件": "web/src/pages/canvas/project.tsx",
+      "原始SHA256": "01b8654db2806d4aaa1df8b46976e1827f3f0f78833eea509b1c8bedfbb8af49",
+      "候选SHA256": "9ac6c1945b36c3fb6b35ef491031cbf2f28ff094760ed3fc4e3dc35fa8a6b922"
+    }
+  ],
+  "完整虚拟候选类型检查通过": true,
+  "已接入": false,
+  "已重启3100": false,
+  "真实浏览器验收": false,
+  "范围": [
+    "旧版悬浮/键盘聚焦/触屏删除入口、确认文案与样式；运行任务禁止删除",
+    "完整画布归档及删除结果同一SQLite根提交；保留媒体并启用最小恢复入口，无永久删除",
+    "统一保存和产品操作锁、失败显式重试、右邻/左邻选择、空产品首页",
+    "文本/音频生成结果补同次任务时间戳，保留旧版任务摘要"
+  ]
+}

@@ -1,0 +1,13 @@
+diff --git a/web/src/pages/image/index.tsx b/web/src/pages/image/index.tsx
+index 5234695..fabdcf1 100644
+--- a/web/src/pages/image/index.tsx
++++ b/web/src/pages/image/index.tsx
+@@ -340,7 +340,7 @@ export default function ImagePage() {
+             const result = snapshot.references.length ? await requestEdit(snapshot.config, snapshot.text, snapshot.references) : await requestGeneration(snapshot.config, snapshot.text);
+             const image = result[0];
+             if (!image) throw new Error(t("imageWorkbench.missingResult"));
+-            const stored = await uploadGeneratedImage(image.dataUrl, { targetSize: snapshot.config.size });
++            const stored = await uploadGeneratedImage(image.dataUrl, { targetSize: snapshot.config.size, padding: image.padding });
+             const nextImage: GeneratedImage = { ...stored, id: image.id, dataUrl: stored.url, ...(stored.storageKey ? { storageKey: stored.storageKey } : {}), durationMs: performance.now() - itemStartedAt, width: stored.width, height: stored.height, bytes: stored.bytes, mimeType: stored.mimeType };
+             setResults((value) => updateResultAt(value, index, { status: "success", image: nextImage }));
+             return nextImage;

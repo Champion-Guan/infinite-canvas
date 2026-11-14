@@ -1,4 +1,5 @@
 import type { CanvasNodeMetadata } from "@/types/canvas";
+import type { ProductVariantMetadata } from "./产品变体规则";
 
 export type ProductImageSource = {
     storageKey?: string;
@@ -47,6 +48,21 @@ export function productMainImagesPatch(images: ProductMainImage[]): ProductImage
         productMainImageStorageKey: first?.storageKey, productMainImageUrl: first?.url,
         productMainImageWidth: first?.width, productMainImageHeight: first?.height,
         productMainImageBytes: first?.bytes, productMainImageMimeType: first?.mimeType,
+    };
+}
+
+export function removeProductMainImagePatch(metadata: ProductVariantMetadata, imageId: string): ProductVariantMetadata {
+    const images = productMainImages(metadata).filter(image => image.id !== imageId);
+    const ids = new Set(images.map(image => image.id));
+    return {
+        ...productMainImagesPatch(images),
+        ...(metadata.productVariants ? { productVariants: metadata.productVariants.map(variant => {
+            const imageIds = variant.imageIds.filter(id => ids.has(id));
+            const primaryImageId = imageIds.includes(variant.primaryImageId || "") ? variant.primaryImageId : imageIds[0];
+            return imageIds.length === variant.imageIds.length && primaryImageId === variant.primaryImageId
+                ? variant : { ...variant, imageIds, primaryImageId };
+        }) } : {}),
+        ...(metadata.productSharedImageIds ? { productSharedImageIds: metadata.productSharedImageIds.filter(id => ids.has(id)) } : {}),
     };
 }
 

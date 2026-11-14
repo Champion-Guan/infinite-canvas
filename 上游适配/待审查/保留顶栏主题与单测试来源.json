@@ -1,0 +1,87 @@
+{
+  "状态": "待单独批准",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置恢复SHA256": "d7a30ab2fee42b88be4d531caf014febc876106725c87d14159a41818bbbf4df",
+  "替代未批准候选": "仅系统主题与来源局部关闭",
+  "测试来源ID": "banana-prompt-quicker",
+  "移除内置来源ID": [
+    "davidwu-gpt-image2-prompts",
+    "freestylefly-gpt-image-2",
+    "awesome-gpt-image",
+    "awesome-gpt4o-image-prompts",
+    "youmind-gpt-image-2",
+    "youmind-nano-banana-pro"
+  ],
+  "关闭内容": [
+    "画布内手动主题入口",
+    "偏好设置界面主题区块",
+    "新增来源",
+    "定时拉取及同块全部拉取",
+    "其余6个内置来源"
+  ],
+  "保留内容": [
+    "顶栏主题按钮及原有手动偏好",
+    "系统主题同步",
+    "Banana Prompt Quicker测试来源",
+    "自定义来源与缓存",
+    "单源手动刷新",
+    "四类生成与节点信息"
+  ],
+  "已应用到运行副本": false,
+  "语法预审通过": true,
+  "完整类型预审通过": true,
+  "标准差异检查通过": true,
+  "差异SHA256": "c20d9c494d9b08818138126cc72e9fcde55f683be95949738a385eae4ce070d8",
+  "文件": [
+    {
+      "文件": "web/src/guan/功能开关.ts",
+      "原始SHA256": "bafbd9db6707f33266bf0536fcb59ef445511cb328356351904599506844aa61",
+      "候选SHA256": "62cf28f130c56e2a6cc9f934e62c704106321da003a5f9d40a8cae08d282f81d"
+    },
+    {
+      "文件": "web/src/components/layout/app-config-modal.tsx",
+      "原始SHA256": "f9a19edfefc7407c702ba70f586d6d48d8cdf5fd847471376c4ab8bfcab43596",
+      "候选SHA256": "41d0c4f0dade16b6ffec4afa66799fedbc7339900483718e5442aeb55b583960"
+    },
+    {
+      "文件": "web/src/guan/三态主题设置.tsx",
+      "原始SHA256": "1953f6a106f76fe4c93345db6862455e2c3edf0d5d863e698ae5d2db3e2381e2",
+      "候选SHA256": "a06e1b9e44b40f64b60a9fc831253e3ebe491938b3734b7f8f9086b5e67712ef"
+    },
+    {
+      "文件": "web/src/guan/脚本与提示词来源.ts",
+      "原始SHA256": "c1d69054432cbe6e0eb58f3e8b3153ba544bfdef2986d22339343592a7e42105",
+      "候选SHA256": "001c8f89d1b578f3e11ed6095b7d5e0b372e3532c632c25f3c41ad6a93876aba"
+    },
+    {
+      "文件": "web/src/components/layout/config-prompt-sources.tsx",
+      "原始SHA256": "e4b578ffeb7f26eb6b52f18af3287699b8092c0c84997f9e7c719eba08bf1d94",
+      "候选SHA256": "184cab118ed708bc87881d6c683c75e31881278f20c82dd76a30c108363d510f"
+    },
+    {
+      "文件": "web/src/stores/use-prompt-source-store.ts",
+      "原始SHA256": "5375a707f84d92308c60259fc8f83ed3aa5988e36c295c4dab04f989e33579c0",
+      "候选SHA256": "00fafa85685e52dde244b6575c9b41cd6ed78300cd83783d5c0fe05103fe5248"
+    },
+    {
+      "文件": "web/src/components/layout/client-root-init.tsx",
+      "原始SHA256": "ebf7557478ce6fd70908c3937a290fc42966699cb71b5974994903991e6cd351",
+      "候选SHA256": "bf2eb3783a70afdd7396662e2dcf0630c26ecaa0e26dd14a1b541e50d4ace1f8"
+    },
+    {
+      "文件": "web/src/services/api/prompts.ts",
+      "原始SHA256": "758bea924e710e5f5a281dafe2885710a45425a6863f9468675edbe8e475db19",
+      "候选SHA256": "83fe8bf112b5eed667493285d87ddefbc286f0dc2d7ff509dfd7431491c7827d"
+    },
+    {
+      "文件": "web/src/services/api/prompt-source-presets.ts",
+      "原始SHA256": "3387a21707ae93ce8c178f41d1567c0bfc7274a44d5c4ce3006709f7cdacb63a",
+      "候选SHA256": "90f408aed1da4cc92cf8055693961cdaee5865e0c3b3423f2c27eb4ce4cec481"
+    },
+    {
+      "文件": "web/src/services/config-file.ts",
+      "原始SHA256": "3edc7a9e733d80ab493cef01503d4e6f3e6a6e450316367dd2bd902826848be8",
+      "候选SHA256": "d2cf5f0c0f7bc06b483ace9dee627f17a0d714fc5d92415c64bc8b3dcd9df65f"
+    }
+  ]
+}

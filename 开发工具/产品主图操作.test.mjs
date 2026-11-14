@@ -22,6 +22,52 @@ const cutout = { storageKey: 'image:cutout', url: 'blob:cutout', width: 1024, he
 const jsx = (type, props) => ({ type, props });
 const elements = tree => !tree || typeof tree !== 'object' ? [] : Array.isArray(tree) ? tree.flatMap(elements) : [tree, ...elements(tree.props?.children)];
 
+test('删除已分配主图同时清理所有变体及共用引用，主参考图回退到剩余图片，保存恢复不留旧数量', () => {
+    const variant = (id, imageIds, primaryImageId) => ({ id, imageIds, primaryImageId, name: id, enabled: true, attributes: { 颜色: '红色' } });
+    const metadata = { productMainImages: [original, second], productSharedImageIds: ['a', 'b'],
+        productVariants: [variant('single', ['a'], 'a'), variant('multiple', ['a', 'b'], 'a'), variant('other', ['b'], 'b')] };
+    const before = structuredClone(metadata);
+    const patch = rules.removeProductMainImagePatch(metadata, 'a');
+    assert.deepEqual(patch.productMainImages, [second]);
+    assert.deepEqual(patch.productSharedImageIds, ['b']);
+    assert.deepEqual(patch.productVariants.map(item => [item.imageIds, item.primaryImageId]), [[[], undefined], [['b'], 'b'], [['b'], 'b']]);
+    assert.equal(patch.productVariants[2], metadata.productVariants[2]);
+    assert.deepEqual(metadata, before);
+    const restored = JSON.parse(JSON.stringify({ ...metadata, ...patch }));
+    assert.equal(restored.productVariants[0].imageIds.length, 0);
+    assert.equal(restored.productVariants[0].primaryImageId, undefined);
+    assert.equal(restored.productVariants[0].attributes.颜色, '红色');
+    const empty = rules.removeProductMainImagePatch(restored, 'b');
+    assert.deepEqual(empty.productSharedImageIds, []);
+    assert.ok(empty.productVariants.every(item => item.imageIds.length === 0 && item.primaryImageId === undefined));
+    assert.deepEqual(rules.productMainImages({ ...restored, ...empty }), []);
+    assert.equal(empty.productMainImageStorageKey, undefined);
+});
+
+test('真实删除按钮从最新节点一次更新主图和变体，保留渲染后新增的分配及其他资料', () => {
+    let node = { id: 'parameter', metadata: { ...rules.productMainImagesPatch([original, second]),
+        productVariants: [{ id: 'one', name: '红色', enabled: true, attributes: {}, imageIds: ['a'], primaryImageId: 'a' }] } };
+    const writes = [], ctx = { node, theme: { node: {}, toolbar: {} }, getNode: () => node,
+        updateMetadata(patch) { writes.push(patch); node = { ...node, metadata: { ...node.metadata, ...patch } }; } };
+    const component = load('产品主图上传.tsx', {
+        react: { useRef: current => ({ current }), useState: value => [value, () => {}], useEffect() {} },
+        'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': {}, './产品主图规则': rules,
+        '../素材/上传资产规则': assetRules, '@/stores/use-asset-store': { useAssetStore: emptyAssets },
+    });
+    const tree = elements(component.ProductMainImageUploader({ ctx, productId: 'product' }));
+    node.metadata.productVariants.push({ id: 'two', name: '后来添加', enabled: true, attributes: {}, imageIds: ['a', 'b'], primaryImageId: 'a' });
+    node.metadata.productSharedImageIds = ['a'];
+    tree.find(element => element.type === 'button' && element.props['aria-label'] === '移除产品主图 1：主图.png').props.onClick();
+    assert.equal(writes.length, 1);
+    assert.deepEqual(node.metadata.productVariants.map(variant => variant.imageIds), [[], ['b']]);
+    assert.equal(node.metadata.productVariants[1].primaryImageId, 'b');
+    assert.deepEqual(node.metadata.productSharedImageIds, []);
+    const restored = JSON.parse(JSON.stringify(node));
+    restored.metadata.productVariants[0] = { ...restored.metadata.productVariants[0], imageIds: ['b'], primaryImageId: 'b' };
+    assert.deepEqual(restored.metadata.productMainImages, [second]);
+    assert.equal(restored.metadata.productVariants[0].imageIds.length, 1);
+});
+
 test('旧单图无损读取；多图无张数限制；空列表不复活旧图片，保存后结构完整', () => {
     const legacy = { productMainImageStorageKey: 'image:old', productMainImageWidth: 900, productMainImageHeight: 1200 };
     const first = rules.productMainImages(legacy);

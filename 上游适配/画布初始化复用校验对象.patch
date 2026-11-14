@@ -1,0 +1,20 @@
+diff --git a/web/src/stores/canvas/use-canvas-store.ts b/web/src/stores/canvas/use-canvas-store.ts
+index 08cfa21..e02b86f 100644
+--- a/web/src/stores/canvas/use-canvas-store.ts
++++ b/web/src/stores/canvas/use-canvas-store.ts
+@@ -66,9 +66,12 @@ let queuedPersistState: PersistedCanvasState | null = null;
+ 
+ const canvasStorage: PersistStorage<CanvasStore> = {
+     getItem: async (name) => {
+-        const value = await localForageStorage.getItem(name);
+-        if (!value) return null;
+-        const parsed = JSON.parse(value) as StorageValue<CanvasStore>;
++        let parsed = localForageStorage.takeDecodedState?.<StorageValue<CanvasStore>>(name);
++        if (!parsed) {
++            const value = await localForageStorage.getItem(name);
++            if (!value) return null;
++            parsed = JSON.parse(value) as StorageValue<CanvasStore>;
++        }
+         assertWorkbookSnapshot(parsed.state);
+         queuedPersistState = parsed.state as PersistedCanvasState;
+         return { ...parsed, state: { ...parsed.state, projects: normalizeExcelCanvasTitles(parsed.state).map(withCanvasAppearanceDefaults) } };

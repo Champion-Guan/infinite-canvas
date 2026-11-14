@@ -18,6 +18,8 @@ files.add('开发工具/全部页签双向过渡.test.mjs');
 files.add('开发工具/统一动效基础规则.test.mjs');
 files.add('开发工具/更新开关初始状态.test.mjs');
 files.add('开发工具/分类系统提示词.test.mjs');
+files.add('开发工具/文本推理强度.test.mjs');
+files.add('开发工具/画布浮层可见边界.test.mjs');
 files.add('开发工具/Web版本说明.test.mjs');
 files.add('开发工具/GitHub发布说明.test.mjs');
 files.add('开发工具/更新历史统一展示.test.mjs');
@@ -28,9 +30,11 @@ files.add('开发工具/商品策划协议恢复.test.mjs');
 files.add('开发工具/商品策划标识恢复.test.mjs');
 files.add('开发工具/商品待确认.test.mjs');
 files.add('开发工具/单卡结果水平定位.test.mjs');
+files.add('开发工具/尺寸不符重试入口.test.mjs');
 files.add('开发工具/生成输入统计.test.mjs');
 files.add('开发工具/存储保留与整理.test.mjs');
 files.add('开发工具/存储整理界面.test.mjs');
+files.add('开发工具/关闭Excel功能.test.mjs');
 files.add('开发工具/桌面入口修复.test.mjs');
 for (const name of ['产品胶囊任务状态', '产品胶囊状态可读性', '全局平台规则存储', '原画布图片闭环', '参数图片预览',
     '参考图与上游错误', '商品策划流式预览', '商品策划胶囊状态', '回收站容量与清理', '图片引用标签',

@@ -12,7 +12,7 @@ import typescript from '../.运行/3100源/画布副本/web/node_modules/typescr
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 async function load(name, dependencies = {}) {
-    dependencies = { './平台规则全局状态': platformState, ...dependencies };
+    dependencies = { './平台规则全局状态': platformState, '@/扩展功能/画布生成/文本推理强度': {}, ...dependencies };
     const file = resolve(root, '扩展功能', name);
     const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file, { loader: 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
     const module = { exports: {} };
@@ -137,7 +137,7 @@ function actualHistoryCallback(name, context) {
     const visit = item => {
         if (typescript.isVariableDeclaration(item) && item.name.getText(historySource) === name) callback = item.initializer.arguments[0];
         if (name === 'recordHistory' && typescript.isCallExpression(item) && item.expression.getText(historySource) === 'useEffect'
-            && item.arguments[0].getText(historySource).includes('previous?.nodes === next.nodes')) callback = item.arguments[0];
+            && item.arguments[0].getText(historySource).includes('sameCanvasValue(previous.nodes, next.nodes)')) callback = item.arguments[0];
         typescript.forEachChild(item, visit);
     };
     visit(historySource); assert.ok(callback, '缺少真实画布历史入口：' + name);
@@ -149,6 +149,7 @@ function actualHistoryCallback(name, context) {
 function historyFixture(project, writes, applied) {
     const timers = new Set();
     const context = {
+        sameCanvasValue: (a, b) => JSON.stringify(a) === JSON.stringify(b),
         projectId: 'product', EMPTY_DELETED_NODE_BATCHES: [],
         nodesRef: { current: project.nodes }, connectionsRef: { current: project.connections },
         chatSessions: [], activeChatId: null, backgroundMode: 'lines', showImageInfo: true,

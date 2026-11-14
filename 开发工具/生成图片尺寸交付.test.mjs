@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
-import { parseDeliverySize, deliveryAction, prepareGeneratedDelivery } from '../扩展功能/媒体交付/生成图片尺寸交付.mjs';
+import { parseDeliverySize, deliveryAction, prepareGeneratedDelivery, imageRequestSizePlan } from '../扩展功能/媒体交付/生成图片尺寸交付.mjs';
 import { prepareCompatibleImage } from '../扩展功能/媒体交付/HEIC上传兼容.mjs';
 
 globalThis.window = { setTimeout, clearTimeout };
@@ -80,16 +80,31 @@ test('上游1086×1448交付900×1200，完整原字节和PNG交付图只保存�
   assert.equal(closed, before + 1); assert.equal(f.urls.size, 1);
 });
 
-test('精确尺寸不重新编码；比例不符保留原字节并给出说明；普通上传不缩放', async () => {
-  for (const [width, height, target] of [[900,1200,'900x1200'], [1086,1448,'auto'], [1086,1448,'3:4'], [1024,1024,'900x1200']]) {
+test('精确尺寸不重新编码；auto与仅比例配置沿用原图；普通上传不缩放', async () => {
+  for (const [width, height, target] of [[900,1200,'900x1200'], [1086,1448,'auto'], [1086,1448,'3:4']]) {
     const f = await fixture({ width, height }), count = draws.length;
     const result = await f.uploadGeneratedImage(original, { targetSize: target });
     assert.equal(result.width, width); assert.equal(result.height, height);
     assert.equal(f.media.get(result.storageKey), original); assert.equal(draws.length, count);
-    if (width === 1024) assert.match(result.deliveryNote, /未拉伸或裁切/);
   }
   const f = await fixture(), result = await f.uploadImage(original);
   assert.equal(result.width, 1086); assert.equal(f.media.get(result.storageKey), original);
+});
+
+test('要求1152×1536却返回1024×1536时拒绝交付，不编码、不写盘、不冒充成功', async () => {
+  const f = await fixture({ width: 1024, height: 1536 }), count = draws.length;
+  const bytes = Buffer.from(await original.arrayBuffer());
+  await assert.rejects(f.uploadGeneratedImage(original, { targetSize: '1152x1536' }), error => {
+    assert.equal(error.code, 'image_delivery_size_mismatch');
+    assert.equal(error.requestedSize, '1152x1536'); assert.equal(error.actualSize, '1024x1536');
+    assert.match(error.message, /要求 1152 × 1536.*上游返回 1024 × 1536/);
+    return true;
+  });
+  assert.equal(draws.length, count); assert.equal(f.writes.length, 0);
+  assert.equal(f.media.size, 0); assert.equal(f.urls.size, 0);
+  assert.deepEqual(Buffer.from(await original.arrayBuffer()), bytes);
+  const regular = await f.uploadImage(original);
+  assert.deepEqual([regular.width, regular.height], [1024, 1536], '普通上传仍保留实际尺寸');
 });
 
 test('第二个写入失败和落盘期间取消会清理本次两键及对象地址，不留半份结果', async () => {
@@ -161,4 +176,32 @@ test('真实PNG像素处理：1086×1448到900×1200，透明像素保留，原�
       await writeFile(process.env.GUAN_DELIVERY_EVIDENCE + '/最终交付900×1200.png', Buffer.from(await result.arrayBuffer()));
     }
   } finally { globalThis.createImageBitmap = savedBitmap; globalThis.document = savedDocument; }
+});
+
+test('公共真实上传一次保存补边原响应与原尺寸交付，尺寸不符时不产生存储文件', async () => {
+  const { createCanvas, loadImage } = await import('@napi-rs/canvas');
+  const plan = imageRequestSizePlan(790, 1376), canvas = createCanvas(plan.width, plan.height), context = canvas.getContext('2d');
+  context.fillStyle = '#ef4444'; context.fillRect(0, 0, plan.width, plan.height);
+  context.fillStyle = '#22c55e'; context.fillRect(plan.padding.left, 0, 790, 1376);
+  const raw = new Blob([await canvas.encode('png')], { type: 'image/png' });
+  const previous = { createImageBitmap: globalThis.createImageBitmap, document: globalThis.document };
+  try {
+    globalThis.createImageBitmap = async blob => { const value = await loadImage(Buffer.from(await blob.arrayBuffer())); value.close = () => {}; return value; };
+    globalThis.document = { createElement() {
+      const output = createCanvas(1, 1);
+      output.toBlob = callback => output.encode('png').then(bytes => callback(new Blob([bytes], { type: 'image/png' })));
+      return output;
+    } };
+    const f = await fixture({ width: plan.width, height: plan.height });
+    const result = await f.uploadGeneratedImage(raw, { targetSize: '790x1376', padding: plan.padding });
+    assert.deepEqual([result.width,result.height,result.originalWidth,result.originalHeight], [790,1376,800,1376]);
+    assert.equal(f.media.get(result.originalStorageKey), raw);
+    assert.equal(f.writes.length, 2); assert.equal(f.media.size, 2);
+    const delivered = await loadImage(Buffer.from(await f.media.get(result.storageKey).arrayBuffer()));
+    const output = createCanvas(790,1376), draw = output.getContext('2d'); draw.drawImage(delivered,0,0);
+    for (const x of [0,789]) assert.deepEqual([...draw.getImageData(x,100,1,1).data], [34,197,94,255]);
+    const invalid = await fixture({width:1024,height:1536});
+    await assert.rejects(invalid.uploadGeneratedImage(raw, {targetSize:'790x1376',padding:plan.padding}), {code:'image_delivery_size_mismatch'});
+    assert.equal(invalid.media.size,0); assert.equal(invalid.writes.length,0);
+  } finally { Object.assign(globalThis,previous); }
 });

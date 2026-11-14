@@ -17,6 +17,7 @@ import { createCredentialClient } from '../扩展功能/本机凭据/凭据客�
 import { sealConfiguration } from '../扩展功能/本机凭据/渠道编辑流程.mjs';
 import { createProviderCredentialGateway } from '../扩展功能/生成网关/渠道凭据网关.mjs';
 import { createWriteCoordinator } from '../扩展功能/本机服务/写入协调.mjs';
+import * as reasoning from '../扩展功能/画布生成/文本推理强度.ts';
 
 const clone = value => JSON.parse(JSON.stringify(value));
 const source = readFileSync(join(根目录, '扩展功能/配置文件/配置文件安全.ts'), 'utf8');
@@ -44,6 +45,7 @@ function fixture({ flush = async () => {}, persist = () => {}, sealConfiguration
   const configStore = { getState: () => configState, setState: patch => { configState = { ...configState, ...patch }; writes++; events.push('config'); persist('config', clone(patch)); } };
   const promptStore = { getState: () => promptState, setState: patch => { promptState = { ...promptState, ...patch }; writes++; events.push('sources'); persist('sources', clone(patch)); } };
   const imports = {
+    '../画布生成/文本推理强度': reasoning,
     'file-saver': { saveAs: (blob, name) => downloads.push({ blob, name }) }, '@/i18n/index': { default: i18n },
     '@/stores/use-config-store': { ...defaults, useConfigStore: configStore }, '@/stores/use-prompt-source-store': { usePromptSourceStore: promptStore },
     '@/services/api/prompt-source-presets': { filterWorkbenchPromptSources: sources => sources.filter(item => !item.builtIn || item.id === 'banana-prompt-quicker') },
@@ -59,6 +61,33 @@ function fixture({ flush = async () => {}, persist = () => {}, sealConfiguration
   }
   return { api, configStore, promptStore, downloads, payload, events, get writes() { return writes; }, get flushes() { return flushes; } };
 }
+
+test('文本六档和模型支持列表导出冷读保持，旧自动迁移为中，未知档位拒绝', () => {
+  const f = fixture();
+  for (const effort of reasoning.TEXT_REASONING_EFFORTS) {
+    const payload = f.payload();
+    payload.config.reasoningEffort = effort;
+    payload.config.channels[0].models.push({ name: 'synthetic-text', capability: 'text', reasoningEfforts: ['medium', 'max'] });
+    const parsed = f.api.parseConfigFile(payload);
+    const portable = f.api.createPortableAppConfig(parsed.config, parsed.webdav, parsed.promptSources.sources, parsed.promptSources.schedule);
+    const reread = f.api.parseConfigFile(JSON.parse(JSON.stringify(portable)));
+    assert.equal(reread.config.reasoningEffort, effort);
+    assert.deepEqual([...reread.config.channels[0].models.at(-1).reasoningEfforts], ['medium', 'max']);
+  }
+  const legacy = f.payload();
+  legacy.config.reasoningEffort = 'auto';
+  assert.equal(f.api.parseConfigFile(legacy).config.reasoningEffort, 'medium');
+  legacy.config.reasoningEffort = 'ultra';
+  legacy.config.channels[0].models[0].reasoningEfforts = ['medium', 'ultra', 'max'];
+  const migrated = f.api.parseConfigFile(legacy);
+  assert.equal(migrated.config.reasoningEffort, 'medium');
+  assert.deepEqual(migrated.config.channels[0].models[0].reasoningEfforts, ['medium', 'max']);
+  for (const invalid of [['ultramax'], ['max', 1], 'max']) {
+    const value = f.payload();
+    value.config.channels[0].models[0].reasoningEfforts = invalid;
+    assert.throws(() => f.api.parseConfigFile(value), /invalidFile/);
+  }
+});
 
 test('分类系统提示词与自定义策划角色可导出冷读，旧字段及显式清空保持，拒绝错误类型', () => {
   const f = fixture(), payload = f.payload();

@@ -1,0 +1,37 @@
+{
+  "状态": "待单独批准",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置精简SHA256": "14d9d721685d0930ad929f732e8aa6dcf4da27dcff62cbf5a060d6b9d095cca0",
+  "恢复编号": [
+    "A02",
+    "A03",
+    "V03",
+    "V04"
+  ],
+  "保持关闭": [
+    "独立生图/视频页面P02/P03",
+    "S03自定义模型脚本",
+    "S06网址凭据导入",
+    "C15节点信息",
+    "AI超分占位",
+    "R03联网刷新",
+    "其他既有关闭项"
+  ],
+  "已应用到运行副本": false,
+  "语法预审通过": true,
+  "完整类型预审通过": true,
+  "标准差异检查通过": true,
+  "差异SHA256": "45cf3bf3624d074d319b2ecdf79af8af426e7cc71e288f04d186ac3bba1d5434",
+  "文件": [
+    {
+      "文件": "web/src/guan/精简与离线策略.ts",
+      "原始SHA256": "d1d27e25cbead30dd6aa5b8b70a07a16ee5d4493e54939d77eeae2578caf6072",
+      "候选SHA256": "a79f3bc93e05c0591f327ff34c5393523818e66f97497d25364b5e943d033f39"
+    },
+    {
+      "文件": "web/src/components/layout/app-config-modal.tsx",
+      "原始SHA256": "6783926b6c82746cb9c38145580878892880931876fece7123b60b983dcfaf8c",
+      "候选SHA256": "f9a19edfefc7407c702ba70f586d6d48d8cdf5fd847471376c4ab8bfcab43596"
+    }
+  ]
+}

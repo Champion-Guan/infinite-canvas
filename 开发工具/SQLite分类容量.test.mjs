@@ -188,8 +188,21 @@ test('大对象完整文档的当前记录数及正文容量正确', () => using
 
 test('只读事务快照不被并行新写入串代，结束后的新扫描可见新数据', () => using(async f => {
   const store = f.app(false).createInstance({ storeName: 'prompt_cache' }); await store.setItem('one', '旧');
-  const pending = f.workspace.readDetailedUsage(); await store.setItem('two', '新');
+  const pending = readCategorizedUsage({ dataRoot: f.root, workspaceId: f.workspace.workspaceId }); await store.setItem('two', '新');
   assert.equal(category(await pending, 'prompts').records, 1);
+  assert.equal(category(await f.workspace.readDetailedUsage(), 'prompts').records, 2);
+}));
+
+test('后台容量读取期间服务仍可处理写入；结束后重新统计读取新提交', () => using(async f => {
+  const store = f.app(false).createInstance({ storeName: 'prompt_cache' });
+  await store.setItem('one', '旧');
+  let completed = false;
+  const pending = f.workspace.readDetailedUsage().finally(() => { completed = true; });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(completed, false);
+  await store.setItem('two', '新');
+  const count = category(await pending, 'prompts').records;
+  assert.ok(count === 1 || count === 2);
   assert.equal(category(await f.workspace.readDetailedUsage(), 'prompts').records, 2);
 }));
 
@@ -313,5 +326,5 @@ test('同大小媒体正文不会被读取：这里只统计，完整内容验�
 test('当前服务分类统计仍在响应前复核原会话，工作区使用根目录统计实现', () => {
   const service = readFileSync(join(根目录, '扩展功能/本机服务/数据服务.mjs'), 'utf8');
   assert.match(service, /await workspace\.readDetailedUsage\(\); requireValue\(sessions\.get\(token\) === session && session\.expiresAt > now\(\)/);
-  assert.match(readFileSync(join(根目录, '扩展功能/本机存储/SQLite工作区.mjs'), 'utf8'), /import \{ readCategorizedUsage \} from '\.\/分类容量统计\.mjs'/);
+  assert.match(readFileSync(join(根目录, '扩展功能/本机存储/SQLite工作区.mjs'), 'utf8'), /import \{ readCategorizedUsageInBackground \} from '\.\/分类容量统计\.mjs'/);
 });

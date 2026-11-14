@@ -77,8 +77,45 @@ async function fixture(nodes, connections = []) {
             else activeBounded--;
         }, message: Object.fromEntries(['info', 'success', 'warning', 'error'].map(key => [key, value => messages.push([key, value])])),
     });
-    return { api, calls, messages, gate, get maxImage() { return maxImage; }, get maxBounded() { return maxBounded; }, get activeImage() { return activeImage; }, get activeBounded() { return activeBounded; } };
+    return { api, calls, messages, gate, nodesRef, get maxImage() { return maxImage; }, get maxBounded() { return maxBounded; }, get activeImage() { return activeImage; }, get activeBounded() { return activeBounded; } };
 }
+
+test('策划范围只执行清单中的配置，跳过删除、停用和运行中的卡片，不扩展到全画布', async () => {
+    const loading = node('plan-loading'); loading.metadata.status = 'loading';
+    const retired = node('plan-retired'); retired.metadata.productPromptRetired = true;
+    const f = await fixture([node('manual'), node('other-plan'), node('plan-a'), node('plan-b'), loading, retired,
+        { ...node('text'), type: 'text' }]);
+    const running = f.api.generateConfigNodes(['plan-a', 'plan-b', 'plan-a', 'deleted', 'plan-loading', 'plan-retired', 'text']);
+    try {
+        assert.deepEqual(f.calls.map(call => call.id), ['plan-a', 'plan-b']);
+        assert.equal(f.maxImage, 2);
+        await f.api.generateAllConfigNodes();
+        assert.equal(f.calls.length, 2, '范围执行与全画布执行共用重复提交门禁');
+    } finally { f.gate.resolve(); await running; }
+});
+
+test('策划清单为空或全被删除时不生成其他卡片，不误报其他批次正在运行', async () => {
+    const unrelated = node('other-running'); unrelated.metadata.status = 'loading';
+    const f = await fixture([node('manual'), unrelated]);
+    await f.api.generateConfigNodes([]);
+    await f.api.generateConfigNodes();
+    await f.api.generateConfigNodes(['deleted']);
+    assert.equal(f.calls.length, 0);
+    assert.ok(f.messages.every(([, text]) => /本次策划没有可执行/.test(text)));
+});
+
+test('范围执行仍展开本批配置的所有变体，其他参数卡和后来新增的配置不提交', async () => {
+    const input = variantFixture();
+    const old = { ...input.config, id: 'unrelated' };
+    const f = await fixture([...input.nodes, old], [...input.connections, { fromNodeId: input.text.id, toNodeId: old.id }]);
+    f.nodesRef.current.push({ ...input.config, id: 'later-config' });
+    const running = f.api.generateConfigNodes([input.config.id]);
+    try {
+        assert.equal(f.calls.length, 2);
+        assert.ok(f.calls.every(call => call.id === input.config.id));
+        assert.deepEqual(f.calls.map(call => call.placement.productVariant.snapshot.id), ['red', 'blue']);
+    } finally { f.gate.resolve(); await running; }
+});
 
 test('批量执行中重复点击立即说明正在执行或保存，不重复提交', async () => {
     const f = await fixture([node('image-a'), node('image-b')]);
@@ -149,4 +186,23 @@ test('整批发现未配图变体时不提交部分任务，直接显示具体�
     await f.api.generateAllConfigNodes();
     assert.equal(f.calls.length, 0);
     assert.ok(f.messages.some(([kind, text]) => kind === 'error' && /蓝色.*分配产品主图/.test(text)));
+});
+
+test('一键批量与策划范围入口只提交勾选变体，全不选时不提交且给出反馈', async () => {
+    for (const scope of ['all', 'planning']) {
+        const input = variantFixture();
+        input.parameter.metadata.productVariants[1].enabled = false;
+        const f = await fixture(input.nodes, input.connections);
+        const running = scope === 'all' ? f.api.generateAllConfigNodes() : f.api.generateConfigNodes([input.config.id]);
+        try {
+            assert.equal(f.calls.length, 1);
+            assert.equal(f.calls[0].placement.productVariant.snapshot.id, 'red');
+        } finally { f.gate.resolve(); await running; }
+        f.calls.length = 0;
+        input.parameter.metadata.productVariants[0].enabled = false;
+        if (scope === 'all') await f.api.generateAllConfigNodes();
+        else await f.api.generateConfigNodes([input.config.id]);
+        assert.equal(f.calls.length, 0);
+        assert.ok(f.messages.some(([, text]) => /没有已勾选/.test(text)));
+    }
 });

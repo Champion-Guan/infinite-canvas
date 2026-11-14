@@ -53,9 +53,11 @@ async function canvas(overrides = {}, initial = []) {
     const hooks = { useCallback: callback => callback, useEffect: effect => effects.push(effect) };
     const insertion = await load('Excel画布/Excel插入操作.ts', {
         react: hooks, './Excel卡片事务': domain, './旧版提示词同步': sync, './Excel拖入校验': drops,
+        '../产品配置/功能开关': { productFeatures: { excel: true }, requireProductFeature() {} },
     }, { window: { confirm: () => { api.confirmations++; return api.answer; } } });
     const parameters = await load('Excel画布/Excel参数操作.ts', {
         react: hooks, './Excel卡片事务': domain, './Excel参数记忆': memory,
+        '../产品配置/功能开关': { productFeatures: { excel: true } },
     });
     let sequence = 0;
     const factory = { create: (type, center, metadata) => ({ ...node('new-' + ++sequence, type, metadata), position: center }),

@@ -1,0 +1,12 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index f6a4f17..69dc3e2 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -2545,6 +2545,7 @@ function InfiniteCanvasPage() {
+                                     scope: { productId: projectId, nodeId: rootId, slotId: imageId }, signal: controller.signal,
+                                     deferConfirm: () => isBatchCanvasSaveActive(projectId),
+                                     recordTask: task => recordImageGatewayTask(rootId, task),
++                                    onSubmitted: batchPlacement?.onSubmitted,
+                                     applyAndSave: (image, receipt) => saveCanvasImageResult({
+                                         mode: "batch", nodeId: rootId, slotId: imageId, image, receipt, signal: controller.signal,
+                                         sourceConfigId: isConfigNode ? nodeId : undefined,

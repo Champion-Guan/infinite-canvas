@@ -30,7 +30,7 @@ function fixture(read = async () => new Blob(["original"])) {
         "../媒体交付/媒体缩略图": { MediaThumbnail: "Thumbnail" },
         "../产品/产品界面边界": { useProductActive: () => active, createProductPortal: node => node },
         "../媒体交付/图片上传编号": { ImageUploadNumber: "ImageUploadNumber" },
-        "../主题/原生可关闭浮层": { OutsidePopover: "Popover" },
+        "./图片引用悬浮预览": { ImageReferenceHoverPreview: "ReferencePreview" },
         "../画布迁移扩展/media-download": { readDownloadBlob: async media => { reads.push(media); return read(media); } },
     };
     new Function("require", "module", "exports", "URL", "document", code)(name => {
@@ -43,7 +43,7 @@ function fixture(read = async () => new Blob(["original"])) {
         cursor = 0;
         const tree = flatten(module.exports.ParameterImageThumbnail(props));
         pending.splice(0).forEach(fn => fn());
-        return { button: tree.find(item => item.type === "button"), image: tree.find(item => item.type === "Image") };
+        return { tree, button: tree.find(item => item.type === "button"), image: tree.find(item => item.type === "Image") };
     };
     const tick = async () => { await new Promise(resolve => setImmediate(resolve)); return render(); };
     return { render, tick, reads, created, revoked,
@@ -101,4 +101,18 @@ test("切换产品关闭预览并释放原图", async () => {
     assert.equal(hidden.image.props.preview.open, false);
     assert.deepEqual(f.revoked, ["blob:full-original-1"]);
     f.unmount();
+});
+
+test("预览名称上置并保留引用外括号，长名称不撑宽实际比例图片", () => {
+    const f = fixture(); f.update({ hoverPreview: true, name: '【图 11 · 共用尺寸参考】' });
+    const view = f.render(), popover = view.tree.find(item => item.type === 'ReferencePreview');
+    const imageBox = flatten(popover.props.content).find(item => item.props?.style?.height === 'var(--reference-preview-height)');
+    assert.ok(imageBox);
+    assert.equal(popover.props.content.props.children[0].props['data-reference-preview-caption'],true);
+    assert.deepEqual(popover.props.content.props.children[0].props.style,{margin:'0 0 4px',lineHeight:'16px',textAlign:'left',textIndent:0});
+    assert.equal(popover.props.content.props.children[0].props.children,'【图 11 · 共用尺寸参考】');
+    assert.equal(imageBox.props.style.width,'var(--reference-preview-width)');
+    assert.equal(imageBox.props.children.props.className,'h-full min-h-0 w-full min-w-0 object-contain');
+    assert.equal(imageBox.props.children.props.style.gridTemplateRows,'minmax(0, 1fr)');
+    assert.equal(f.reads.length,0,'悬浮缩略图不提前读取全尺寸原图');
 });

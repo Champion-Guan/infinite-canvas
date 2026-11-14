@@ -1,0 +1,5 @@
+/* 恢复旧宿主的行高与字体平滑；仅约束自有 Excel 弹窗，不改变作者全局 reset。 */
+.guan-excel-scope .guan-dc-excel-import-modal {
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}

@@ -1,0 +1,29 @@
+diff --git a/web/src/components/canvas/canvas-node-prompt-panel.tsx b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+index 30c5a84..9c87cbc 100644
+--- a/web/src/components/canvas/canvas-node-prompt-panel.tsx
++++ b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+@@ -103,13 +103,13 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+             />
+ 
+             <div className="mt-2 flex min-w-0 items-center justify-between gap-2">
+-                <div className="flex min-w-0 items-center gap-2">
++                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                     <Tooltip title={t("canvas.promptPanel.expandEditor")}>
+                         <Button type="text" className="!h-8 !w-8 !min-w-8 shrink-0 !rounded-full !bg-transparent !p-0" style={{ color: theme.node.text }} icon={<Maximize2 className="size-3.5" />} onClick={openExpandedEditor} aria-label={t("canvas.promptPanel.expandEditor")} />
+                     </Tooltip>
+                     <CanvasPromptLibrary onSelect={updatePrompt} />
+                     <TabContentTransition transitionKey={`${node.id}:${mode}`} className="min-w-0">
+-                    <div className="flex min-w-0 items-center gap-2">
++                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                     {mode === "image" ? (
+                         <>
+                             <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="image" onMissingConfig={() => openConfigDialog(true)} className="max-w-[190px]" />
+@@ -144,7 +144,7 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+                 </div>
+                 <Button
+                     type="primary"
+-                    className="!h-10 !min-w-16 shrink-0 !rounded-full !px-3"
++                    className="!h-10 !min-w-16 shrink-0 self-end !rounded-full !px-3"
+                     danger={isRunning}
+                     disabled={!isRunning && !prompt.trim()}
+                     onClick={() => (isRunning ? onStop(node.id) : submit())}

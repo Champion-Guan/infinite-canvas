@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { transformWithEsbuild } from "../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js";
+import { imageRequestSizePlan } from "../扩展功能/媒体交付/生成图片尺寸交付.mjs";
 
 async function load(file, deps = {}) {
     const { code } = await transformWithEsbuild(readFileSync(file, "utf8"), file, { loader: file.endsWith(".tsx") ? "tsx" : "ts", jsx: "automatic", format: "cjs", target: "es2022", tsconfigRaw: "{}" });
@@ -50,7 +51,7 @@ async function fixture(options = {}) {
         "../产品配置/模型配置门禁": { ensureModelConfigured: () => options.configured !== false },
         "../产品/画布驻留保护": { productCanvasResidency: { run: (_id, fn) => { const task = fn(); work.push(task); return task; } } },
         "./一键超人规则": rules,
-        "../媒体交付/生成图片尺寸交付.mjs": { parseDeliverySize: value => {
+        "../媒体交付/生成图片尺寸交付.mjs": { imageRequestSizePlan, parseDeliverySize: value => {
             const [width,height] = value.split("x").map(Number);
             if (width > 16384 || height > 16384 || width * height > 40000000) throw Error("尺寸过大");
             return {width,height};

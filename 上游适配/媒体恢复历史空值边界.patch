@@ -1,0 +1,13 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 04296c9..dc72e84 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -660,7 +660,7 @@ function InfiniteCanvasPage() {
+         const next = createHistoryEntry();
+         const previous = lastHistoryRef.current;
+         if (
+-            sameCanvasValue(previous?.nodes, next.nodes) &&
++            previous && sameCanvasValue(previous.nodes, next.nodes) &&
+             previous.connections === next.connections &&
+             previous.deletedNodeBatches === next.deletedNodeBatches &&
+             previous.chatSessions === next.chatSessions &&

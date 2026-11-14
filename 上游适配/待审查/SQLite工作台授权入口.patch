@@ -1,0 +1,612 @@
+--- a/web/index.html
++++ b/web/index.html
+@@ -18,6 +18,6 @@
+     <body class="bg-background text-foreground antialiased">
+         <div id="root"></div>
+         <script src="/config.js"></script>
+-        <script type="module" src="/src/main.tsx"></script>
++        <script type="module" src="/src/guan/sqlite/启动工作台.mjs"></script>
+     </body>
+ </html>
+--- /dev/null
++++ b/web/src/guan/sqlite/协议.mjs
+@@ -0,0 +1,58 @@
++export const PROTOCOL = 'guan-local-data.v1';
++export const SCHEMA_VERSION = 1;
++export const MAX_DOCUMENT_BYTES = 2 * 1024 * 1024;
++export const MAX_MEDIA_BYTES = 32 * 1024 * 1024;
++export const COLLECTIONS = Object.freeze(['canvas', 'extension']);
++export const MEDIA_TYPES = Object.freeze(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'video/mp4', 'video/webm', 'audio/mpeg', 'audio/wav', 'audio/ogg', 'application/octet-stream']);
++
++export class StorageError extends Error {
++  constructor(code, message, status = 400) { super(message); this.name = 'StorageError'; this.code = code; this.status = status; }
++}
++export function requireValue(ok, code, message, status = 400) { if (!ok) throw new StorageError(code, message, status); }
++export function validId(value) { return typeof value === 'string' && /^[A-Za-z0-9_-][A-Za-z0-9_.:-]{0,127}$/.test(value); }
++export function validUUID(value) { return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value); }
++export function validHash(value) { return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value); }
++
++// 只承接业务文档，不提供任意配置/密钥仓库；这不是对提示词内容的完整DLP识别。
++export function serializeDocument(collection, id, value, mediaIds = []) {
++  requireValue(COLLECTIONS.includes(collection) && validId(id), 'invalid_document', '不支持的业务集合或标识。');
++  requireValue(value && typeof value === 'object' && !Array.isArray(value), 'invalid_document', '文档必须是对象。');
++  const visiting = new Set();
++  function inspect(item, depth = 0) {
++    requireValue(depth <= 40, 'invalid_document', '文档层级过深。');
++    if (item === null || typeof item === 'string' || typeof item === 'boolean') return;
++    if (typeof item === 'number') return requireValue(Number.isFinite(item), 'invalid_document', '数值必须有限。');
++    requireValue(typeof item === 'object' && !visiting.has(item), 'invalid_document', '文档含不可序列化值。');
++    requireValue(Array.isArray(item) || Object.getPrototypeOf(item) === Object.prototype || Object.getPrototypeOf(item) === null, 'invalid_document', '文档只能包含普通JSON数据。');
++    visiting.add(item);
++    for (const [key, entry] of Object.entries(item)) {
++      requireValue(!/^(api[_-]?key|authorization|password|access[_-]?token|refresh[_-]?token|private[_-]?key|secret)$/i.test(key), 'credential_field_rejected', '业务文档不接受凭据字段。');
++      requireValue(!(typeof entry === 'string' && /^(url|src|previewUrl)$/i.test(key) && entry.startsWith('blob:')), 'transient_media_url', '临时Blob网址不能作为持久媒体引用。');
++      inspect(entry, depth + 1);
++    }
++    visiting.delete(item);
++  }
++  inspect(value);
++  requireValue(Array.isArray(mediaIds) && mediaIds.length <= 10000 && mediaIds.every(validHash) && new Set(mediaIds).size === mediaIds.length, 'invalid_media_refs', '媒体引用必须为不重复的SHA-256标识。');
++  if (collection === 'canvas') {
++    requireValue(value.id === id && typeof value.title === 'string' && value.title.length <= 500, 'invalid_canvas', '画布身份或标题无效。');
++    requireValue(Array.isArray(value.nodes) && Array.isArray(value.connections), 'invalid_canvas', '画布须包含节点与连线数组。');
++    const ids = new Set();
++    for (const node of value.nodes) {
++      requireValue(node && validId(node.id) && !ids.has(node.id) && typeof node.type === 'string' && node.position && Number.isFinite(node.position.x) && Number.isFinite(node.position.y), 'invalid_canvas', '节点标识或位置无效。');
++      ids.add(node.id);
++      if (node.metadata?.storageKey) {
++        requireValue(/^media:[0-9a-f]{64}$/.test(node.metadata.storageKey) && mediaIds.includes(node.metadata.storageKey.slice(6)), 'invalid_media_refs', '持久画布只能引用已声明的本机媒体。');
++      }
++    }
++    const connections = new Set();
++    for (const edge of value.connections) {
++      requireValue(edge && validId(edge.id) && !connections.has(edge.id) && ids.has(edge.fromNodeId) && ids.has(edge.toNodeId), 'invalid_canvas', '连线标识或节点引用无效。');
++      connections.add(edge.id);
++    }
++    if (value.viewport) requireValue(Number.isFinite(value.viewport.x) && Number.isFinite(value.viewport.y) && Number.isFinite(value.viewport.k) && value.viewport.k > 0, 'invalid_canvas', '画布视口无效。');
++  }
++  const text = JSON.stringify(value);
++  requireValue(new TextEncoder().encode(text).length <= MAX_DOCUMENT_BYTES, 'document_too_large', '文档超过本阶段2MiB限制。', 413);
++  return text;
++}
+--- /dev/null
++++ b/web/src/guan/sqlite/浏览器适配.mjs
+@@ -0,0 +1,87 @@
++import { MAX_MEDIA_BYTES, PROTOCOL, StorageError, requireValue, serializeDocument, validHash, validId, validUUID } from './协议.mjs';
++
++const digest = async bytes => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(byte => byte.toString(16).padStart(2, '0')).join('');
++
++// 仅自有模块使用。尚未替换作者的Zustand/localForage，也不写浏览器存储。
++export function createDataClient({ url, session, fetchImpl = globalThis.fetch, onStatus = () => {} }) {
++  const address = new URL(url);
++  requireValue(address.origin === url && address.protocol === 'http:' && address.hostname === '127.0.0.1' && !!address.port, 'invalid_endpoint', '数据服务必须是明确的本机地址。');
++  requireValue(session?.protocol === PROTOCOL && validUUID(session.workspaceId) && Number.isFinite(session.expiresAt) && /^[0-9a-f]{64}$/.test(session.token) && /^[0-9a-f]{64}$/.test(session.csrf), 'invalid_session', '本机数据会话无效。');
++  const authorization = { ...session }; // 仅内存，不能写URL、localStorage、IndexedDB或日志。
++  let pending = 0, lastAck = null, disposed = false;
++  const errors = new Map();
++  function status() { return { state: errors.size ? 'error' : pending ? 'saving' : lastAck ? 'saved' : 'idle', pending, lastAck, errors: [...errors.values()] }; }
++  function notify() { try { onStatus(status()); } catch { /* 界面订阅器故障不能改变数据库结果。 */ } }
++  async function request(path, method = 'GET', body, type) {
++    requireValue(!disposed, 'client_closed', '数据客户端已关闭。');
++    requireValue(authorization.expiresAt > Date.now(), 'session_expired', '本机数据会话过期，需要重新授权。', 401);
++    const headers = { Authorization: `Bearer ${authorization.token}` };
++    if (method !== 'GET') headers['X-Guan-CSRF'] = authorization.csrf;
++    if (type) headers['Content-Type'] = type;
++    const response = await fetchImpl(`${url}${path}`, { method, headers, body, credentials: 'omit', redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(15_000) });
++    if (!response.ok) {
++      const error = (await response.json().catch(() => null))?.error;
++      throw new StorageError(error?.code ?? 'service_unavailable', error?.message ?? '本机数据请求失败，未报告保存成功。', response.status);
++    }
++    return response;
++  }
++  const base = `/v1/workspaces/${authorization.workspaceId}`;
++  async function operation(key, fn) {
++    pending++; notify();
++    try { const result = await fn(); errors.delete(key); return result; }
++    catch (error) { errors.set(key, { key, code: error.code ?? 'connection_failed', message: error instanceof StorageError ? error.message : '连接中断，保存结果未确认；请使用相同操作ID重试。' }); throw error; }
++    finally { pending--; notify(); }
++  }
++  return {
++    getStatus: status,
++    readUsage() {
++      return operation('read:usage', async () => {
++        const usage = await (await request('/usage')).json();
++        requireValue(usage.protocol === PROTOCOL && usage.workspaceId === authorization.workspaceId && Number.isSafeInteger(usage.usage) && usage.usage >= 0 && usage.quota === null && Number.isSafeInteger(usage.contentBytes) && usage.contentBytes >= 0 && Array.isArray(usage.databases), 'invalid_response', '本机容量响应无效。');
++        return usage;
++      });
++    },
++    readDocument(collection, id, { allowMissing = false } = {}) {
++      return operation(`read:${collection}:${id}`, async () => {
++        serializeDocumentKey(collection, id);
++        let response;
++        try { response = await request(`${base}/documents/${collection}/${id}`); }
++        catch (error) { if (allowMissing && error.code === 'document_not_found' && error.status === 404) return null; throw error; }
++        const document = await response.json();
++        requireValue(document.workspaceId === authorization.workspaceId && document.id === id && document.collection === collection && Number.isSafeInteger(document.revision) && document.revision > 0, 'invalid_response', '工作区或文档响应不匹配。');
++        const body = serializeDocument(collection, id, document.value, document.mediaIds);
++        requireValue(await digest(new TextEncoder().encode(body)) === document.hash, 'invalid_response', '文档响应校验失败。');
++        return document;
++      });
++    },
++    writeDocument({ collection, id, value, expectedRevision, operationId, mediaIds = [] }) {
++      return operation(`write:${collection}:${id}`, async () => {
++        const body = serializeDocument(collection, id, value, mediaIds);
++        const hash = await digest(new TextEncoder().encode(body));
++        const ack = await (await request(`${base}/documents/${collection}/${id}`, 'PUT', JSON.stringify({ value, expectedRevision, operationId, mediaIds }), 'application/json')).json();
++        requireValue(ack.protocol === PROTOCOL && ack.workspaceId === authorization.workspaceId && ack.persisted === true && ack.collection === collection && ack.id === id && ack.operationId === operationId && ack.revision === expectedRevision + 1 && ack.hash === hash, 'invalid_ack', '服务器未返回匹配的落盘确认。');
++        lastAck = Object.freeze(ack); return ack;
++      });
++    },
++    writeMedia(blob) {
++      return operation('media:upload', async () => {
++        requireValue(blob instanceof Blob && blob.size > 0 && blob.size <= MAX_MEDIA_BYTES, 'invalid_media', '媒体大小无效。');
++        const id = await digest(await blob.arrayBuffer());
++        const media = await (await request(`${base}/media`, 'POST', blob, blob.type || 'application/octet-stream')).json();
++        requireValue(media.id === id && media.size === blob.size, 'invalid_ack', '媒体落盘确认不匹配。'); return media;
++      });
++    },
++    readMedia(id) {
++      return operation(`media:${id}`, async () => {
++        requireValue(validHash(id), 'invalid_media', '媒体标识无效。');
++        const blob = await (await request(`${base}/media/${id}`)).blob();
++        requireValue(blob.size <= MAX_MEDIA_BYTES && await digest(await blob.arrayBuffer()) === id, 'invalid_response', '媒体响应校验失败。'); return blob;
++      });
++    },
++    close() { disposed = true; authorization.token = ''; authorization.csrf = ''; },
++  };
++}
++
++function serializeDocumentKey(collection, id) {
++  requireValue(['canvas', 'extension'].includes(collection) && validId(id), 'invalid_document', '文档标识无效。');
++}
+--- /dev/null
++++ b/web/src/guan/sqlite/续期数据客户端.mjs
+@@ -0,0 +1,81 @@
++import { createDataClient } from './浏览器适配.mjs';
++import { PROTOCOL, StorageError, requireValue, validUUID } from './协议.mjs';
++
++// 活动请求驱动续期，不后台无限延长授权；休眠至过期必须重新通过可信入口。
++// 原客户端保持不变，续期失败不重发业务请求，不生成新的保存operationId。
++export function createRenewingDataClient({ url, host, origin = globalThis.location?.origin, fetchImpl = globalThis.fetch, onStatus = () => {}, now = Date.now, renewalWindow = 30_000 } = {}) {
++  let address, pageAddress;
++  try { address = new URL(url); pageAddress = new URL(origin); } catch { /* 下面统一拒绝。 */ }
++  requireValue(address?.origin === url && address.protocol === 'http:' && address.hostname === '127.0.0.1' && !!address.port &&
++    pageAddress?.origin === origin && pageAddress.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(pageAddress.hostname) && !!pageAddress.port &&
++    host && typeof host.initialize === 'function' && typeof host.renew === 'function' && typeof host.close === 'function' &&
++    typeof fetchImpl === 'function' && typeof now === 'function' && typeof onStatus === 'function' && Number.isSafeInteger(renewalWindow) && renewalWindow > 0,
++  'invalid_session_client', '续期客户端配置无效。');
++  let current = null, flight = null, closed = false, pending = 0, lastAck = null;
++  const holders = new Set(), errors = new Map();
++  function clock() { const value = now(); requireValue(Number.isSafeInteger(value) && value >= 0, 'invalid_clock', '会话时钟无效。'); return value; }
++  const status = () => ({ state: errors.size ? 'error' : pending ? 'saving' : lastAck ? 'saved' : 'idle', pending, lastAck, errors: [...errors.values()] });
++  function notify() { try { onStatus(status()); } catch { /* 订阅器不能改变保存结果。 */ } }
++  function valid(session, previous) {
++    requireValue(session?.protocol === PROTOCOL && session.origin === origin && validUUID(session.workspaceId) &&
++      /^[0-9a-f]{64}$/.test(session.token) && /^[0-9a-f]{64}$/.test(session.csrf) && Number.isSafeInteger(session.expiresAt) &&
++      session.expiresAt > clock() && session.expiresAt - clock() <= 15 * 60_000 &&
++      (!previous || session.workspaceId === previous.workspaceId && session.token !== previous.token && session.csrf !== previous.csrf && session.expiresAt >= previous.expiresAt),
++    'invalid_session', '续期返回的工作区、Origin、有效期或令牌不匹配。', 401);
++  }
++  function release(holder) {
++    if (holder.retired && holder.active === 0) { holder.client.close(); holders.delete(holder); }
++  }
++  async function acquire() {
++    requireValue(!closed, 'client_closed', '续期数据客户端已关闭。');
++    if (!flight && (!current || current.session.expiresAt - clock() <= renewalWindow)) {
++      flight = (async () => {
++        if (current) requireValue(current.session.expiresAt > clock(), 'session_expired', '本机数据会话已过期，未自动重新授权。', 401);
++        const previous = current, session = previous ? await host.renew({ ...previous.session }) : await host.initialize();
++        valid(session, previous?.session);
++        requireValue(!closed, 'client_closed', '续期数据客户端已关闭。');
++        const holder = { session: { ...session }, active: 0, retired: false, client: createDataClient({ url, session, fetchImpl }) };
++        holders.add(holder); current = holder;
++        if (previous) { previous.retired = true; release(previous); }
++        return holder;
++      })();
++      flight.then(() => { flight = null; }, () => { flight = null; });
++    }
++    const holder = flight ? await flight : current;
++    holder.active++;
++    return holder;
++  }
++  async function run(key, method, args) {
++    pending++; notify();
++    let holder;
++    try {
++      // 先快照再等待初始化/续期，调用者随后修改原对象不能改变本笔保存。
++      const values = typeof args === 'function' ? args() : args;
++      holder = await acquire();
++      const result = await holder.client[method](...values);
++      if (method === 'writeDocument') lastAck = Object.freeze({ ...result });
++      errors.delete(key); return result;
++    } catch (error) {
++      errors.set(key, { key, code: error instanceof StorageError ? error.code : 'connection_failed', message: error instanceof StorageError ? error.message : '本机连接或续期失败；保存结果未确认，没有自动重发。' });
++      throw error instanceof StorageError ? error : new StorageError('connection_failed', '本机连接或续期失败；保存结果未确认，没有自动重发。', 503);
++    } finally { if (holder) { holder.active--; release(holder); } pending--; notify(); }
++  }
++  return Object.freeze({
++    getStatus: status,
++    readUsage: () => run('read:usage', 'readUsage', []),
++    readDocument: (collection, id, options) => run(`read:${collection}:${id}`, 'readDocument', [collection, id, options]),
++    writeDocument: input => run(`write:${input?.collection}:${input?.id}`, 'writeDocument', () => {
++      try { return [structuredClone(input)]; } catch { throw new StorageError('invalid_document', '保存内容不可快照，没有发送保存请求。'); }
++    }),
++    writeMedia: blob => run('media:upload', 'writeMedia', [blob]),
++    readMedia: id => run(`media:${id}`, 'readMedia', [id]),
++    async close() {
++      requireValue(!pending && !errors.size, 'save_not_confirmed', '仍有未确认或失败操作，不能关闭数据客户端。', 409);
++      if (closed) return;
++      closed = true;
++      for (const holder of holders) holder.client.close();
++      holders.clear(); current = null;
++      await host.close();
++    },
++  });
++}
+--- /dev/null
++++ b/web/src/guan/sqlite/应用值编码.mjs
+@@ -0,0 +1,124 @@
++import { MEDIA_TYPES, StorageError, requireValue, validHash } from './协议.mjs';
++
++const CHUNK_BYTES = 16 * 1024 * 1024;
++export const MAX_VALUE_MEDIA_BYTES = 512 * 1024 * 1024;
++const credentialKey = /^(api[_-]?key|authorization|password|token|access[_-]?token|refresh[_-]?token|private[_-]?key|secret)$/i;
++
++// 值使用带类型的树，保留逻辑storageKey，不把临时网址或Blob对象写进JSON。
++// 凭据只能交给显式注入的安全端口；没有端口时拒绝，不删字段、不明文降级。
++export function createValueCodec({ client, secretPort, readBlobUrl, createObjectURL = blob => URL.createObjectURL(blob), revokeObjectURL = url => URL.revokeObjectURL(url) }) {
++  const urls = new Set();
++  async function encode(value, { credential = false } = {}) {
++    const visiting = new Set(), mediaIds = new Set();
++    let totalBytes = 0;
++    async function visit(item, depth = 0, key = '') {
++      requireValue(depth <= 32, 'value_too_deep', '应用数据层级超过当前安全限制。');
++      if (credentialKey.test(key) && item !== null && item !== undefined && item !== '') {
++        requireValue(typeof item === 'string' && secretPort?.store && secretPort?.read, 'secret_port_required', '凭据保管尚未接入；未将密钥明文写入SQLite。');
++        const ref = await secretPort.store(item);
++        requireValue(typeof ref === 'string' && /^secret:[A-Za-z0-9_-]{1,128}$/.test(ref), 'invalid_secret_ref', '凭据端口未返回有效引用。');
++        return ['secret', ref];
++      }
++      if (item === undefined) return ['undefined'];
++      if (item === null) return ['null'];
++      if (typeof item === 'boolean') return ['boolean', item];
++      if (typeof item === 'number') {
++        requireValue(Number.isFinite(item), 'invalid_value', '应用数据包含非有限数值。');
++        return ['number', item];
++      }
++      if (typeof item === 'string') {
++        if (!item.startsWith('blob:')) return ['string', item];
++        requireValue(typeof readBlobUrl === 'function', 'transient_url_unresolved', '临时媒体尚未转为本机文件；未保存失效网址。');
++        const blob = await readBlobUrl(item);
++        requireValue(blob instanceof Blob, 'transient_url_unresolved', '无法读取临时媒体。');
++        return ['blob-url', await binary(blob)];
++      }
++      if (item instanceof Blob) return ['blob', await binary(item)];
++      if (item instanceof ArrayBuffer) return ['array-buffer', await binary(new Blob([item]))];
++      if (item instanceof Date) {
++        requireValue(Number.isFinite(item.getTime()), 'invalid_value', '日期无效。');
++        return ['date', item.toISOString()];
++      }
++      requireValue(typeof item === 'object' && !visiting.has(item) && (Array.isArray(item) || Object.getPrototypeOf(item) === Object.prototype || Object.getPrototypeOf(item) === null), 'invalid_value', '仅支持普通对象、数组、日期、Blob和ArrayBuffer；循环或未知类型没有被丢弃。');
++      visiting.add(item);
++      let tree;
++      if (Array.isArray(item)) {
++        tree = ['array', []];
++        for (const entry of item) tree[1].push(await visit(entry, depth + 1));
++      } else {
++        tree = ['object', []];
++        for (const [name, entry] of Object.entries(item)) tree[1].push([name, await visit(entry, depth + 1, name)]);
++      }
++      visiting.delete(item);
++      return tree;
++    }
++    async function binary(blob) {
++      totalBytes += blob.size;
++      requireValue(totalBytes <= MAX_VALUE_MEDIA_BYTES && (!blob.type || MEDIA_TYPES.includes(blob.type)), 'invalid_media', '单次应用值媒体总量超过512MiB或类型不支持。');
++      const parts = [];
++      for (let offset = 0; offset < blob.size; offset += CHUNK_BYTES) {
++        const saved = await client.writeMedia(blob.slice(offset, offset + CHUNK_BYTES, 'application/octet-stream'));
++        requireValue(validHash(saved.id), 'invalid_ack', '媒体分片没有有效落盘确认。');
++        parts.push(saved.id); mediaIds.add(saved.id);
++      }
++      return { mime: blob.type, size: blob.size, parts };
++    }
++    const tree = await visit(value, 0, credential ? 'token' : '');
++    return { tree, mediaIds: [...mediaIds].sort() };
++  }
++  async function decode(tree) {
++    let bytes = 0;
++    async function binary(value) {
++      requireValue(value && typeof value.mime === 'string' && (!value.mime || MEDIA_TYPES.includes(value.mime)) && Number.isSafeInteger(value.size) && value.size >= 0 && Array.isArray(value.parts) && value.parts.every(validHash) && value.parts.length === Math.ceil(value.size / CHUNK_BYTES), 'invalid_value', '本机媒体描述不完整。');
++      bytes += value.size;
++      requireValue(bytes <= MAX_VALUE_MEDIA_BYTES, 'invalid_media', '媒体总量超过当前安全限制。');
++      const chunks = [];
++      for (let index = 0; index < value.parts.length; index++) {
++        const chunk = await client.readMedia(value.parts[index]);
++        requireValue(chunk.size === Math.min(CHUNK_BYTES, value.size - index * CHUNK_BYTES), 'media_corrupt', '媒体分片大小不匹配。');
++        chunks.push(chunk);
++      }
++      return new Blob(chunks, { type: value.mime });
++    }
++    async function visit(node, depth = 0) {
++      requireValue(depth <= 32 && Array.isArray(node), 'invalid_value', '本机应用值格式无效。');
++      const [tag, value] = node;
++      if (tag === 'null' && node.length === 1) return null;
++      if (tag === 'undefined' && node.length === 1) return undefined;
++      requireValue(node.length === 2, 'invalid_value', '本机应用值长度不符。');
++      if (tag === 'string' && typeof value === 'string' && !value.startsWith('blob:')) return value;
++      if (tag === 'boolean' && typeof value === 'boolean') return value;
++      if (tag === 'number' && typeof value === 'number' && Number.isFinite(value)) return value;
++      if (tag === 'date' && typeof value === 'string' && Number.isFinite(Date.parse(value))) return new Date(value);
++      if (tag === 'secret') {
++        requireValue(typeof value === 'string' && /^secret:[A-Za-z0-9_-]{1,128}$/.test(value) && secretPort?.read, 'secret_port_required', '凭据端口不可用，没有用空密钥替代。');
++        const secret = await secretPort.read(value);
++        requireValue(typeof secret === 'string', 'secret_not_found', '凭据引用失效，没有用空密钥替代。');
++        return secret;
++      }
++      if (tag === 'blob' || tag === 'blob-url' || tag === 'array-buffer') {
++        const blob = await binary(value);
++        if (tag === 'blob') return blob;
++        if (tag === 'array-buffer') return blob.arrayBuffer();
++        const url = createObjectURL(blob); urls.add(url); return url;
++      }
++      if (tag === 'array' && Array.isArray(value)) {
++        const result = [];
++        for (const entry of value) result.push(await visit(entry, depth + 1));
++        return result;
++      }
++      if (tag === 'object' && Array.isArray(value)) {
++        const result = {}, keys = new Set();
++        for (const pair of value) {
++          requireValue(Array.isArray(pair) && pair.length === 2 && typeof pair[0] === 'string' && !keys.has(pair[0]), 'invalid_value', '本机对象键重复或无效。');
++          keys.add(pair[0]);
++          Object.defineProperty(result, pair[0], { value: await visit(pair[1], depth + 1), enumerable: true, writable: true, configurable: true });
++        }
++        return result;
++      }
++      throw new StorageError('invalid_value', '无法识别本机应用值，不作空值处理。');
++    }
++    return visit(tree);
++  }
++  return { encode, decode, close() { for (const url of urls) revokeObjectURL(url); urls.clear(); } };
++}
+--- /dev/null
++++ b/web/src/guan/sqlite/应用存储适配.mjs
+@@ -0,0 +1,124 @@
++import { createValueCodec } from './应用值编码.mjs';
++import { StorageError, requireValue, serializeDocument } from './协议.mjs';
++
++export const APPLICATION_STORAGE_FORMAT = 'guan-app-storage.v1';
++export const APP_NAMESPACES = Object.freeze(['app_state', 'image_files', 'image_previews', 'image_generation_logs', 'video_generation_logs', 'media_files', 'prompt_cache', 'preferences']);
++const jsonStores = new Set(['infinite-canvas:canvas_store', 'infinite-canvas:asset_store', 'infinite-canvas:plugin_store', 'infinite-canvas:ai_config_store', 'infinite-canvas:theme_store', 'infinite-canvas:prompt_source_store_v2']);
++const sha = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))].map(byte => byte.toString(16).padStart(2, '0')).join('');
++
++// 兼容当前上游实际使用的localForage子集；不是全量localForage实现。
++// 每命名空间一个有版本文档，删除/clear原子提交，文件不立即物理删除。
++// 当前2MiB文档限制显式生效；达到限制应停止保存，不分页截断或回退浏览器。
++export function createApplicationStorage({ client, secretPort, readBlobUrl, onStatus = () => {} }) {
++  const codec = createValueCodec({ client, secretPort, readBlobUrl });
++  const spaces = new Map(), errors = new Map();
++  let closed = false, pending = 0, hasSaved = false;
++  function status() { return { state: errors.size ? 'error' : pending ? 'saving' : hasSaved ? 'saved' : 'idle', pending, errors: [...errors.keys()] }; }
++  function notify() { try { onStatus(status()); } catch { /* 订阅器不决定数据库结果。 */ } }
++  function state(name) {
++    requireValue(!closed && APP_NAMESPACES.includes(name), 'namespace_denied', '未声明的应用存储命名空间；不会重新启用任意插件。');
++    if (!spaces.has(name)) spaces.set(name, { name, loaded: false, revision: 0, entries: new Map(), tail: Promise.resolve(), blocked: null });
++    return spaces.get(name);
++  }
++  async function load(space) {
++    if (space.loaded) return;
++    space.id = 'app-' + await sha(space.name);
++    const doc = await client.readDocument('extension', space.id, { allowMissing: true });
++    if (doc) {
++      const value = doc.value;
++      requireValue(value.format === APPLICATION_STORAGE_FORMAT && value.namespace === space.name && Array.isArray(value.entries), 'invalid_namespace', '应用存储格式或命名空间不符；没有作为空库启动。');
++      const entries = new Map();
++      for (const item of value.entries) {
++        requireValue(Array.isArray(item) && item.length === 2 && typeof item[0] === 'string' && !entries.has(item[0]) && Array.isArray(item[1]?.tree) && Array.isArray(item[1]?.mediaIds), 'invalid_namespace', '应用记录重复或格式错误。');
++        entries.set(item[0], item[1]);
++      }
++      space.entries = entries; space.revision = doc.revision;
++    }
++    space.loaded = true;
++  }
++  function queue(space, fn, { retry = false } = {}) {
++    pending++; notify();
++    const result = space.tail.then(async () => {
++      requireValue(!closed, 'client_closed', '应用存储已关闭。');
++      if (space.blocked && !retry) throw new StorageError('pending_write_unresolved', '上一笔保存尚未确认，请先重试同一操作或重新打开工作台。', 409);
++      await load(space);
++      return fn();
++    });
++    space.tail = result.then(() => {}, () => {});
++    result.then(() => { if (!space.blocked) errors.delete(space.name); }, () => errors.set(space.name, true)).finally(() => { pending--; notify(); });
++    return result;
++  }
++  async function commit(space, entries) {
++    const value = { format: APPLICATION_STORAGE_FORMAT, namespace: space.name, entries: [...entries] };
++    const mediaIds = [...new Set([...entries.values()].flatMap(entry => entry.mediaIds))].sort();
++    // 请求前完成协议/大小检查，失败不成为一个结果不明的操作。
++    serializeDocument('extension', space.id, value, mediaIds);
++    const write = { collection: 'extension', id: space.id, value, mediaIds, expectedRevision: space.revision, operationId: crypto.randomUUID() };
++    space.blocked = { write, entries };
++    return retryWrite(space);
++  }
++  async function retryWrite(space) {
++    requireValue(space.blocked, 'nothing_to_retry', '没有待确认的保存。');
++    const { write, entries } = space.blocked;
++    const ack = await client.writeDocument(write);
++    space.entries = entries; space.revision = ack.revision; space.blocked = null; hasSaved = true;
++    return ack;
++  }
++  function createInstance({ name = 'infinite-canvas', storeName = 'app_state' } = {}) {
++    requireValue(name === 'infinite-canvas', 'namespace_denied', '插件和其他数据库没有获准接入。');
++    const space = state(storeName);
++    return {
++      getItem(key) {
++        requireValue(typeof key === 'string', 'invalid_key', '记录键必须为字符串。');
++        return queue(space, async () => {
++          const entry = space.entries.get(key);
++          if (!entry) return null;
++          const value = await codec.decode(entry.tree);
++          return storeName === 'app_state' && jsonStores.has(key) ? JSON.stringify(value) : value;
++        });
++      },
++      setItem(key, value) {
++        requireValue(typeof key === 'string' && key.length > 0 && key.length <= 512, 'invalid_key', '记录键无效。');
++        // 在入队前快照，防止调用者随后原地修改对象导致保存内容漂移。
++        const snapshot = structuredClone(value === undefined ? null : value);
++        return queue(space, async () => {
++          let decoded = snapshot;
++          if (storeName === 'app_state' && jsonStores.has(key)) {
++            requireValue(typeof snapshot === 'string', 'invalid_state', 'Zustand持久状态必须为JSON字符串。');
++            try { decoded = JSON.parse(snapshot); } catch { throw new StorageError('invalid_state', 'Zustand持久状态不是有效JSON。'); }
++          }
++          const encoded = await codec.encode(decoded, { credential: /(?:^|[:-])(?:api[_-]?key|password|token|secret)$/i.test(key) }), entries = new Map(space.entries);
++          entries.set(key, encoded); await commit(space, entries); return value;
++        });
++      },
++      removeItem(key) { return queue(space, async () => { const entries = new Map(space.entries); entries.delete(key); await commit(space, entries); }); },
++      clear() { return queue(space, () => commit(space, new Map())); },
++      async iterate(iterator) {
++        // 先取得一致快照再执行回调，兼容回调内部再次调用存储；不在队列中等回调造成死锁。
++        const entries = await queue(space, () => [...space.entries]);
++        let index = 0;
++        for (const [key, entry] of entries) {
++          let value = await codec.decode(entry.tree);
++          if (storeName === 'app_state' && jsonStores.has(key)) value = JSON.stringify(value);
++          const result = iterator(value, key, ++index);
++          if (result !== undefined) return result;
++        }
++        return undefined;
++      },
++      keys() { return queue(space, () => [...space.entries.keys()]); },
++      length() { return queue(space, () => space.entries.size); },
++    };
++  }
++  return {
++    createInstance,
++    getStatus: status,
++    readUsage() { return client.readUsage(); },
++    retry(name) { const space = state(name); return queue(space, () => retryWrite(space), { retry: true }); },
++    async flush() {
++      await Promise.all([...spaces.values()].map(space => space.tail));
++      requireValue(!pending && !errors.size && ![...spaces.values()].some(space => space.blocked), 'save_not_confirmed', '仍有未确认或失败的保存；不能报告已保存。', 409);
++      return status();
++    },
++    close() { requireValue(!pending && !errors.size, 'save_not_confirmed', '未确认保存不能关闭客户端。'); closed = true; codec.close(); },
++  };
++}
+--- /dev/null
++++ b/web/src/guan/sqlite/本机授权客户端.mjs
+@@ -0,0 +1,43 @@
++import { StorageError, requireValue } from './协议.mjs';
++
++const protocol = 'guan-local-authorization.v1';
++function localOrigin(value, data = false) {
++  try { const u = new URL(value); return u.origin === value && u.protocol === 'http:' && (data ? u.hostname === '127.0.0.1' : ['localhost', '127.0.0.1'].includes(u.hostname)) && !!u.port; } catch { return false; }
++}
++
++// 用户从可信本机入口取得一次性码，在自己的授权表单提交；没有测试注入、Cookie、URL或浏览器持久化。
++// 页面刷新后内存授权丢失，须重新从本机入口取得新码；不能静默重新授权。
++export async function authorizeLocalStorage({ code, origin = globalThis.location?.origin, fetchImpl = globalThis.fetch, now = Date.now } = {}) {
++  requireValue(typeof code === 'string' && /^[0-9a-f]{64}$/.test(code) && localOrigin(origin) && typeof fetchImpl === 'function' && typeof now === 'function', 'invalid_authorization_client', '本机授权码或页面地址无效。');
++  async function post(path, value, capability) {
++    let response, result;
++    try {
++      response = await fetchImpl(origin + '/__guan-local/' + path, { method: 'POST', credentials: 'omit', redirect: 'error', cache: 'no-store', referrerPolicy: 'no-referrer',
++        headers: { 'Content-Type': 'application/json', 'X-Guan-Local-Protocol': protocol, ...(capability ? { Authorization: 'Bearer ' + capability } : {}) },
++        body: JSON.stringify(value), signal: AbortSignal.timeout(5000) });
++      result = await response.json();
++    } catch { throw new StorageError('authorization_connection_failed', '本机授权响应未确认；不会重发一次性授权码，请从可信入口重新授权。', 503); }
++    requireValue(response.ok && result?.protocol === protocol && !result.error,
++      /^[a-z_]{3,64}$/.test(result?.error?.code ?? '') ? result.error.code : 'authorization_denied', '本机授权已拒绝或结束，请从可信入口重新授权。', response.status || 503);
++    return result;
++  }
++  const exchange = await post('authorize', { code });
++  const time = now();
++  requireValue(Number.isSafeInteger(time) && time >= 0 && exchange.origin === origin && localOrigin(exchange.dataURL, true) &&
++    /^[0-9a-f]{64}$/.test(exchange.capability) && Number.isSafeInteger(exchange.expiresAt) && exchange.expiresAt > time && exchange.expiresAt - time <= 8 * 60 * 60_000,
++  'invalid_authorization_response', '本机授权返回的地址、期限或能力不匹配。');
++  let capability = exchange.capability, closed = false;
++  exchange.capability = '';
++  async function command(value) {
++    requireValue(!closed && now() < exchange.expiresAt, 'authorization_expired', '页面授权已结束，不会静默重新授权。', 401);
++    return (await post('session', value, capability)).session;
++  }
++  return Object.freeze({
++    url: exchange.dataURL,
++    host: Object.freeze({
++      initialize: () => command({ operation: 'initialize' }),
++      renew: session => command({ operation: 'renew', session: structuredClone(session) }),
++      async close() { if (closed) return; try { await command({ operation: 'close' }); } finally { closed = true; capability = ''; } },
++    }),
++  });
++}
+--- /dev/null
++++ b/web/src/guan/sqlite/工作台授权入口.mjs
+@@ -0,0 +1,57 @@
++import { authorizeLocalStorage } from './本机授权客户端.mjs';
++import { createRenewingDataClient } from './续期数据客户端.mjs';
++import { createApplicationStorage } from './应用存储适配.mjs';
++
++// 这是自有启动入口，不查找/修改原页面控件。须通过具体批准的HTML入口接入。
++// 业务React模块只在授权后加载；刷新不恢复旧浏览器数据，也不静默重新授权。
++export function mountWorkbenchAuthorization({ root, origin = location.origin, loadApplication = () => import('../../main'), authorize = authorizeLocalStorage } = {}) {
++  if (!root || root.childNodes.length || typeof loadApplication !== 'function' || typeof authorize !== 'function') throw Error('授权入口需要独立且空的应用根节点。');
++  const document = root.ownerDocument;
++  const panel = document.createElement('section'), heading = document.createElement('h1'), description = document.createElement('p');
++  const form = document.createElement('form'), label = document.createElement('label'), input = document.createElement('input'), submit = document.createElement('button');
++  const status = document.createElement('p');
++  panel.setAttribute('aria-label', '本机工作区授权');
++  heading.textContent = '连接本机工作区'; description.textContent = '输入本机启动入口刚签发的一次性授权码。工作台不会读取旧浏览器数据。刷新后需重新授权。';
++  label.textContent = '本机一次性授权码'; input.type = 'password'; input.autocomplete = 'off'; input.spellcheck = false; input.required = true;
++  input.maxLength = 64; input.minLength = 64; input.pattern = '[0-9a-f]{64}';
++  submit.type = 'submit'; submit.textContent = '授权并打开工作台'; status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
++  label.append(input); form.append(label, submit); panel.append(heading, description, form, status); root.append(panel);
++  let busy = false, started = false;
++  form.addEventListener('submit', async event => {
++    event.preventDefault();
++    if (busy || started) return;
++    busy = true; panel.setAttribute('aria-busy', 'true'); submit.disabled = true; input.disabled = true; status.textContent = '正在核验授权，尚未加载工作台…';
++    const code = input.value; input.value = '';
++    let authorization;
++    try {
++      authorization = await authorize({ code, origin });
++      const client = createRenewingDataClient({ ...authorization, origin });
++      const app = createApplicationStorage({ client, readBlobUrl: async value => {
++        const url = new URL(value);
++        if (url.protocol !== 'blob:' || url.origin !== origin) throw Error('只允许当前工作台的临时媒体。');
++        const response = await fetch(url);
++        if (!response.ok) throw Error('临时媒体读取失败。');
++        return response.blob();
++      } });
++      // 先做只读健康验证。连接失败时不能发布可用host或渲染默认空画布。
++      await client.readUsage();
++      if (Object.getOwnPropertyDescriptor(window, '__guanSQLiteHost')) throw Error('本页面已经安装存储入口，拒绝覆盖。');
++      Object.defineProperty(window, '__guanSQLiteHost', { value: Object.freeze({ initialize: async () => app }), configurable: false, writable: false });
++      started = true;
++      // main保留既有初始化→预读→原React入口顺序。授权表单不重绘原首页或画布。
++      root.replaceChildren();
++      await loadApplication();
++    } catch {
++      if (!started) {
++        try { await authorization?.host.close(); } catch { /* 请求未确认时由服务端期限撤销，不再次兑换旧码。 */ }
++        status.textContent = '本机授权或连接未通过。请从可信本机入口取得新码；旧数据未改动。';
++        submit.disabled = false; input.disabled = false; input.focus();
++      } else {
++        // 已发布host后不得重新开一个空应用或复用失败的模块缓存。
++        root.replaceChildren(panel); form.hidden = true;
++        status.textContent = '工作台模块未能加载。请保留本机服务并重新打开授权入口；没有改用浏览器存储。';
++      }
++    } finally { busy = false; panel.setAttribute('aria-busy', 'false'); }
++  });
++  return Object.freeze({ getStatus: () => ({ busy, started }) });
++}
+--- /dev/null
++++ b/web/src/guan/sqlite/启动工作台.mjs
+@@ -0,0 +1,4 @@
++import { mountWorkbenchAuthorization } from './工作台授权入口.mjs';
++
++// HTML入口候选专用。未获具体批准前不装入任何运行副本。
++mountWorkbenchAuthorization({ root: document.getElementById('root') });

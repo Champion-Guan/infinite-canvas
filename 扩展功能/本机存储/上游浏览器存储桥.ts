@@ -15,6 +15,7 @@ export interface SQLiteInstance {
     removeItems(keys: string[]): Promise<unknown>;
     clear(): Promise<unknown>;
     iterate<T, U>(iterator: (value: T, key: string, index: number) => U | void): Promise<U | void>;
+    iterateDecodedState?<T, U>(iterator: (value: T, key: string, index: number) => U | void): Promise<U | void>;
 }
 export type SQLiteUsage = {
     usage: number; quota: number | null; contentBytes: number;
@@ -35,6 +36,7 @@ declare global { interface Window { __guanSQLiteHost?: { initialize(): Promise<S
 let runtime: SQLiteRuntime | null = null;
 let appState: SQLiteInstance, preferencesStore: SQLiteInstance;
 const stateCache = new Map<string, string>(), preferencesCache = new Map<string, string>(), sessionCache = new Map<string, string>();
+const decodedStateCache = new Map<string, unknown>();
 const writes = new Set<Promise<unknown>>(), failed = new Map<string, unknown>();
 type StateSaveValue = string | (() => string);
 const scheduled = new Map<string, { value: StateSaveValue; queuedAt: number; timer: ReturnType<typeof setTimeout>; resolve: () => void; reject: (reason: unknown) => void; promise: Promise<void> }>();
@@ -52,7 +54,7 @@ function ready() { if (!runtime) throw new Error("本机存储尚未初始化，
 export function storageStatus() {
     const current = runtime?.getStatus();
     const codes = [...(current?.failures?.map(item => item.code) ?? []), ...[...failed.values()].map(error => (error as { code?: string } | null)?.code)];
-    return { state: failed.size || current?.state === "error" ? "error" : writes.size || scheduled.size || current?.pending ? "saving" : current?.state === "idle" && stateCache.size > 0 ? "saved" : current?.state ?? "idle",
+    return { state: failed.size || current?.state === "error" ? "error" : writes.size || scheduled.size || current?.pending ? "saving" : current?.state === "idle" && stateCache.size + decodedStateCache.size > 0 ? "saved" : current?.state ?? "idle",
         pending: Math.max(writes.size, current?.pending ?? 0) + scheduled.size + encodingFailures.size, retrying: !!retryFlight || !!current?.retrying,
         conflict: codes.includes("revision_conflict"), reconnectRequired: codes.some(code => SESSION_RECOVERY_ERRORS.has(code ?? "")), reconnecting,
         failure: current?.failures?.[0] ?? null,
@@ -86,26 +88,26 @@ export async function initializeSQLiteApplication() {
     if (typeof candidate.retryPending !== "function" || typeof candidate.subscribe !== "function") throw new Error("保存恢复协议不兼容，不能作为空库启动。");
     const app = candidate.createInstance({ name: "infinite-canvas", storeName: "app_state" });
     const prefs = candidate.createInstance({ name: "infinite-canvas", storeName: "preferences" });
-    const nextState = new Map<string, string>(), nextPreferences = new Map<string, string>();
-    await app.iterate<unknown, void>((value, key) => {
-        if (typeof value !== "string") throw new Error("应用状态格式错误，未作为空库继续。");
-        const parsed: unknown = JSON.parse(value);
+    const nextState = new Map<string, string>(), nextPreferences = new Map<string, string>(), nextDecoded = new Map<string, unknown>();
+    const projects: NonNullable<Parameters<typeof globalPlatformRules.initialize>[1]> = [];
+    const readState = app.iterateDecodedState?.bind(app) ?? app.iterate.bind(app);
+    await Promise.all([readState<unknown, void>((value, key) => {
+        const parsed: unknown = typeof value === "string" ? JSON.parse(value) : value;
         if (!parsed || typeof parsed !== "object" || !("state" in parsed) || !parsed.state || typeof parsed.state !== "object") throw new Error("应用状态结构错误，停止初始化。");
-        nextState.set(key, value);
-    });
-    await prefs.iterate<unknown, void>((value, key) => {
+        if (typeof value === "string") nextState.set(key, value);
+        nextDecoded.set(key, parsed);
+        if ("projects" in parsed.state && Array.isArray(parsed.state.projects)) projects.push(...parsed.state.projects);
+    }), prefs.iterate<unknown, void>((value, key) => {
         // 兼容早期中断删除留下的对象清单；恢复入口读取原清单，不把工作台启动为默认空数据。
         if (key === "guan-recycle-cleanup:v1" && value && typeof value === "object") value = JSON.stringify(value);
         if (typeof value !== "string") throw new Error("偏好设置格式错误，停止初始化。");
         nextPreferences.set(key, value);
-    });
+    })]);
     for (const [key, value] of nextState) stateCache.set(key, value);
+    decodedStateCache.clear();
+    for (const [key, value] of nextDecoded) decodedStateCache.set(key, value);
     for (const [key, value] of nextPreferences) preferencesCache.set(key, value);
     appState = app; preferencesStore = prefs; runtime = candidate;
-    const projects = [...stateCache.values()].flatMap(raw => {
-        const value = JSON.parse(raw);
-        return Array.isArray(value.state?.projects) ? value.state.projects : [];
-    });
     try {
         await globalPlatformRules.initialize({
             getItem: key => sqlitePreferences.getItem(key),
@@ -130,9 +132,21 @@ export async function initializeSQLiteApplication() {
     statusChanged();
 }
 export const sqliteStateStorage = {
-    getItem(key: string) { ready(); return stateCache.get(key) ?? null; },
+    getItem(key: string) {
+        ready();
+        if (!stateCache.has(key) && decodedStateCache.has(key)) stateCache.set(key, JSON.stringify(decodedStateCache.get(key)));
+        return stateCache.get(key) ?? null;
+    },
+    // 与不可变store共用初始化对象；首次真实保存后释放该初始引用。
+    takeDecodedState<T>(key: string): T | null {
+        ready();
+        const value = decodedStateCache.get(key);
+        if (value === undefined) return null;
+        return value as T;
+    },
     setItem(key: string, value: string) {
         ready();
+        decodedStateCache.delete(key);
         const failureKey = "state:" + key;
         if (shouldSkipStorageWrite(stateCache, failed, key, value, failureKey)) return Promise.resolve();
         stateCache.set(key, value);
@@ -140,6 +154,7 @@ export const sqliteStateStorage = {
     },
     removeItem(key: string) {
         ready();
+        decodedStateCache.delete(key);
         const failureKey = "state:" + key;
         if (shouldSkipStorageRemove(stateCache, failed, key, failureKey)) return Promise.resolve();
         stateCache.delete(key);

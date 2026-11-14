@@ -1,0 +1,44 @@
+{
+  "日期": "2026-10-18",
+  "状态": "待用户审查5文件精确后继；未接入原画布及3100",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置免填码差异SHA256": "f38d168aba5fc8b2eadce6c1e0aff3743f02cd66a05fc6cc639551b222cee74f",
+  "差异SHA256": "3875ba9ebc2ae7ad8b0a3b993fb8f9f7b71ae89757e242c7d2eac888d1057f14",
+  "完整TS类型预审通过": true,
+  "文件": [
+    {
+      "文件": "web/src/guan/上游浏览器存储桥.ts",
+      "原始SHA256": "ce97cdb0b813447d2f82f55c96da5a3808e7b1df2ae7cd00cb35b497ba519cc6",
+      "候选SHA256": "4ef27f5882e21323a8e8a2a10f5c5641fab462e78ff74d9eba8d5effcbb43751"
+    },
+    {
+      "文件": "web/src/guan/SQLite应用入口.tsx",
+      "原始SHA256": "e44c0a5ab834351de511d7c470b96f8ba6b1468e52735a7ecc18416c5ce0e381",
+      "候选SHA256": "cd8facdd47e69afa3b272ea590dbda6552974bb9a49cbdf3bf37d0d01b3b8078"
+    },
+    {
+      "文件": "web/src/guan/sqlite/工作台自动入口.mjs",
+      "原始SHA256": "c982da24307dc89a1c264f9b35d8a71ae10a2c2d3fd2999a45f32e05eafa3301",
+      "候选SHA256": "b7caee1f4e3d0682b0dbec9d8ff065fea22c8bb7254299124fd251ee17803e2f"
+    },
+    {
+      "文件": "web/src/guan/sqlite/可恢复应用存储.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "b683dc1d76e74c69b432e63abd13a5421c0ba546df0a1066526acf681434d49b"
+    },
+    {
+      "文件": "web/src/guan/保存状态条.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "05395173a278dab7989ce2b7acbcfa8bbc3521ccd98260469491a921e8f077b6"
+    }
+  ],
+  "约束": [
+    "保留全部历史源码、批准器及JSON/patch，不改作者仓库，不覆盖已批准启动器",
+    "原操作先用完整原operationId重试，ACK确认后再提交后续不可变编辑",
+    "失败记录、底层pending和重试期间新编辑须全部ACK才清除错误",
+    "仅新增声明式保存状态组件，不改画布/路由/节点布局，不使用DOM猴子补丁",
+    "页内队列不是断电/刷新恢复，失败时提醒保留本页，不回退浏览器存储",
+    "冲突、凭据和容量错误继续阻止，不强制覆盖、不明文降级",
+    "本轮只预审和自有合成应用浏览器测试，不接入原画布/3100、不迁旧数据、不读取真实凭据、不提交发布"
+  ]
+}

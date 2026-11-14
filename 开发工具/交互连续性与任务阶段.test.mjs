@@ -110,6 +110,7 @@ test('真实侧栏组件：键盘调宽立即跟随，松键恢复弹簧，关�
     let reduced = false, active = true;
     const { panelTransition } = load('扩展功能/主题/侧栏动效.ts', { react: {} });
     const scope = {
+        businessFeatures: { promptLibrary: true },
         ...runtime.api, useTranslation: () => ({ t: key => key }), canvasThemes: { light: { toolbar: {}, node: {} } },
         useThemeStore: select => select({ theme: 'light' }), useCanvasSidePanelStore: select => select(state),
         useReducedMotion: () => reduced, useProductActive: () => active, useHiddenPanelExit() {}, panelTransition,
@@ -117,7 +118,7 @@ test('真实侧栏组件：键盘调宽立即跟随，松键恢复弹簧，关�
         motion: { div: 'motion.div', aside: 'motion.aside' }, LayoutGroup: 'LayoutGroup', TabButton: 'TabButton', CanvasNodesTab: 'Nodes',
         CanvasAssetsTab: 'Assets', CanvasGenerationHistoryTab: 'History', CanvasRecycleBinTab: 'Trash', CanvasPromptsTab: 'Prompts',
         TabContentTransition: 'TabTransition',
-        useUnifiedTabIndicator() {}, TAB_INDICATOR_BASE_STYLE: {},
+        useNativeTabFade() {}, useUnifiedTabIndicator() {}, TAB_INDICATOR_BASE_STYLE: {},
         sqlitePreferences: { setItem: (...args) => writes.push(args) },
     };
     const component = new Function('require', 'exports', ...Object.keys(scope), code + ';return CanvasSidePanel;')(

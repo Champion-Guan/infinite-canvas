@@ -1,0 +1,23 @@
+{
+  "日期": "2026-10-19",
+  "状态": "待单独批准，未接入任何工作台包",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/Excel导入与工作簿-GFww02/Excel导入与工作簿接入记录.json",
+  "前置差异SHA256": "95b4023354582786d93a4e37e8ce0dbe7350da2d82539582135a03f13933dd0d",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "差异SHA256": "5d88e270b61cf32d8d8583f027c5cca7a175965753ec7f6250b22577788ea714",
+  "文件数": 1,
+  "文件": [
+    {
+      "文件": "web/src/guan/Excel导入面板.tsx",
+      "原始SHA256": "f84e6e2b10a300923191acdfec9291ac8c0aa7cae61f4076c40f52415c1c161d",
+      "候选SHA256": "b305988c7e22b877837fcc0d3fc9142adcdfcd7fc4803f459aafadc127a130a2"
+    }
+  ],
+  "完整虚拟类型检查通过": true,
+  "已接入隔离副本": false,
+  "已接入3100": false,
+  "范围": [
+    "仅导入弹窗onChange改为onInput，保留原旧HTML、样式、勾选函数、数据合同及保存导航",
+    "批准后新建完整16文件前置副本，事务接入并继续实际上传/SQLite验收；不改原批准源码或历史包"
+  ]
+}

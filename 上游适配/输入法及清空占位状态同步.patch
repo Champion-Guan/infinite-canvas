@@ -1,0 +1,33 @@
+diff --git a/web/src/components/canvas/canvas-prompt-chip-input.tsx b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+index f54a4b0..1e50d73 100644
+--- a/web/src/components/canvas/canvas-prompt-chip-input.tsx
++++ b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+@@ -38,6 +38,7 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+     const editorRef = useRef<HTMLDivElement>(null);
+     const composingRef = useRef(false);
++    const [isComposing, setIsComposing] = useState(false);
+     // Track the last value emitted to the parent. An identical focused value is this component's own echo,
+     // so skip rebuilding to preserve the caret and IME. Rebuild external changes even while focused.
+     const lastEmittedRef = useRef(value);
+@@ -128,7 +129,7 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
+         emit(serializeEditor(editor));
+     };
+ 
+-    const showPlaceholder = !value.trim();
++    const showPlaceholder = !value.trim() && !isComposing;
+     const { borderColor, ...inputStyle } = style || {};
+ 
+     return (
+@@ -149,9 +150,11 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
+                 }}
+                 onCompositionStart={() => {
+                     composingRef.current = true;
++                    setIsComposing(true);
+                 }}
+                 onCompositionEnd={() => {
+                     composingRef.current = false;
++                    setIsComposing(false);
+                     syncFromEditor();
+                 }}
+                 onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {

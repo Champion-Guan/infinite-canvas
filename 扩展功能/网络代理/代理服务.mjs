@@ -4,6 +4,7 @@ import { buildIsolatedProxyConfig, subscriptionURL, validateSourceText } from '.
 import { readProxySubscription } from './订阅读取.mjs';
 import { 代理配置来源显示 } from './内置订阅设置.mjs';
 import { createSmartResourceUpdater } from './Smart资源自动更新.mjs';
+import { waitForProxyStartup } from './等待代理启动.mjs';
 
 // 只管理自己的实例。状态查询不发起网络探测；配置/启停串行，路由租约阻止中途换代理。
 export async function openNetworkProxyService({ workspace, vault, runTrustedWrite, runtime, readSubscription = readProxySubscription, initialConfiguration, deferStartup = false, resourceUpdateOptions } = {}) {
@@ -12,6 +13,8 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
   let state = store.read(), handle = null, closed = false, pending = 0, leases = 0, tail = Promise.resolve(), lastError = null;
   let currentNode = null, delayResults = [], configInput = '';
   let resourceUpdater, activeRuntime = runtime, activeCore = resourceUpdateOptions?.bundledCore, observation;
+  const startupBegan = Date.now();
+  let startup, startupFinished = null;
   async function updateSourceDisplay() {
     configInput = '';
     if (state.value.config) {
@@ -22,7 +25,8 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
   }
   const status = () => ({ configured: !!state.value.config, enabled: state.value.enabled, relayEnabled: state.value.relayEnabled, running: !!handle?.running(), currentNode, delayResults,
     configName: state.value.configName, configInput, source: state.value.config ? state.value.sourceKind === 'url' ? 'subscription' : 'uploaded' : null,
-    smart: handle?.running() ? { ...handle.smartStatus?.(), version: activeCore?.version, update: resourceUpdater?.status() } : null, resourceUpdate: resourceUpdater?.status() || null, busy: pending > 0, activeRequests: leases, lastError });
+    smart: handle?.running() ? { ...handle.smartStatus?.(), version: activeCore?.version, update: resourceUpdater?.status() } : null, resourceUpdate: resourceUpdater?.status() || null, busy: pending > 0, activeRequests: leases, lastError,
+    starting: startupFinished === null, startupMs: (startupFinished ?? Date.now()) - startupBegan });
   const run = operation => {
     requireValue(!closed, 'proxy_closed', '代理服务已关闭。', 503);
     pending++;
@@ -87,11 +91,12 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
         }
       } catch { state = store.read(); lastError = 'proxy_import_failed'; }
     }
-    await updateSourceDisplay();
-    if (state.value.enabled && state.value.config) {
-      try { await startCore(await store.unseal(state.value.config)); }
-      catch { lastError = 'proxy_restore_failed'; } // 无代理不阻止打开画布，但后续代理请求必须失败，不能偷偷直连。
-    }
+    await Promise.all([updateSourceDisplay(), (async () => {
+      if (state.value.enabled && state.value.config) {
+        try { await startCore(await store.unseal(state.value.config)); }
+        catch { lastError = 'proxy_restore_failed'; }
+      }
+    })()]);
   };
   if (resourceUpdateOptions) {
     try {
@@ -117,6 +122,7 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
     }
   }
   const port = Object.freeze({ status,
+    async waitUntilReady({ signal } = {}) { await waitForProxyStartup(startup, signal); return status(); },
     async observeStatus() {
       const current = handle;
       if (closed || pending || !current?.running() || !current.observe) return status();
@@ -164,8 +170,9 @@ export async function openNetworkProxyService({ workspace, vault, runTrustedWrit
     assertCanClose() { requireValue(pending === 0 && leases === 0, 'proxy_busy', '仍有代理配置或请求未结束，不能关闭。', 409); },
     async close() { await resourceUpdater?.close(); this.assertCanClose(); closed = true; await stop(); },
   });
-  if (deferStartup) void run(restore).catch(() => {});
-  else await restore();
+  startup = (deferStartup ? run(restore) : restore()).finally(() => { startupFinished = Date.now(); });
+  if (deferStartup) void startup.catch(() => {});
+  else await startup;
   resourceUpdater?.start();
   return port;
 }

@@ -11,8 +11,13 @@ const ts = require('typescript');
 export function variantModules(overrides = {}) {
     const cache = new Map();
     const dependencies = {
-        react: { useCallback: value => value, useRef: value => ({ current: value }) },
+        react: { useCallback: value => value, useEffect() {}, useRef: value => ({ current: value }), useMemo: fn => fn() },
+        antd: { Tooltip: 'Tooltip' },
+        '../产品/产品操作': { saveProductCanvas: async () => {} },
+        '../主题/状态详情': { StatusDetail: 'StatusDetail' },
+        './商品变体生成按钮': { ProductVariantGenerateButton: 'ProductVariantGenerateButton' },
         './平台规则订阅': { useGlobalPlatformRules() {} },
+        './提示词变体选择.module.css': { default: {} },
         '@/types/canvas': { CanvasNodeType: { Text: 'text', Config: 'config', Image: 'image', Video: 'video', Audio: 'audio', Group: 'group' } },
         '@/constant/canvas': { getNodeSpec: () => ({ width: 340, height: 240 }) },
         '@/lib/canvas/canvas-generation-helpers': { getGenerationCount: value => Math.max(1, Math.min(15, Math.floor(Math.abs(Number(value)) || 1))) },

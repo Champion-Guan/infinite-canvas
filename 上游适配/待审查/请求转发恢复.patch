@@ -1,0 +1,20 @@
+--- a/web/src/guan/功能开关.ts
++++ b/web/src/guan/功能开关.ts
+@@ -5,7 +5,7 @@
+     webdav: false,
+     externalAgent: false,
+     analytics: false,
+-    localProxy: false,
++    localProxy: true,
+     nodePlugins: false,
+     languageSwitch: false,
+     themeSwitch: false,
+@@ -19,7 +19,7 @@
+ 
+ export const closedFeatureIds: readonly string[] = Object.freeze([
+     "P01", "P02", "P03", "P04", "P05", "P06", "P07",
+-    "U01", "U03", "U04", "S07", "S08",
++    "U01", "U03", "U04", "S08",
+     "G01", "G02", "G03", "G04", "G05", "G06", "G07",
+     "X01", "X02", "X03", "X04", "X05", "X06", "X07", "X08",
+     "B01", "B02", "B03", "B04",

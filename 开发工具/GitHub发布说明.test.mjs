@@ -15,7 +15,7 @@ test('GitHub可见说明按图示分类，兼容现有客户的原时间线条�
   assert.ok(visible.startsWith('# AI-Workbench v' + version + '\n'));
   for (const section of ['新增', '优化', '修复', '使用说明']) assert.ok(visible.includes('\n## ' + section + '\n'));
   assert.doesNotMatch(visible, /\[(新增|优化|调整|修复|文档)\]/);
-  assert.match(visible, /^- \*\*桌面入口修复\*\*：/m);
+  assert.match(visible, /^- \*\*[^*]+\*\*：.+/m);
   const original = readFileSync(join(root, '开发文档/Web更新说明.md'), 'utf8');
   assert.deepEqual(parseChangelog('## ' + version + '\n' + output)[0].items, parseChangelog(original)[0].items);
   assert.equal(output.match(/<!--/g).length, 1);
@@ -30,7 +30,7 @@ test('误用标签列表、缺少概述或分类、版本不符时拒绝发布',
   const source = readFileSync(join(root, '开发文档/GitHub更新说明.md'), 'utf8');
   for (const invalid of [
     source.replace('AI-Workbench v' + version, 'AI-Workbench v0.0.0'),
-    source.replace('- **桌面入口修复**', '+ [新增] **桌面入口修复**'),
+    source.replace(/^- \*\*([^*]+)\*\*/m, '+ [新增] **$1**'),
     source.replace('## 修复\n', '## 其他\n'),
     source.replace(/\n\n本次[\s\S]*?(?=\n\n## 新增)/, ''),
   ]) {

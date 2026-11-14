@@ -268,7 +268,8 @@ test('当前装配确实接线，保留原样CSS、授权、代理租约和原�
   assert.match(get('画布副本/web/src/pages/canvas/project.tsx'), /useCanvasImageResults/);
   assert.match(get('画布副本/web/src/扩展功能/媒体交付/图片结果保存操作.ts'), /saveProductCanvas/);
   assert.match(get('画布副本/web/src/扩展功能/画布生成/原画布图片调用.ts'), /parseRoutedImageResponse/);
-  assert.match(get('画布副本/web/src/扩展功能/本机存储/工作台自动入口.mjs'), /await fallback\.read\(\)/);
+  assert.match(get('画布副本/web/src/扩展功能/本机存储/工作台自动入口.mjs'),
+    /await (?:fallback\.read\(\)|Promise\.all\(\[client\.ensureSession\(\), fallback\.read\(\)\]\))/);
   assert.ok(get('画布副本/web/src/扩展功能/故障切换/原版Fallback.css').includes('.guan-fallback .local-canvas-fallback-row'));
   const launcher = get('画布副本/扩展功能/本机服务/受限工作台启动器.mjs');
   assert.ok(launcher.indexOf('networkProxy = await assemble') < launcher.indexOf('generation = await assemble'));

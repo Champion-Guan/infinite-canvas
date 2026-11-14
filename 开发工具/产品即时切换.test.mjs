@@ -25,17 +25,27 @@ function deferred() {
 }
 const settle = () => new Promise(done => setImmediate(done));
 
-async function harness() {
+async function harness(excel = true) {
   const rules = await load('产品规则.ts');
   const workbookSave = await load('../Excel/Excel保存导航.ts');
   const { ProductCommitCheckpoint } = await load('产品保存检查点.ts');
   const residency = await load('画布驻留保护.ts');
+  const feature = { productFeatures: { excel }, requireProductFeature() { if (!excel) throw Object.assign(Error('Excel 功能已关闭'), { code: 'product_feature_disabled' }); } };
+  const navigationScope = await load('产品导航范围.ts', {
+    '../产品配置/功能开关': feature, './产品规则': rules,
+    '../Excel/Excel产品归属': {
+      orderedWorkbookProjects: (projects, owner) => projects.filter(project => project.productSetId === owner),
+      visibleWorkbookId: () => 'book', withVisibleSelection: value => value,
+      rememberWorkbookProduct: (state, id) => ({ ...state.guanWorkbooks, activeProductId: id }),
+      workbookEntry: value => value.guanWorkbooks.activeProductId,
+    },
+  });
   let activeId = 'A', pendingDeletion = false;
   let flush = async () => {};
   const events = [], preferences = new Map([['guan-products:active:v1', activeId]]);
   const blocked = new Set();
   const storage = { state: 'saved', pending: 0 };
-  const state = { hydrated: true, guanWorkbooks: {},
+  const state = { hydrated: true, guanWorkbooks: { contract: { products: [] } },
     projects: ['A', 'B', 'C'].map(id => ({ id, title: id, productSetId: 'book', nodes: [{ id: `${id}-node` }] })),
     openProject(id) { return this.projects.find(project => project.id === id); },
     createProject() {
@@ -70,6 +80,8 @@ async function harness() {
       storageStatus: () => storage, retrySQLiteStorage: async () => {},
     },
     './产品规则': rules,
+    './产品导航范围': navigationScope,
+    '../产品配置/功能开关': feature,
     './画布驻留保护': residency,
     './产品保存检查点': { ProductCommitCheckpoint },
     './产品回收规则': {},
@@ -81,9 +93,9 @@ async function harness() {
     '../Excel/Excel保存导航': workbookSave,
     '../Excel/Excel产品归属': { visibleWorkbookId: () => 'book',
       workbookProjects: (projects, owner) => projects.filter(project => project.productSetId === owner),
-      rememberWorkbookProduct: (_state, id) => ({ activeProductId: id }),
+      rememberWorkbookProduct: (state, id) => ({ ...state.guanWorkbooks, activeProductId: id }),
       withVisibleSelection: value => value,
-      selectWorkbook: (_state, owner) => ({ owner, activeProductId: 'B' }),
+      selectWorkbook: (state, owner) => ({ ...state.guanWorkbooks, owner, activeProductId: 'B' }),
       prepareWorkbookEntry: value => value,
       workbookEntry: value => value.guanWorkbooks.activeProductId,
     },
@@ -103,6 +115,26 @@ async function harness() {
     },
   };
 }
+
+test('Excel关闭后跨工作簿与未关联产品可立即切换，保留旧工作簿和全部卡片', async () => {
+  const h = await harness(false);
+  h.state.projects[1].productSetId = 'another-book';
+  h.state.projects[2].productSetId = null;
+  const before = JSON.stringify(h.state.projects), books = h.state.guanWorkbooks;
+  h.register('A'); h.register('B'); h.register('C');
+  await h.nav().selectProduct('B');
+  await h.nav().selectProduct('C');
+  assert.equal(h.active(), 'C');
+  assert.equal(h.preferences.get('guan-products:active:v1'), 'C');
+  assert.equal(h.state.guanWorkbooks, books);
+  assert.equal(JSON.stringify(h.state.projects), before);
+  for (const [name, args] of [['selectWorkbook', ['book']], ['importWorkbook', [{}]], ['deleteWorkbook', ['book']],
+    ['restoreWorkbook', ['book']], ['permanentlyDeleteWorkbook', ['book']]]) {
+    const calls = h.events.length;
+    await assert.rejects(h.nav()[name](...args), { code: 'product_feature_disabled' });
+    assert.equal(h.events.length, calls, name + '在保存或改动前拒绝');
+  }
+});
 
 test('已保存画布先同步切换，SQLite慢回执不锁定胶囊，连续点击可改去下一产品', async () => {
   const h = await harness(), disk = deferred();
@@ -175,8 +207,8 @@ test('点击当前胶囊不写入；未加载、删除未确认和跨工作簿�
   h.state.hydrated = true; h.deletePending('book');
   await assert.rejects(h.nav().selectProduct('B'), /删除保存尚未确认/);
   h.deletePending(false); h.state.openProject('C').productSetId = 'other';
-  await assert.rejects(h.nav().selectProduct('C'), /不属于当前工作表/);
-  await assert.rejects(h.nav().selectProduct('missing'), /不属于当前工作表/);
+  await assert.rejects(h.nav().selectProduct('C'), /目标产品不可用/);
+  await assert.rejects(h.nav().selectProduct('missing'), /目标产品不可用/);
   assert.deepEqual(h.events, []); assert.equal(h.active(), 'A');
 });
 

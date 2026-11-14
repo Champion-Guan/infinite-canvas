@@ -15,6 +15,11 @@ const requestErrors = Object.freeze({
   session_expired: '本机数据会话已过期，请恢复当前会话后继续原任务。',
   session_denied: '本机数据会话暂时不可用，请恢复当前会话后继续原任务。',
   authorization_busy: '本机授权入口暂时繁忙，请稍后重试。',
+  proxy_queue_full: '本地转发等待队列已满，本次请求尚未发送，请稍后再试。',
+  proxy_queue_timeout: '本地转发排队超时，本次请求尚未发送。',
+  proxy_queue_cancelled: '本地转发等待已取消，本次请求尚未发送。',
+  proxy_ingress_busy: '代理请求正文接收繁忙，本次请求尚未执行，请稍后再试。',
+  proxy_response_unknown: '本地转发响应未确认，请先检查原操作结果，不会自动重新发送。',
 });
 const GENERATION_COMMAND_TIMEOUTS = Object.freeze({
   submit: 30_000,
@@ -46,7 +51,7 @@ export function generationCommandTimeout(operation) {
 
 function requestTimeout(path, value, observe) {
   if (observe) return 660_000;
-  if (path === 'network-proxy') return value?.operation === 'relay' ? 610_000 : 180_000;
+  if (path === 'network-proxy') return value?.operation === 'relay' ? 640_000 : 180_000;
   if (path === 'software-updates') return 40_000;
   if (path === 'generation') {
     if (value?.operation === 'video-create') return 610_000;
@@ -80,9 +85,11 @@ export async function authorizeLocalStorage({ code, origin = globalThis.location
         if (signal?.aborted) throw error;
         if (timeoutSignal.aborted) {
           if (path === 'generation') throw new StorageError('request_timeout', '本机生成响应超时；原任务ID已保留，请稍后查询，不会重复生成。', 504);
+          if (path === 'network-proxy') throw new StorageError('proxy_response_unknown', requestErrors.proxy_response_unknown, 504);
           throw new StorageError('authorization_connection_failed', '本机授权响应未确认；不会重发一次性授权码，请从可信入口重新授权。', 503);
         }
         if (path === 'generation') throw new StorageError('generation_connection_unknown', '本机生成连接中断；原任务ID已保留，请查询原任务，不要重复生成。', 503);
+        if (path === 'network-proxy') throw new StorageError('proxy_response_unknown', requestErrors.proxy_response_unknown, 503);
         throw new StorageError('authorization_connection_failed', '本机授权响应未确认；不会重发一次性授权码，请从可信入口重新授权。', 503);
       }
       // 429 是服务端明确表示“本次兑换未执行”，同一张一次性码可以安全地

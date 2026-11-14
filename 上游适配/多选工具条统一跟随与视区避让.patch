@@ -1,0 +1,75 @@
+diff --git a/web/src/components/canvas/canvas-selection-toolbar.tsx b/web/src/components/canvas/canvas-selection-toolbar.tsx
+index 6d1a4b7..c0248ad 100644
+--- a/web/src/components/canvas/canvas-selection-toolbar.tsx
++++ b/web/src/components/canvas/canvas-selection-toolbar.tsx
+@@ -1,4 +1,7 @@
+ import type { ReactNode } from "react";
++import { createPortal } from "react-dom";
++import { CanvasFloatingBoundary } from "@/扩展功能/画布交互/画布浮层容器";
++import { nodeToolbarTop } from "@/扩展功能/画布交互/节点工具栏定位";
+ import { Download, Grid2x2, Group, LoaderCircle, Ungroup } from "lucide-react";
+ import { selectedDownloadFiles } from "@/扩展功能/媒体交付/画布下载操作";
+ import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+@@ -22,6 +25,7 @@ export function CanvasSelectionToolbar({
+     onOrganize,
+     onDownload,
+     downloading = false,
++    toolbarRoot,
+ }: {
+     nodes: CanvasNodeData[];
+     viewport: ViewportTransform;
+@@ -33,6 +37,7 @@ export function CanvasSelectionToolbar({
+     onOrganize: () => void;
+     onDownload: () => void;
+     downloading?: boolean;
++    toolbarRoot?: HTMLElement | null;
+ }) {
+     const { t } = useTranslation();
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+@@ -44,6 +49,24 @@ export function CanvasSelectionToolbar({
+     const width = (bounds.right - bounds.left) * viewport.k + SELECTION_PAD * 2;
+     const height = (bounds.bottom - bounds.top) * viewport.k + SELECTION_PAD * 2;
+     const showActions = showToolbar;
++    const actions = showActions ? (
++        <CanvasFloatingBoundary><div
++            data-node-toolbar="selection"
++            data-canvas-selection-toolbar
++            data-toolbar-node-x={bounds.left}
++            data-toolbar-node-y={bounds.top}
++            data-toolbar-node-width={bounds.right - bounds.left}
++            data-toolbar-node-offset-y={-8}
++            className="guan-apple-enter pointer-events-auto absolute z-[70] flex h-12 -translate-x-1/2 items-center overflow-visible rounded-[18px] border border-black/10 bg-white text-[15px] text-[#242529] shadow-[0_8px_28px_rgba(15,23,42,.12)]"
++            style={{ left: left + width / 2, top: nodeToolbarTop(viewport.y + bounds.top * viewport.k - 8) }}
++            onMouseDown={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()}>
++            {canGroup ? <SelectionAction title={t("canvas.nodeToolbar.groupTitle")} label={t("canvas.nodeToolbar.group")} icon={<Group className="size-4" />} onClick={onGroup} /> : null}
++            {canUngroup ? <SelectionAction title={t("canvas.nodeToolbar.ungroupTitle")} label={t("canvas.nodeToolbar.ungroup")} icon={<Ungroup className="size-4" />} onClick={onUngroup} /> : null}
++            <SelectionAction title="整理选中卡片（可撤销）" label="整理卡片" icon={<Grid2x2 className="size-4" />} onClick={onOrganize} />
++            <SelectionAction title="下载所选" label={downloading ? "正在打包" : "下载所选"} disabled={downloading || !selectedDownloadFiles(nodes).length}
++                icon={downloading ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />} onClick={onDownload} />
++        </div></CanvasFloatingBoundary>
++    ) : null;
+ 
+     return (
+         <>
+@@ -63,20 +86,7 @@ export function CanvasSelectionToolbar({
+                     strokeLinecap="round"
+                 />
+             </svg>
+-            {showActions ? (
+-                <div
+-                    className="pointer-events-auto absolute z-[70] flex h-12 -translate-x-1/2 -translate-y-full items-center overflow-visible rounded-[18px] border border-black/10 bg-white text-[15px] text-[#242529] shadow-[0_8px_28px_rgba(15,23,42,.12)]"
+-                    style={{ left: left + width / 2, top: top - 8 }}
+-                    onMouseDown={(event) => event.stopPropagation()}
+-                    onPointerDown={(event) => event.stopPropagation()}
+-                >
+-                    {canGroup ? <SelectionAction title={t("canvas.nodeToolbar.groupTitle")} label={t("canvas.nodeToolbar.group")} icon={<Group className="size-4" />} onClick={onGroup} /> : null}
+-                    {canUngroup ? <SelectionAction title={t("canvas.nodeToolbar.ungroupTitle")} label={t("canvas.nodeToolbar.ungroup")} icon={<Ungroup className="size-4" />} onClick={onUngroup} /> : null}
+-                    <SelectionAction title="整理选中卡片（可撤销）" label="整理卡片" icon={<Grid2x2 className="size-4" />} onClick={onOrganize} />
+-                    <SelectionAction title="下载所选" label={downloading ? "正在打包" : "下载所选"} disabled={downloading || !selectedDownloadFiles(nodes).length}
+-                        icon={downloading ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />} onClick={onDownload} />
+-                </div>
+-            ) : null}
++            {toolbarRoot ? createPortal(actions, toolbarRoot) : actions}
+         </>
+     );
+ }

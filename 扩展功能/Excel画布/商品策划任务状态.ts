@@ -1,12 +1,13 @@
 import type { CanvasNodeMetadata } from "@/types/canvas";
 import type { CanvasNodeContext } from "@/types/canvas-plugin";
 
-export type ProductPlanningTask = { id: string; startedAt: number; status: "loading" | "success" | "error" | "idle" };
+export type ProductPlanningTask = { id: string; startedAt: number; status: "loading" | "success" | "error" | "idle"; productId?: string; nodeId?: string };
 type PlanningMetadata = CanvasNodeMetadata & { productPlanningTask?: ProductPlanningTask };
 
-export async function runProductPlanningTask<T>(ctx: CanvasNodeContext, signal: AbortSignal, work: () => Promise<T>): Promise<T> {
+export async function runProductPlanningTask<T>(ctx: CanvasNodeContext, signal: AbortSignal, work: () => Promise<T>, productId?: string): Promise<T> {
     signal.throwIfAborted();
-    const task: ProductPlanningTask = { id: crypto.randomUUID(), startedAt: Date.now(), status: "loading" };
+    const task: ProductPlanningTask = { id: crypto.randomUUID(), startedAt: Date.now(), status: "loading",
+        ...(productId ? { productId, nodeId: ctx.node.id } : {}) };
     const current = () => ctx.getNode(ctx.node.id);
     if (!current()) throw Error("产品参数卡已移除。");
     ctx.updateMetadata({ productPlanningTask: task } as PlanningMetadata);

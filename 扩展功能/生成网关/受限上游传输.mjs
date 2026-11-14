@@ -8,10 +8,12 @@ import { relayHeaders } from '../故障切换/受限代理传输.mjs';
 
 // 不使用全局fetch、不跟随重定向、不继承环境代理、Cookie或浏览器请求头。
 // HTTPS证书和SNI仍使用原主机名，lookup只提供经核验的地址。
-export function requestProviderBytes({ url, method, headers, bytes, signal, timeout = 10 * 60_000, testOrigins = [], includeHeaders = false, onChunk }) {
+export function requestProviderBytes({ url, method, headers, bytes, signal, timeout = 10 * 60_000, testOrigins = [], includeHeaders = false, onChunk, allowImageRedirect = false }) {
   requireValue(url instanceof URL && ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'PROPFIND', 'MKCOL', 'MOVE', 'COPY'].includes(method) && Buffer.isBuffer(bytes) && bytes.length <= MAX_REQUEST_BYTES &&
     Number.isSafeInteger(timeout) && timeout > 0 && timeout <= 10 * 60_000, 'invalid_provider_transport', '上游传输参数无效。');
   const test = url.protocol === 'http:' && url.hostname === '127.0.0.1' && testOrigins.includes(url.origin);
+  requireValue(!allowImageRedirect || method === 'GET' && !bytes.length && headers.accept === 'image/*'
+    && Object.keys(headers).every(name => ['accept', 'accept-encoding'].includes(name)), 'provider_redirect_denied', '仅匿名图片读取允许返回跳转目标。');
   requireValue(url.protocol === 'https:' || test, 'provider_transport_denied', '未允许的上游传输。');
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -23,7 +25,14 @@ export function requestProviderBytes({ url, method, headers, bytes, signal, time
     });
     const req = (test ? httpRequest : httpsRequest)(url, { method, headers, signal, agent: false, ...(test ? {} : { lookup: pinnedLookup, family: 4 }) }, res => {
       const chunks = []; let size = 0;
-      if (res.statusCode >= 300 && res.statusCode < 400) { res.destroy(); finish(new StorageError('provider_redirect_denied', '上游跳转已拒绝，未转发密钥到其他地址。', 502)); return; }
+      if (res.statusCode >= 300 && res.statusCode < 400) {
+        const location = res.headers.location;
+        res.destroy();
+        if (allowImageRedirect && [301, 302, 303, 307, 308].includes(res.statusCode) && typeof location === 'string' && location.length <= 16384)
+          finish(null, { status: res.statusCode, redirectLocation: location });
+        else finish(new StorageError('provider_redirect_denied', '上游跳转已拒绝，未转发密钥到其他地址。', 502));
+        return;
+      }
       const encoding = res.headers['content-encoding'];
       if (encoding && encoding !== 'identity') { res.destroy(); finish(new StorageError('provider_encoding_denied', '上游压缩响应不在本批验收范围。', 502)); return; }
       res.on('data', chunk => {

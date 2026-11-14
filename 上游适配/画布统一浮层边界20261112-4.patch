@@ -1,0 +1,45 @@
+diff --git a/web/src/components/canvas/canvas-create-menus.tsx b/web/src/components/canvas/canvas-create-menus.tsx
+index e7af1ba..610e7f2 100644
+--- a/web/src/components/canvas/canvas-create-menus.tsx
++++ b/web/src/components/canvas/canvas-create-menus.tsx
+@@ -1,4 +1,5 @@
+ import { useEffect, useRef } from "react";
++import { CanvasFloatingBoundary } from "@/扩展功能/画布交互/画布浮层容器";
+ import { OutsidePanelBoundary } from "@/扩展功能/主题/原生可关闭浮层";
+ import { ImageIcon, List, Music2, Settings2, Video, X } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+@@ -28,7 +29,7 @@ export function ConnectionCreateMenu({
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+     const { t } = useTranslation();
+     return (
+-        <OutsidePanelBoundary onClose={onClose}><div
++        <OutsidePanelBoundary onClose={onClose}><CanvasFloatingBoundary><div
+             className="absolute z-[120] w-[240px] rounded-2xl border p-2 shadow-2xl backdrop-blur"
+             data-connection-create-menu
+             style={{ left: pending.position.x, top: pending.position.y, transform: `scale(${1 / scale})`, transformOrigin: "top left", background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
+@@ -50,7 +51,7 @@ export function ConnectionCreateMenu({
+                 <ConnectionCreateOption theme={theme} icon={<Music2 className="size-4" />} title={t("canvas.createMenu.audio")} onClick={() => onCreate(CanvasNodeType.Audio)} />
+                 <ConnectionCreateOption theme={theme} icon={<Settings2 className="size-4" />} title={t("canvas.createMenu.config")} description={t("canvas.createMenu.configDescription")} onClick={() => onCreate(CanvasNodeType.Config)} />
+             </div>
+-        </div></OutsidePanelBoundary>
++        </div></CanvasFloatingBoundary></OutsidePanelBoundary>
+     );
+ }
+ 
+@@ -94,7 +95,7 @@ export function NodeCreateMenu({ position, scale = 1, onCreate, onClose }: { pos
+         return () => document.removeEventListener("pointerdown", handlePointerDown, true);
+     }, [onClose]);
+     return (
+-        <div
++        <CanvasFloatingBoundary><div
+             ref={menuRef}
+             className="guan-scroll-region absolute z-[120] max-h-[70vh] w-[240px] overflow-y-auto rounded-2xl border p-2 shadow-2xl backdrop-blur thin-scrollbar"
+             data-canvas-no-zoom
+@@ -114,6 +115,6 @@ export function NodeCreateMenu({ position, scale = 1, onCreate, onClose }: { pos
+                     <ConnectionCreateOption key={def.type} theme={theme} icon={def.icon} title={getNodeSpec(def.type).title} description={def.description} onClick={() => onCreate(def.type)} />
+                 ))}
+             </div>
+-        </div>
++        </div></CanvasFloatingBoundary>
+     );
+ }

@@ -1,0 +1,71 @@
+diff --git a/web/src/components/model-picker.tsx b/web/src/components/model-picker.tsx
+index 6703560..961540e 100644
+--- a/web/src/components/model-picker.tsx
++++ b/web/src/components/model-picker.tsx
+@@ -1,5 +1,6 @@
+ import { showMissingModelConfiguration } from "@/扩展功能/产品配置/模型配置门禁";
+ import { TextModelReasoningMenu } from "@/扩展功能/画布生成/文本模型推理菜单";
++import { ModelChannelName } from "@/扩展功能/画布生成/模型渠道名称";
+ import type { TextReasoningEffort } from "@/扩展功能/画布生成/文本推理强度";
+ import { useEffect, useId, useRef, useState } from "react";
+ import { useFallbackRevision } from "@/扩展功能/故障切换/浏览器状态";
+@@ -50,8 +51,8 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
+     };
+     if (capability === "text" && onReasoningEffortChange) return <TextModelReasoningMenu config={config} options={options}
+         value={current} open={open} onOpenChange={changeOpen} onSelect={onReasoningEffortChange}
+-        renderModel={model => <ModelLabel config={config} model={model} />} placeholder={pickerPlaceholder}
+-        className={cn("canvas-composer-model-picker flex h-8 max-w-full items-center gap-2 rounded-full border border-input bg-transparent px-3 text-sm font-normal shadow-sm transition-colors",
++        renderModel={(model, compact) => <ModelLabel config={config} model={model} compact={compact} />} placeholder={pickerPlaceholder}
++        className={cn("canvas-composer-model-picker flex h-10 min-h-10 max-w-full items-center gap-2 rounded-full border border-input bg-transparent px-3 py-1 text-sm font-normal shadow-sm transition-colors",
+             fullWidth ? "w-full min-w-0 justify-start" : "w-fit min-w-[9rem] justify-start", className)} />;
+ 
+     return (
+@@ -65,7 +66,7 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
+                 ref={trigger}
+                 style={open ? { pointerEvents: "auto" } : undefined}
+                 className={cn(
+-                    "canvas-composer-model-picker h-8 w-fit max-w-full gap-2 rounded-full border border-input bg-transparent px-3 text-sm font-normal shadow-sm transition-colors",
++                    "canvas-composer-model-picker h-10 min-h-10 w-fit max-w-full gap-2 rounded-full border border-input bg-transparent px-3 py-1 text-sm font-normal shadow-sm transition-colors",
+                     fullWidth ? "w-full min-w-0 justify-start" : "min-w-[9rem] justify-start",
+                     "data-[state=open]:border-ring data-[state=open]:ring-2 data-[state=open]:ring-ring/20",
+                     className,
+@@ -87,9 +88,12 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
+                 }}
+                 onKeyDown={() => { pointerInteraction.current = false; suppressClick.current = false; }}
+                 title={current ? modelOptionLabel(config, current) : pickerPlaceholder}
++                aria-label={current ? modelOptionLabel(config, current) : pickerPlaceholder}
+             >
+                 <ModelIcon model={current} />
+-                <span className="canvas-model-picker-text min-w-0 flex-1 truncate text-left">{current ? modelOptionLabel(config, current) : pickerPlaceholder}</span>
++                <span className="canvas-model-picker-text min-w-0 flex-1 text-left">{current && current !== FALLBACK_MODEL_OPTION
++                    ? <ModelChannelName config={config} model={current} compact />
++                    : <span className="block truncate">{current ? modelOptionLabel(config, current) : pickerPlaceholder}</span>}</span>
+             </SelectTrigger>
+             <SelectContent
+                 data-canvas-no-zoom
+@@ -111,7 +115,8 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
+             >
+                 {options.length ? (
+                     options.map((model) => (
+-                        <SelectItem key={model} value={model} textValue={modelOptionLabel(config, model)}>
++                        <SelectItem key={model} value={model} textValue={modelOptionLabel(config, model)}
++                            className="py-2 [&>span:last-child]:min-w-0 [&>span:last-child]:flex-1">
+                             <ModelLabel config={config} model={model} />
+                         </SelectItem>
+                     ))
+@@ -131,12 +136,12 @@ function emptyModelLabel(config: AiConfig, capability?: ModelCapability) {
+     return config.models.length ? i18n.t("settingsPanels.model.noMatch", { capability: label }) : i18n.t("settingsPanels.model.addFirst");
+ }
+ 
+-function ModelLabel({ config, model }: { config: AiConfig; model: string }) {
++function ModelLabel({ config, model, compact = false }: { config: AiConfig; model: string; compact?: boolean }) {
+     if (model === FALLBACK_MODEL_OPTION) return <span className="flex min-w-0 items-center gap-2"><Repeat2 className="size-4 shrink-0 opacity-70" /><span className="truncate">按 Fallback 自动选择</span></span>;
+     return (
+-        <span className="flex min-w-0 items-center gap-2">
++        <span className="flex w-full min-w-0 items-center gap-2">
+             <ModelIcon model={model} />
+-            <span className="truncate">{modelOptionLabel(config, model)}</span>
++            <ModelChannelName config={config} model={model} compact={compact} />
+         </span>
+     );
+ }

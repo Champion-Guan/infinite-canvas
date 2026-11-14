@@ -20,6 +20,7 @@ async function component(file, reducedMotion = false) {
   };
   const modules = {
     react, 'react/jsx-runtime': { jsx, jsxs: jsx },
+    '../产品配置/功能开关': { productFeatures: { excel: true } },
     'motion/react': { motion: { div: 'motion.div', button: 'motion.button', section: 'motion.section' }, useReducedMotion: () => reducedMotion },
     'react-dom': { createPortal: node => node },
     antd: { App: { useApp: () => ({ message: { error() {} } }) }, Tooltip: 'tooltip', Dropdown: 'NativeDropdown' },

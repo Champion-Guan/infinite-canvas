@@ -1,0 +1,23 @@
+diff --git a/web/src/components/text-settings-panel.tsx b/web/src/components/text-settings-panel.tsx
+index 6f4c1f3..f0b91d8 100644
+--- a/web/src/components/text-settings-panel.tsx
++++ b/web/src/components/text-settings-panel.tsx
+@@ -5,9 +5,7 @@ import i18n from "@/i18n";
+ import { ImageSettingsTheme } from "@/components/image-settings-panel";
+ import { type CanvasTheme } from "@/lib/canvas-theme";
+ import type { AiConfig, ReasoningEffort } from "@/stores/use-config-store";
+-import { modelTextReasoningEfforts, normalizeTextReasoningEffort, TEXT_REASONING_EFFORTS } from "@/扩展功能/画布生成/文本推理强度";
+-
+-const reasoningEffortOptions = TEXT_REASONING_EFFORTS;
++import { modelTextReasoningEfforts, modelTextReasoningEffortOptions, normalizeTextReasoningEffort } from "@/扩展功能/画布生成/文本推理强度";
+ 
+ type TextSettingsPanelProps = {
+     config: AiConfig;
+@@ -19,6 +17,7 @@ type TextSettingsPanelProps = {
+ export function TextSettingsPanel({ config, onConfigChange, theme, className = "space-y-4" }: TextSettingsPanelProps) {
+     const { t } = useTranslation();
+     const supported = modelTextReasoningEfforts(config);
++    const reasoningEffortOptions = modelTextReasoningEffortOptions(config.model || config.textModel || "");
+     const selected = normalizeTextReasoningEffort(config.reasoningEffort);
+     return (
+         <ImageSettingsTheme theme={theme}>

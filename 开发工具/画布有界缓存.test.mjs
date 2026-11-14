@@ -4,11 +4,13 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import * as deferredMedia from '../扩展功能/本机存储/画布媒体延迟恢复.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const require = createRequire(resolve(root, '.运行/3100源/画布副本/web/package.json'));
 const ts = require('typescript');
 function load(name, dependencies = {}) {
+    dependencies = { '../本机存储/画布媒体延迟恢复.mjs': deferredMedia, ...dependencies };
     const source = readFileSync(resolve(root, '扩展功能/产品', name), 'utf8');
     const module = { exports: {} };
     const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;

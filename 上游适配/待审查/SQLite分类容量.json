@@ -1,0 +1,72 @@
+{
+  "日期": "2026-10-18",
+  "状态": "待六文件具体差异批准；仅内存候选及自有面板预审，未接入运行副本",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/卡片自动避让-YFK58C/卡片布局接入记录.json",
+  "服务前置": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/SQLite写入协调-2XvqNB/服务包",
+  "差异SHA256": "3edbd9ed415032822a5602cef465dc7b67a38f39f1cd6ed313b8c7b7989171b4",
+  "完整候选类型检查通过": true,
+  "自有来源": [
+    {
+      "文件": "扩展功能/本机存储/分类容量统计.mjs",
+      "SHA256": "06342c022eff01c67051eeafcdd97c761abb8569226ff8863089237e97241f09"
+    },
+    {
+      "文件": "扩展功能/存储界面/SQLite分类容量面板.tsx",
+      "SHA256": "cf1ab3419b27c2c208f464ff0b38c8e476924ad9d40f7e6df45a64d094c3b758"
+    },
+    {
+      "文件": "扩展功能/本机存储/分片值编码.mjs",
+      "SHA256": "ca5fad4597fc2bddb225f33dcd7d6413dfc99935d4343fa29fe4595a07bf057c"
+    }
+  ],
+  "未改服务依赖": [
+    {
+      "文件": "扩展功能/本机存储/协议.mjs",
+      "SHA256": "7233efe46bfb06d5e509c6da2f16c871d8b397387edf2d90ddf91a48fbe4a095"
+    },
+    {
+      "文件": "扩展功能/本机服务/写入协调.mjs",
+      "SHA256": "0083e95e41c546dc2f7a956a6ab1261b1d98ccc31db67b09ea2d5e33469809e4"
+    }
+  ],
+  "文件": [
+    {
+      "文件": "扩展功能/本机存储/SQLite工作区.mjs",
+      "原始SHA256": "8ec1b80dafb66627812b7e5d8b631662d7d7aab70a18de916d43851449c08e69",
+      "候选SHA256": "0a38416ecd66e75580aa95a6884cf8f6ed8f7401d8b289a432135823edd76f1f"
+    },
+    {
+      "文件": "扩展功能/本机服务/数据服务.mjs",
+      "原始SHA256": "6983a8898be786052704641a6369ef1deda922468ac6367af50ba5098f5d6bf6",
+      "候选SHA256": "ee348246b855d356b671ba247a13f5c198e3b284df5079e050aecbe66980e228"
+    },
+    {
+      "文件": "扩展功能/本机存储/分类容量统计.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "06342c022eff01c67051eeafcdd97c761abb8569226ff8863089237e97241f09"
+    },
+    {
+      "文件": "扩展功能/本机存储/分片值编码.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "ca5fad4597fc2bddb225f33dcd7d6413dfc99935d4343fa29fe4595a07bf057c"
+    },
+    {
+      "文件": "web/src/components/layout/config-local-storage.tsx",
+      "原始SHA256": "f4b487662652775fb1c4b08040fa52f7c8b42261cec891af03f47e38fc63f0b3",
+      "候选SHA256": "eb1a049119be44d787430c5c3e28198095e670262567471ea4df24f2374fecd2"
+    },
+    {
+      "文件": "web/src/guan/SQLite分类容量面板.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "cf1ab3419b27c2c208f464ff0b38c8e476924ad9d40f7e6df45a64d094c3b758"
+    }
+  ],
+  "保持约束": [
+    "作者506文件、已批准源码及历史批准器不变",
+    "仅受限usage读接口，Host/Origin/会话/CSRF/限流及写入协调保留",
+    "只读事务核验当前v1/v2，媒体按块去重，不解密、不读媒体正文、不清理、不迁数据",
+    "备份不计入；磁盘文件长度为采样值，不是文件系统分配空间",
+    "无周期统计或画布逐帧订阅；不重启/接管3100、不访问真实数据或Keychain、不推送发布"
+  ]
+}

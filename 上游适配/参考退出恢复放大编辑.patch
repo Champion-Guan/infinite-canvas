@@ -1,0 +1,33 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 752f0fe..0c4d9ac 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -348,6 +348,10 @@ function InfiniteCanvasPage() {
+     const nodeResizingRef = useRef(false);
+     const [dropTargetGroupId, setDropTargetGroupId] = useState<string | null>(null);
+     const [referencePickerNodeId, setReferencePickerNodeId] = useState<string | null>(null);
++    const [expandedEditorNodeId, setExpandedEditorNodeId] = useState<string | null>(null);
++    useEffect(() => {
++        if (!dialogNodeId && !referencePickerNodeId) setExpandedEditorNodeId(null);
++    }, [dialogNodeId, referencePickerNodeId]);
+ 
+     const revealCreatedNodeRef = useRef<string | null>(null);
+     const connectionsRef = useRef(connections);
+@@ -3155,6 +3159,8 @@ function InfiniteCanvasPage() {
+             ) : (
+                 <CanvasNodePromptPanel
+                     node={panelNode}
++                    expanded={expandedEditorNodeId === panelNode.id}
++                    onExpandedChange={open => setExpandedEditorNodeId(open ? panelNode.id : null)}
+                     imageCountSummary={variantImageCount(panelNode, contentNodes, connections, effectiveConfig.canvasImageCount || effectiveConfig.count)}
+                     nodes={contentNodes}
+                     isRunning={runningNodeIds.has(panelNode.id)}
+@@ -3173,7 +3179,7 @@ function InfiniteCanvasPage() {
+                     }}
+                 />
+             )}</OutsidePanelBoundary>,
+-        [configInputsById, confirmStopGeneration, connectedNodesByNodeId, disconnectNodeReference, handleConfigNodeChange, handleGenerateNode, handleNodePromptChange, mentionReferencesByNodeId, contentNodes, connections, effectiveConfig.canvasImageCount, effectiveConfig.count, renderPluginPanel, runningNodeIds, startNodeReferenceSelection],
++        [configInputsById, confirmStopGeneration, connectedNodesByNodeId, disconnectNodeReference, expandedEditorNodeId, handleConfigNodeChange, handleGenerateNode, handleNodePromptChange, mentionReferencesByNodeId, contentNodes, connections, effectiveConfig.canvasImageCount, effectiveConfig.count, renderPluginPanel, runningNodeIds, startNodeReferenceSelection],
+     );
+ 
+     const renderNodeContentPanel = useCallback(

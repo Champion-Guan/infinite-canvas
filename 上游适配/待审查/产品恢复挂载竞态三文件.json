@@ -1,0 +1,39 @@
+{
+  "日期": "2026-10-19",
+  "状态": "待具体差异批准，未接入或启动",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/产品悬浮删除-OlIVTI/产品悬浮删除接入记录.json",
+  "前置差异SHA256": "afed13930d9200d55060344253d1b10d89b1354b79ac371b8d3d424b52999d2b",
+  "自有来源": {
+    "扩展功能/产品/产品恢复挂载门禁.ts": "f2f8531d696ff1a03a8b7e2db84ed72f7289590fe064c30ef0589f47c5d671ee"
+  },
+  "差异SHA256": "9b53379eced8bccde8f5fad5e0eca71da37ddc2c15281a1812bd5ae13b1137bf",
+  "文件数": 3,
+  "文件": [
+    {
+      "文件": "web/src/guan/产品恢复挂载门禁.ts",
+      "原始SHA256": null,
+      "候选SHA256": "f2f8531d696ff1a03a8b7e2db84ed72f7289590fe064c30ef0589f47c5d671ee"
+    },
+    {
+      "文件": "web/src/guan/产品操作.ts",
+      "原始SHA256": "600f316d4299dc838de1ca73ffc75e0a2408077a476388de933a0ff408077b3f",
+      "候选SHA256": "cb4130aeaf6ba1e58f067fdaffc5739eead04886f1b44f7b3476dbb6eec7b81a"
+    },
+    {
+      "文件": "web/src/guan/产品工作区.tsx",
+      "原始SHA256": "7de4ded3f5021f38b78de58900becbee1b128e3aa3f9d2f93f02f2fe0d11660e",
+      "候选SHA256": "d58edceb72287b87ff962d0a064c9eb1681ff699dada52611788b92494aa57bf"
+    }
+  ],
+  "完整虚拟候选类型检查通过": true,
+  "已接入": false,
+  "已重启3100": false,
+  "真实浏览器验收": false,
+  "范围": [
+    "恢复ID在业务状态发布前封住挂载；根ACK、导航偏好ACK及导航发起后才放行",
+    "根/偏好/导航失败不放行，保留同一恢复快照和显式重试；其他产品实例不卸载",
+    "仅当前网址指向未确认恢复产品时显示状态提示，防止空白；不改既有胶囊与弹窗视觉",
+    "不修改SQLite桥、授权、限流、媒体白名单、历史批准/保护器或作者文件"
+  ]
+}

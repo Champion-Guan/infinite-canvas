@@ -1,0 +1,11 @@
+--- a/web/src/guan/Excel导入面板.tsx
++++ b/web/src/guan/Excel导入面板.tsx
+@@ -59,7 +59,7 @@
+         if (target?.closest("[data-excel-import-cancel]")) cancel();
+         else if (target?.closest("[data-excel-import-confirm]")) void submit();
+       }}
+-      onChange={event => {
++      onInput={event => {
+         const target = event.target;
+         const current = selection.current;
+         if (!(target instanceof HTMLInputElement) || !current || submitting.current || pending.busy || pending.error) return;

@@ -1,0 +1,19 @@
+{
+  "日期": "2026-10-18",
+  "状态": "待单独批准，未接入",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/产品核心迁入-TkJCTN/产品接入记录.json",
+  "前置差异SHA256": "4143370262ebf7425c4bc59e1b980ee80ad843ccd8bbf5b144c0a4e7896f170a",
+  "差异SHA256": "98cd30ccf0da6a3cf170857e5ea32e081db064d6367088a6d3082c745d8bb505",
+  "文件": [
+    {
+      "文件": "web/src/guan/画布入口.tsx",
+      "原始SHA256": "8ee3a14a6e63d0c474dcf532a4b5db247369ad1d3ab3ffd6dae06b3ee4b37114",
+      "候选SHA256": "39d9dc3af9bbb8f6c118828ca01fa29288ab14e2630850b2f2604ffcfed94801"
+    }
+  ],
+  "完整虚拟候选类型检查通过": true,
+  "已应用运行副本": false,
+  "已重启3100": false,
+  "范围": "仅在创建事务busy期间暂缓首页自动跳转；统一创建出口确认保存后才导航。不放宽SQLite保存门禁。"
+}

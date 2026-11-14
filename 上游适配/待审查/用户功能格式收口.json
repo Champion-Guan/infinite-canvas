@@ -1,0 +1,44 @@
+{
+  "状态": "未批准，未应用",
+  "前置批准差异SHA256": "b76672614125cf0316b27c3347bff04d1bae8a1964dd28922a9e56d5bcd1bbc8",
+  "差异SHA256": "06bbd451cd222e3d89eb950876ad62e2b2b82eb3a59590e7df796f3429c2718a",
+  "类型预审通过": true,
+  "AST结构一致": true,
+  "文件": [
+    {
+      "文件": "web/src/components/canvas/canvas-top-bar.tsx",
+      "原始SHA256": "4251a6db892bbc51942b01610c8b7babfe3e0da666d9239ae2562043e5512143",
+      "产物SHA256": "71dc3df3e6adc288bdf35a18b70231ae2f3a5a9d23cb8cb5bac4d35070a77f38"
+    },
+    {
+      "文件": "web/src/components/layout/app-top-nav.tsx",
+      "原始SHA256": "0cb53effb594f09622b5e4b23b6beb20ca69212a2cb016a092a504c00292f814",
+      "产物SHA256": "b8975e8812a36e8e0696e4e06a3c6fe6df850e7ebdc3fe1271eb670cb6bfda95"
+    },
+    {
+      "文件": "web/src/constant/navigation-tools.ts",
+      "原始SHA256": "ab60a70da4328cfe83322b29df7b127d92040f7ca175a1d261be013acfc64b05",
+      "产物SHA256": "7a2885cd6fad90e9905ecb6aed09638912c7097b67eb0f9b2a33f444eed4a01e"
+    },
+    {
+      "文件": "web/src/guan/功能开关.ts",
+      "原始SHA256": "cb1349043a3be329a04209691362cfe965034a68615d5027c0245ebe3ea7f7ae",
+      "产物SHA256": "3cc08c1d0ca302594810fa02a624f4e6db8ea949da4e6995191b0fad0d101bd8"
+    },
+    {
+      "文件": "web/src/guan/画布入口.tsx",
+      "原始SHA256": "0016a03d66de7296d2d12d52fa84eb12560b58285397eb917ae17483bba75ee8",
+      "产物SHA256": "477fd64abe40adefaf57b039af2b3a898b0c93eb9a47e43f821c433063cba8d0"
+    },
+    {
+      "文件": "web/src/router.tsx",
+      "原始SHA256": "4e22148eedc1f86d3e226496bab586b24c6d3aa71b4c9f31967792dfea6dc6aa",
+      "产物SHA256": "8370e123d16a76c3129c34cdb71ab1aeaa3b197e1c4c82328fa789959ee399d5"
+    },
+    {
+      "文件": "web/src/stores/use-theme-store.ts",
+      "原始SHA256": "d5faba252827072070030972531130a9d671e14fe80f166681219757133a75b1",
+      "产物SHA256": "c6953e1151ae204042fe8830bd8962f54159b041265544359e3452cecdacee8d"
+    }
+  ]
+}

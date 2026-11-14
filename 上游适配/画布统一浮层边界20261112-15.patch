@@ -1,0 +1,14 @@
+diff --git a/web/src/components/canvas/canvas-top-bar.tsx b/web/src/components/canvas/canvas-top-bar.tsx
+index 9f6c207..f00a30f 100644
+--- a/web/src/components/canvas/canvas-top-bar.tsx
++++ b/web/src/components/canvas/canvas-top-bar.tsx
+@@ -2,7 +2,8 @@ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { productFeatures } from "@/扩展功能/产品配置/功能开关";
+ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+ import { Bot, Download, Grid2x2, Keyboard, Menu, PanelLeftClose, PanelLeftOpen, Redo2, Undo2, Upload } from "lucide-react";
+-import { Button, Tooltip, type MenuProps } from "antd";
++import { Button, type MenuProps } from "antd";
++import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+ import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { OutsideDropdown as Dropdown } from "@/扩展功能/主题/原生可关闭浮层";
+ import { useTranslation } from "react-i18next";

@@ -1,0 +1,62 @@
+{
+  "状态": "待单独批准",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "关闭编号": [
+    "S03",
+    "R02",
+    "R03"
+  ],
+  "前置双入口差异SHA256": "84ce03a198345769f2314e0e7dc220b1030a7f9d93152ff410125036afc425ef",
+  "已应用到运行副本": false,
+  "语法预审通过": true,
+  "完整类型预审通过": true,
+  "标准差异检查通过": true,
+  "差异SHA256": "b615e837c229023f3f021601fa506ad8bcaaae8886cd4631bea3dad97f29f2ec",
+  "文件": [
+    {
+      "文件": "web/src/components/layout/channel-editor-drawer.tsx",
+      "原始SHA256": "307e77faca65d787eef6a001a7d2b2f8842ee22e851177c1151a80fa702742d7",
+      "候选SHA256": "fa23b785feb56458e6f864cbec062fbacab335b5023399b0d12dc98be42c8f8a"
+    },
+    {
+      "文件": "web/src/stores/use-config-store.ts",
+      "原始SHA256": "fa16cd47a8b7a7c8f3f1ab77f0f81ccbc5766e64aea4b3cd07440f3fcd6f11fb",
+      "候选SHA256": "290b8580340e3d567d95d1c064af83d99621ff33baeb67d27b17965833ff9846"
+    },
+    {
+      "文件": "web/src/services/api/model-plugin.ts",
+      "原始SHA256": "cbc54810ea7222569dcd366b7b948b2b57acbcf1a50c42e9c41475b7ebb2f16a",
+      "候选SHA256": "392fbd01625c8e28d225041a6681a82820c431bf722516fe2bd7c696c841f868"
+    },
+    {
+      "文件": "web/src/components/layout/app-config-modal.tsx",
+      "原始SHA256": "c5ddad0b74425954a95f96a9462dc5365155560e03831528832057ebf1b20522",
+      "候选SHA256": "41d0c4f0dade16b6ffec4afa66799fedbc7339900483718e5442aeb55b583960"
+    },
+    {
+      "文件": "web/src/hooks/use-prompt-source-scheduler.ts",
+      "原始SHA256": "f9bed2764ed646fe261800dcd7cd26a28697bc37523f9913bfa481891006c26a",
+      "候选SHA256": "c99233a8ac3eebf5d243e40582617faa8cb92ad2824455541f570f0fddfb2eec"
+    },
+    {
+      "文件": "web/src/services/api/prompts.ts",
+      "原始SHA256": "8bb11ee5a469311f133abe03f34bf397b758c0a54945f0472526f1149c5c2ea7",
+      "候选SHA256": "758bea924e710e5f5a281dafe2885710a45425a6863f9468675edbe8e475db19"
+    },
+    {
+      "文件": "web/src/services/api/prompt-source-runtime.ts",
+      "原始SHA256": "486d64deada32448b78f72e9d809253d7791cef8972060b9d6272076d36ee583",
+      "候选SHA256": "2f48f6d7ae8280148f152316cffd96dd028af8203ecbc00f262847892816edae"
+    },
+    {
+      "文件": "web/src/stores/use-prompt-source-store.ts",
+      "原始SHA256": "f7a21a3a82ac74d07ec13a47fb9780cdc72d98fd65b84cd832a32accac442fc1",
+      "候选SHA256": "5375a707f84d92308c60259fc8f83ed3aa5988e36c295c4dab04f989e33579c0"
+    },
+    {
+      "文件": "web/src/guan/脚本与提示词来源.ts",
+      "原始SHA256": null,
+      "候选SHA256": "62558bf529d4c18ba0bc7a14e75dedb77e77dddf92f7434d79a72b518c4dffce"
+    }
+  ]
+}

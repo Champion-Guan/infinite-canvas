@@ -1,0 +1,23 @@
+diff --git a/web/src/stores/use-asset-store.ts b/web/src/stores/use-asset-store.ts
+index 97bda2f..88c3c60 100644
+--- a/web/src/stores/use-asset-store.ts
++++ b/web/src/stores/use-asset-store.ts
+@@ -104,11 +104,13 @@ async function refreshAssetMedia(assets: Asset[]) {
+ 
+ const assetStorage: PersistStorage<AssetStore> = {
+     getItem: async (name) => assetReadGate.read(name, async () => {
+-        const value = await localForageStorage.getItem(name);
+-        if (!value) return null;
+-        const parsed = JSON.parse(value) as StorageValue<AssetStore>;
+-        parsed.state.assets = parsed.state.assets.map(restoreAsset);
+-        return parsed;
++        let parsed = localForageStorage.takeDecodedState?.<StorageValue<AssetStore>>(name);
++        if (!parsed) {
++            const value = await localForageStorage.getItem(name);
++            if (!value) return null;
++            parsed = JSON.parse(value) as StorageValue<AssetStore>;
++        }
++        return { ...parsed, state: { ...parsed.state, assets: parsed.state.assets.map(restoreAsset) } };
+     }),
+     setItem: (name, value) => { assetReadGate.assertWritable(name); return localForageStorage.setItem(name, JSON.stringify(value)); },
+     removeItem: (name) => { assetReadGate.assertWritable(name); return localForageStorage.removeItem(name); },

@@ -1,0 +1,28 @@
+diff --git a/web/src/services/api/prompts.ts b/web/src/services/api/prompts.ts
+index 0d1888f..36a9887 100644
+--- a/web/src/services/api/prompts.ts
++++ b/web/src/services/api/prompts.ts
+@@ -141,6 +141,7 @@ async function getAllPrompts(): Promise<Prompt[]> {
+ }
+ 
+ export async function fetchPrompts({ keyword = "", tag = [], category = ALL_PROMPTS_OPTION, page = 1, pageSize = 20 }: { keyword?: string; tag?: string[]; category?: string; page?: number; pageSize?: number } = {}) {
++    requireBusinessFeature("promptLibrary");
+     const items = await getAllPrompts();
+     const normalizedKeyword = keyword.trim().toLowerCase();
+     const normalizedPage = Math.max(1, page);
+@@ -158,6 +159,7 @@ export async function fetchPrompts({ keyword = "", tag = [], category = ALL_PROM
+ }
+ 
+ export async function fetchSourcePrompts(sourceId: string): Promise<Prompt[]> {
++    requireBusinessFeature("promptSources");
+     const source = usePromptSourceStore.getState().sources.find((item) => item.id === sourceId);
+     if (!source) throw new Error(i18n.t("prompts.sourceMissing"));
+     return getSourcePrompts(source);
+@@ -192,6 +194,7 @@ export async function refreshDueSources(maxAgeMs: number): Promise<PromptSourceR
+ }
+ 
+ export async function fetchPromptSourceStatuses(): Promise<Record<string, PromptSourceStatus>> {
++    requireBusinessFeature("promptSources");
+     const entries = await Promise.all(
+         usePromptSourceStore.getState().sources.map(async (source) => {
+             const cache = await readSourceCache(source.id);

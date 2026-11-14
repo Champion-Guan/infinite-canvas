@@ -1,0 +1,11 @@
+--- a/扩展功能/本机服务/受限工作台启动器.mjs
++++ b/扩展功能/本机服务/受限工作台启动器.mjs
+@@ -47,7 +47,7 @@
+   const server = createServer(async (req, res) => {
+     res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'no-referrer');
+     res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+-    res.setHeader('Content-Security-Policy', `default-src 'none'; script-src 'self' ${scriptHashes}; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' ${service?.url ?? ''}; worker-src 'self' blob:; frame-ancestors 'none'; form-action 'self'; base-uri 'none'`);
++    res.setHeader('Content-Security-Policy', `default-src 'none'; script-src 'self' ${scriptHashes}; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: ${service?.url ?? ''}; worker-src 'self' blob:; frame-ancestors 'none'; form-action 'self'; base-uri 'none'`);
+     if (!ready) { res.writeHead(503); res.end('本机工作区尚未就绪。'); req.resume(); return; }
+     if (await gateway.handle(req, res)) return;
+     const expected = `127.0.0.1:${server.address().port}`;

@@ -1,0 +1,32 @@
+diff --git a/web/src/pages/image/index.tsx b/web/src/pages/image/index.tsx
+index 20aa0b9..5234695 100644
+--- a/web/src/pages/image/index.tsx
++++ b/web/src/pages/image/index.tsx
+@@ -1,4 +1,5 @@
+ import { ensureModelConfigured } from "@/扩展功能/产品配置/模型配置门禁";
++import { imageSizeRetryBlocked } from "@/扩展功能/媒体交付/生成图片尺寸交付.mjs";
+ import { uploadGeneratedImage } from "@/services/image-storage";
+ import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, ImagePlus, LoaderCircle, PenLine, Plus, SlidersHorizontal, Sparkles, Trash2, Upload } from "lucide-react";
+ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+@@ -350,6 +351,7 @@ export default function ImagePage() {
+     };
+ 
+     const retryResult = async (index: number) => {
++        if (imageSizeRetryBlocked({ errorDetails: results[index]?.error })) return;
+         const snapshot = buildRequestSnapshot();
+         if (!snapshot) return;
+         setPreviewLog(null);
+@@ -669,11 +671,11 @@ function FailedImageCard({ error, onRetry }: { error: string; onRetry: () => voi
+                     {error}
+                 </Typography.Paragraph>
+             </div>
+-            <div className="flex justify-end border-t border-red-200 p-3 dark:border-red-950">
++            {!imageSizeRetryBlocked({ errorDetails: error }) ? <div className="flex justify-end border-t border-red-200 p-3 dark:border-red-950">
+                 <Button size="small" danger onClick={onRetry}>
+                     {t("workbench.retry")}
+                 </Button>
+-            </div>
++            </div> : null}
+         </div>
+     );
+ }

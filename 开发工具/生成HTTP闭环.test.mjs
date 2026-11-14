@@ -35,6 +35,19 @@ test('真实HTTP/客户端→后端凭据→模拟渠道→SQLite→原产品保
     assert.equal(result.applied, true); assert.equal(f.requests.length, 1); assert.ok(f.checks >= 12);
   } finally { await f.close(); }
 });
+test('超过旧32MiB的40MiB请求通过本机HTTP及上游传输，正文完整且只发送一次', async () => {
+  const f = await fixture();
+  try {
+    const bound = await f.bind(), input = f.submit(bound.binding);
+    const bytes = Buffer.from(JSON.stringify({ model: 'synthetic', input: 'x'.repeat(40 * 1024 ** 2) }));
+    input.request.path = '/v1/responses';
+    input.request.body = bytes.toString('base64');
+    await f.client.submit(input); await f.tasks.drain();
+    assert.equal(f.tasks.get(input.id).state, 'succeeded');
+    assert.equal(f.requests.length, 1);
+    assert.deepEqual(f.requests[0].bytes, bytes);
+  } finally { await f.close(); }
+});
 test('原授权HTTP及客户端可以收口未提交身份，撤销后拒绝且不发送API', async () => {
   const f = await fixture();
   try {

@@ -1,0 +1,16 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index b27b374..75cb6a4 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -2969,9 +2969,9 @@ function InfiniteCanvasPage() {
+         setDialogNodeId, message, emptyPromptMessage: t("canvas.projectPage.emptyTextImage"),
+     });
+ 
+-    const { addGenerationConfigsForPromptNodes, generateAllConfigNodes, completeAndGenerateAll } = useCanvasBatchGeneration({ projectId, nodesRef, connectionsRef, effectiveConfig, setNodes, setConnections, setSelectedNodeIds, setSelectedConnectionId, handleGenerateNode, saveCanvas: saveProductCanvas, message });
++    const { addGenerationConfigsForPromptNodes, generateConfigNodes, generateAllConfigNodes, completeAndGenerateAll } = useCanvasBatchGeneration({ projectId, nodesRef, connectionsRef, effectiveConfig, setNodes, setConnections, setSelectedNodeIds, setSelectedConnectionId, handleGenerateNode, saveCanvas: saveProductCanvas, message });
+     useProductPlanningSuccessNotice({ projectId, active: productActive && projectLoaded, assertActive: assertImportTarget,
+-        hasNode: id => Boolean(pluginHost.getNode(id)), generateAllConfigNodes });
++        hasNode: id => Boolean(pluginHost.getNode(id)), generateConfigNodes });
+ 
+     const insertAssistantImage = useCallback(
+         protectProductCanvasWork(projectId, async (image: CanvasAssistantImage) => {

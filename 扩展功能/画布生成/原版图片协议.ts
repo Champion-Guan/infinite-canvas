@@ -9,6 +9,7 @@ import type { ReferenceImage } from "@/types/image";
 import { assertImageReferenceLimit } from "./参考图数量限制";
 import { resolvePromptVariables } from "../提示词/变量使用规则";
 import { imageSizePresets } from "../图片设置/图片尺寸规则";
+import { imageRequestSizePlan, imagePaddingPrompt, padImageReference, type ImageRequestPadding } from "../媒体交付/生成图片尺寸交付.mjs";
 type AiConfig = BaseAiConfig & { moderation?: string };
 
 const apiText = (key: string, options?: Record<string, unknown>) => i18n.t(`apiErrors.${key}`, options);
@@ -43,6 +44,7 @@ export type GeneratedImage = {
     dataUrl: string;
     deliverySize?: string;
     upstreamSize?: string;
+    padding?: ImageRequestPadding;
     channel?: string;
     channelId?: string;
     model?: string;
@@ -55,15 +57,14 @@ const DEFAULT_IMAGE_SHORT_SIDE = 1024;
 
 const IMAGE_SIZE_STEP = 16;
 
-const IMAGE_MIN_PIXELS = 655360;
-
 const IMAGE_OUTPUT_FORMAT = "png";
 
 const GEMINI_SUPPORTED_RATIOS = ["1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9"];
 
 function supportsAdvancedImageQuality(model: string) {
     const value = model.trim().toLowerCase();
-    return value.includes("gpt-image-2.5");
+    const version = value.match(/(?:^|[/:])gpt-image-(\d+)(?:\.(\d+))?(?=$|-)/);
+    return Boolean(version && (Number(version[1]) > 2 || Number(version[1]) === 2 && Number(version[2] || 0) >= 5));
 }
 
 function normalizeQuality(quality: string, model = "") {
@@ -108,7 +109,7 @@ function parseImageRatio(value: string) {
 }
 
 function parseImageDimensions(value: string) {
-    const match = value.match(/^(\d+)x(\d+)$/i);
+    const match = value.trim().match(/^(\d+)x(\d+)$/i);
     if (!match) return null;
     return { width: Number(match[1]), height: Number(match[2]) };
 }
@@ -119,20 +120,10 @@ function validateImageSize(width: number, height: number) {
 }
 
 function ensureMinimumImagePixels(size: string) {
-    // Keep the original ratio while satisfying the minimum pixels and 16px grid.
     const dimensions = parseImageDimensions(size);
     if (!dimensions) return size;
-    if (Math.max(dimensions.width, dimensions.height) / Math.min(dimensions.width, dimensions.height) > 3) throw new Error("上游不支持超过 3:1 的图片比例，无法保持此比例生成");
-    let a = dimensions.width;
-    let b = dimensions.height;
-    while (b) { const remainder = a % b; a = b; b = remainder; }
-    const widthUnit = dimensions.width / a;
-    const heightUnit = dimensions.height / a;
-    // Coprime ratio units require a multiplier divisible by 16 for both edges.
-    let multiplier = Math.ceil(Math.max(a, Math.ceil(Math.sqrt(IMAGE_MIN_PIXELS / (widthUnit * heightUnit)))) / 16) * 16;
-    while (widthUnit * heightUnit * multiplier * multiplier < IMAGE_MIN_PIXELS) multiplier += 16;
-    if (Math.max(widthUnit, heightUnit) * multiplier > 3840 || widthUnit * heightUnit * multiplier * multiplier > 8294400) throw new Error("无法仅通过等比例放大得到合法上游尺寸，请调整交付尺寸或比例（上游单边最多 3840、总像素最多 8294400）");
-    return `${widthUnit * multiplier}x${heightUnit * multiplier}`;
+    const plan = imageRequestSizePlan(dimensions.width, dimensions.height);
+    return `${plan.width}x${plan.height}`;
 }
 
 function resolveRequestSize(_quality: string | undefined, size: string) {
@@ -248,10 +239,14 @@ function toGeminiImagePart(url: string): GeminiPart {
 
 function attachRequestMetadata<T extends { id: string; dataUrl: string }>(images: T[], config: AiConfig, requestConfig: AiConfig, transport?: "direct" | "proxy"): GeneratedImage[] {
     const channel = resolveModelChannel(config, config.model || config.imageModel);
+    const dimensions = parseImageDimensions(config.size);
+    const padding = requestConfig.apiFormat !== "gemini" && dimensions
+        ? imageRequestSizePlan(dimensions.width, dimensions.height).padding : undefined;
     return images.map((image) => ({
         ...image,
         deliverySize: config.size,
         upstreamSize: resolveRequestSize(normalizeQuality(config.quality, requestConfig.model), config.size),
+        ...(padding ? { padding } : {}),
         channel: channel.name,
         channelId: channel.id,
         model: requestConfig.model,
@@ -265,7 +260,7 @@ export async function prepareOriginalImageRequest(config: AiConfig, prompt: stri
     const requestConfig = resolveModelRequestConfig(config, config.model || config.imageModel);
     // 原脚本关闭策略继续生效；不把脚本模型静默改为系统请求。
     if (resolveModelScript(config, config.model || config.imageModel)) throw new Error("自定义模型脚本已停用");
-    const requestPrompt = references.length ? buildImageReferencePromptText(prompt, references) : prompt;
+    let requestPrompt = references.length ? buildImageReferencePromptText(prompt, references) : prompt;
     const n = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));
     if (requestConfig.apiFormat === "gemini") {
         if (n !== 1) throw new Error("画布图片任务必须逐张登记，不能共用任务身份");
@@ -284,6 +279,9 @@ export async function prepareOriginalImageRequest(config: AiConfig, prompt: stri
     }
     const quality = normalizeQuality(config.quality, requestConfig.model);
     const requestSize = resolveRequestSize(quality, config.size);
+    const dimensions = parseImageDimensions(config.size);
+    const padding = dimensions ? imageRequestSizePlan(dimensions.width, dimensions.height).padding : undefined;
+    if (padding) requestPrompt += imagePaddingPrompt(padding);
     const background = normalizeBackground(config.background);
     if (!references.length) {
         return encodeImageRequest("/v1/images/generations", {
@@ -305,7 +303,12 @@ export async function prepareOriginalImageRequest(config: AiConfig, prompt: stri
     if (requestSize) formData.set("size", requestSize);
     if (background) formData.set("background", background);
     formData.set("moderation", normalizeModeration(config.moderation));
-    const files = await Promise.all(references.map(async (image) => dataUrlToFile({ ...image, dataUrl: await imageToDataUrl(image) })));
+    const files: File[] = [];
+    for (const image of references) {
+        const original = await imageToDataUrl(image);
+        const dataUrl = padding ? await padImageReference(original, padding) : original;
+        files.push(dataUrlToFile({ ...image, dataUrl }));
+    }
     const imageField = files.length > 1 ? "image[]" : "image";
     files.forEach((file) => formData.append(imageField, file));
     return encodeImageRequest("/v1/images/edits", formData);

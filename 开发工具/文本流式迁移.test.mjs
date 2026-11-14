@@ -16,6 +16,7 @@ import { runCanvasImageTask } from '../扩展功能/画布生成/图片任务衔
 import { recoverGenerationResponse } from '../扩展功能/生成任务/本机任务响应恢复.mjs';
 import * as preview from '../扩展功能/画布生成/文本临时显示.mjs';
 import { generationFixture, listen, closeServer } from './生成网关隔离夹具.mjs';
+import * as reasoning from '../扩展功能/画布生成/文本推理强度.ts';
 
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; };
 const event = value => 'data: ' + JSON.stringify(value) + '\r\n\r\n';
@@ -25,6 +26,7 @@ const request = (body = { model: 'synthetic', stream: true }, path = '/v1/respon
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(predicate) { for (let i = 0; i < 100; i++) { if (await predicate()) return; await pause(10); } assert.fail('没有收到预期进度'); }
 async function load(file, dependencies = {}) {
+  dependencies = { './文本推理强度': reasoning, ...dependencies };
   const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file, { loader: 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
   const module = { exports: {} };
   new Function('require', 'module', 'exports', code)(id => { assert.ok(Object.hasOwn(dependencies, id), '未注入：' + id); return dependencies[id]; }, module, module.exports);

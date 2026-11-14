@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
 import { variantModules } from './产品变体生成夹具.mjs';
+import * as delivery from '../扩展功能/媒体交付/生成图片尺寸交付.mjs';
 
 async function load(file, dependencies = {}) {
     dependencies = { './平台规则全局状态': platformState, ...dependencies };
@@ -145,6 +146,7 @@ const protocol = await load('扩展功能/画布生成/原版图片协议.ts', {
     '@/lib/image-utils': {}, '@/lib/image-reference-prompt': {}, '@/services/image-storage': {}, '../提示词/变量使用规则': variables,
     '../图片设置/图片尺寸规则': await load('扩展功能/图片设置/图片尺寸规则.ts'),
     './参考图数量限制': await load('扩展功能/画布生成/参考图数量限制.ts'),
+    '../媒体交付/生成图片尺寸交付.mjs': delivery,
 });
 test('直接输入和无资源composer同样保护缺值，重试使用当前可追溯变量而非旧快照', async () => {
     for (const composer of [false, true]) {

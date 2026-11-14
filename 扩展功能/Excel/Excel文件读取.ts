@@ -1,5 +1,6 @@
 import type { PromptTemplate } from "./Excel产品归属";
 import { parsePromptWorkbook } from "./旧版Excel解析.js";
+import { requireProductFeature } from "../产品配置/功能开关";
 
 type Worksheet = Record<string, unknown>;
 type SheetJS = { read(data: ArrayBuffer, options: Record<string, unknown>): { SheetNames: string[]; Sheets: Record<string, Worksheet> }; utils: unknown; version: string };
@@ -11,6 +12,7 @@ export type ExcelPreview = {
 export type ExcelPending = Partial<ExcelPreview> & { busy?: boolean; error?: string; progress?: number; progressMessage?: string };
 let library: Promise<SheetJS> | null = null;
 export function loadLocalExcelLibrary(): Promise<SheetJS> {
+  requireProductFeature("excel");
   if (window.XLSX?.version === "0.18.5") return Promise.resolve(window.XLSX);
   if (!library) {
     library = new Promise<SheetJS>((resolve, reject) => {
@@ -25,6 +27,7 @@ export function loadLocalExcelLibrary(): Promise<SheetJS> {
   return library;
 }
 export async function readExcelFile(file: File, signal: AbortSignal, progress: (value: ExcelPending) => void): Promise<ExcelPreview> {
+  requireProductFeature("excel");
   const extension = file.name.split(".").pop()?.toLowerCase() || "";
   if (!["xlsx", "xls", "csv"].includes(extension)) throw new Error("请选择 .xlsx、.xls 或 .csv 文件。");
   if (file.size > 100 * 1024 * 1024) throw new Error("文件超过 100 MB。请先拆分或精简文件后再导入。");

@@ -69,6 +69,8 @@ export function createGenerationHTTPHandler({ origin, authorize, gateway, tasks,
         if (value.operation === 'retry-save') result = await tasks.retryResultSave(value.id);
         if (value.operation === 'result') { const saved = tasks.result(value.id); result = { ...saved, routing: gateway.resultRoute?.(saved.id, saved.result.id) ?? null, bytes: saved.bytes.toString('base64') }; }
       } else requireValue(false, 'generation_command_denied', '生成操作不受支持。');
+      if (result?.id && jobLike(result.id) && result.state && gateway.imageRetryProgress)
+        result = { ...result, imageRetry: gateway.imageRetryProgress(result.id) };
       await authorize(request); // 已撤销页面不能取走结果；任务本身继续保存在本机。
       json(200, { protocol: GENERATION_PROTOCOL, result });
     } catch (error) {

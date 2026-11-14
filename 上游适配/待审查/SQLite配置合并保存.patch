@@ -1,0 +1,24 @@
+--- a/web/src/stores/use-config-store.ts
++++ b/web/src/stores/use-config-store.ts
+@@ -1,4 +1,4 @@
+-import { sqliteStateStorage } from "@/guan/上游浏览器存储桥";
++import { sqliteStateStorage, scheduleStateSave, flushSQLiteStorage } from "@/guan/上游浏览器存储桥";
+ import { requireAuxiliaryFeature } from "@/guan/精简与离线策略";
+ import { requireBusinessFeature } from "@/guan/脚本与提示词来源";
+ import { productFeatures, requireProductFeature } from "@/guan/功能开关";
+@@ -254,7 +254,14 @@
+         }),
+         {
+             name: CONFIG_STORE_KEY,
+-            storage: createJSONStorage(() => sqliteStateStorage),
++            storage: createJSONStorage(() => ({
++                getItem: sqliteStateStorage.getItem,
++                setItem: scheduleStateSave,
++                async removeItem(key) {
++                    await flushSQLiteStorage();
++                    await sqliteStateStorage.removeItem(key);
++                },
++            })),
+             partialize: (state) => ({ config: state.config, webdav: state.webdav }),
+             merge: (persisted, current) => {
+                 const persistedState = (persisted || {}) as Partial<ConfigStore>;

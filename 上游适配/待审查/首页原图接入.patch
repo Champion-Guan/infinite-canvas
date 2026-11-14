@@ -1,0 +1,453 @@
+--- a/web/src/guan/画布入口.tsx
++++ b/web/src/guan/画布入口.tsx
+@@ -1,27 +1,38 @@
+-import { Button } from "antd";
+ import { Navigate, useNavigate } from "react-router-dom";
+ import { useTranslation } from "react-i18next";
+ import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
++import { useThemeStore } from "@/stores/use-theme-store";
+ import { entryProjectId } from "@/guan/功能开关";
++import { WorkbenchHome } from "./工作台首页";
+ 
+-// 原版首页/项目列表关闭后的最小落点，不加载原页面，也不在初始化时写入新画布。
++// 仅替换自有空白入口；已有画布仍按已批准逻辑进入，不迁旧产品、Excel或数据。
+ export function CanvasEntry() {
+-    const { t } = useTranslation();
+-    const navigate = useNavigate();
+-    const hydrated = useCanvasStore((state) => state.hydrated);
+-    const projects = useCanvasStore((state) => state.projects);
+-    const createProject = useCanvasStore((state) => state.createProject);
+-    const id = entryProjectId(projects);
+-
+-    if (!hydrated) return <main className="grid h-full place-items-center bg-background text-foreground" role="status">{t("canvas.opening")}</main>;
+-    if (id) return <Navigate to={`/canvas/${encodeURIComponent(id)}`} replace />;
++  const { t } = useTranslation();
++  const navigate = useNavigate();
++  const hydrated = useCanvasStore((state) => state.hydrated);
++  const projects = useCanvasStore((state) => state.projects);
++  const createProject = useCanvasStore((state) => state.createProject);
++  const theme = useThemeStore((state) => state.theme);
++  const id = entryProjectId(projects);
+ 
++  if (!hydrated)
+     return (
+-        <main className="grid h-full place-items-center bg-background text-foreground">
+-            <Button type="primary" onClick={() => {
+-                const projectId = createProject(t("canvas.defaultTitle", { count: 1 }));
+-                navigate(`/canvas/${encodeURIComponent(projectId)}`, { replace: true });
+-            }}>{t("canvas.create")}</Button>
+-        </main>
++      <main
++        className="grid h-full place-items-center bg-background text-foreground"
++        role="status"
++      >
++        {t("canvas.opening")}
++      </main>
+     );
++  if (id) return <Navigate to={`/canvas/${encodeURIComponent(id)}`} replace />;
++
++  return (
++    <WorkbenchHome
++      theme={theme}
++      onCreate={() => {
++        const projectId = createProject(t("canvas.defaultTitle", { count: 1 }));
++        navigate(`/canvas/${encodeURIComponent(projectId)}`, { replace: true });
++      }}
++    />
++  );
+ }
+--- /dev/null
++++ b/web/src/guan/工作台首页.tsx
+@@ -0,0 +1,147 @@
++import { useState } from "react";
++import styles from "./首页.module.css";
++
++const templates = [
++  { title: "游戏手柄" },
++  { title: "运动鞋" },
++  { title: "智能手表" },
++] as const;
++const imageUrl = (group: number, kind: string, index: number) =>
++  `/guan/首页轮播/第${group}组-${kind}${index}.webp`;
++
++type Props = { theme: "light" | "dark"; onCreate: () => void };
++
++// 恢复旧版两列首页与获用户确认的原轮播图片；不加载旧归档页面或DOM脚本。
++export function WorkbenchHome({ theme, onCreate }: Props) {
++  const [index, setIndex] = useState(0);
++  const template = templates[index];
++
++  return (
++    <main className={styles.page} data-theme={theme} aria-label="工作台首页">
++      <div className={styles.columns}>
++        <section className={styles.preview} aria-labelledby="guan-home-title">
++          <div>
++            <h1 id="guan-home-title">A+ 详情页</h1>
++            <p>上传商品图，AI 即刻生成符合多电商平台规范的高转化率商品图。</p>
++          </div>
++          <div
++            className={styles.carousel}
++            role="region"
++            aria-label="轮播模板预览"
++            aria-roledescription="轮播"
++          >
++            <div
++              className={styles.template}
++              role="group"
++              aria-roledescription="幻灯片"
++              aria-label={`${index + 1} / ${templates.length}：${template.title}`}
++            >
++              <div className={styles.collage}>
++                <figure className={styles.sourceImages}>
++                  <figcaption>商品图</figcaption>
++                  <div>
++                    {[1, 2, 3].map((number) => (
++                      <img
++                        key={number}
++                        src={imageUrl(index + 1, "商品图", number)}
++                        alt={`${template.title}商品图${number}`}
++                        decoding="async"
++                      />
++                    ))}
++                  </div>
++                </figure>
++                <span className={styles.direction} aria-hidden="true">
++                  →
++                </span>
++                <figure className={styles.longPage}>
++                  <figcaption>详情长图</figcaption>
++                  <img
++                    src={imageUrl(index + 1, "详情长图", 1)}
++                    alt={`${template.title}详情长图`}
++                    decoding="async"
++                  />
++                </figure>
++                <figure className={styles.resultImages}>
++                  <figcaption>模块效果图</figcaption>
++                  <div>
++                    {[1, 2, 3, 4, 5, 6].map((number) => (
++                      <img
++                        key={number}
++                        src={imageUrl(index + 1, "效果图", number)}
++                        alt={`${template.title}效果图${number}`}
++                        decoding="async"
++                      />
++                    ))}
++                  </div>
++                </figure>
++              </div>
++              <span className={styles.sample} aria-live="polite">
++                {template.title} · A+ 详情页示例
++              </span>
++            </div>
++            <div className={styles.carouselControls}>
++              <button
++                type="button"
++                className={styles.arrow}
++                aria-label="上一组模板"
++                onClick={() =>
++                  setIndex(
++                    (value) =>
++                      (value + templates.length - 1) % templates.length,
++                  )
++                }
++              >
++                ‹
++              </button>
++              <div className={styles.dots} aria-label="轮播图导航">
++                {templates.map((item, itemIndex) => (
++                  <button
++                    type="button"
++                    key={item.title}
++                    aria-label={`查看${item.title}模板`}
++                    aria-current={index === itemIndex ? "true" : undefined}
++                    onClick={() => setIndex(itemIndex)}
++                  />
++                ))}
++              </div>
++              <button
++                type="button"
++                className={styles.arrow}
++                aria-label="下一组模板"
++                onClick={() =>
++                  setIndex((value) => (value + 1) % templates.length)
++                }
++              >
++                ›
++              </button>
++            </div>
++          </div>
++        </section>
++
++        <section
++          className={styles.actions}
++          aria-labelledby="guan-home-products"
++        >
++          <div>
++            <h2 id="guan-home-products">暂无产品</h2>
++            <p>从一个新产品开始，整理图片、提示词和画布。</p>
++          </div>
++          <div className={styles.buttons}>
++            <button type="button" className={styles.primary} onClick={onCreate}>
++              <span aria-hidden="true">＋</span>新建产品
++            </button>
++            <button type="button" disabled aria-describedby="guan-home-pending">
++              导入产品
++            </button>
++            <button type="button" disabled aria-describedby="guan-home-pending">
++              产品回收站
++            </button>
++          </div>
++          <p id="guan-home-pending" className={styles.note}>
++            产品导入与回收站尚未接入新基线。本页不会读取旧版数据。
++          </p>
++        </section>
++      </div>
++    </main>
++  );
++}
+--- /dev/null
++++ b/web/src/guan/首页.module.css
+@@ -0,0 +1,242 @@
++.page {
++  --home-background: #fff;
++  --home-text: #17181a;
++  --home-muted: #72757a;
++  --home-preview: #f5f5f5;
++  --home-card: #fff;
++  --home-border: #ddd;
++  --home-dot: #e5e5e5;
++  box-sizing: border-box;
++  height: 100%;
++  overflow: auto;
++  color: var(--home-text);
++  background: var(--home-background);
++}
++
++.page[data-theme="dark"] {
++  --home-background: #171717;
++  --home-text: #f5f5f5;
++  --home-muted: #a3a3a3;
++  --home-preview: #262626;
++  --home-card: #202020;
++  --home-border: #404040;
++  --home-dot: #404040;
++}
++
++.page * {
++  box-sizing: border-box;
++}
++.columns {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
++  align-items: center;
++  gap: 32px;
++  width: 100%;
++  min-height: 100%;
++  padding: clamp(24px, 3vw, 56px);
++  text-align: center;
++}
++.preview,
++.actions {
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  justify-content: center;
++  gap: 24px;
++  min-width: 0;
++}
++.page h1 {
++  margin: 0 0 12px;
++  font-size: clamp(28px, 2.5vw, 48px);
++  line-height: 1.25;
++  font-weight: 600;
++}
++.page h2 {
++  margin: 0 0 16px;
++  font-size: clamp(24px, 2vw, 36px);
++  line-height: 1.3;
++  font-weight: 500;
++}
++.page p {
++  margin: 0;
++  max-width: 560px;
++  color: var(--home-muted);
++  font-size: clamp(14px, 1.15vw, 20px);
++  line-height: 1.7;
++}
++.carousel {
++  width: 100%;
++  max-width: 660px;
++}
++.template {
++  padding: clamp(14px, 2vw, 26px);
++  border-radius: 20px;
++  background: var(--home-preview);
++}
++.collage {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1.15fr) minmax(0, 2fr);
++  align-items: start;
++  gap: 12px;
++}
++.collage figure {
++  display: flex;
++  flex-direction: column;
++  gap: 12px;
++  min-width: 0;
++  margin: 0;
++}
++.collage figcaption {
++  color: var(--home-muted);
++  font-size: 12px;
++  white-space: nowrap;
++}
++.collage img {
++  display: block;
++  width: 100%;
++  border-radius: 7px;
++  background: var(--home-card);
++}
++.sourceImages > div {
++  display: grid;
++  gap: 10px;
++}
++.sourceImages img {
++  aspect-ratio: 1;
++  object-fit: contain;
++}
++.longPage img {
++  height: auto;
++}
++.resultImages > div {
++  display: grid;
++  grid-template-columns: repeat(2, minmax(0, 1fr));
++  gap: 8px;
++}
++.resultImages img {
++  aspect-ratio: 1;
++  object-fit: cover;
++}
++.direction {
++  align-self: center;
++  color: var(--home-muted);
++}
++.sample {
++  color: var(--home-muted);
++  font-size: 12px;
++}
++.sample {
++  display: block;
++  margin-top: 22px;
++}
++.carouselControls {
++  display: flex;
++  justify-content: center;
++  align-items: center;
++  gap: 20px;
++  margin-top: 16px;
++}
++.arrow {
++  width: 28px;
++  height: 28px;
++  border: 0;
++  border-radius: 6px;
++  color: var(--home-text);
++  background: transparent;
++  font-size: 26px;
++  line-height: 1;
++  cursor: pointer;
++}
++.arrow:hover {
++  background: var(--home-preview);
++}
++.dots {
++  display: flex;
++  align-items: center;
++  gap: 8px;
++}
++.dots button {
++  position: relative;
++  width: 26px;
++  height: 28px;
++  padding: 0;
++  border: 0;
++  background: transparent;
++  cursor: pointer;
++}
++.dots button::after {
++  position: absolute;
++  inset: 11px 5px;
++  content: "";
++  border-radius: 6px;
++  background: var(--home-dot);
++}
++.dots button[aria-current="true"]::after {
++  background: var(--home-text);
++}
++.buttons {
++  display: flex;
++  flex-wrap: wrap;
++  justify-content: center;
++  gap: 14px;
++}
++.buttons button {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  gap: 7px;
++  padding: 12px 20px;
++  border: 1px solid var(--home-border);
++  border-radius: 12px;
++  color: var(--home-text);
++  background: var(--home-background);
++  font: inherit;
++  font-size: clamp(15px, 1.2vw, 20px);
++  cursor: pointer;
++}
++.buttons .primary {
++  color: var(--home-background);
++  background: var(--home-text);
++  border-color: var(--home-text);
++}
++.buttons button:disabled {
++  opacity: 0.45;
++  cursor: not-allowed;
++}
++.page button:focus-visible {
++  outline: 2px solid var(--home-text);
++  outline-offset: 4px;
++}
++.actions .note {
++  max-width: 440px;
++  font-size: 12px;
++}
++
++@media (max-width: 900px) {
++  .columns {
++    grid-template-columns: minmax(0, 1fr);
++    align-content: center;
++    gap: 40px;
++    padding: 28px 16px 40px;
++  }
++  .preview,
++  .actions {
++    gap: 20px;
++  }
++  .collage {
++    grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1.15fr) minmax(0, 2fr);
++    gap: 8px;
++  }
++  .collage figcaption {
++    font-size: 10px;
++  }
++  .collage figure {
++    gap: 8px;
++  }
++  .resultImages > div {
++    gap: 5px;
++  }
++  .template {
++    padding: 20px 12px;
++  }
++}

@@ -1,0 +1,66 @@
+{
+  "状态": "待单独批准",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "恢复编号": [
+    "U02",
+    "R02",
+    "R03"
+  ],
+  "保持关闭": [
+    "S03"
+  ],
+  "前置首页顶栏差异SHA256": "2968209314dc8a492aeb35402a252b0fcd01a7422b9225ecf5ee75b127bc95d6",
+  "前置脚本来源关闭差异SHA256": "b615e837c229023f3f021601fa506ad8bcaaae8886cd4631bea3dad97f29f2ec",
+  "已应用到运行副本": false,
+  "语法预审通过": true,
+  "完整类型预审通过": true,
+  "标准差异检查通过": true,
+  "差异SHA256": "7702ebc0e140025f7f176b032137088d0684b8c63cf360e36900c2a898ac69e5",
+  "文件": [
+    {
+      "文件": "web/src/layouts/user-layout.tsx",
+      "原始SHA256": "c76344a42018a0cf3c882c5dc43ecd410aac1b4ac17375c09e2dd06d7e09a970",
+      "候选SHA256": "85bfb98639cabb28b04c68917c4abc8d5dae9ad0c188bf2f6bd563d2d937bdb4"
+    },
+    {
+      "文件": "web/src/guan/旧版首页顶栏.tsx",
+      "原始SHA256": "ecabc4b7b98b1ad4f3c21e14ef302b2aed59a8df8ff95fa1d5731f2d332ecd04",
+      "候选SHA256": "9c143b3f69ae6bac6c32df6a7e65748be97234ee95e88b6ce621760c114f2f79"
+    },
+    {
+      "文件": "web/src/guan/功能开关.ts",
+      "原始SHA256": "cb1349043a3be329a04209691362cfe965034a68615d5027c0245ebe3ea7f7ae",
+      "候选SHA256": "bafbd9db6707f33266bf0536fcb59ef445511cb328356351904599506844aa61"
+    },
+    {
+      "文件": "web/src/guan/脚本与提示词来源.ts",
+      "原始SHA256": "62558bf529d4c18ba0bc7a14e75dedb77e77dddf92f7434d79a72b518c4dffce",
+      "候选SHA256": "c1d69054432cbe6e0eb58f3e8b3153ba544bfdef2986d22339343592a7e42105"
+    },
+    {
+      "文件": "web/src/components/layout/app-providers.tsx",
+      "原始SHA256": "efcafc8b963cb37ff7fca4ebde0ebdc6030b0b4f17ba08c6b36c045dd6780b56",
+      "候选SHA256": "5ff5c1e80a0bf4654c08116aea3270617def91651fa07d1fee6148fd971aca8f"
+    },
+    {
+      "文件": "web/index.html",
+      "原始SHA256": "b65f7cf226b584d1af81d3c497d120054ef3a46680da4a58e17145720937b4a4",
+      "候选SHA256": "3b735dba7e5aeab1857f239239bbdba3b4f4bf1137b3e1f5bf291bf10dddf701"
+    },
+    {
+      "文件": "web/src/router.tsx",
+      "原始SHA256": "4e22148eedc1f86d3e226496bab586b24c6d3aa71b4c9f31967792dfea6dc6aa",
+      "候选SHA256": "294f00278ca36bd48abba64bd39bcb346140a8ddbd74303884e7ab5329190b8b"
+    },
+    {
+      "文件": "web/src/pages/not-found/index.tsx",
+      "原始SHA256": "3c03fde6348e4690f6d5ef0e40f7e3a0956b128a2b81bc37b498bbddc213bbe5",
+      "候选SHA256": "c50fa82989024d55197fb6721e8d9dd57bdf48f59c27678c704187c38104da9e"
+    },
+    {
+      "文件": "web/public/guan/brand/favicon.png",
+      "原始SHA256": null,
+      "候选SHA256": "ddd8aa5c975adde30e628b8a3c12cab92f5e0ae108785bad96bda8d48baab432"
+    }
+  ]
+}

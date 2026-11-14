@@ -18,7 +18,7 @@ type DetailedUsage = Omit<LocalStorageUsage, "databases"> & {
 };
 
 // 现有设置面板的分区、圆角、间距、按钮及深色样式保留；只更换统计数据与说明。
-export function ConfigLocalStorage({ active }: { active: boolean }) {
+export function ConfigLocalStorage({ active, settingsOpen }: { active: boolean; settingsOpen: boolean }) {
     const [usage, setUsage] = useState<DetailedUsage | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -33,9 +33,8 @@ export function ConfigLocalStorage({ active }: { active: boolean }) {
         setLoading(true);
         setError("");
         try {
-            const result = await readLocalStorageUsage() as DetailedUsage;
+            const [result, pending] = await Promise.all([readLocalStorageUsage() as Promise<DetailedUsage>, pendingRecycleCleanup()]);
             if (result.breakdown?.format !== "guan-sqlite-usage.v1") throw new Error("当前服务尚未支持分类统计，请重启工作台后重试。");
-            const pending = await pendingRecycleCleanup();
             if (id === request.current) { setUsage(result); setPendingCleanup(pending); }
         } catch (reason) {
             if (id === request.current) setError(reason instanceof Error ? reason.message : "容量读取失败，请稍后刷新。");
@@ -45,10 +44,10 @@ export function ConfigLocalStorage({ active }: { active: boolean }) {
     }, []);
 
     useEffect(() => {
-        // 页签先完成显示，再开始本机读取；关闭时取消尚未开始的读取及过期结果。
-        const timer = active ? window.setTimeout(() => void refresh(), 0) : undefined;
+        // 每次打开设置刷新一次；切换页签不重新扫描，关闭时忽略过期结果。
+        const timer = settingsOpen ? window.setTimeout(() => void refresh(), 0) : undefined;
         return () => { window.clearTimeout(timer); invalidate(); };
-    }, [active, refresh, invalidate]);
+    }, [settingsOpen, refresh, invalidate]);
 
     const clearRecycle = useCallback(async (kind: RecycleStorageKind, label: string) => {
         if (recycleAction) return;

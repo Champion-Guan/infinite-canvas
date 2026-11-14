@@ -3,6 +3,7 @@ import { useCallback, useRef, type Dispatch, type RefObject, type SetStateAction
 import { nanoid } from "nanoid";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type ContextMenuState, type Position } from "@/types/canvas";
 import { remapCopiedExcelRelations } from "../Excel画布/Excel卡片事务";
+import { copiedProductPlanningPatch } from "../Excel画布/商品策划副本规则";
 
 type Clipboard = { nodes: CanvasNodeData[]; connections: CanvasConnection[] };
 type Setter<T> = Dispatch<SetStateAction<T>>;
@@ -35,7 +36,7 @@ function copyContent(source: CanvasNodeData): CanvasNodeData {
     delete metadata.videoTaskId;
     delete metadata.videoTaskProvider;
     delete metadata.generationStartedAt;
-    delete (metadata as typeof metadata & { productPlanningTask?: unknown }).productPlanningTask;
+    Object.assign(metadata, copiedProductPlanningPatch());
     delete metadata.generationBatchId;
     metadata.generationNotificationCopy = true;
     if (metadata.status === "loading" || hadPendingVideo) {
@@ -59,6 +60,10 @@ function copyRelations(node: CanvasNodeData, idMap: Map<string, string>, existin
         else if (!existingIds.has(id) || (key === "groupId" && !keepGroup && ![...idMap.values()].includes(id))) metadata[key] = undefined;
     }
     if (!metadata.excelPromptBindingNodeId) metadata.excelPromptResolved = undefined;
+    const prompt = (metadata as typeof metadata & { productImagePrompt?: { parameterId: string } }).productImagePrompt;
+    if (prompt && idMap.has(prompt.parameterId))
+        (metadata as typeof metadata & { productImagePrompt: typeof prompt }).productImagePrompt =
+            { ...prompt, parameterId: idMap.get(prompt.parameterId)! };
     return node;
 }
 

@@ -1,0 +1,128 @@
+{
+  "状态": "已按用户持续开发授权登记的本机存储与启动链后继；历史SQLite批准保持不变",
+  "日期": "2026-10-26",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置SHA256": "ef0ab5cde710b405755cb4cf63688f91c9a965e321d63a9d655411a3756a863f",
+  "差异SHA256": "07214e3a54be09b37a93fdfd9091fb6cb8c51c6bd10832c99aaff36d803a5ed8",
+  "文件": [
+    {
+      "文件": "扩展功能/本机存储/SQLite工作区.mjs",
+      "原始SHA256": "8ec1b80dafb66627812b7e5d8b631662d7d7aab70a18de916d43851449c08e69",
+      "历史SHA256": [
+        "8ec1b80dafb66627812b7e5d8b631662d7d7aab70a18de916d43851449c08e69"
+      ],
+      "候选SHA256": "1811c409b7441388ce2791634feb6df746aa11592182059252820bda4c1431e4"
+    },
+    {
+      "文件": "扩展功能/本机存储/分片值编码.mjs",
+      "原始SHA256": "ca5fad4597fc2bddb225f33dcd7d6413dfc99935d4343fa29fe4595a07bf057c",
+      "历史SHA256": [
+        "ca5fad4597fc2bddb225f33dcd7d6413dfc99935d4343fa29fe4595a07bf057c"
+      ],
+      "候选SHA256": "a45b806a0aadd11609e9abaf763bd2ebb97619728a23d16324c1b5148b2c2853"
+    },
+    {
+      "文件": "扩展功能/本机存储/协议.mjs",
+      "原始SHA256": "7233efe46bfb06d5e509c6da2f16c871d8b397387edf2d90ddf91a48fbe4a095",
+      "历史SHA256": [
+        "7233efe46bfb06d5e509c6da2f16c871d8b397387edf2d90ddf91a48fbe4a095"
+      ],
+      "候选SHA256": "72685f4001a3418cc2ca6a9502613594f313b744528403d4a3e531efd4ab895c"
+    },
+    {
+      "文件": "扩展功能/本机存储/启动工作台.mjs",
+      "原始SHA256": "290870eb4368ece5c20ba9242f023f3d8ff9cb56ece98d98167c5303e303a6d1",
+      "历史SHA256": [
+        "290870eb4368ece5c20ba9242f023f3d8ff9cb56ece98d98167c5303e303a6d1"
+      ],
+      "候选SHA256": "23d12ba45bda791353a0228a2210cb737b1ea0b7a8f9db3c4cb71273652decf1"
+    },
+    {
+      "文件": "扩展功能/本机存储/应用值编码.mjs",
+      "原始SHA256": "ef0ab5cde710b405755cb4cf63688f91c9a965e321d63a9d655411a3756a863f",
+      "历史SHA256": [
+        "ef0ab5cde710b405755cb4cf63688f91c9a965e321d63a9d655411a3756a863f"
+      ],
+      "候选SHA256": "a4cff62a8de6d63336e820d4108b8700cba15d1948dff7f0385bf490f271cfff"
+    },
+    {
+      "文件": "扩展功能/本机存储/应用存储适配.mjs",
+      "原始SHA256": "4c665bfa4db2b3fd388dafbfa926023f796d7a0faf1db32826f5b939e07cc1f9",
+      "历史SHA256": [
+        "4c665bfa4db2b3fd388dafbfa926023f796d7a0faf1db32826f5b939e07cc1f9"
+      ],
+      "候选SHA256": "fcf14064ea94c0ffd220a0d343939ad3f7c4fc7fb5b4b1a4d5ccf228839d0eb8"
+    },
+    {
+      "文件": "扩展功能/本机存储/本机授权客户端.mjs",
+      "原始SHA256": "dba0989bc29b47e71d628f37bae05c555fbfe58532380b82e6b6ecd4fc87723c",
+      "历史SHA256": [
+        "dba0989bc29b47e71d628f37bae05c555fbfe58532380b82e6b6ecd4fc87723c"
+      ],
+      "候选SHA256": "4e2288b32b41b335c6a556f86c37ddb9e0bde9714f600a979ff1f219186cbeb0"
+    },
+    {
+      "文件": "扩展功能/本机存储/浏览器适配.mjs",
+      "原始SHA256": "54a9772480928c9660e495816acbc8cb4098c44ff258c8502635d862e5fa8da3",
+      "历史SHA256": [
+        "54a9772480928c9660e495816acbc8cb4098c44ff258c8502635d862e5fa8da3"
+      ],
+      "候选SHA256": "910689424ddf502508862fbba840065f5abf695737f8f7c7dd845f3f4239fca7"
+    },
+    {
+      "文件": "扩展功能/本机存储/续期数据客户端.mjs",
+      "原始SHA256": "628d5f532b63789bec0f0962dbf58ac049e98511e568fcfa64414cd782b60d11",
+      "历史SHA256": [
+        "628d5f532b63789bec0f0962dbf58ac049e98511e568fcfa64414cd782b60d11"
+      ],
+      "候选SHA256": "03aeeb9043576b8e7541f4770b927965c55ecabe4362d84b789b6e2d37a7ef10"
+    },
+    {
+      "文件": "扩展功能/本机服务/受控会话.mjs",
+      "原始SHA256": "cb433c15d80b8d9f9691ecdcf9a9d55d425181cfac450c4b95e6a7539ddea9c9",
+      "历史SHA256": [
+        "cb433c15d80b8d9f9691ecdcf9a9d55d425181cfac450c4b95e6a7539ddea9c9",
+        "fe3bd4bdb24b16f9b05181e9f66720a5ef19a0f5f140c9cc672c01b695201c94"
+      ],
+      "候选SHA256": "4c62ef418d19533e9abeccb91b0c07c756b2cd313afeaa0f0d08daf2ed7c71bf"
+    },
+    {
+      "文件": "扩展功能/本机服务/受限工作台启动器.mjs",
+      "原始SHA256": "228feb63b1ee2a24ddfe18d61366507e3066a868aadb0ba6e3e597ac3f16f98c",
+      "历史SHA256": [
+        "228feb63b1ee2a24ddfe18d61366507e3066a868aadb0ba6e3e597ac3f16f98c",
+        "f90547d1b108b65202bb2dc978b798fc1922f80adeb031fe62d940a8b2148785"
+      ],
+      "候选SHA256": "ed8a275c4b8613375c0e46dcd4e4cf753c727bee105558af4cfd4b6fff881aed"
+    },
+    {
+      "文件": "扩展功能/本机服务/数据服务.mjs",
+      "原始SHA256": "aff5145a09b2e27707c6ed3fbe38bc2b7937b7bbfb4fb56aa95007768731846b",
+      "历史SHA256": [
+        "aff5145a09b2e27707c6ed3fbe38bc2b7937b7bbfb4fb56aa95007768731846b"
+      ],
+      "候选SHA256": "e89b8813b11519b5f9484329aa343e32872adf8ab37f938a0352a25b39b3370b"
+    },
+    {
+      "文件": "扩展功能/本机服务/本机授权网关.mjs",
+      "原始SHA256": "eacf3ad9534722f64faf03e7fc4e661ec48c8b485daa0940c275f1e3338d1b10",
+      "历史SHA256": [
+        "8ef2c6ba640c9885a0d930ae49371440fdbbd4decd0d0a323a7f808c60be5eb0",
+        "eacf3ad9534722f64faf03e7fc4e661ec48c8b485daa0940c275f1e3338d1b10"
+      ],
+      "候选SHA256": "97dd6b001e611122e888ca43441ffa57d33563325b28f6b1eeaadadc7aefa9ed"
+    },
+    {
+      "文件": "扩展功能/本机服务/自动备份.mjs",
+      "原始SHA256": "a488edfd3365657224d003f5e9a19c7fe069b1f6f1090fea7e2bad79ac141377",
+      "历史SHA256": [
+        "a488edfd3365657224d003f5e9a19c7fe069b1f6f1090fea7e2bad79ac141377"
+      ],
+      "候选SHA256": "62366a029b542e3f1789b490b01369b25c9765c5eb3e0f4244e87531642403d3"
+    }
+  ],
+  "范围": [
+    "只登记当前本机存储、授权及启动链已经存在的后继源码",
+    "历史批准JSON/patch保持原字节；未知路径和未知哈希仍拒绝"
+  ]
+}

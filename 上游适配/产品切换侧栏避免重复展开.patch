@@ -1,0 +1,32 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index 71b667a..9907214 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -98,6 +98,9 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+     const resizeCleanup = useRef<(() => void) | null>(null);
+     useEffect(() => () => { resizeCleanup.current?.(); }, []);
+     const transition = panelTransition(resizing, reducedMotion);
++    const previousMounted = useRef(panelMounted);
++    const openingPanel = !previousMounted.current && panelMounted;
++    previousMounted.current = panelMounted;
+     useHiddenPanelExit(productActive, panelClosing, panelCloseRevision, finishPanelClose);
+ 
+     const startResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+@@ -142,7 +145,7 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+     return (
+         <motion.div
+             className="relative z-[60] flex h-full shrink-0"
+-            initial={{ width: reducedMotion ? width + 1 : 0, opacity: 0 }}
++            initial={openingPanel ? { width: reducedMotion ? width + 1 : 0, opacity: 0 } : false}
+             animate={{ width: panelOpen ? width + 1 : 0, opacity: panelOpen ? 1 : 0 }}
+             transition={transition}
+             onAnimationComplete={() => { if (productActive && !panelOpen) finishPanelClose(panelCloseRevision); }}
+@@ -151,7 +154,7 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+         >
+             <motion.aside
+                 className="relative flex h-full shrink-0 flex-col overflow-hidden border-r"
+-                initial={{ x: reducedMotion ? 0 : -28 }}
++                initial={openingPanel ? { x: reducedMotion ? 0 : -28 } : false}
+                 animate={{ x: panelClosing && !reducedMotion ? -28 : 0 }}
+                 transition={transition}
+                 inert={panelClosing}

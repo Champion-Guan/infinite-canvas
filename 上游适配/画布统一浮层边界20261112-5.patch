@@ -1,0 +1,44 @@
+diff --git a/web/src/components/canvas/canvas-node-hover-toolbar.tsx b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+index bbfc272..f63684b 100644
+--- a/web/src/components/canvas/canvas-node-hover-toolbar.tsx
++++ b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+@@ -4,10 +4,12 @@ import { ImageSuperMenu } from "@/扩展功能/画布生成/一键超人菜单";
+ import type { ImageSuperAction } from "@/扩展功能/画布生成/一键超人规则";
+ import { sqlitePreferences } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ import { useEffect, useMemo, useState, type ReactNode } from "react";
+-import { App, Segmented, Tooltip } from "antd";
++import { App, Segmented } from "antd";
++import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+ import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+ import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { OutsideDropdown as Dropdown } from "@/扩展功能/主题/原生可关闭浮层";
++import { CanvasFloatingBoundary } from "@/扩展功能/画布交互/画布浮层容器";
+ import { Download, Ellipsis, FolderPlus, Image as ImageIcon, Info, Languages, Link2, MessageSquare, Minus, Music2, Plus, RefreshCw, Settings2, Trash2, Ungroup, Upload, Video, Zap } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 
+@@ -209,7 +211,7 @@ export function CanvasNodeHoverToolbar({
+ 
+     return (
+         <>
+-            <div
++            <CanvasFloatingBoundary><div
+                 className="pointer-events-auto absolute z-[70] flex h-12 -translate-x-1/2 items-center overflow-visible rounded-[18px] border border-black/10 bg-white text-[15px] text-[#242529] shadow-[0_8px_28px_rgba(15,23,42,.12)]"
+                 data-node-toolbar={node.id}
+                 data-toolbar-node-x={node.position.x}
+@@ -236,7 +238,6 @@ export function CanvasNodeHoverToolbar({
+                         <Dropdown
+                             key={tool.id}
+                             trigger={["click"]}
+-                            getPopupContainer={(trigger) => trigger.parentElement!}
+                             menu={{
+                                 items: [
+                                     { key: "en", label: "翻译成英文" },
+@@ -254,7 +255,7 @@ export function CanvasNodeHoverToolbar({
+                     ),
+                 )}
+                 {hasImage ? <ToolbarAction id="more" title={t("canvas.imageTools.configure")} label={t("canvas.imageTools.more")} icon={<Ellipsis className="size-4" />} active={imageToolSettingsOpen} onClick={openImageToolSettings} showLabel={showImageToolLabels} /> : null}
+-            </div>
++            </div></CanvasFloatingBoundary>
+             {hasImage ? (
+                 <ImageToolSettingsModal
+                     open={productActive && imageToolSettingsOpen}

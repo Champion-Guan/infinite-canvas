@@ -1,3 +1,5 @@
+import { imageSizeRetryBlocked } from "../媒体交付/生成图片尺寸交付.mjs";
+
 // Aggregate all tasks, not just the most recently started task.
 function representedConfigIds(nodes, connections) {
     const nodeById = new Map(nodes.map(node => [node.id, node]));
@@ -9,7 +11,7 @@ function representedConfigIds(nodes, connections) {
     }).map(connection => connection.fromNodeId));
 }
 
-export function canvasTaskSummary(nodes, connections = [], includeEvents = false) {
+export function canvasTaskSummary(nodes, connections = [], includeEvents = false, productId) {
     const representedConfigs = representedConfigIds(nodes, connections);
     const allTracked = nodes.filter(node => includeEvents || !representedConfigs.has(node.id)).flatMap(node => {
         const metadata = node.metadata || {};
@@ -22,8 +24,12 @@ export function canvasTaskSummary(nodes, connections = [], includeEvents = false
                 statuses.some(status => status === "loading" || status === "error")));
         const tracked = hasTask && statuses.some(status => ["loading", "error", "success"].includes(status)) ? [{ node, statuses }] : [];
         const planning = metadata.productPlanningTask;
+        const owner = metadata.productPlanningTaskOwner;
+        const ownPlanning = (!planning?.productId || !productId || planning.productId === productId)
+            && (!planning?.nodeId || planning.nodeId === node.id)
+            && (!owner || (!productId || owner.productId === productId) && owner.nodeId === node.id);
         if (node.type === "guan:prompt-variables" && typeof planning?.id === "string" && planning.id
-            && Number.isFinite(planning.startedAt) && ["loading", "error", "success"].includes(planning.status))
+            && ownPlanning && Number.isFinite(planning.startedAt) && ["loading", "error", "success"].includes(planning.status))
             tracked.push({ node, statuses: [planning.status], planning });
         return tracked;
     });
@@ -71,7 +77,7 @@ export function failedTaskTargets(nodes, connections = []) {
         if (representedConfigs.has(node.id) || !["image", "video", "audio", "text", "config"].includes(node.type)) return [];
         if (node.metadata?.status === "loading" || node.metadata?.images?.some(image => image.status === "loading")) return [];
         const failedImages = node.metadata?.images?.filter(image => image.status === "error") || [];
-        if (failedImages.length) return failedImages.map(image => ({ node, imageId: image.id }));
-        return node.metadata?.status === "error" ? [{ node }] : [];
+        if (failedImages.length) return failedImages.filter(image => !imageSizeRetryBlocked(image)).map(image => ({ node, imageId: image.id }));
+        return node.metadata?.status === "error" && !imageSizeRetryBlocked(node.metadata) ? [{ node }] : [];
     });
 }

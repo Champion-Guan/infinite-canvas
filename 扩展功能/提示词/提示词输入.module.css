@@ -1,0 +1,22 @@
+.input {
+    position: relative;
+    border: 1px solid var(--prompt-border);
+    border-radius: 12px;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.input:focus {
+    border-color: var(--prompt-focus);
+    box-shadow: inset 0 0 0 1px var(--prompt-focus);
+}
+
+.input::before {
+    content: attr(data-placeholder);
+    position: absolute;
+    color: var(--prompt-placeholder);
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .input { transition: none; }
+}

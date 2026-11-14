@@ -10,7 +10,7 @@ import { productCanvasResidency } from "../产品/画布驻留保护";
 import { buildImageSuperPrompt, imageSuperActions, type ImageSuperAction } from "./一键超人规则";
 import type { useCanvasImageTools } from "./图片工具任务";
 import type { useCanvasGenerationRequests } from "./并发生成状态";
-import { parseDeliverySize } from "../媒体交付/生成图片尺寸交付.mjs";
+import { parseDeliverySize, imageRequestSizePlan } from "../媒体交付/生成图片尺寸交付.mjs";
 
 type Port = {
     projectId: string;
@@ -48,7 +48,7 @@ export function useImageSuperGeneration(port: Port) {
             return false;
         }
         const sourceSize = `${width}x${height}`;
-        try { parseDeliverySize(sourceSize); }
+        try { parseDeliverySize(sourceSize); imageRequestSizePlan(width, height); }
         catch (error) { message.warning(error instanceof Error ? error.message : "原图尺寸不可用"); return false; }
         prompt += `\n输出图片必须保持原图的像素宽高：${width} × ${height} px。保持原图宽高比与完整构图，不改为正方形，不裁切或拉伸主体。`;
         const config = { ...buildGenerationConfig(effectiveConfig, node, "image"), count: "1", size: sourceSize };

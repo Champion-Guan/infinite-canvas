@@ -11,7 +11,7 @@ import { 清理升级历史备份 } from './升级遗留清理.mjs';
 // 仅为Web本机服务装配，不安装launchd、不接管既有进程、不打开默认浏览器。
 // 2026-10-21开发模式：用户授权直接使用现有测试数据；启动、更新、正常停止无需逐次批准。
 export async function startDailyWorkbench({ webRoot, storage, helperPath, helperSHA256,
-  initialize = false, softwareUpdateOptions = {}, deferActivation = false,
+  initialize = false, softwareUpdateOptions = {}, deferActivation = false, developmentReload = false,
   endpoint = { hostname: 'localhost', port: DEFAULT_WORKBENCH_PORT } } = {}) {
   requireValue(typeof initialize === 'boolean' && typeof storage?.openWorkspace === 'function' &&
     typeof storage?.startDataService === 'function', 'invalid_daily_config', '日常启动必须明确装配完整存储服务。');
@@ -25,7 +25,7 @@ export async function startDailyWorkbench({ webRoot, storage, helperPath, helper
   } };
   // 启动器先独占监听端口，再调用openWorkspace。端口冲突不创建数据、不读钥匙串。
   const app = await startIsolatedAuthorizedWorkbench({ webRoot, dataRoot: paths.dataRoot, initialize,
-    storage: guardedStorage, credentialKeyProvider: provider, endpoint, softwareUpdateOptions, deferActivation,
+    storage: guardedStorage, credentialKeyProvider: provider, endpoint, softwareUpdateOptions, deferActivation, developmentReload,
     networkProxyOptions: { core: await 定位代理核心() }, proxyResourceUpdateOptions: { cacheRoot: 稳定代理核心目录() }, initialProxyConfiguration: async () => await 读取旧代理配置() || 读取默认代理配置(),
     async onWorkspaceReady(workspace) {
       try {

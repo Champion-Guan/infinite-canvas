@@ -142,7 +142,7 @@ async function host() {
     const storageModules = await Promise.all(['本机服务/数据服务.mjs', '本机存储/SQLite工作区.mjs'].map(path =>
       import(pathToFileURL(join(dev, '服务包/扩展功能', path)).href)));
     const { startDailyWorkbench } = await import(pathToFileURL(join(dev, '画布副本/扩展功能/本机服务/日常工作台.mjs')).href);
-    app = await startDailyWorkbench({ webRoot: join(runtime, 'web'), storage: Object.assign({}, ...storageModules),
+    app = await startDailyWorkbench({ webRoot: join(runtime, 'web'), developmentReload: true, storage: Object.assign({}, ...storageModules),
       helperPath: helper.helperPath, helperSHA256: baseline.manifest.helper.sha256, initialize: false,
       // 开发版使用本项目声明的Web版本，不能把上游基线VERSION当作客户安装版本。
       softwareUpdateOptions: { webPackage: true, currentVersion: JSON.parse(readFileSync(join(root, '开发文档/Web发布版本.json'), 'utf8')).版本 } });

@@ -15,11 +15,12 @@ export function nodeToolbarTop(nodeTop: number) {
 
 // 与原视区绘制共用一次回调，不依赖React提交频率，也不额外启动逐帧循环。
 export function paintNodeToolbar(root: HTMLElement | null, viewport: ToolbarViewport) {
-    const toolbar = root?.querySelector<HTMLElement>("[data-node-toolbar]");
-    if (!toolbar) return;
-    const { toolbarNodeX, toolbarNodeY, toolbarNodeWidth } = toolbar.dataset;
-    const x = Number(toolbarNodeX), y = Number(toolbarNodeY), width = Number(toolbarNodeWidth);
-    if (![x, y, width].every(Number.isFinite)) return;
-    toolbar.style.left = `${viewport.x + (x + width / 2) * viewport.k}px`;
-    toolbar.style.top = `${nodeToolbarTop(viewport.y + y * viewport.k)}px`;
+    if (!root) return;
+    for (const toolbar of root.querySelectorAll<HTMLElement>("[data-node-toolbar]")) {
+        const { toolbarNodeX, toolbarNodeY, toolbarNodeWidth } = toolbar.dataset;
+        const x = Number(toolbarNodeX), y = Number(toolbarNodeY), width = Number(toolbarNodeWidth);
+        if (![x, y, width].every(Number.isFinite)) continue;
+        toolbar.style.left = `${viewport.x + (x + width / 2) * viewport.k}px`;
+        toolbar.style.top = `${nodeToolbarTop(viewport.y + y * viewport.k + Number(toolbar.dataset.toolbarNodeOffsetY || 0))}px`;
+    }
 }

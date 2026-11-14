@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/canvas-prompt-chip-input.tsx b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+index b48ad72..f54a4b0 100644
+--- a/web/src/components/canvas/canvas-prompt-chip-input.tsx
++++ b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+@@ -132,7 +132,7 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
+     const { borderColor, ...inputStyle } = style || {};
+ 
+     return (
+-        <div className="relative h-full min-h-0 w-full">
++        <div className="relative min-h-0 w-full" style={{ height: className?.includes("h-full") ? "100%" : undefined }}>
+             <div
+                 ref={editorRef}
+                 contentEditable

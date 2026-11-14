@@ -1,0 +1,29 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 5c50cc5..ea14e72 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -1,6 +1,7 @@
+ import { CardEndpointLayer } from "@/扩展功能/画布连线/卡片端点层";
+ import { imageSizeRetryBlocked } from "@/扩展功能/媒体交付/生成图片尺寸交付.mjs";
+ import { CardPanelLayer } from "@/扩展功能/画布连线/卡片浮层";
++import { AnimatePresence } from "motion/react";
+ import "@/扩展功能/画布连线/并排图片关系透视.css";
+ import { promptHighlightSegments } from "@/扩展功能/画布迁移扩展/prompt-variable-highlight.js";
+ import { promptDisplaySegments, promptDisplaySummary } from "@/扩展功能/提示词/提示词展示摘要.js";
+@@ -478,13 +479,13 @@ export const CanvasNode = React.memo(function CanvasNode({
+             </CardEndpointLayer>
+ 
+             {/* Counter-scale the panel so its on-screen size stays constant while the canvas zooms. */}
+-            {showPanel && !isGroup && renderPanel ? (
+-                <CardPanelLayer node={data} target={panelTarget}>
++            <AnimatePresence>{showPanel && !isGroup && renderPanel ? (
++                <CardPanelLayer key={data.id} node={data} target={panelTarget}>
+                 <div className="pointer-events-auto w-full" data-node-panel={data.id}>
+                     {renderPanel(data)}
+                 </div>
+                 </CardPanelLayer>
+-            ) : null}
++            ) : null}</AnimatePresence>
+         </div>
+     );
+ });

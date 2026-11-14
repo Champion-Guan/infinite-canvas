@@ -1,0 +1,228 @@
+{
+  "状态": "用户要求纠正首页：原实现迁移，禁止重新设计；不包含新的上游核心适配",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置批准差异SHA256": "b76672614125cf0316b27c3347bff04d1bae8a1964dd28922a9e56d5bcd1bbc8",
+  "前置首页审查SHA256": "c219fe373e41d0adefcc5fcd16dd9d324cdb9cffa7b86b44f40dae822b961800",
+  "图片清单SHA256": "88d108a62e5cd3888370d8ed16e4f09082844920390bb0b57930a697e74b93bb",
+  "类型预审通过": true,
+  "差异检查通过": true,
+  "差异SHA256": "489a758f2152a5f12b5d2e07925aed721d7c31a104104413e6e3b8db584492e1",
+  "文件": [
+    {
+      "文件": "web/src/guan/画布入口.tsx",
+      "原始SHA256": "0016a03d66de7296d2d12d52fa84eb12560b58285397eb917ae17483bba75ee8",
+      "候选SHA256": "3562c46388e3c8d0b0706f3190912dda507f1edea60c0a5434a2f377ff44e667"
+    },
+    {
+      "文件": "web/src/guan/工作台首页.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "9b51cd369218d1d3d7951e0c7a9300b74a6d96dd2d59693ce1f29849754089d8"
+    },
+    {
+      "文件": "web/src/guan/首页.module.css",
+      "原始SHA256": null,
+      "候选SHA256": "d92f25881d710e8042130466a2cdda00d44bbf36cc8820e635db7f95f65a40f8"
+    }
+  ],
+  "资源": [
+    {
+      "文件": "web/public/guan/首页轮播/第1组-商品图1.webp",
+      "原始SHA256": null,
+      "候选SHA256": "e7df78ccd6b2b17ab356254d21b1c8d658773ba1271eaf3d8611f1f7149677ba",
+      "字节": 13210
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第1组-商品图2.webp",
+      "原始SHA256": null,
+      "候选SHA256": "3ebd3609922ea385f5a8ea7760887a5de15ee0da7b0ff2d375364db3bf2a0e99",
+      "字节": 11248
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第1组-商品图3.webp",
+      "原始SHA256": null,
+      "候选SHA256": "6f16978d75037dcebdcc17849fcf69e2ab666cc5191aff07b2d91139b96df976",
+      "字节": 13746
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第1组-详情长图1.webp",
+      "原始SHA256": null,
+      "候选SHA256": "6e8e99cea127a7f63f8e87a28911564c5ed7486ab62b2b82acd2fe01a8dfa31f",
+      "字节": 54116
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第1组-效果图1.webp",
+      "原始SHA256": null,
+      "候选SHA256": "f4693d3a222f60b997fa96f2be202135dfc0b631b24dc2f784745227be9b1b89",
+      "字节": 16742
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第1组-效果图2.webp",
+      "原始SHA256": null,
+      "候选SHA256": "e358ac5d9e6101ed8a9eae3c85239d00ca93fb4e4310afc6d7e677503054a0dd",
+      "字节": 24050
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第1组-效果图3.webp",
+      "原始SHA256": null,
+      "候选SHA256": "b3f3c2a62b2c89d321921b84c3a3967864955790feba2083ac52c2f034647976",
+      "字节": 24640
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第1组-效果图4.webp",
+      "原始SHA256": null,
+      "候选SHA256": "dd4903c04ae1ffb47eb47bde0e16473d1b813caa4d33a3d06aff21d96edd858f",
+      "字节": 18630
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第1组-效果图5.webp",
+      "原始SHA256": null,
+      "候选SHA256": "fd9251f997f44761519c78b2c08a6f17973d43709c029600b5784672a571c3bb",
+      "字节": 17556
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第1组-效果图6.webp",
+      "原始SHA256": null,
+      "候选SHA256": "bf17604babb3f8f97bdb59843505c3f56a59d78369779c286940c4e73616bb35",
+      "字节": 22630
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第2组-商品图1.webp",
+      "原始SHA256": null,
+      "候选SHA256": "8d2e745d704543604edf96fc3e03a31ffbd294bea9fabacfb4f4b604144cb276",
+      "字节": 13700
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第2组-商品图2.webp",
+      "原始SHA256": null,
+      "候选SHA256": "639d2caee3029f5489c181588630976c7ba90b6341546b73144057e46049e8c1",
+      "字节": 10668
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第2组-商品图3.webp",
+      "原始SHA256": null,
+      "候选SHA256": "eeb41a5189cb9f7eef3944e62e0011f5b943069707717db6363df23437e270e6",
+      "字节": 11420
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第2组-详情长图1.webp",
+      "原始SHA256": null,
+      "候选SHA256": "3d9236d85e6054dd24945ebaff9d072e337726878c696bc560bde042ca9ddcf9",
+      "字节": 64576
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第2组-效果图1.webp",
+      "原始SHA256": null,
+      "候选SHA256": "43a6b4f37351c3985daf251f3e6d592cde8975e68707466823d4d92c86bf3aa5",
+      "字节": 18884
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第2组-效果图2.webp",
+      "原始SHA256": null,
+      "候选SHA256": "92106f4884794ee4e6525cd1ca270a0ed0ac2e97ed861e369d4606ba5046bd45",
+      "字节": 24326
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第2组-效果图3.webp",
+      "原始SHA256": null,
+      "候选SHA256": "3296911028bc2993867cf627d8c8282b2b5677d5ef92f052dd94c8ce942fe389",
+      "字节": 35672
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第2组-效果图4.webp",
+      "原始SHA256": null,
+      "候选SHA256": "e0db58b66cadece538543716341c4d005911eca2966188f2a9f405238850d090",
+      "字节": 26194
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第2组-效果图5.webp",
+      "原始SHA256": null,
+      "候选SHA256": "84925d23621910cc2ae6758fa2d161f6a7bb7f1e804b719faae80b111dfbb6e1",
+      "字节": 23170
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第2组-效果图6.webp",
+      "原始SHA256": null,
+      "候选SHA256": "15d9587f92899303878f721bda4947ac193869f1cb084cf71739ab8439d26977",
+      "字节": 21716
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第3组-商品图1.webp",
+      "原始SHA256": null,
+      "候选SHA256": "0579b9dce8f35f9cc035730412c266c8afece4d1041c1374ab133f943e195337",
+      "字节": 9462
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第3组-商品图2.webp",
+      "原始SHA256": null,
+      "候选SHA256": "53449f5ffd6d7b5d8441177ce50a3053d20415e18c0939b8a4c309e975ad7234",
+      "字节": 12382
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第3组-商品图3.webp",
+      "原始SHA256": null,
+      "候选SHA256": "0444d1ca4c9a7619ca9afba69091318a4ac9d6b21900579ee85f59f934693e53",
+      "字节": 11240
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第3组-详情长图1.webp",
+      "原始SHA256": null,
+      "候选SHA256": "7dc239e897b80f5f7baaca49bf93ffd9f1a24e92907b6884f6520f491912b36a",
+      "字节": 42872
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第3组-效果图1.webp",
+      "原始SHA256": null,
+      "候选SHA256": "594c72ba082a54d6e30e2a658db7d78d98cf7ef0e3a61f1542a4f4ba1255523f",
+      "字节": 13520
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第3组-效果图2.webp",
+      "原始SHA256": null,
+      "候选SHA256": "6a1cd29e893c193f65003ac3b7fc36d5396fd38ad8406b4970e7c78c66250e04",
+      "字节": 10122
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第3组-效果图3.webp",
+      "原始SHA256": null,
+      "候选SHA256": "ac5eab972b8d808e84e1c71797ec75c56e8c0a5a4dd305f7279bc0d8db79422b",
+      "字节": 12024
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第3组-效果图4.webp",
+      "原始SHA256": null,
+      "候选SHA256": "e2dc254a36dfb860ef4e7205d1c25d54ff59d2c9675d1a6b291e85e79c6e9be4",
+      "字节": 32280
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第3组-效果图5.webp",
+      "原始SHA256": null,
+      "候选SHA256": "2253c8e0325ac9d6d682a56a80d3614468f651f822ed2a6d3cef89e255ac9baf",
+      "字节": 20538
+    },
+    {
+      "文件": "web/public/guan/首页轮播/第3组-效果图6.webp",
+      "原始SHA256": null,
+      "候选SHA256": "161fb719ffc4423594e515a9b860851ec6ba47a74bcb16d626df40539ef3ccfa",
+      "字节": 14758
+    },
+    {
+      "文件": "web/public/guan/首页原样资源/轮播箭头.svg",
+      "原始SHA256": null,
+      "候选SHA256": "f7a2c4ec97fcdb512e304d8a072953ba642b5662a4bc21f56e27cb9492f7e1bc",
+      "字节": 697
+    },
+    {
+      "文件": "web/public/guan/首页原样资源/Geist拉丁.woff2",
+      "原始SHA256": null,
+      "候选SHA256": "9b6f5ff45b278c744b5f379a2c4ecbaf858a842b8eaf82ac8d21b699ca16c608",
+      "字节": 29288
+    },
+    {
+      "文件": "web/public/guan/首页原样资源/工作台Logo.png",
+      "原始SHA256": null,
+      "候选SHA256": "246b759d3ceae8e5121fc799416e094caf5606b0ebdf19ca84ce7e8a2dfd5b4a",
+      "字节": 918622
+    }
+  ],
+  "前置首页差异SHA256": "810e7ffdcb25ab0aec0f44cab6f48f661dc610a544c4a86a0f879481a7bf3a60"
+}

@@ -67,3 +67,30 @@ test('删除参数卡后迟到状态不回写；持久快照保持任务事件�
     const copy = JSON.parse(JSON.stringify(g.nodes()));
     assert.deepEqual(canvasTaskSummary(copy, [], true), canvasTaskSummary(g.nodes(), [], true));
 });
+
+test('新策划状态绑定产品和参数卡，同ID跨画布及复制卡不点亮原产品胶囊', async () => {
+    const f = fixture();
+    await assert.rejects(runProductPlanningTask(f.ctx, f.controller.signal, async () => { throw Error('模拟请求拒绝'); }, 'product-11'));
+    const nodes = f.nodes();
+    assert.equal(nodes[0].metadata.productPlanningTask.productId, 'product-11');
+    assert.equal(nodes[0].metadata.productPlanningTask.nodeId, 'parameter');
+    assert.equal(canvasTaskSummary(nodes, [], true, 'product-11').status, 'error');
+    assert.equal(canvasTaskSummary(nodes, [], true, 'original-product').status, 'idle');
+    const copied = structuredClone(nodes);
+    copied[0].id = 'copy-parameter';
+    assert.equal(canvasTaskSummary(copied, [], true, 'product-11').status, 'idle');
+    const rules = variantModules().load('Excel画布/商品策划副本规则.ts');
+    assert.ok(rules.inheritedProductPlanningPatch(nodes[0], 'original-product'));
+    assert.ok(rules.inheritedProductPlanningPatch(copied[0], 'product-11'));
+    assert.equal(rules.inheritedProductPlanningPatch(nodes[0], 'product-11'), undefined);
+});
+
+test('兼容旧策划记录时也核对保存的任务归属，不将外来失败加入胶囊事件', () => {
+    const node = { id: 'parameter', type: 'guan:prompt-variables', metadata: {
+        status: 'success', productPlanningTask: { id: 'old-ui-task', startedAt: 100, status: 'error' },
+        productPlanningTaskOwner: { productId: 'product-11', nodeId: 'parameter', taskId: 'gateway-task' },
+    } };
+    assert.equal(canvasTaskSummary([node], [], true, 'product-11').status, 'error');
+    assert.deepEqual(canvasTaskSummary([node], [], true, 'original-product').events, []);
+    assert.equal(canvasTaskSummary([node], [], true, 'original-product').status, 'idle');
+});

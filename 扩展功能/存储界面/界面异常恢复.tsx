@@ -1,12 +1,14 @@
-import { Component, useRef, useState, type ReactNode } from "react";
+import { Component, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, Check, Copy, RotateCcw } from "lucide-react";
 import { useLocation, useNavigate, useRouteError } from "react-router-dom";
 import { diagnosticText, interfaceDiagnostic, type InterfaceDiagnostic } from "./界面异常说明";
+import { finishStartupScreen } from "../本机存储/启动画面交接.mjs";
 
 type RecoveryAction = { onRetry: () => void; retryHref?: never } | { retryHref: string; onRetry?: never };
 type RecoveryViewProps = RecoveryAction & { diagnostic: InterfaceDiagnostic; previewNotice?: string; logoSrc?: string };
 
 export function InterfaceRecoveryView({ diagnostic, onRetry, retryHref, previewNotice, logoSrc = "/guan/首页原样资源/工作台Logo.png" }: RecoveryViewProps) {
+    useLayoutEffect(() => { finishStartupScreen(); }, []);
     const [copied, setCopied] = useState(false);
     const [copyFailed, setCopyFailed] = useState(false);
     const details = useRef<HTMLDetailsElement>(null);
@@ -32,7 +34,7 @@ export function InterfaceRecoveryView({ diagnostic, onRetry, retryHref, previewN
             <section aria-labelledby="interface-error-title" className="w-full max-w-lg">
                 <div className="mb-8 flex items-center gap-3">
                     <img src={logoSrc} alt="" className="size-9" />
-                    <span className="text-lg font-semibold">AI生图工作台</span>
+                    <span className="text-lg font-semibold">AI-Workbench</span>
                 </div>
                 {previewNotice && <p role="status" className="mb-4 text-sm leading-7 text-muted-foreground">{previewNotice}</p>}
                 <AlertTriangle aria-hidden="true" className="mb-4 size-7 text-amber-600 dark:text-amber-400" />
@@ -73,7 +75,10 @@ export function RouteInterfaceRecovery() {
     const navigate = useNavigate();
     const [diagnostic] = useState(() => interfaceDiagnostic(error, __APP_VERSION__));
     return <InterfaceRecoveryView diagnostic={diagnostic}
-        onRetry={() => navigate(location.pathname + location.search + location.hash, { replace: true })} />;
+        onRetry={() => {
+            if (diagnostic.code === "UI-RESOURCE") { window.location.reload(); return; }
+            navigate(location.pathname + location.search + location.hash, { replace: true });
+        }} />;
 }
 
 export class InterfaceErrorBoundary extends Component<{ children: ReactNode }, { diagnostic: InterfaceDiagnostic | null }> {
@@ -83,7 +88,10 @@ export class InterfaceErrorBoundary extends Component<{ children: ReactNode }, {
     }
     render() {
         return this.state.diagnostic
-            ? <InterfaceRecoveryView diagnostic={this.state.diagnostic} onRetry={() => this.setState({ diagnostic: null })} />
+            ? <InterfaceRecoveryView diagnostic={this.state.diagnostic} onRetry={() => {
+                if (this.state.diagnostic?.code === "UI-RESOURCE") { window.location.reload(); return; }
+                this.setState({ diagnostic: null });
+            }} />
             : this.props.children;
     }
 }

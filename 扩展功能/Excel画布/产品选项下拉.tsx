@@ -1,6 +1,7 @@
 import { DropdownMenu } from "radix-ui";
 import { Check, ChevronDown } from "lucide-react";
 import type { ProductOption } from "./旧版参数规则";
+import menuStyles from "../主题/苹果下拉菜单.module.css";
 
 type ProductOptionSelectProps = {
     value: string;
@@ -32,7 +33,7 @@ export function ProductOptionSelect({ value, options, onChange, borderColor, tex
                     sideOffset={6}
                     collisionPadding={8}
                     loop
-                    className="guan-scroll-region thin-scrollbar z-[80] max-h-[min(var(--radix-dropdown-menu-content-available-height),18rem)] min-w-[var(--radix-dropdown-menu-trigger-width)] origin-[var(--radix-dropdown-menu-content-transform-origin)] overflow-y-auto overscroll-contain rounded-lg border bg-white p-1 shadow-lg outline-none duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:data-[side=bottom]:slide-in-from-top-1 data-[state=open]:data-[side=top]:slide-in-from-bottom-1 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:pointer-events-none motion-reduce:animate-none dark:bg-stone-900"
+                    className={`${menuStyles.panel} guan-scroll-region thin-scrollbar z-[80] max-h-[min(var(--radix-dropdown-menu-content-available-height),18rem)] min-w-[var(--radix-dropdown-menu-trigger-width)] origin-[var(--radix-dropdown-menu-content-transform-origin)] overflow-y-auto overscroll-contain outline-none duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:data-[side=bottom]:slide-in-from-top-1 data-[state=open]:data-[side=top]:slide-in-from-bottom-1 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:pointer-events-none motion-reduce:animate-none`}
                     style={{ borderColor, color: textColor }}
                     onMouseDown={event => event.stopPropagation()}
                     onWheel={event => event.stopPropagation()}
@@ -42,7 +43,7 @@ export function ProductOptionSelect({ value, options, onChange, borderColor, tex
                             <DropdownMenu.RadioItem
                                 key={option.value}
                                 value={option.value}
-                                className="relative flex min-h-9 cursor-default select-none items-center rounded-md py-2 pl-3 pr-9 text-sm outline-none transition-colors duration-150 data-[state=checked]:bg-black/[.06] data-[highlighted]:bg-black/[.06] motion-reduce:transition-none dark:data-[state=checked]:bg-white/[.1] dark:data-[highlighted]:bg-white/[.1]"
+                                className={`${menuStyles.item} relative flex min-h-9 cursor-default select-none items-center pl-3 pr-9 text-sm outline-none transition-colors duration-150 motion-reduce:transition-none`}
                             >
                                 {option.label}
                                 <DropdownMenu.ItemIndicator className="pointer-events-none absolute right-2 flex size-4 items-center justify-center">

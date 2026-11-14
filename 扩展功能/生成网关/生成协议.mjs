@@ -1,7 +1,7 @@
 import { requireValue, validId, validUUID } from '../本机存储/协议.mjs';
 
 export const GENERATION_PROTOCOL = 'guan-generation.v1';
-export const MAX_REQUEST_BYTES = 32 * 1024 * 1024;
+export const MAX_REQUEST_BYTES = 100 * 1024 * 1024;
 export const MAX_RESPONSE_BYTES = 32 * 1024 * 1024;
 export const exactKeys = (value, keys) => value && Object.getPrototypeOf(value) === Object.prototype && Object.keys(value).sort().join(',') === [...keys].sort().join(',');
 export const bindingLike = value => typeof value === 'string' && /^provider:[0-9a-f]{64}$/.test(value);

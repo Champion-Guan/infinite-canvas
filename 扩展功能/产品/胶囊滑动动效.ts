@@ -18,6 +18,13 @@ export function capsuleOverflowDirection(frame: CapsuleFrame | null, scrollLeft:
   return frame.x < scrollLeft - 1 ? "left" : right > end + 1 ? "right" : null;
 }
 
+export function capsuleOverflowOpacity(frame: CapsuleFrame | null, scrollLeft: number, viewportWidth: number) {
+  const direction = capsuleOverflowDirection(frame, scrollLeft, viewportWidth);
+  if (!frame || !direction) return 0;
+  const distance = direction === "left" ? scrollLeft - frame.x : frame.x + frame.width - scrollLeft - viewportWidth;
+  return Math.min(1, Math.max(0, distance / Math.min(frame.width, 72)));
+}
+
 export function capsuleSlideSpring(distance: number, width: number, velocity = 0) {
   const reach = Math.min(1, Math.abs(distance) / Math.max(1, width) / 6);
   const stiffness = 420 + 560 * reach, mass = .8;
@@ -139,7 +146,11 @@ export function useCapsuleSlide(activeId: string, owner: string | null, ownershi
     previousWorkbook.current = owner;
     let signature = "";
     let selection: { element: HTMLElement; frame: CapsuleFrame } | null = null;
-    const updateDirection = () => setOffscreen(capsuleOverflowDirection(selection?.frame ?? null, container.scrollLeft, container.clientWidth));
+    const updateDirection = () => {
+      const frame = selection?.frame ?? null;
+      container.style.setProperty("--capsule-edge-opacity", String(capsuleOverflowOpacity(frame, container.scrollLeft, container.clientWidth)));
+      setOffscreen(capsuleOverflowDirection(frame, container.scrollLeft, container.clientWidth));
+    };
     const scrollToSelected = (immediate: boolean) => {
       if (!selection) return;
       const { x: start, width: size } = selection.frame;

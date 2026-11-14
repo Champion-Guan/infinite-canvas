@@ -6,12 +6,14 @@ import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { openWorkspace } from '../扩展功能/本机存储/SQLite工作区.mjs';
 import { createRecoverableApplicationStorage } from '../扩展功能/本机存储/可恢复应用存储.mjs';
+import * as deferredMedia from '../扩展功能/本机存储/画布媒体延迟恢复.mjs';
 
 const require = createRequire(resolve('.运行/3100源/画布副本/web/package.json'));
 const ts = require('typescript');
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; };
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function load(file, dependencies = {}) {
+    dependencies = { '../本机存储/画布媒体延迟恢复.mjs': deferredMedia, ...dependencies };
     const source = readFileSync('扩展功能/' + file, 'utf8'), module = { exports: {} };
     const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
     new Function('require', 'module', 'exports', code)(id => {

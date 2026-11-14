@@ -1,0 +1,776 @@
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -1,4 +1,4 @@
+-import localforage from "localforage";
++import { sqliteForage as localforage } from "@/guan/上游浏览器存储桥";
+ 
+ import { nanoid } from "nanoid";
+ import i18n from "@/i18n";
+--- a/web/src/services/file-storage.ts
++++ b/web/src/services/file-storage.ts
+@@ -1,4 +1,4 @@
+-import localforage from "localforage";
++import { sqliteForage as localforage } from "@/guan/上游浏览器存储桥";
+ import { nanoid } from "nanoid";
+ 
+ import { withLocalProxy } from "@/stores/use-config-store";
+--- a/web/src/services/app-sync.ts
++++ b/web/src/services/app-sync.ts
+@@ -1,5 +1,5 @@
+ import { requireProductFeature } from "@/guan/功能开关";
+-import localforage from "localforage";
++import { sqliteForage as localforage } from "@/guan/上游浏览器存储桥";
+ 
+ import i18n from "@/i18n";
+ import { getMediaBlob, resolveMediaUrl, setMediaBlob } from "@/services/file-storage";
+--- a/web/src/services/api/prompts.ts
++++ b/web/src/services/api/prompts.ts
+@@ -1,5 +1,5 @@
+ import { businessFeatures, requireBusinessFeature } from "@/guan/脚本与提示词来源";
+-import localforage from "localforage";
++import { sqliteForage as localforage } from "@/guan/上游浏览器存储桥";
+ 
+ import { runPromptSource, type RawPrompt } from "./prompt-source-runtime";
+ import { usePromptSourceStore } from "@/stores/use-prompt-source-store";
+--- a/web/src/pages/image/index.tsx
++++ b/web/src/pages/image/index.tsx
+@@ -1,7 +1,7 @@
+ import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, ImagePlus, LoaderCircle, PenLine, Plus, SlidersHorizontal, Sparkles, Trash2, Upload } from "lucide-react";
+ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+ import { App, Button, Checkbox, Drawer, Empty, Image, Input, Modal, Tag, Tooltip, Typography } from "antd";
+-import localforage from "localforage";
++import { sqliteForage as localforage } from "@/guan/上游浏览器存储桥";
+ import { saveAs } from "file-saver";
+ import { useTranslation } from "react-i18next";
+ 
+--- a/web/src/pages/video/index.tsx
++++ b/web/src/pages/video/index.tsx
+@@ -1,7 +1,7 @@
+ import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, LoaderCircle, Plus, SlidersHorizontal, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
+ import { useEffect, useRef, useState, useSyncExternalStore, type DragEvent } from "react";
+ import { App, Button, Checkbox, Drawer, Empty, Input, Modal, Tag, Typography } from "antd";
+-import localforage from "localforage";
++import { sqliteForage as localforage } from "@/guan/上游浏览器存储桥";
+ import { nanoid } from "nanoid";
+ import { saveAs } from "file-saver";
+ import { useTranslation } from "react-i18next";
+--- a/web/src/lib/canvas/canvas-event-bus.ts
++++ b/web/src/lib/canvas/canvas-event-bus.ts
+@@ -1,4 +1,4 @@
+-import localforage from "localforage";
++import { sqliteForage as localforage, type SQLiteInstance } from "@/guan/上游浏览器存储桥";
+ 
+ import type { PluginStorage } from "@/types/canvas-plugin";
+ 
+@@ -27,7 +27,7 @@
+ }
+ 
+ // Private plugin storage isolated by pluginId namespace.
+-const stores = new Map<string, LocalForage>();
++const stores = new Map<string, SQLiteInstance>();
+ 
+ export function createPluginStorage(pluginId: string): PluginStorage {
+     let store = stores.get(pluginId);
+--- a/web/src/lib/localforage-storage.ts
++++ b/web/src/lib/localforage-storage.ts
+@@ -1,34 +1,2 @@
+-import localforage from "localforage";
+-import type { StateStorage } from "zustand/middleware";
+-
+-localforage.config({
+-    name: "infinite-canvas",
+-    storeName: "app_state",
+-});
+-
+-export const localForageStorage: StateStorage = {
+-    getItem: async (name) => {
+-        if (typeof window === "undefined") return null;
+-        try {
+-            return (await localforage.getItem<string>(name)) || null;
+-        } catch {
+-            return window.localStorage.getItem(name);
+-        }
+-    },
+-    setItem: async (name, value) => {
+-        if (typeof window === "undefined") return;
+-        try {
+-            await localforage.setItem(name, value);
+-        } catch {
+-            window.localStorage.setItem(name, value);
+-        }
+-    },
+-    removeItem: async (name) => {
+-        if (typeof window === "undefined") return;
+-        try {
+-            await localforage.removeItem(name);
+-        } catch {
+-            window.localStorage.removeItem(name);
+-        }
+-    },
+-};
++// 保留上游导入名，底层唯一持久化通道改为SQLite；无浏览器回退。
++export { sqliteStateStorage as localForageStorage } from "@/guan/上游浏览器存储桥";
+--- a/web/src/i18n/index.ts
++++ b/web/src/i18n/index.ts
+@@ -1,3 +1,4 @@
++import { sqlitePreferences } from "@/guan/上游浏览器存储桥";
+ import { productFeatures } from "@/guan/功能开关";
+ import i18n from "i18next";
+ import { initReactI18next } from "react-i18next";
+@@ -14,7 +15,7 @@
+         "zh-CN": { translation: zhCN },
+         "en-US": { translation: enUS },
+     },
+-    lng: (localStorage.getItem(LOCALE_STORAGE_KEY) as AppLocale) || "zh-CN",
++    lng: (sqlitePreferences.getItem(LOCALE_STORAGE_KEY) as AppLocale) || "zh-CN",
+     fallbackLng: "zh-CN",
+     supportedLngs: ["zh-CN", "en-US"],
+     initAsync: false,
+@@ -24,7 +25,7 @@
+ 
+ export function changeAppLocale(locale: AppLocale) {
+     if (!productFeatures.languageSwitch) return Promise.resolve();
+-    localStorage.setItem(LOCALE_STORAGE_KEY, locale);
++    sqlitePreferences.setItem(LOCALE_STORAGE_KEY, locale);
+     return i18n.changeLanguage(locale);
+ }
+ 
+--- a/web/src/stores/use-canvas-side-panel-store.ts
++++ b/web/src/stores/use-canvas-side-panel-store.ts
+@@ -1,3 +1,4 @@
++import { sqlitePreferences } from "@/guan/上游浏览器存储桥";
+ import { create } from "zustand";
+ 
+ export const CANVAS_SIDE_PANEL_MOTION_MS = 500;
+@@ -13,19 +14,19 @@
+ 
+ function initialWidth() {
+     if (typeof window === "undefined") return CANVAS_SIDE_PANEL_DEFAULT_WIDTH;
+-    const stored = Number(localStorage.getItem(WIDTH_KEY));
++    const stored = Number(sqlitePreferences.getItem(WIDTH_KEY));
+     if (!stored) return CANVAS_SIDE_PANEL_DEFAULT_WIDTH;
+     return Math.min(CANVAS_SIDE_PANEL_MAX_WIDTH, Math.max(CANVAS_SIDE_PANEL_MIN_WIDTH, stored));
+ }
+ 
+ function initialOpen() {
+     if (typeof window === "undefined") return true;
+-    return localStorage.getItem(OPEN_KEY) !== "0";
++    return sqlitePreferences.getItem(OPEN_KEY) !== "0";
+ }
+ 
+ function initialNodeView(): CanvasNodeViewMode {
+     if (typeof window === "undefined") return "list";
+-    return localStorage.getItem(NODE_VIEW_KEY) === "grid" ? "grid" : "list";
++    return sqlitePreferences.getItem(NODE_VIEW_KEY) === "grid" ? "grid" : "list";
+ }
+ 
+ type CanvasSidePanelStore = {
+@@ -49,16 +50,16 @@
+     nodeViewMode: initialNodeView(),
+     setWidth: (width) => set({ width }),
+     setNodeViewMode: (mode) => {
+-        if (typeof window !== "undefined") localStorage.setItem(NODE_VIEW_KEY, mode);
++        if (typeof window !== "undefined") sqlitePreferences.setItem(NODE_VIEW_KEY, mode);
+         set({ nodeViewMode: mode });
+     },
+     openPanel: () => {
+-        if (typeof window !== "undefined") localStorage.setItem(OPEN_KEY, "1");
++        if (typeof window !== "undefined") sqlitePreferences.setItem(OPEN_KEY, "1");
+         set({ panelOpen: true, panelMounted: true, panelClosing: false });
+     },
+     closePanel: () => {
+         if (!get().panelMounted || get().panelClosing) return;
+-        if (typeof window !== "undefined") localStorage.setItem(OPEN_KEY, "0");
++        if (typeof window !== "undefined") sqlitePreferences.setItem(OPEN_KEY, "0");
+         set({ panelOpen: false, panelClosing: true });
+         setTimeout(() => {
+             if (get().panelClosing) set({ panelMounted: false, panelClosing: false });
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -1,3 +1,4 @@
++import { sqlitePreferences } from "@/guan/上游浏览器存储桥";
+ import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
+ import { App, Empty, Input, Popconfirm, Select, Spin, Tag } from "antd";
+ import { useQuery } from "@tanstack/react-query";
+@@ -72,7 +73,7 @@
+             setWidth(nextWidth);
+         };
+         const onUp = () => {
+-            localStorage.setItem("canvas-side-panel-width", String(nextWidth));
++            sqlitePreferences.setItem("canvas-side-panel-width", String(nextWidth));
+             window.removeEventListener("pointermove", onMove);
+             window.removeEventListener("pointerup", onUp);
+             setResizing(false);
+--- a/web/src/components/canvas/canvas-node-hover-toolbar.tsx
++++ b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+@@ -1,3 +1,4 @@
++import { sqlitePreferences } from "@/guan/上游浏览器存储桥";
+ import { useEffect, useMemo, useState, type ReactNode } from "react";
+ import { App, Modal, Segmented, Tooltip } from "antd";
+ import { Download, Ellipsis, FolderPlus, Image as ImageIcon, Info, MessageSquare, Minus, Music2, Plus, RefreshCw, Settings2, Trash2, Ungroup, Upload, Video } from "lucide-react";
+@@ -87,14 +88,14 @@
+ 
+     useEffect(() => {
+         try {
+-            const stored = window.localStorage.getItem(IMAGE_QUICK_TOOLS_STORAGE_KEY);
++            const stored = sqlitePreferences.getItem(IMAGE_QUICK_TOOLS_STORAGE_KEY);
+             if (!stored) return;
+             const parsed = JSON.parse(stored) as unknown;
+             const config = readImageQuickToolsConfig(parsed);
+             setQuickImageToolIds(config.ids);
+             setShowImageToolLabels(config.showLabels);
+         } catch {
+-            window.localStorage.removeItem(IMAGE_QUICK_TOOLS_STORAGE_KEY);
++            sqlitePreferences.removeItem(IMAGE_QUICK_TOOLS_STORAGE_KEY);
+         }
+     }, []);
+ 
+@@ -176,7 +177,7 @@
+         const config = { ids: draftImageToolIds, showLabels: draftShowImageToolLabels };
+         setQuickImageToolIds(config.ids);
+         setShowImageToolLabels(config.showLabels);
+-        window.localStorage.setItem(IMAGE_QUICK_TOOLS_STORAGE_KEY, JSON.stringify(config));
++        sqlitePreferences.setItem(IMAGE_QUICK_TOOLS_STORAGE_KEY, JSON.stringify(config));
+         closeImageToolSettings();
+     };
+ 
+--- a/web/src/stores/use-agent-store.ts
++++ b/web/src/stores/use-agent-store.ts
+@@ -1,3 +1,4 @@
++import { sqlitePreferences } from "@/guan/上游浏览器存储桥";
+ import { productFeatures } from "@/guan/功能开关";
+ import { create } from "zustand";
+ import i18n from "@/i18n";
+@@ -97,13 +98,13 @@
+ export const CANVAS_AGENT_PANEL_MOTION_MS = 500;
+ 
+ export const useAgentStore = create<AgentStore>((set, get) => ({
+-    width: typeof window === "undefined" ? 440 : Number(localStorage.getItem("canvas-agent-panel-width")) || 440,
++    width: typeof window === "undefined" ? 440 : Number(sqlitePreferences.getItem("canvas-agent-panel-width")) || 440,
+     panelOpen: false,
+     panelMounted: productFeatures.externalAgent,
+     panelClosing: false,
+     canvasContext: null,
+-    url: typeof window === "undefined" ? "http://127.0.0.1:17371" : localStorage.getItem("canvas-agent-url") || "http://127.0.0.1:17371",
+-    token: typeof window === "undefined" ? "" : localStorage.getItem("canvas-agent-token") || "",
++    url: typeof window === "undefined" ? "http://127.0.0.1:17371" : sqlitePreferences.getItem("canvas-agent-url") || "http://127.0.0.1:17371",
++    token: typeof window === "undefined" ? "" : sqlitePreferences.getItem("canvas-agent-token") || "",
+     connected: false,
+     enabled: false,
+     silentConnect: false,
+@@ -123,10 +124,10 @@
+     loadingThreads: false,
+     activeTab: "setup",
+     confirmTools: false,
+-    permissionMode: typeof window === "undefined" ? "request" : (localStorage.getItem("canvas-agent-permission-mode") as AgentPermissionMode) || "request",
++    permissionMode: typeof window === "undefined" ? "request" : (sqlitePreferences.getItem("canvas-agent-permission-mode") as AgentPermissionMode) || "request",
+     models: [],
+-    model: typeof window === "undefined" ? "" : localStorage.getItem("canvas-agent-model") || "",
+-    reasoningEffort: typeof window === "undefined" ? "" : (localStorage.getItem("canvas-agent-reasoning-effort") as AgentReasoningEffort) || "",
++    model: typeof window === "undefined" ? "" : sqlitePreferences.getItem("canvas-agent-model") || "",
++    reasoningEffort: typeof window === "undefined" ? "" : (sqlitePreferences.getItem("canvas-agent-reasoning-effort") as AgentReasoningEffort) || "",
+     activity: i18n.t("agent.state.ready"),
+     conversation: { revision: 0, conversationId: "", threadId: "", status: "idle", mcpStatuses: {} },
+     bootstrapStatus: null,
+@@ -160,8 +161,8 @@
+         } catch {
+             return set({ connectError: silent ? "" : i18n.t("agent.state.invalidUrl") });
+         }
+-        localStorage.setItem("canvas-agent-url", endpoint);
+-        localStorage.setItem("canvas-agent-token", token);
++        sqlitePreferences.setItem("canvas-agent-url", endpoint);
++        sqlitePreferences.setItem("canvas-agent-token", token);
+         // Only set enabled here; LocalAgentPanel's effect owns SSE initialization.
+         set({ url: endpoint, token, enabled: true, silentConnect: silent, fragmentBootstrap: false, activity: i18n.t("agent.status.connecting"), connectError: "" });
+     },
+--- a/web/src/components/agent/agent-panel.tsx
++++ b/web/src/components/agent/agent-panel.tsx
+@@ -1,3 +1,4 @@
++import { sqlitePreferences } from "@/guan/上游浏览器存储桥";
+ import { useState, type PointerEvent as ReactPointerEvent } from "react";
+ import { motion } from "motion/react";
+ import { useTranslation } from "react-i18next";
+@@ -28,7 +29,7 @@
+             setAgentState({ width: nextWidth });
+         };
+         const onUp = () => {
+-            localStorage.setItem("canvas-agent-panel-width", String(nextWidth));
++            sqlitePreferences.setItem("canvas-agent-panel-width", String(nextWidth));
+             window.removeEventListener("pointermove", onMove);
+             window.removeEventListener("pointerup", onUp);
+             setResizing(false);
+--- a/web/src/components/agent/local-agent-panel.tsx
++++ b/web/src/components/agent/local-agent-panel.tsx
+@@ -1,3 +1,4 @@
++import { sqlitePreferences, sessionMemory } from "@/guan/上游浏览器存储桥";
+ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+ import { App, Button, Tooltip } from "antd";
+@@ -341,8 +342,8 @@
+ 
+     useEffect(() => {
+         if (!clientReady || !enabled || !token.trim()) return;
+-        localStorage.setItem("canvas-agent-url", endpoint);
+-        localStorage.setItem("canvas-agent-token", token);
++        sqlitePreferences.setItem("canvas-agent-url", endpoint);
++        sqlitePreferences.setItem("canvas-agent-token", token);
+         const clientId = clientIdRef.current;
+         let disposed = false;
+         let protocolRejected = false;
+@@ -606,8 +607,8 @@
+             const savedEffort = useAgentStore.getState().reasoningEffort;
+             const efforts = current.supportedReasoningEfforts.map((item) => item.reasoningEffort);
+             const nextEffort = efforts.includes(savedEffort as AgentReasoningEffort) ? savedEffort as AgentReasoningEffort : current.defaultReasoningEffort || efforts[0];
+-            localStorage.setItem("canvas-agent-model", current.model);
+-            localStorage.setItem("canvas-agent-reasoning-effort", nextEffort);
++            sqlitePreferences.setItem("canvas-agent-model", current.model);
++            sqlitePreferences.setItem("canvas-agent-reasoning-effort", nextEffort);
+             setAgentState({ models, model: current.model, reasoningEffort: nextEffort });
+         }).catch((error) => addEventLog(rt("modelListFailed"), error));
+     }, [connected, endpoint, setAgentState, token]);
+@@ -890,7 +891,7 @@
+ 
+     const changePermissionMode = (nextMode: AgentPermissionMode) => {
+         const apply = () => {
+-            localStorage.setItem("canvas-agent-permission-mode", nextMode);
++            sqlitePreferences.setItem("canvas-agent-permission-mode", nextMode);
+             setAgentState({ permissionMode: nextMode });
+         };
+         if (nextMode !== "full") return apply();
+@@ -1427,12 +1428,12 @@
+                             const selected = models.find((item) => item.model === model);
+                             if (!selected) return;
+                             const effort = selected.defaultReasoningEffort || selected.supportedReasoningEfforts[0]?.reasoningEffort;
+-                            localStorage.setItem("canvas-agent-model", model);
+-                            if (effort) localStorage.setItem("canvas-agent-reasoning-effort", effort);
++                            sqlitePreferences.setItem("canvas-agent-model", model);
++                            if (effort) sqlitePreferences.setItem("canvas-agent-reasoning-effort", effort);
+                             setAgentState({ model, ...(effort ? { reasoningEffort: effort } : {}) });
+                         }}
+                         onReasoningEffortChange={(reasoningEffort) => {
+-                            localStorage.setItem("canvas-agent-reasoning-effort", reasoningEffort);
++                            sqlitePreferences.setItem("canvas-agent-reasoning-effort", reasoningEffort);
+                             setAgentState({ reasoningEffort });
+                         }}
+                         left={
+@@ -1485,7 +1486,7 @@
+ 
+ function readAgentClientId() {
+     try {
+-        return sessionStorage.getItem("canvas-agent-client-id") || "";
++        return sessionMemory.getItem("canvas-agent-client-id") || "";
+     } catch {
+         return "";
+     }
+@@ -1493,7 +1494,7 @@
+ 
+ function saveAgentClientId(clientId: string) {
+     try {
+-        sessionStorage.setItem("canvas-agent-client-id", clientId);
++        sessionMemory.setItem("canvas-agent-client-id", clientId);
+     } catch {
+         // The in-memory identity still keeps request ownership consistent within the current page session.
+     }
+--- a/web/src/stores/use-config-store.ts
++++ b/web/src/stores/use-config-store.ts
+@@ -1,9 +1,10 @@
++import { sqliteStateStorage } from "@/guan/上游浏览器存储桥";
+ import { requireAuxiliaryFeature } from "@/guan/精简与离线策略";
+ import { requireBusinessFeature } from "@/guan/脚本与提示词来源";
+ import { productFeatures, requireProductFeature } from "@/guan/功能开关";
+ import { useMemo } from "react";
+ import { create } from "zustand";
+-import { persist } from "zustand/middleware";
++import { createJSONStorage, persist } from "zustand/middleware";
+ import { nanoid } from "nanoid";
+ 
+ import i18n from "@/i18n";
+@@ -253,6 +254,7 @@
+         }),
+         {
+             name: CONFIG_STORE_KEY,
++            storage: createJSONStorage(() => sqliteStateStorage),
+             partialize: (state) => ({ config: state.config, webdav: state.webdav }),
+             merge: (persisted, current) => {
+                 const persistedState = (persisted || {}) as Partial<ConfigStore>;
+--- a/web/src/stores/use-prompt-source-store.ts
++++ b/web/src/stores/use-prompt-source-store.ts
+@@ -1,6 +1,7 @@
++import { sqliteStateStorage } from "@/guan/上游浏览器存储桥";
+ import { requireBusinessFeature } from "@/guan/脚本与提示词来源";
+ import { create } from "zustand";
+-import { persist } from "zustand/middleware";
++import { createJSONStorage, persist } from "zustand/middleware";
+ 
+ import { DEFAULT_PROMPT_SOURCES, createPromptSource, type PromptSource } from "@/services/api/prompt-source-presets";
+ 
+@@ -49,6 +50,7 @@
+         }),
+         {
+             name: PROMPT_SOURCE_STORE_KEY,
++            storage: createJSONStorage(() => sqliteStateStorage),
+             partialize: (state) => ({ sources: state.sources, schedule: state.schedule }),
+             merge: (persisted, current) => {
+                 const persistedState = (persisted || {}) as Partial<PromptSourceStore>;
+--- a/web/src/guan/三态主题状态.ts
++++ b/web/src/guan/三态主题状态.ts
+@@ -1,5 +1,6 @@
++import { sqliteStateStorage } from "@/guan/上游浏览器存储桥";
+ import { create } from "zustand";
+-import { persist } from "zustand/middleware";
++import { createJSONStorage, persist } from "zustand/middleware";
+ 
+ export type ThemeName = "light" | "dark";
+ export type ThemeMode = ThemeName | "system";
+@@ -42,6 +43,7 @@
+         }),
+         {
+             name: "infinite-canvas:theme_store",
++            storage: createJSONStorage(() => sqliteStateStorage),
+             partialize: (state) => ({ mode: state.mode }),
+             merge: (saved, current) => {
+                 const mode = resolveThemeMode(saved);
+--- a/web/src/stores/canvas/use-canvas-store.ts
++++ b/web/src/stores/canvas/use-canvas-store.ts
+@@ -1,3 +1,4 @@
++import { scheduleStateSave } from "@/guan/上游浏览器存储桥";
+ import { create } from "zustand";
+ import { persist, type PersistStorage, type StorageValue } from "zustand/middleware";
+ 
+@@ -42,7 +43,6 @@
+ const initialViewport: ViewportTransform = { x: 0, y: 0, k: 1 };
+ const CANVAS_STORE_KEY = "infinite-canvas:canvas_store";
+ type PersistedCanvasState = Pick<CanvasStore, "projects" | "deletedProjects">;
+-let saveTimer: ReturnType<typeof setTimeout> | null = null;
+ let queuedPersistState: PersistedCanvasState | null = null;
+ 
+ const canvasStorage: PersistStorage<CanvasStore> = {
+@@ -57,11 +57,7 @@
+         const nextState = value.state as PersistedCanvasState;
+         if (queuedPersistState && queuedPersistState.projects === nextState.projects && queuedPersistState.deletedProjects === nextState.deletedProjects) return;
+         queuedPersistState = nextState;
+-        if (saveTimer) clearTimeout(saveTimer);
+-        saveTimer = setTimeout(() => {
+-            saveTimer = null;
+-            void localForageStorage.setItem(name, JSON.stringify(value));
+-        }, 400);
++        return scheduleStateSave(name, JSON.stringify(value));
+     },
+     removeItem: (name) => localForageStorage.removeItem(name),
+ };
+--- a/web/src/services/local-storage-usage.ts
++++ b/web/src/services/local-storage-usage.ts
+@@ -1,64 +1,3 @@
+-export type IndexedDbStoreUsage = { name: string; records: number; bytes: number };
+-export type IndexedDbDatabaseUsage = { name: string; version: number; bytes: number; stores: IndexedDbStoreUsage[] };
+-export type LocalStorageUsage = { usage: number; quota: number | null; contentBytes: number; databases: IndexedDbDatabaseUsage[] };
+-
+-export async function readLocalStorageUsage(): Promise<LocalStorageUsage> {
+-    const [estimate, database] = await Promise.all([readStorageEstimate(), readDatabaseUsage("infinite-canvas")]);
+-    return { usage: estimate?.usage ?? database.bytes, quota: estimate?.quota ?? null, contentBytes: database.bytes, databases: [database] };
+-}
+-
+-async function readStorageEstimate() {
+-    if (typeof navigator === "undefined" || !navigator.storage?.estimate) return null;
+-    try {
+-        return await navigator.storage.estimate();
+-    } catch {
+-        return null;
+-    }
+-}
+-
+-function readDatabaseUsage(name: string) {
+-    return new Promise<IndexedDbDatabaseUsage>((resolve, reject) => {
+-        const request = indexedDB.open(name);
+-        request.onerror = () => reject(request.error);
+-        request.onsuccess = () => {
+-            const database = request.result;
+-            const names = Array.from(database.objectStoreNames);
+-            if (!names.length) {
+-                database.close();
+-                resolve({ name, version: database.version, bytes: 0, stores: [] });
+-                return;
+-            }
+-            const transaction = database.transaction(names, "readonly");
+-            Promise.all(names.map((storeName) => readStoreUsage(transaction.objectStore(storeName))))
+-                .then((stores) => resolve({ name, version: database.version, bytes: stores.reduce((total, store) => total + store.bytes, 0), stores: stores.sort((a, b) => b.bytes - a.bytes) }))
+-                .catch(reject)
+-                .finally(() => database.close());
+-        };
+-    });
+-}
+-
+-function readStoreUsage(store: IDBObjectStore) {
+-    return new Promise<IndexedDbStoreUsage>((resolve, reject) => {
+-        let records = 0;
+-        let bytes = 0;
+-        const request = store.openCursor();
+-        request.onerror = () => reject(request.error);
+-        request.onsuccess = () => {
+-            const cursor = request.result;
+-            if (!cursor) {
+-                resolve({ name: store.name, records, bytes });
+-                return;
+-            }
+-            records += 1;
+-            bytes += valueBytes(cursor.value);
+-            cursor.continue();
+-        };
+-    });
+-}
+-
+-function valueBytes(value: unknown) {
+-    if (value instanceof Blob) return value.size;
+-    if (value instanceof ArrayBuffer) return value.byteLength;
+-    if (ArrayBuffer.isView(value)) return value.byteLength;
+-    return new TextEncoder().encode(typeof value === "string" ? value : JSON.stringify(value)).byteLength;
+-}
++// 原UI类型名保留兼容，但容量现在来自受限本机API，不打开浏览器数据库。
++export { readSQLiteUsage as readLocalStorageUsage } from "@/guan/上游浏览器存储桥";
++export type { SQLiteUsage as LocalStorageUsage } from "@/guan/上游浏览器存储桥";
+--- a/web/src/i18n/locales/zh-CN.ts
++++ b/web/src/i18n/locales/zh-CN.ts
+@@ -395,16 +395,16 @@
+         },
+         localStorage: {
+             title: "IndexedDB 存储使用情况",
+-            description: "查看 Infinite Canvas 在浏览器中保存的数据量，并按对象仓库统计内容体积。",
+-            indexedDbUsage: "IndexedDB 占用",
+-            siteUsage: "站点总占用",
+-            quota: "可用配额",
+-            contentEstimate: "按仓库内容估算",
+-            siteUsageHint: "包含 IndexedDB 等站点数据",
++            description: "数据保存在本机SQLite及媒体文件中，不依赖浏览器缓存。",
++            indexedDbUsage: "数据内容",
++            siteUsage: "当前库与媒体占用",
++            quota: "浏览器配额",
++            contentEstimate: "结构化记录与已索引媒体",
++            siteUsageHint: "包含SQLite日志，不含备份及未索引文件",
+             quotaHint: "由浏览器动态分配",
+-            quotaUnavailable: "当前浏览器不提供配额估算",
++            quotaUnavailable: "本机存储不使用浏览器配额",
+             quotaProgress: "站点配额使用率",
+-            mainDatabase: "Infinite Canvas 主数据",
++            mainDatabase: "本机工作区",
+             records: "{{count}} 条",
+             refresh: "刷新统计",
+             readFailed: "读取本地存储失败",
+--- a/web/src/i18n/locales/en-US.ts
++++ b/web/src/i18n/locales/en-US.ts
+@@ -395,16 +395,16 @@
+         },
+         localStorage: {
+             title: "IndexedDB storage usage",
+-            description: "View browser data saved by Infinite Canvas, grouped by object store.",
+-            indexedDbUsage: "IndexedDB usage",
+-            siteUsage: "Total site usage",
+-            quota: "Available quota",
+-            contentEstimate: "Estimated from stored content",
+-            siteUsageHint: "Includes IndexedDB and other site data",
++            description: "Data is stored in local SQLite and media files, not browser storage.",
++            indexedDbUsage: "Data content",
++            siteUsage: "Database and media usage",
++            quota: "Browser quota",
++            contentEstimate: "Structured records and indexed media",
++            siteUsageHint: "Includes SQLite journals; excludes backups and unindexed files",
+             quotaHint: "Allocated dynamically by the browser",
+-            quotaUnavailable: "Quota estimation is unavailable in this browser",
++            quotaUnavailable: "Local storage does not use a browser quota",
+             quotaProgress: "Site quota usage",
+-            mainDatabase: "Infinite Canvas data",
++            mainDatabase: "Local workspace",
+             records: "{{count}} records",
+             refresh: "Refresh usage",
+             readFailed: "Failed to read local storage",
+--- /dev/null
++++ b/web/src/guan/SQLite应用入口.tsx
+@@ -0,0 +1,23 @@
++import React from "react";
++import { createRoot } from "react-dom/client";
++import "antd/dist/reset.css";
++import "streamdown/styles.css";
++import "@/styles/globals.css";
++import { RouterProvider } from "react-router-dom";
++
++import { AppProviders } from "@/components/layout/app-providers";
++import "@/i18n";
++import { initAnalytics } from "@/lib/analytics";
++import { router } from "@/router";
++
++initAnalytics();
++
++document.body.style.fontFamily = '"SF Pro Display","SF Pro Text","PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
++
++createRoot(document.getElementById("root")!).render(
++    <React.StrictMode>
++        <AppProviders>
++            <RouterProvider router={router} />
++        </AppProviders>
++    </React.StrictMode>,
++);
+--- /dev/null
++++ b/web/src/guan/上游浏览器存储桥.ts
+@@ -0,0 +1,123 @@
++// 仅由具体获批的应用启动器安装。这里不自行索取令牌，不接旧浏览器存储。
++export interface SQLiteInstance {
++    getItem<T>(key: string): Promise<T | null>;
++    setItem<T>(key: string, value: T): Promise<T>;
++    removeItem(key: string): Promise<unknown>;
++    clear(): Promise<unknown>;
++    iterate<T, U>(iterator: (value: T, key: string, index: number) => U | void): Promise<U | void>;
++}
++export type SQLiteUsage = {
++    usage: number;
++    quota: number | null;
++    contentBytes: number;
++    databases: Array<{ name: string; version: number; bytes: number; stores: Array<{ name: string; records: number; bytes: number }> }>;
++};
++export interface SQLiteRuntime {
++    createInstance(options: { name?: string; storeName?: string }): SQLiteInstance;
++    flush(): Promise<unknown>;
++    getStatus(): { state: string; pending: number; errors: string[] };
++    readUsage(): Promise<SQLiteUsage>;
++}
++declare global {
++    interface Window {
++        __guanSQLiteHost?: { initialize(): Promise<SQLiteRuntime> };
++    }
++}
++
++let runtime: SQLiteRuntime | null = null;
++let appState: SQLiteInstance;
++let preferencesStore: SQLiteInstance;
++const stateCache = new Map<string, string>();
++const preferencesCache = new Map<string, string>();
++const sessionCache = new Map<string, string>();
++const writes = new Set<Promise<unknown>>();
++const failed = new Map<string, unknown>();
++const scheduled = new Map<string, { value: string; timer: ReturnType<typeof setTimeout>; resolve: () => void; reject: (reason: unknown) => void; promise: Promise<void> }>();
++
++function ready() {
++    if (!runtime) throw new Error("本机存储尚未初始化，不允许退回浏览器数据库。");
++    return runtime;
++}
++function statusChanged() {
++    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("guan:storage-status", { detail: storageStatus() }));
++}
++export function storageStatus() {
++    return { state: failed.size || runtime?.getStatus().state === "error" ? "error" : writes.size || scheduled.size ? "saving" : "saved", pending: writes.size + scheduled.size };
++}
++function track<T>(key: string, promise: Promise<T>) {
++    writes.add(promise); statusChanged();
++    // 旁路观测失败，不改变原Promise的拒绝语义，也不会产生未处理拒绝。
++    promise.then(() => failed.delete(key), error => failed.set(key, error)).finally(() => { writes.delete(promise); statusChanged(); });
++    return promise;
++}
++
++export async function initializeSQLiteApplication() {
++    if (runtime) return;
++    if (typeof window === "undefined" || !window.__guanSQLiteHost) throw new Error("本机SQLite服务尚未授权接入。未加载空画布，也未使用浏览器存储。");
++    const candidate = await window.__guanSQLiteHost.initialize();
++    const app = candidate.createInstance({ name: "infinite-canvas", storeName: "app_state" });
++    const prefs = candidate.createInstance({ name: "infinite-canvas", storeName: "preferences" });
++    const nextState = new Map<string, string>(), nextPreferences = new Map<string, string>();
++    await app.iterate<unknown, void>((value, key) => {
++        if (typeof value !== "string") throw new Error("应用状态格式错误，未作为空库继续。");
++        const parsed: unknown = JSON.parse(value);
++        if (!parsed || typeof parsed !== "object" || !("state" in parsed) || !parsed.state || typeof parsed.state !== "object") throw new Error("应用状态结构错误，停止初始化。");
++        nextState.set(key, value);
++    });
++    await prefs.iterate<unknown, void>((value, key) => {
++        if (typeof value !== "string") throw new Error("偏好设置格式错误，停止初始化。");
++        nextPreferences.set(key, value);
++    });
++    // 所有读取完成后一次发布，避免默认值先写回覆盖数据库。
++    for (const [key, value] of nextState) stateCache.set(key, value);
++    for (const [key, value] of nextPreferences) preferencesCache.set(key, value);
++    appState = app; preferencesStore = prefs; runtime = candidate;
++    window.addEventListener("beforeunload", event => {
++        const status = storageStatus();
++        if (status.state === "saving" || status.state === "error") { event.preventDefault(); event.returnValue = ""; }
++    });
++    statusChanged();
++}
++
++export const sqliteStateStorage = {
++    getItem(key: string) { ready(); return stateCache.get(key) ?? null; },
++    setItem(key: string, value: string) { ready(); stateCache.set(key, value); return track("state:" + key, appState.setItem(key, value).then(() => {})); },
++    removeItem(key: string) { ready(); stateCache.delete(key); return track("state:" + key, appState.removeItem(key)).then(() => {}); },
++};
++// 同步读取仅来自启动前加载的内存快照；写入仍要等SQLite ACK才算成功。
++export const sqlitePreferences = {
++    getItem(key: string) { ready(); return preferencesCache.get(key) ?? null; },
++    setItem(key: string, value: string) { ready(); preferencesCache.set(key, value); track("pref:" + key, preferencesStore.setItem(key, value)); },
++    removeItem(key: string) { ready(); preferencesCache.delete(key); track("pref:" + key, preferencesStore.removeItem(key)); },
++};
++// 窗口身份只活在本页内存，不能把不同窗口的client-id存成全工作区共用值。
++export const sessionMemory = {
++    getItem(key: string) { return sessionCache.get(key) ?? null; },
++    setItem(key: string, value: string) { sessionCache.set(key, value); },
++};
++export const sqliteForage = {
++    createInstance(options: { name?: string; storeName?: string }) { return ready().createInstance(options); },
++};
++
++function startScheduled(key: string) {
++    const entry = scheduled.get(key);
++    if (!entry) return;
++    clearTimeout(entry.timer); scheduled.delete(key);
++    sqliteStateStorage.setItem(key, entry.value).then(entry.resolve, entry.reject);
++}
++export function scheduleStateSave(key: string, value: string) {
++    ready();
++    const existing = scheduled.get(key);
++    if (existing) { existing.value = value; clearTimeout(existing.timer); existing.timer = setTimeout(() => startScheduled(key), 400); return existing.promise; }
++    let resolve!: () => void, reject!: (reason: unknown) => void;
++    const promise = new Promise<void>((success, failure) => { resolve = success; reject = failure; });
++    scheduled.set(key, { value, timer: setTimeout(() => startScheduled(key), 400), resolve, reject, promise });
++    promise.catch(() => {}); statusChanged(); return promise;
++}
++export async function flushSQLiteStorage() {
++    ready();
++    for (const key of [...scheduled.keys()]) startScheduled(key);
++    await Promise.all([...writes]); await runtime!.flush();
++    if (failed.size || writes.size || scheduled.size) throw new Error("本机保存尚未确认，不能继续关闭或切换服务。");
++}
++export function readSQLiteUsage() { return ready().readUsage(); }
+--- a/web/src/main.tsx
++++ b/web/src/main.tsx
+@@ -1,23 +1,15 @@
+-import React from "react";
+-import { createRoot } from "react-dom/client";
+-import "antd/dist/reset.css";
+-import "streamdown/styles.css";
+-import "./styles/globals.css";
+-import { RouterProvider } from "react-router-dom";
++import { initializeSQLiteApplication } from "@/guan/上游浏览器存储桥";
+ 
+-import { AppProviders } from "@/components/layout/app-providers";
+-import "@/i18n";
+-import { initAnalytics } from "@/lib/analytics";
+-import { router } from "@/router";
+-
+-initAnalytics();
+-
+-document.body.style.fontFamily = '"SF Pro Display","SF Pro Text","PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
+-
+-createRoot(document.getElementById("root")!).render(
+-    <React.StrictMode>
+-        <AppProviders>
+-            <RouterProvider router={router} />
+-        </AppProviders>
+-    </React.StrictMode>,
+-);
++async function start() {
++    try {
++        await initializeSQLiteApplication();
++        await import("@/guan/SQLite应用入口");
++    } catch {
++        const root = document.getElementById("root");
++        if (root) {
++            root.setAttribute("role", "alert");
++            root.textContent = "本机SQLite存储未就绪。为保护数据，工作台没有加载空画布。请检查本机服务和授权后刷新；浏览器旧数据保持不变。";
++        }
++    }
++}
++void start();

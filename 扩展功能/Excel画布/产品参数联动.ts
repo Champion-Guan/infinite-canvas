@@ -11,6 +11,7 @@ const parameterChanged = (before: CanvasNodeData | undefined, current: CanvasNod
     const old = before?.metadata as ProductParameterMetadata | undefined;
     const next = current.metadata as ProductParameterMetadata | undefined;
     return old?.promptVariableValues !== next?.promptVariableValues || old?.promptVariableSupplement !== next?.promptVariableSupplement ||
+        old?.productGenerationSupplement !== next?.productGenerationSupplement ||
         old?.productBrief !== next?.productBrief || old?.productLanguage !== next?.productLanguage ||
         old?.productPlatform !== next?.productPlatform || old?.productPlatformRules !== next?.productPlatformRules ||
         old?.productPlatformRuleOverrides !== next?.productPlatformRuleOverrides ||

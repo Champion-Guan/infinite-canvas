@@ -1,0 +1,20 @@
+diff --git a/web/src/components/prompts/use-prompt-list.ts b/web/src/components/prompts/use-prompt-list.ts
+index 24af0ce..b6d822a 100644
+--- a/web/src/components/prompts/use-prompt-list.ts
++++ b/web/src/components/prompts/use-prompt-list.ts
+@@ -1,5 +1,5 @@
+ import { useEffect, useMemo, useState } from "react";
+-import { useInfiniteQuery } from "@tanstack/react-query";
++import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
+ 
+ import { ALL_PROMPTS_OPTION, fetchPrompts } from "@/services/api/prompts";
+ 
+@@ -17,6 +17,8 @@ export function usePromptList({ keyword, tags, category, enabled = true }: { key
+         initialPageParam: 1,
+         getNextPageParam: (lastPage, pages) => (pages.reduce((total, page) => total + page.items.length, 0) < lastPage.total ? pages.length + 1 : undefined),
+         enabled,
++        placeholderData: keepPreviousData,
++        staleTime: 30_000,
+     });
+     const firstPage = query.data?.pages[0];
+     return {

@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { bilingualAlignment, correspondingRanges, linkedScrollTop, type BilingualAlignment, type TextRange } from "./双语片段对齐";
 import styles from "./双语联动文本框.module.css";
+import { useThemeStore } from "@/stores/use-theme-store";
 
 type Language = "chinese" | "english";
 type Highlight = { text: string; ranges: TextRange[] };
@@ -41,6 +42,7 @@ export function BilingualPromptField({ link, language, variableRanges = [], onVa
     variableRanges?: Array<{ id: string; start: number; end: number }>; onVariableClick?: (id: string) => void;
     inlineReferences?: Array<{ start: number; end: number; content: ReactNode }>;
 }) {
+    const theme = useThemeStore(state => state.theme);
     const textarea = useRef<HTMLTextAreaElement>(null), overlay = useRef<HTMLDivElement>(null), mirror = useRef<HTMLDivElement>(null);
     const marked = useMemo(() => link.ready && link.highlight[language]?.text === props.value
         ? link.highlight[language]?.ranges || [] : [], [link.ready, link.highlight, language, props.value]);
@@ -63,7 +65,8 @@ export function BilingualPromptField({ link, language, variableRanges = [], onVa
         const observer = new ResizeObserver(syncMirror); observer.observe(input);
         return () => { observer.disconnect(); if (link.fields.current[language] === input) delete link.fields.current[language]; };
     }, [link.fields, language, syncMirror]);
-    useLayoutEffect(syncMirror);
+    const mirrorStyle = JSON.stringify(props.style);
+    useLayoutEffect(syncMirror, [syncMirror, props.value, props.className, mirrorStyle, theme]);
     useLayoutEffect(() => {
         if (!marked.length || !textarea.current || !mirror.current) return;
         const mark = mirror.current.querySelector("mark");

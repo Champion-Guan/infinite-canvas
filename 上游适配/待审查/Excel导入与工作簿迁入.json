@@ -1,0 +1,144 @@
+{
+  "日期": "2026-10-19",
+  "状态": "待具体差异单独批准；未接入隔离副本或3100",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/产品恢复挂载-HsicAv/产品恢复挂载接入记录.json",
+  "前置差异SHA256": "732fa40e8537921c54919bbdf0b70f67081f44bcc5dc4547379ecea8563a49e3",
+  "旧来源目录": "/Users/guanchengbin/CodexProjects/guan-ai-workbench-projects/guan-ai-workbench",
+  "旧来源SHA256": {
+    "src/shared/data-contract/index.js": "1b14b228241b07fa1a4f6fea8956c7f60112ef61bbfc8c33ec151bce5de7bb22",
+    "src/shared/data-contract/index.css": "169d3c6de95793d5648e1f673e92307d804a9599010522941e932378d1baccff",
+    "src/shared/data-contract/workbook-canvas-products.js": "8bb43e6bf44f74e3c6c18bacc46e2d9135a6170bc05eaead8922f79dccfb61bb",
+    "public/assets/local-vendor/xlsx.full.min.js": "c9506197caf809a075b6dee1da0d36fb19da7158ffe8a88e7b0c96c5d8623c99",
+    "tests/excel-reupload-sync.test.mjs": "d5a9335cae0d6a0d086e1ea9499cc0ae3db3fbb623d0b3e344c369d30551fce9",
+    "tests/workbook-canvas-products.test.mjs": "ec2d607c10c95af41c938c367c10416a1b0a38dbb62abaf48ced9ab552c4320e"
+  },
+  "原样片段SHA256": {
+    "parserFunctions": "c5935d1275890e6c7fa0ade4fb56bd53bfffdff29852ae801f949fa0e70b6a5f",
+    "contractFunctions": "a350ba307c41d57e3f62d2ae681882f54828d6afb919a622a768eb3f71185253",
+    "importer": "f593f4278c77827d282b1bd4b737ad7f12178af33b03b3a4bc2e401172d92070",
+    "markupBody": "cbd30bd1d228d00cee9555cb6a2c1da62ead61749e924c2c646d582fd2f8b436"
+  },
+  "自有来源": [
+    {
+      "文件": "扩展功能/Excel/Excel产品归属.ts",
+      "SHA256": "9cc3fe61a03aba704fb28a7c623d862d0e2cf574f0d58c089141efaa821dfc1c"
+    },
+    {
+      "文件": "扩展功能/Excel/Excel文件读取.ts",
+      "SHA256": "d09f9640f826c373367e04dd881f44dc4506382811f6b046ae575d832ebd309d"
+    },
+    {
+      "文件": "扩展功能/Excel/Excel保存导航.ts",
+      "SHA256": "43a37616a7c84e9eac94c2d2d8f4e143513a625f001da6c956211c2f4cac3f76"
+    },
+    {
+      "文件": "扩展功能/Excel/Excel导入面板.tsx",
+      "SHA256": "f84e6e2b10a300923191acdfec9291ac8c0aa7cae61f4076c40f52415c1c161d"
+    },
+    {
+      "文件": "扩展功能/Excel/Excel工作簿选择.tsx",
+      "SHA256": "d495dadd2e2e4556da445214a730ac83687438444b4b80e4acafab2f99b8c66b"
+    },
+    {
+      "文件": "扩展功能/Excel/SheetJS-LICENSE.txt",
+      "SHA256": "4d2a38ac35cda06a555c84074a819d413339cd3691b822cae50f8f322fe01f64"
+    }
+  ],
+  "差异SHA256": "95b4023354582786d93a4e37e8ce0dbe7350da2d82539582135a03f13933dd0d",
+  "文件数": 16,
+  "完整虚拟候选类型检查通过": true,
+  "已接入": false,
+  "已重启3100": false,
+  "真实浏览器验收": false,
+  "文件": [
+    {
+      "文件": "web/src/guan/Excel产品归属.ts",
+      "原始SHA256": null,
+      "候选SHA256": "9cc3fe61a03aba704fb28a7c623d862d0e2cf574f0d58c089141efaa821dfc1c"
+    },
+    {
+      "文件": "web/src/guan/Excel文件读取.ts",
+      "原始SHA256": null,
+      "候选SHA256": "d09f9640f826c373367e04dd881f44dc4506382811f6b046ae575d832ebd309d"
+    },
+    {
+      "文件": "web/src/guan/Excel保存导航.ts",
+      "原始SHA256": null,
+      "候选SHA256": "43a37616a7c84e9eac94c2d2d8f4e143513a625f001da6c956211c2f4cac3f76"
+    },
+    {
+      "文件": "web/src/guan/Excel导入面板.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "f84e6e2b10a300923191acdfec9291ac8c0aa7cae61f4076c40f52415c1c161d"
+    },
+    {
+      "文件": "web/src/guan/Excel工作簿选择.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "d495dadd2e2e4556da445214a730ac83687438444b4b80e4acafab2f99b8c66b"
+    },
+    {
+      "文件": "web/src/guan/旧版Excel解析.js",
+      "原始SHA256": null,
+      "候选SHA256": "819775a722c501275b7f578f362f848e06cb2dd0ac6528a55f659df57077ce2b"
+    },
+    {
+      "文件": "web/src/guan/旧版Excel合同.js",
+      "原始SHA256": null,
+      "候选SHA256": "eeef5306795f2cab48da963e831b2a5fb249048f4b49178969ef567f6391a159"
+    },
+    {
+      "文件": "web/src/guan/旧版Excel弹窗.js",
+      "原始SHA256": null,
+      "候选SHA256": "8f9273e4cc0c53ba58e0f79b3af66f3f88a0dbcdf015dd47ecaa40c3fe9a03c2"
+    },
+    {
+      "文件": "web/src/guan/旧版Excel样式.css",
+      "原始SHA256": null,
+      "候选SHA256": "e240cf2ac9c1227df6e3a01d281f7f301940745ef16b78c2b952fe94d0da6bae"
+    },
+    {
+      "文件": "web/public/guan/Excel/xlsx.full.min.js",
+      "原始SHA256": null,
+      "候选SHA256": "c9506197caf809a075b6dee1da0d36fb19da7158ffe8a88e7b0c96c5d8623c99"
+    },
+    {
+      "文件": "web/public/guan/Excel/SheetJS-LICENSE.txt",
+      "原始SHA256": null,
+      "候选SHA256": "4d2a38ac35cda06a555c84074a819d413339cd3691b822cae50f8f322fe01f64"
+    },
+    {
+      "文件": "web/src/stores/canvas/use-canvas-store.ts",
+      "原始SHA256": "4aa876e429bb344638886cf99d6827d84eb45bfa4cd521ce0c043570435e44e6",
+      "候选SHA256": "eba1b34489ea413103aef98ce6c355605384eb6ec67ec9bfbe4e4195fb51a32c"
+    },
+    {
+      "文件": "web/src/guan/旧版首页顶栏.tsx",
+      "原始SHA256": "19a0d7ef85a09b4134e0bd92681e4cb9276e1d1c7c37ac59824981f0da52d146",
+      "候选SHA256": "450f0214298c279aa08d5f7606ae7ffd1d4eaad75bbe1d243974dcab92d28c83"
+    },
+    {
+      "文件": "web/src/guan/顶部产品胶囊.tsx",
+      "原始SHA256": "73f38136362ccd46c856e755aaea5a79ca702b4fa72df23e9ec0f02480b16a3e",
+      "候选SHA256": "7971ea463063cd198d9b7e91befbb99b935b43bdde3556383dbe32e50422e648"
+    },
+    {
+      "文件": "web/src/guan/画布入口.tsx",
+      "原始SHA256": "4a7977dfee57f0b05c4ce5ac340aac4ddcaf573551c84412054fff356372de27",
+      "候选SHA256": "65e563ced5b12a8d46c9d40cf61e409c067221a0ea4b317c75b0448fcee9a859"
+    },
+    {
+      "文件": "web/src/guan/产品操作.ts",
+      "原始SHA256": "fc20f3205e3da6570d0926daffbb53940a0108fd98a6f2fb8cc41756722623fa",
+      "候选SHA256": "3974a0a2ff9b6d122d093ddb74c93e4b06e2f328f478f3eb32271a6ffc9d4e7c"
+    }
+  ],
+  "范围": [
+    "旧XLSX/XLS/UTF-8 CSV解析、提示词矩阵选择、产品勾选、进度与错误弹窗",
+    "工作簿选择、产品归属、同名完整路线区分、重传保留ID/画布/媒体、每工作簿选择记忆",
+    "工作簿合同与产品同SQLite分片根保存；复用现有保存ACK、操作锁及挂载门禁",
+    "保留本地SheetJS 0.18.5文件版权头及该版本Apache-2.0许可证，不增npm依赖",
+    "不含工作簿整批删除、生成提示词节点/变量绑定、旧真实数据迁入、3100切换或发布",
+    "批准后另建完整后继保护器、原态事务快照及临时SQLite真实浏览器/同尺寸主题视觉验收"
+  ]
+}

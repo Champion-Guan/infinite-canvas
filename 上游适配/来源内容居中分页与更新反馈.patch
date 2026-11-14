@@ -1,0 +1,114 @@
+diff --git a/web/src/components/layout/prompt-source-content-modal.tsx b/web/src/components/layout/prompt-source-content-modal.tsx
+index 542cea7..2851ca7 100644
+--- a/web/src/components/layout/prompt-source-content-modal.tsx
++++ b/web/src/components/layout/prompt-source-content-modal.tsx
+@@ -1,8 +1,9 @@
+-import { App, Button, Empty, Space, Table, Tag } from "antd";
++import { App, Button, Empty, Pagination, Space, Table, Tag } from "antd";
+ import { PromptImage } from "@/扩展功能/提示词/提示词图片";
+ import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+ import { Copy, FolderPlus, RefreshCw } from "lucide-react";
+-import { useCallback, useEffect, useState } from "react";
++import { useCallback, useEffect, useId, useRef, useState } from "react";
++import panelStyles from "@/扩展功能/提示词/来源内容面板.module.css";
+ import { useTranslation } from "react-i18next";
+ 
+ import { PromptDetailDialog } from "@/pages/prompts/components/prompt-detail-dialog";
+@@ -11,30 +12,39 @@ import { useAssetStore } from "@/stores/use-asset-store";
+ import { fetchSourcePrompts, refreshSource, type Prompt } from "@/services/api/prompts";
+ import type { PromptSource } from "@/services/api/prompt-source-presets";
+ 
+-export function PromptSourceContentModal({ source, localItems, onClose }: { source: PromptSource | null; localItems?: Prompt[]; onClose: () => void }) {
++export function PromptSourceContentModal({ source, localItems, onClose, triggerId }: { source: PromptSource | null; localItems?: Prompt[]; onClose: () => void; triggerId?: string }) {
+     const { message } = App.useApp();
+     const { t } = useTranslation();
+     const [loadedItems, setItems] = useState<Prompt[]>([]);
+     const items = localItems ?? loadedItems;
+     const [loading, setLoading] = useState(false);
+     const [detail, setDetail] = useState<Prompt | null>(null);
++    const [page, setPage] = useState(1);
++    const [detailTriggerId, setDetailTriggerId] = useState("");
++    const detailPrefix = useId();
++    const refreshing = useRef(false);
+     const copyText = useCopyText();
+     const addAsset = useAssetStore((state) => state.addAsset);
+ 
+     const load = useCallback(
+         async (force: boolean) => {
+             if (!source) return;
++            if (refreshing.current) return;
+             if (localItems) {
+                 if (force) message.success(t("config.promptSources.refreshed", { name: source.name, count: localItems.length }));
+                 return;
+             }
++            refreshing.current = true;
+             setLoading(true);
+             try {
+-                setItems(force ? await refreshSourceItems(source.id) : await fetchSourcePrompts(source.id));
++                const next = force ? await refreshSourceItems(source.id) : await fetchSourcePrompts(source.id);
++                setItems(next);
++                if (force) message.success(t("config.promptSources.refreshed", { name: source.name, count: next.length }));
+             } catch (error) {
+                 message.error(error instanceof Error ? error.message : t("config.promptSources.content.loadFailed"));
+             } finally {
+                 setLoading(false);
++                refreshing.current = false;
+             }
+         },
+         [source, localItems, message, t],
+@@ -56,26 +66,31 @@ export function PromptSourceContentModal({ source, localItems, onClose }: { sour
+                 open={Boolean(source)}
+                 onCancel={onClose}
+                 width={980}
+-                footer={null}
++                centered
++                triggerId={triggerId}
++                className={panelStyles.modal}
++                styles={{ body: { height: "min(64dvh, 600px)", minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" } }}
++                footer={<Pagination current={page} total={items.length} pageSize={10} showSizeChanger={false} size="small" onChange={setPage} />}
+                 title={
+-                    <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
++                    <div className={panelStyles.heading}>
+                         <div>
+                             <div className="text-base font-semibold">{t("config.promptSources.content.title", { name: source?.name || "" })}</div>
+                             <div className="mt-0.5 text-xs font-normal text-stone-500">{t("config.promptSources.content.count", { count: items.length })}</div>
+                         </div>
+-                        <Button size="small" icon={<RefreshCw className="size-3.5" />} loading={loading} onClick={() => void load(true)}>
++                        <Button className={panelStyles.refresh} size="small" icon={<RefreshCw className="size-3.5" />} loading={loading} onClick={() => void load(true)}>
+                             {t("config.promptSources.content.refresh")}
+                         </Button>
+                     </div>
+                 }
+             >
+                 <Table<Prompt>
++                    className={panelStyles.table}
+                     rowKey="id"
+                     size="small"
+                     loading={loading}
+-                    dataSource={items}
+-                    pagination={{ pageSize: 10, showSizeChanger: false, size: "small" }}
+-                    scroll={{ y: "56vh" }}
++                    dataSource={items.slice((page - 1) * 10, page * 10)}
++                    pagination={false}
++                    scroll={{ y: "100%" }}
+                     locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t("config.promptSources.content.empty")} /> }}
+                     columns={[
+                         {
+@@ -116,7 +131,7 @@ export function PromptSourceContentModal({ source, localItems, onClose }: { sour
+                                     <Button size="small" type="text" icon={<Copy className="size-3.5" />} onClick={() => copyText(item.prompt, t("common.promptCopied"))}>
+                                         {t("common.copy")}
+                                     </Button>
+-                                    <Button size="small" type="text" onClick={() => setDetail(item)}>
++                                    <Button id={`${detailPrefix}-${item.id}`} size="small" type="text" onClick={() => { setDetailTriggerId(`${detailPrefix}-${item.id}`); setDetail(item); }}>
+                                         {t("common.details")}
+                                     </Button>
+                                     <Button size="small" type="text" icon={<FolderPlus className="size-3.5" />} onClick={() => saveAsset(item)}>
+@@ -128,7 +143,7 @@ export function PromptSourceContentModal({ source, localItems, onClose }: { sour
+                     ]}
+                 />
+             </Modal>
+-            <PromptDetailDialog prompt={detail} onClose={() => setDetail(null)} onCopy={(prompt) => copyText(prompt, t("common.promptCopied"))} onSaveAsset={saveAsset} />
++            <PromptDetailDialog triggerId={detailTriggerId} prompt={detail} onClose={() => setDetail(null)} onCopy={(prompt) => copyText(prompt, t("common.promptCopied"))} onSaveAsset={saveAsset} />
+         </>
+     );
+ }

@@ -105,6 +105,7 @@ const copyOps = load('扩展功能/画布布局/节点复制操作.ts', {
     react: { useCallback: fn => fn, useRef: current => ({ current }) }, nanoid: { nanoid: () => 'copy' },
     '@/types/canvas': { CanvasNodeType: { Image: 'image', Text: 'text', Group: 'group' } },
     '../Excel画布/Excel卡片事务': { remapCopiedExcelRelations: value => value },
+    '../Excel画布/商品策划副本规则': load('扩展功能/Excel画布/商品策划副本规则.ts', {}),
 });
 
 test('批次图片复制、整卡复制与粘贴均不产生新完成通知，副本仍可真正生成', () => {
@@ -141,11 +142,14 @@ function capsuleFixture() {
     const doc = { get visibilityState() { return visibility; }, addEventListener() {}, removeEventListener() {} };
     const module = load('扩展功能/产品/顶部产品胶囊.tsx', {
         react, 'react/jsx-runtime': { jsx, jsxs: jsx },
+        '../存储界面/保存错误通知': { reportSaveFailure() {} },
+        '../主题/状态详情': { StatusDetails: 'StatusDetails' },
         '@/stores/canvas/use-canvas-store': { useCanvasStore: select => select({ projects }) },
         '../本机存储/上游浏览器存储桥': { sqlitePreferences: {
             getItem: key => values.get(key), setItem: (key, value) => { values.set(key, value); writes.push(key); },
         } },
-        '../Excel/Excel产品归属': { orderedWorkbookProjects: items => items, visibleWorkbookId: () => 'book' },
+        './产品导航范围': { navigationOwner: () => null, navigationProducts: state => state.projects },
+        '../产品配置/功能开关': { productFeatures: { excel: false } },
         './产品规则': { orderedProducts: items => items },
         './产品操作': { useProductNavigation: () => ({ activeId: active, busy, selectProduct: async id => { navigations.push(id); active = id; } }) },
         './产品任务摘要.js': { canvasTaskSummary },
@@ -185,6 +189,22 @@ test('真实胶囊进入运行中产品时确认旧通知，任务结束后只�
     assert.match(f.render(), /capsule-success/);
     const writes = f.writes.length;
     f.render(); assert.equal(f.writes.length, writes);
+});
+
+test('真实顶部胶囊按画布归属计算策划失败，节点数组和ID相同也不借用其他画布的摘要缓存', () => {
+    const f = capsuleFixture();
+    f.render();
+    const shared = [{ id: 'same-parameter', type: 'guan:prompt-variables', metadata: { status: 'success',
+        productPlanningTask: { id: 'task-B', productId: 'B', nodeId: 'same-parameter', startedAt: 100, status: 'error' },
+    } }];
+    f.nodes('A', shared); f.nodes('B', shared);
+    assert.match(f.render(), /capsule-idle/);
+    f.active('B'); f.render(); // 进入时只确认本画布已有事件。
+    f.nodes('B', [{ ...shared[0], metadata: { ...shared[0].metadata,
+        productPlanningTask: { ...shared[0].metadata.productPlanningTask, id: 'new-task-B', startedAt: 200 } } }]);
+    assert.match(f.render(), /capsule-error/);
+    f.active('A');
+    assert.match(f.render(), /capsule-idle/);
 });
 
 test('页面隐藏时不提前确认通知，重新可见时完成尚未执行的产品进入确认', () => {

@@ -1,0 +1,109 @@
+{
+  "日期": "2026-10-20",
+  "状态": "待具体批准；未装配候选、未启动浏览器、未接管3100",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/凭据网关任务-qD9PwY/凭据网关任务接入记录.json",
+  "前置差异SHA256": "723841e0f57b5fb3bd21d9071b9223706833d4532ca3b3a463633e409eb1fb05",
+  "文件数": 10,
+  "差异SHA256": "f76be5a2930dea4346817309f3bd1026e31951dbd57ad05309f88f199b52ac12",
+  "完整虚拟类型检查通过": true,
+  "原版图片来源": {
+    "src/canvas/services/api/image.ts": "671f45c36a23e312047cb15d85db6b802454e759a342fc99ab763da8500f70eb",
+    "src/canvas/lib/media-size.ts": "122a534ade3e228cc0ef721332a92ab9fef42ccd7db2902d0fa0d827ff54e2bc",
+    "src/canvas/lib/image-reference-prompt.ts": "c61d2d4d24e2bd1ad0a0039c1eb6a7e56247bbb17617a977bff8171430b5b977"
+  },
+  "自有来源": [
+    {
+      "文件": "扩展功能/画布生成/图片任务衔接.mjs",
+      "SHA256": "38b8dae11381c3a07bc4b955654c23584915f82e90c38e592256f7acc4ef78c7"
+    },
+    {
+      "文件": "扩展功能/画布生成/原画布图片调用.ts",
+      "SHA256": "9617b238800d92b0984aac461c1392afe876a04321a1a4a318fc1dd350d86222"
+    },
+    {
+      "文件": "扩展功能/画布生成/画布检查点.mjs",
+      "SHA256": "ffd465f83b59e12d9cd43be70cd3f53297cf0d92e5aea5eef522dab6b916a49a"
+    }
+  ],
+  "工具来源": [
+    {
+      "文件": "开发工具/构建原版图片协议.mjs",
+      "SHA256": "87dbfd730698d1a48325ee08c5d9011ac2d36c60aca00eada204535faa94807b"
+    },
+    {
+      "文件": "开发工具/预审原画布图片闭环.mjs",
+      "SHA256": "1aa983bf8ac8028f16ae6af0e51a07c4fdb09d800d70bda1d5d7b08012168731"
+    },
+    {
+      "文件": "开发工具/原画布图片闭环.test.mjs",
+      "SHA256": "2f4f52947deddfe34089b11d14e7827cb4a3a825bf5719b20a14107c0562844c"
+    }
+  ],
+  "原画布接入范围": [
+    "常规图片生成",
+    "图片及批量图片重试；已成功未保存任务复用原响应"
+  ],
+  "尚未接入": [
+    "蒙版与角度生成",
+    "插件生成（保持关闭）",
+    "文字、视频、音频网关",
+    "远程图片URL受限下载",
+    "渠道编辑器及模型查询",
+    "旧兼容配置禁止密钥回读"
+  ],
+  "已接管3100": false,
+  "已访问真实数据或凭据": false,
+  "文件": [
+    {
+      "文件": "画布副本/web/src/guan/generation/原版图片协议.ts",
+      "原始SHA256": null,
+      "候选SHA256": "ee632349971edae2ab5730e0d2b1d18035f38fbd975d11b1ef32746190acdd5c"
+    },
+    {
+      "文件": "画布副本/web/src/guan/generation/图片任务衔接.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "75f55153545ce92b3140de4900aeca43d4fd17571da79ad91a65604219738726"
+    },
+    {
+      "文件": "画布副本/web/src/guan/generation/原画布图片调用.ts",
+      "原始SHA256": null,
+      "候选SHA256": "9617b238800d92b0984aac461c1392afe876a04321a1a4a318fc1dd350d86222"
+    },
+    {
+      "文件": "画布副本/扩展功能/画布生成/画布检查点.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "ffd465f83b59e12d9cd43be70cd3f53297cf0d92e5aea5eef522dab6b916a49a"
+    },
+    {
+      "文件": "画布副本/扩展功能/生成网关/生成HTTP入口.mjs",
+      "原始SHA256": "feaaaaec74d679680a4ee6b0f677e2c6cb8e35fe38f8c03bfaaedbdfc4fa6b36",
+      "候选SHA256": "01592fc2e6667671d7c40c9610de2c7ed1a387a8029933fd103c3910b8ce8b9c"
+    },
+    {
+      "文件": "画布副本/扩展功能/生成网关/生成服务装配.mjs",
+      "原始SHA256": "bfdbe962aaf162f2097d6ab688ec58cf7afa23092aa58870a6be198f73f4fc67",
+      "候选SHA256": "52b9acd139ad3808a02c49b07d626c06cb23442c9c2e74e5262d0acb73c1ebe1"
+    },
+    {
+      "文件": "画布副本/web/src/guan/generation/生成任务客户端.mjs",
+      "原始SHA256": "6f7f7538591acd0b0af5ca6d57f69d87c40a66819ca9f0fedf65237b985e2194",
+      "候选SHA256": "87e8e9361c7997269c7248a91f7fa8648173058d126aea9b3072173d2913a364"
+    },
+    {
+      "文件": "画布副本/web/src/guan/产品操作.ts",
+      "原始SHA256": "50a872e4309d12b0a75fe04c0d56aa69778e8031a978b7c9b2d8ea1fee88f45b",
+      "候选SHA256": "9d97fe2d7aa62d5f64620a2ca6b25c4c106ee1390faaa343d836acf38802f107"
+    },
+    {
+      "文件": "画布副本/web/src/types/canvas.ts",
+      "原始SHA256": "a062284b21c5a942721ea3356b5aed65de0dc8cb63a88014367b27ff0feeb93a",
+      "候选SHA256": "271a051adb390ea7232b0f5037195ce81af60703fb98e21e7b80b0fee8184770"
+    },
+    {
+      "文件": "画布副本/web/src/pages/canvas/project.tsx",
+      "原始SHA256": "8d38ae979a2ab6ca0c0c4f738564e5fcd466893057acd19b9610f403ade5c88b",
+      "候选SHA256": "ee38bfdbe0d24abbda5af44cde10d43ec3677208fc99d08e28043955027b8552"
+    }
+  ]
+}

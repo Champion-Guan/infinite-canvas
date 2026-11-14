@@ -93,3 +93,30 @@ test('嵌套弹窗遮罩只关闭最上层，保留父层和原生选项', () =>
     f.pointer(select); assert.deepEqual(f.calls, []);
     child.remove(); parent.remove();
 });
+
+test('新版图片预览的遮罩、图片和工具栏只交给原生预览关闭，保留提示词及父设置面板', () => {
+    for (const nested of [false, true]) {
+        const f = fixture(), parent = f.layer('设置', null, true), detail = f.layer('提示词', parent, true);
+        const root = new Element(null, 'ant-modal-root'), wrap = new Element(root, 'ant-modal-wrap');
+        detail.panel.parentElement = wrap; detail.panel.className = 'ant-modal';
+        const previewRoot = new Element(nested ? wrap : null, 'ant-image-preview-root');
+        const preview = new Element(previewRoot, 'ant-image-preview');
+        const mask = new Element(previewRoot, 'ant-image-preview-mask');
+        for (const target of [mask, preview, new Element(preview, 'ant-image-preview-img'), new Element(preview, 'ant-image-preview-close')]) {
+            f.pointer(target);
+            assert.deepEqual(f.calls, [], '图片预览内的点击不能关闭任何父面板');
+        }
+        f.pointer(wrap);
+        assert.deepEqual(f.calls, ['提示词'], '图片预览关闭后，父面板自身外部点击仍可关闭');
+        detail.remove(); parent.remove();
+    }
+});
+
+test('兼容旧版图片预览wrap，点击其外的画布仍只关闭最上层弹窗', () => {
+    const f = fixture(), modal = f.layer('提示词', null, true);
+    f.pointer(new Element(new Element(null, 'ant-image-preview-wrap')));
+    assert.deepEqual(f.calls, []);
+    f.pointer(new Element());
+    assert.deepEqual(f.calls, ['提示词']);
+    modal.remove();
+});

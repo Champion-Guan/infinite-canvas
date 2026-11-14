@@ -1,0 +1,18 @@
+diff --git a/web/src/components/canvas/canvas-prompt-library.tsx b/web/src/components/canvas/canvas-prompt-library.tsx
+index 595c7f0..9b8317c 100644
+--- a/web/src/components/canvas/canvas-prompt-library.tsx
++++ b/web/src/components/canvas/canvas-prompt-library.tsx
+@@ -1,3 +1,4 @@
++import { businessFeatures } from "@/扩展功能/产品配置/脚本与提示词来源";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { useState } from "react";
+ import { Button, Tooltip } from "antd";
+@@ -14,6 +15,8 @@ export function CanvasPromptLibrary({ onSelect }: { onSelect: (prompt: string) =
+     const [open, setOpen] = useState(false);
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+ 
++    if (!businessFeatures.promptLibrary) return null;
++
+     return (
+         <>
+             <Tooltip title={t("navigation.prompts")}>

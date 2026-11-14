@@ -1,0 +1,22 @@
+diff --git a/web/src/pages/prompts/components/prompt-detail-dialog.tsx b/web/src/pages/prompts/components/prompt-detail-dialog.tsx
+index 018ca38..063176f 100644
+--- a/web/src/pages/prompts/components/prompt-detail-dialog.tsx
++++ b/web/src/pages/prompts/components/prompt-detail-dialog.tsx
+@@ -9,7 +9,7 @@ import { promptHighlightSegments } from "@/扩展功能/画布迁移扩展/promp
+ import { promptDisplaySegments, promptDisplaySummary } from "@/扩展功能/提示词/提示词展示摘要.js";
+ import { localizePromptTheme } from "@/扩展功能/画布迁移扩展/prompt-theme-labels.js";
+ 
+-export function PromptDetailDialog({ prompt, onClose, onCopy, onSaveAsset }: { prompt: Prompt | null; onClose: () => void; onCopy: (prompt: string) => void; onSaveAsset?: (prompt: Prompt) => void }) {
++export function PromptDetailDialog({ prompt, onClose, onCopy, onSaveAsset, triggerId }: { prompt: Prompt | null; onClose: () => void; onCopy: (prompt: string) => void; onSaveAsset?: (prompt: Prompt) => void; triggerId?: string }) {
+     const { i18n, t } = useTranslation();
+     const excelPrompt = (prompt as (Prompt & { excelPrompt?: { theme?: string; compositionLock?: string; purpose?: string; tokens?: string[] } }) | null)?.excelPrompt;
+     const summary = prompt ? promptDisplaySummary(prompt.prompt, {
+@@ -23,7 +23,7 @@ export function PromptDetailDialog({ prompt, onClose, onCopy, onSaveAsset }: { p
+     const images = prompt ? [...new Set([prompt.coverUrl, ...prompt.referenceImageUrls].filter(Boolean))] : [];
+ 
+     return (
+-        <Modal title={prompt?.title} open={Boolean(prompt)} onCancel={onClose} footer={null} width={720} centered styles={{ body: { height: "calc(85dvh - 55px)", overflow: "hidden" } }}>
++        <Modal triggerId={triggerId} title={prompt?.title} open={Boolean(prompt)} onCancel={onClose} footer={null} width={720} centered styles={{ body: { height: "calc(85dvh - 55px)", overflow: "hidden" } }}>
+             {prompt ? (
+                 <div className="flex h-full min-h-0 flex-col">
+                     {images.length ? <div data-prompt-detail-images aria-label="提示词图片"

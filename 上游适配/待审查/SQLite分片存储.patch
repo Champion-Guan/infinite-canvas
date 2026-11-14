@@ -1,0 +1,463 @@
+--- a/web/src/guan/sqlite/工作台自动入口.mjs
++++ b/web/src/guan/sqlite/工作台自动入口.mjs
+@@ -1,6 +1,6 @@
+ import { authorizeLocalStorage } from './本机授权客户端.mjs';
+ import { createRenewingDataClient } from './续期数据客户端.mjs';
+-import { createRecoverableApplicationStorage as createApplicationStorage } from './可恢复应用存储.mjs';
++import { createRecoverableShardedApplicationStorage as createApplicationStorage } from './可恢复分片应用存储.mjs';
+ 
+ // 用户不再填码。只消费当前本机启动器交付的一次性握手材料，立即从DOM移除。
+ // 这不是匿名数据访问：Host/Origin、短期票据、会话及CSRF仍由既有模块核验。
+--- /dev/null
++++ b/web/src/guan/sqlite/分片值编码.mjs
+@@ -0,0 +1,153 @@
++import { requireValue, serializeDocument } from './协议.mjs';
++
++export const FRAGMENT_FORMAT = 'guan-app-fragment.v1';
++export const MAX_FRAGMENT_BYTES = 1024 * 1024;
++export const MAX_LOGICAL_BYTES = 32 * 1024 * 1024;
++export const MAX_GRAPH_FRAGMENTS = 4096;
++const INLINE_BYTES = 768 * 1024, FIELD_BYTES = 192 * 1024, INLINE_DEPTH = 30, MAX_GRAPH_DEPTH = 128;
++const utf8 = new TextEncoder();
++const bytes = value => utf8.encode(JSON.stringify(value)).length;
++const sha = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', utf8.encode(value)))].map(byte => byte.toString(16).padStart(2, '0')).join('');
++const sameKeys = (value, keys) => value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
++const validRef = value => sameKeys(value, ['id']) && typeof value.id === 'string' && /^app-part-[a-f0-9]{64}$/.test(value.id);
++const typedObject = value => Array.isArray(value) && value.length === 2 && value[0] === 'object' && Array.isArray(value[1]);
++function shallow(value, depth = 0) {
++  if (depth > INLINE_DEPTH) return false;
++  // 大的带类型对象按字段隔离，不能被外层数组重新合并成整产品块。
++  if (typedObject(value) && bytes(value) > FIELD_BYTES) return false;
++  return value === null || typeof value !== 'object' || Object.values(value).every(child => shallow(child, depth + 1));
++}
++
++// 只接收应用值编码器产生的普通JSON，不用于绕过凭据检测。
++// 固定数组分页保持局部修改的块边界；先生成完整计划，后由应用适配器提交根目录。
++export async function buildFragmentPlan(value) {
++  const logicalBytes = bytes(value), fragments = new Map();
++  requireValue(logicalBytes <= MAX_LOGICAL_BYTES, 'logical_value_too_large', '逻辑命名空间超过当前32MiB分片验收范围。', 413);
++  async function save(body) {
++    const value = { format: FRAGMENT_FORMAT, ...body }, text = JSON.stringify(value), size = utf8.encode(text).length;
++    requireValue(size <= MAX_FRAGMENT_BYTES, 'fragment_too_large', '数据块超过1MiB上限，没有提交根目录。', 413);
++    const hash = await sha(text), id = 'app-part-' + hash;
++    serializeDocument('extension', id, value, []);
++    if (!fragments.has(id)) fragments.set(id, { id, hash, value });
++    requireValue(fragments.size <= MAX_GRAPH_FRAGMENTS, 'fragment_budget_exceeded', '数据块数量超过当前4096块验收范围。', 413);
++    return { id };
++  }
++  async function pack(value, depth = 0) {
++    requireValue(depth <= MAX_GRAPH_DEPTH, 'fragment_depth_exceeded', '分片结构层级超过安全范围。');
++    if (typedObject(value) && bytes(value) > FIELD_BYTES) {
++      const entries = [];
++      for (const pair of value[1]) {
++        requireValue(Array.isArray(pair) && pair.length === 2 && typeof pair[0] === 'string', 'invalid_fragment_value', '带类型对象字段无效。');
++        entries.push([pair[0], bytes(pair[1]) > FIELD_BYTES ? ['ref', await pack(pair[1], depth + 1)] : ['inline', pair[1]]]);
++      }
++      return save({ kind: 'typed-object', entries: await pack(entries, depth + 1) });
++    }
++    if (bytes(value) <= INLINE_BYTES && shallow(value)) return save({ kind: 'json', data: value });
++    if (typeof value === 'string') {
++      let parts = [];
++      // 按UTF-16固定位置切分，重组后保留原字符（含跨块代理对及孤立代理项）。
++      for (let offset = 0; offset < value.length; offset += 8192) parts.push(await save({ kind: 'json', data: value.slice(offset, offset + 8192) }));
++      while (parts.length > 64) {
++        const next = [];
++        for (let offset = 0; offset < parts.length; offset += 64) next.push(await save({ kind: 'text', parts: parts.slice(offset, offset + 64) }));
++        parts = next;
++      }
++      return save({ kind: 'text', parts });
++    }
++    if (Array.isArray(value)) {
++      if (value.length === 1) return save({ kind: 'single', part: await pack(value[0], depth + 1) });
++      const width = value.length > 64 ? 64 : Math.ceil(value.length / 2), parts = [];
++      for (let offset = 0; offset < value.length; offset += width) parts.push(await pack(value.slice(offset, offset + width), depth + 1));
++      // 多级分页也限制根块扇出，避免百万条小记录把根目录撑大。
++      while (parts.length > 64) {
++        const next = [];
++        for (let offset = 0; offset < parts.length; offset += 64) next.push(await save({ kind: 'array', parts: parts.slice(offset, offset + 64) }));
++        parts.splice(0, parts.length, ...next);
++      }
++      return save({ kind: 'array', parts });
++    }
++    requireValue(value && typeof value === 'object', 'invalid_fragment_value', '分片只接收普通JSON值。');
++    return save({ kind: 'object', entries: await pack(Object.entries(value), depth + 1) });
++  }
++  return { head: await pack(value), fragments, logicalBytes };
++}
++
++export async function verifyFragment(document, reference) {
++  requireValue(validRef(reference) && document?.collection === 'extension' && document.id === reference.id && Array.isArray(document.mediaIds) && document.mediaIds.length === 0 && document.value?.format === FRAGMENT_FORMAT,
++    'fragment_corrupt', '数据块缺失、身份或格式不符，未作为空值读取。', 409);
++  const text = serializeDocument('extension', reference.id, document.value, []);
++  requireValue(utf8.encode(text).length <= MAX_FRAGMENT_BYTES && await sha(text) === reference.id.slice(9), 'fragment_corrupt', '数据块大小或内容哈希不匹配。', 409);
++  return document.value;
++}
++
++// 不依赖集合列表，避免列表1000条上限造成静默遗漏；通过根引用逐块校验。
++export async function readFragmentGraph({ head, readDocument }) {
++  const cache = new Map(), visiting = new Set();
++  let loaded = 0;
++  const bounded = result => {
++    requireValue(result.size <= MAX_LOGICAL_BYTES && result.depth <= MAX_GRAPH_DEPTH, 'fragment_budget_exceeded', '分片重组超过大小或层级安全范围。', 413);
++    return result;
++  };
++  async function visit(ref, depth = 0) {
++    requireValue(validRef(ref) && depth <= MAX_GRAPH_DEPTH && !visiting.has(ref.id), 'fragment_corrupt', '数据块引用、层级或循环无效。', 409);
++    if (cache.has(ref.id)) return cache.get(ref.id);
++    requireValue(++loaded <= MAX_GRAPH_FRAGMENTS, 'fragment_budget_exceeded', '读取的数据块数量超过安全范围。', 413);
++    visiting.add(ref.id);
++    const body = await verifyFragment(await readDocument('extension', ref.id), ref);
++    let result;
++    if (body.kind === 'json') {
++      requireValue(sameKeys(body, ['format', 'kind', 'data']) && shallow(body.data), 'fragment_corrupt', '内联数据块结构无效。', 409);
++      result = bounded({ value: body.data, size: bytes(body.data), depth: 1 });
++    } else if (body.kind === 'single') {
++      requireValue(sameKeys(body, ['format', 'kind', 'part']), 'fragment_corrupt', '单元素数据块结构无效。', 409);
++      const child = await visit(body.part, depth + 1);
++      result = bounded({ value: [child.value], size: child.size + 2, depth: child.depth + 1 });
++    } else if (body.kind === 'array' || body.kind === 'text') {
++      requireValue(sameKeys(body, ['format', 'kind', 'parts']) && Array.isArray(body.parts) && body.parts.length > 0 && body.parts.length <= 64, 'fragment_corrupt', '分片目录结构无效。', 409);
++      const values = []; let size = 2, childDepth = 0, length = 0, lastCode = 0;
++      for (const part of body.parts) {
++        const child = await visit(part, depth + 1);
++        requireValue(body.kind === 'array' ? Array.isArray(child.value) : typeof child.value === 'string', 'fragment_corrupt', '数据块类型与目录不匹配。', 409);
++        // 数组页的外括号不属于展开结果；文本拼接还可能合并跨页代理对。
++        size += child.size - 2 + (body.kind === 'array' && length && child.value.length ? 1 : 0); childDepth = Math.max(childDepth, child.depth);
++        if (body.kind === 'text' && child.value.length) {
++          const firstCode = child.value.charCodeAt(0);
++          if (lastCode >= 0xd800 && lastCode <= 0xdbff && firstCode >= 0xdc00 && firstCode <= 0xdfff) size -= 8;
++          lastCode = child.value.charCodeAt(child.value.length - 1);
++        }
++        length += child.value.length;
++        bounded({ size, depth: childDepth + 1 });
++        requireValue(body.kind !== 'array' || length <= 1_000_000, 'fragment_budget_exceeded', '数组展开数量超过安全范围。', 413);
++        values.push(child.value);
++      }
++      const value = body.kind === 'array' ? values.flat() : values.join('');
++      result = bounded({ value, size: body.kind === 'text' ? bytes(value) : size, depth: childDepth + 1 });
++    } else if (body.kind === 'typed-object') {
++      requireValue(sameKeys(body, ['format', 'kind', 'entries']), 'fragment_corrupt', '带类型对象目录无效。', 409);
++      const child = await visit(body.entries, depth + 1), entries = [], names = new Set();
++      requireValue(Array.isArray(child.value), 'fragment_corrupt', '带类型对象字段目录无效。', 409);
++      let size = 13, childDepth = child.depth;
++      for (const pair of child.value) {
++        requireValue(Array.isArray(pair) && pair.length === 2 && typeof pair[0] === 'string' && !names.has(pair[0]) && Array.isArray(pair[1]) && pair[1].length === 2, 'fragment_corrupt', '带类型对象字段重复或无效。', 409);
++        const [tag, payload] = pair[1];
++        requireValue(tag === 'inline' && shallow(payload) || tag === 'ref' && validRef(payload), 'fragment_corrupt', '带类型字段引用无效。', 409);
++        const item = tag === 'ref' ? await visit(payload, depth + 1) : { value: payload, size: bytes(payload), depth: 1 };
++        size += bytes(pair[0]) + item.size + 3 + (entries.length ? 1 : 0); childDepth = Math.max(childDepth, item.depth);
++        bounded({ size, depth: childDepth + 1 }); names.add(pair[0]); entries.push([pair[0], item.value]);
++      }
++      const value = ['object', entries];
++      result = bounded({ value, size: bytes(value), depth: childDepth + 1 });
++    } else if (body.kind === 'object') {
++      requireValue(sameKeys(body, ['format', 'kind', 'entries']), 'fragment_corrupt', '对象数据块结构无效。', 409);
++      const child = await visit(body.entries, depth + 1), value = {}, names = new Set();
++      requireValue(Array.isArray(child.value), 'fragment_corrupt', '对象字段目录无效。', 409);
++      for (const pair of child.value) {
++        requireValue(Array.isArray(pair) && pair.length === 2 && typeof pair[0] === 'string' && !names.has(pair[0]), 'fragment_corrupt', '对象字段重复或无效。', 409);
++        names.add(pair[0]); Object.defineProperty(value, pair[0], { value: pair[1], enumerable: true, configurable: true, writable: true });
++      }
++      result = bounded({ value, size: child.size, depth: child.depth + 1 });
++    } else requireValue(false, 'fragment_corrupt', '未知数据块版本或类型。', 409);
++    visiting.delete(ref.id); cache.set(ref.id, result); return result;
++  }
++  return (await visit(head)).value;
++}
+--- /dev/null
++++ b/web/src/guan/sqlite/分片应用存储.mjs
+@@ -0,0 +1,164 @@
++import { createValueCodec } from './应用值编码.mjs';
++import { APP_NAMESPACES, APPLICATION_STORAGE_FORMAT } from './应用存储适配.mjs';
++import { StorageError, requireValue, serializeDocument, validHash } from './协议.mjs';
++import { buildFragmentPlan, readFragmentGraph, verifyFragment } from './分片值编码.mjs';
++
++export const SHARDED_APPLICATION_FORMAT = 'guan-app-storage.v2';
++const jsonStores = new Set(['infinite-canvas:canvas_store', 'infinite-canvas:asset_store', 'infinite-canvas:plugin_store', 'infinite-canvas:ai_config_store', 'infinite-canvas:theme_store', 'infinite-canvas:prompt_source_store_v2']);
++const sha = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))].map(byte => byte.toString(16).padStart(2, '0')).join('');
++const mediaRefs = entries => [...new Set([...entries.values()].flatMap(entry => entry.mediaIds))].sort();
++const requestWindows = new WeakMap();
++// 原服务每会话120次/10秒保持不变；应用分片最多96次/10.05秒，为其他状态请求留余量。
++// 同一客户端跨namespace/恢复实例共享窗口。等待不是丢弃或重发，写入仍保留原operationId。
++function pacedClient(client) {
++  requireValue(client && typeof client.readDocument === 'function', 'invalid_client', '分片客户端缺少读取端口。');
++  if (requestWindows.has(client)) return requestWindows.get(client);
++  const starts = [];
++  async function request(method, args) {
++    requireValue(typeof client[method] === 'function', 'storage_port_denied', '当前存储端口未开放此操作。');
++    while (true) {
++      const time = performance.now();
++      while (starts.length && time - starts[0] >= 10_050) starts.shift();
++      if (starts.length < 96) { starts.push(time); return client[method](...args); }
++      await new Promise(resolve => setTimeout(resolve, Math.ceil(10_050 - (time - starts[0]))));
++    }
++  }
++  const port = Object.fromEntries(['readDocument', 'writeDocument', 'readMedia', 'writeMedia', 'readUsage'].map(method => [method, (...args) => request(method, args)]));
++  requestWindows.set(client, port); return port;
++}
++function parseEntries(value) {
++  requireValue(Array.isArray(value), 'invalid_namespace', '命名空间记录目录格式无效。');
++  const entries = new Map();
++  for (const item of value) {
++    requireValue(Array.isArray(item) && item.length === 2 && typeof item[0] === 'string' && item[0].length > 0 && item[0].length <= 512 && !entries.has(item[0]) && Array.isArray(item[1]?.tree) && Array.isArray(item[1]?.mediaIds) && item[1].mediaIds.every(validHash) && new Set(item[1].mediaIds).size === item[1].mediaIds.length,
++      'invalid_namespace', '命名空间记录重复、媒体引用或应用值格式错误。');
++    entries.set(item[0], item[1]);
++  }
++  return entries;
++}
++
++// 新模块，不修改已批准v1适配器。不可变块先ACK，再以原根ID+revision CAS发布完整一代。
++// 当前无块GC；失败块和旧代保留，不能借清理删除仍被其他会话/备份使用的数据。
++export function createShardedApplicationStorage({ client, secretPort, readBlobUrl, onStatus = () => {} }) {
++  client = pacedClient(client);
++  const codec = createValueCodec({ client, secretPort, readBlobUrl }), spaces = new Map(), known = new Set(), errors = new Map();
++  let pending = 0, closed = false, hasSaved = false;
++  const status = () => ({ state: errors.size ? 'error' : pending ? 'saving' : hasSaved ? 'saved' : 'idle', pending, errors: [...errors.keys()] });
++  function notify() { try { onStatus(status()); } catch { /* UI观察器不决定持久化结果。 */ } }
++  function state(name) {
++    requireValue(!closed && APP_NAMESPACES.includes(name), 'namespace_denied', '未声明的应用存储命名空间。');
++    if (!spaces.has(name)) spaces.set(name, { name, loaded: false, revision: 0, entries: new Map(), tail: Promise.resolve(), blocked: null });
++    return spaces.get(name);
++  }
++  async function load(space) {
++    if (space.loaded) return;
++    space.id = 'app-' + await sha(space.name);
++    const document = await client.readDocument('extension', space.id, { allowMissing: true });
++    if (document) {
++      const value = document.value;
++      requireValue(value?.namespace === space.name && Number.isSafeInteger(document.revision) && document.revision > 0, 'invalid_namespace', '命名空间或版本不符，没有作为空库启动。');
++      let entries; const verified = new Set();
++      if (value.format === APPLICATION_STORAGE_FORMAT) entries = parseEntries(value.entries);
++      else {
++        requireValue(value.format === SHARDED_APPLICATION_FORMAT && Object.keys(value).length === 4 && Number.isSafeInteger(value.entryCount) && value.entryCount >= 0, 'invalid_namespace', '未知分片命名空间格式，没有降级或覆盖。');
++        entries = parseEntries(await readFragmentGraph({ head: value.head, readDocument: async (...args) => {
++          const part = await client.readDocument(...args); verified.add(args[1]); return part;
++        } }));
++        requireValue(entries.size === value.entryCount, 'invalid_namespace', '分片记录数量不符，没有跳过缺失记录。');
++      }
++      requireValue(Array.isArray(document.mediaIds) && JSON.stringify([...document.mediaIds].sort()) === JSON.stringify(mediaRefs(entries)), 'invalid_namespace', '根目录与应用值媒体引用不一致。');
++      // 整张图和根媒体目录全部验证后，才复用刚读取的不可变块，避免刷新后首笔编辑再读全库。
++      for (const id of verified) known.add(id);
++      space.entries = entries; space.revision = document.revision;
++    }
++    space.loaded = true;
++  }
++  function queue(space, fn, { retry = false } = {}) {
++    pending++; notify();
++    const result = space.tail.then(async () => {
++      requireValue(!closed, 'client_closed', '应用存储已关闭。');
++      if (space.blocked && !retry) throw new StorageError('pending_write_unresolved', '上一笔分片保存尚未确认，请重试原操作。', 409);
++      await load(space); return fn();
++    });
++    // 先完成计数/错误状态，再向调用方交付结果，避免await读取后立即close仍被误判忙碌。
++    const tracked = result.then(value => { if (!space.blocked) errors.delete(space.name); pending--; notify(); return value; }, error => { errors.set(space.name, true); pending--; notify(); throw error; });
++    space.tail = tracked.then(() => {}, () => {});
++    return tracked;
++  }
++  async function confirmed(write) {
++    const ack = await client.writeDocument(write);
++    requireValue(ack?.persisted === true && ack.collection === write.collection && ack.id === write.id && ack.operationId === write.operationId && ack.revision === write.expectedRevision + 1 && ack.hash === await sha(JSON.stringify(write.value)), 'invalid_ack', '分片或根目录没有收到匹配的落盘确认。');
++    return ack;
++  }
++  async function savePart(step) {
++    if (known.has(step.id)) return;
++    if (!step.write) {
++      const existing = await client.readDocument('extension', step.id, { allowMissing: true });
++      if (existing) { await verifyFragment(existing, { id: step.id }); known.add(step.id); return; }
++      step.write = { collection: 'extension', id: step.id, value: step.value, expectedRevision: 0, operationId: crypto.randomUUID(), mediaIds: [] };
++    }
++    try { await confirmed(step.write); }
++    catch (error) {
++      if (error.code !== 'revision_conflict') throw error;
++      // 仅内容寻址块可接受另一会话写入的相同内容；根目录冲突绝不覆盖。
++      await verifyFragment(await client.readDocument('extension', step.id), { id: step.id });
++    }
++    known.add(step.id);
++  }
++  async function retryWrite(space) {
++    requireValue(space.blocked, 'nothing_to_retry', '没有待确认的分片保存。');
++    const plan = space.blocked;
++    while (plan.index < plan.parts.length) { await savePart(plan.parts[plan.index]); plan.index++; }
++    const ack = await confirmed(plan.root);
++    space.entries = plan.entries; space.revision = ack.revision; space.blocked = null; hasSaved = true; return ack;
++  }
++  async function commit(space, entries) {
++    const plan = await buildFragmentPlan([...entries]), value = { format: SHARDED_APPLICATION_FORMAT, namespace: space.name, head: plan.head, entryCount: entries.size }, mediaIds = mediaRefs(entries);
++    serializeDocument('extension', space.id, value, mediaIds);
++    space.blocked = { entries, index: 0, parts: [...plan.fragments.values()], root: { collection: 'extension', id: space.id, value, mediaIds, expectedRevision: space.revision, operationId: crypto.randomUUID() } };
++    return retryWrite(space);
++  }
++  function createInstance({ name = 'infinite-canvas', storeName = 'app_state' } = {}) {
++    requireValue(name === 'infinite-canvas', 'namespace_denied', '插件和其他数据库未获准接入。');
++    const space = state(storeName), json = jsonStores.has.bind(jsonStores);
++    async function decode(key, entry) { const value = await codec.decode(entry.tree); return storeName === 'app_state' && json(key) ? JSON.stringify(value) : value; }
++    return {
++      getItem(key) {
++        requireValue(typeof key === 'string', 'invalid_key', '记录键必须为字符串。');
++        return queue(space, () => space.entries.has(key) ? decode(key, space.entries.get(key)) : null);
++      },
++      setItem(key, value) {
++        requireValue(typeof key === 'string' && key.length > 0 && key.length <= 512, 'invalid_key', '记录键无效。');
++        const snapshot = structuredClone(value === undefined ? null : value);
++        return queue(space, async () => {
++          let decoded = snapshot;
++          if (storeName === 'app_state' && json(key)) {
++            requireValue(typeof snapshot === 'string', 'invalid_state', 'Zustand状态必须为JSON字符串。');
++            try { decoded = JSON.parse(snapshot); } catch { throw new StorageError('invalid_state', '应用状态不是有效JSON。'); }
++          }
++          const encoded = await codec.encode(decoded, { credential: /(?:^|[:-])(?:api[_-]?key|password|token|secret)$/i.test(key) }), entries = new Map(space.entries);
++          entries.set(key, encoded); await commit(space, entries); return value;
++        });
++      },
++      removeItem(key) { return queue(space, () => { const entries = new Map(space.entries); entries.delete(key); return commit(space, entries); }); },
++      clear() { return queue(space, () => commit(space, new Map())); },
++      keys() { return queue(space, () => [...space.entries.keys()]); },
++      length() { return queue(space, () => space.entries.size); },
++      async iterate(callback) {
++        const snapshot = await queue(space, () => [...space.entries]); let index = 0;
++        for (const [key, entry] of snapshot) { const result = callback(await decode(key, entry), key, ++index); if (result !== undefined) return result; }
++        return undefined;
++      },
++    };
++  }
++  return {
++    createInstance, getStatus: status, readUsage: () => client.readUsage(),
++    retry(name) { const space = state(name); return queue(space, () => retryWrite(space), { retry: true }); },
++    async flush() {
++      await Promise.all([...spaces.values()].map(space => space.tail));
++      requireValue(!pending && !errors.size && ![...spaces.values()].some(space => space.blocked), 'save_not_confirmed', '仍有未确认分片或根提交，不能报告已保存。', 409);
++      return status();
++    },
++    close() { requireValue(!pending && !errors.size, 'save_not_confirmed', '未确认保存不能关闭客户端。'); closed = true; codec.close(); },
++  };
++}
+--- /dev/null
++++ b/web/src/guan/sqlite/可恢复分片应用存储.mjs
+@@ -0,0 +1,127 @@
++import { createShardedApplicationStorage as createApplicationStorage } from './分片应用存储.mjs';
++import { APP_NAMESPACES } from './应用存储适配.mjs';
++import { StorageError, requireValue } from './协议.mjs';
++
++// 在旧适配器外记录尚未确认的不可变操作；原适配器、协议和历史批准来源不改。
++// 仅页内内存，不是崩溃后可恢复的离线队列，错误期间不能刷新/关闭页面。
++export function createRecoverableShardedApplicationStorage(options) {
++  const spaces = new Map(), listeners = new Set();
++  let base, flight = null, closed = false, everSaved = false, reads = 0;
++  function state(name) {
++    requireValue(!closed && APP_NAMESPACES.includes(name), 'namespace_denied', '未声明的应用存储命名空间。');
++    if (!spaces.has(name)) spaces.set(name, { name, queue: [], running: null, error: null });
++    return spaces.get(name);
++  }
++  function status() {
++    const active = [...spaces.values()], failed = active.filter(space => space.error);
++    const pending = active.reduce((sum, space) => sum + space.queue.length, 0) + reads;
++    const baseStatus = base?.getStatus();
++    return { state: failed.length || baseStatus?.state === 'error' ? 'error' : pending ? 'saving' : everSaved ? 'saved' : 'idle', pending,
++      errors: [...new Set([...failed.map(space => space.name), ...(baseStatus?.errors ?? [])])], retrying: !!flight,
++      failures: failed.map(space => ({ namespace: space.name, code: typeof space.error?.code === 'string' ? space.error.code : 'save_unconfirmed' })) };
++  }
++  function notify() {
++    const value = status();
++    for (const callback of [options.onStatus, ...listeners]) { try { callback?.(value); } catch { /* UI异常不能决定保存结果。 */ } }
++  }
++  base = createApplicationStorage({ ...options, onStatus: notify });
++  function rejectPending(space, error) {
++    for (const item of space.queue) if (!item.settled) { item.settled = true; item.reject(error); }
++  }
++  function finish(space, item) {
++    requireValue(space.queue[0] === item, 'queue_changed', '保存队列顺序异常，停止提交。');
++    space.queue.shift(); space.error = null; everSaved = true;
++    if (!item.settled) { item.settled = true; item.resolve(item.result); }
++    notify();
++  }
++  function pump(space, recover = false) {
++    if (space.running) return space.running;
++    const run = (async () => {
++      // 先让running被赋值，避免同步订阅器重入导致并行提交。
++      await Promise.resolve();
++      while (space.queue.length) {
++        if (space.error && !recover) break;
++        const item = space.queue[0];
++        try {
++          if (space.error) {
++            // 已发送却无ACK时，旧适配器保留原operationId及原请求；绝不生成新ID覆盖。
++            try { await base.retry(space.name); }
++            catch (error) { if (error.code !== 'nothing_to_retry') throw error; await item.invoke(); }
++          } else await item.invoke();
++          recover = false; finish(space, item);
++        } catch (error) {
++          space.error = error; rejectPending(space, error); notify(); break;
++        }
++      }
++    })();
++    space.running = run;
++    run.finally(() => {
++      space.running = null; notify();
++      // finish先唤醒调用方，调用方可能在finally清理前立即追加操作；不能搁置该队尾。
++      if (space.queue.length && !space.error) void pump(space);
++    });
++    return run;
++  }
++  function enqueue(space, prepare, result) {
++    let invoke;
++    try { invoke = prepare(); } catch (error) { invoke = async () => { throw error; }; }
++    let resolve, reject;
++    const promise = new Promise((done, fail) => { resolve = done; reject = fail; });
++    // 持久化调用方可能不await，但失败仍保留在队列及可见状态中。
++    promise.catch(() => {});
++    space.queue.push({ invoke, resolve, reject, result, settled: false });
++    if (space.error) rejectPending(space, new StorageError('pending_write_unresolved', '编辑已保留在本页内存；请先重试未确认保存，不要刷新或关闭。', 409));
++    else void pump(space);
++    notify(); return promise;
++  }
++  function createInstance(options = {}) {
++    const instance = base.createInstance(options), space = state(options.storeName ?? 'app_state');
++    async function read(method, args) {
++      requireValue(!space.queue.length, 'pending_write_unresolved', '仍有未确认编辑，不读取旧值覆盖当前内容。', 409);
++      reads++; notify();
++      try { return await instance[method](...args); } finally { reads--; notify(); }
++    }
++    return {
++      getItem: key => read('getItem', [key]), keys: () => read('keys', []), length: () => read('length', []), iterate: callback => read('iterate', [callback]),
++      setItem(key, value) {
++        return enqueue(space, () => { const snapshot = structuredClone(value); return () => instance.setItem(key, snapshot); }, value);
++      },
++      removeItem: key => enqueue(space, () => () => instance.removeItem(key)),
++      clear: () => enqueue(space, () => () => instance.clear()),
++    };
++  }
++  async function settle() {
++    while ([...spaces.values()].some(space => space.running)) await Promise.all([...spaces.values()].map(space => space.running));
++  }
++  return Object.freeze({
++    createInstance, getStatus: status, readUsage: () => base.readUsage(),
++    subscribe(callback) {
++      requireValue(typeof callback === 'function', 'invalid_listener', '保存状态订阅器无效。');
++      listeners.add(callback); try { callback(status()); } catch { /* 同其他状态通知一致。 */ }
++      return () => listeners.delete(callback);
++    },
++    retryPending() {
++      requireValue(!closed, 'client_closed', '应用存储已关闭。');
++      if (!flight) {
++        flight = (async () => {
++          await settle();
++          await Promise.all([...spaces.values()].map(space => pump(space, true)));
++          requireValue(![...spaces.values()].some(space => space.queue.length || space.error), 'save_not_confirmed', '仍有保存未确认，编辑保留在本页，请勿刷新或关闭。', 409);
++          await base.flush(); return status();
++        })();
++        flight.then(() => { flight = null; notify(); }, () => { flight = null; notify(); });
++        notify();
++      }
++      return flight;
++    },
++    async flush() {
++      await settle();
++      requireValue(![...spaces.values()].some(space => space.queue.length || space.error), 'save_not_confirmed', '仍有未确认编辑，不能报告已保存。', 409);
++      await base.flush(); return status();
++    },
++    close() {
++      requireValue(!flight && !reads && ![...spaces.values()].some(space => space.running || space.queue.length || space.error), 'save_not_confirmed', '尚有未确认编辑，不能关闭应用存储。', 409);
++      base.close(); closed = true; listeners.clear();
++    },
++  });
++}

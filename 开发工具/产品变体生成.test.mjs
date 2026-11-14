@@ -58,9 +58,8 @@ test('变体快照独立于之后的编辑与删除，重试严格沿用结果�
     assert.equal(retry.readProtectedRetryPrompt(saved, '新颜色\n\n【产品补充】\n新资料', true), saved);
 });
 
-test('未勾选、空名称、重复名称、空配图及失效图片在任何任务开始前报错', () => {
+test('全未勾选时批量跳过；空名称、重复名称、空配图及失效图片在任何任务开始前报错', () => {
     for (const [change, expected] of [
-        [f => f.parameter.metadata.productVariants.forEach(item => { item.enabled = false; }), /至少勾选/],
         [f => Object.assign(f.parameter.metadata.productVariants[0], { name: '', attributes: {} }), /填写变体名称/],
         [f => { f.parameter.metadata.productVariants[1].name = '红色'; }, /重复/],
         [f => { f.parameter.metadata.productVariants[1].imageIds = []; }, /分配产品主图/],
@@ -70,6 +69,9 @@ test('未勾选、空名称、重复名称、空配图及失效图片在任何�
         const f = variantFixture(); change(f);
         assert.throws(() => generation.planProductGenerationJobs([f.config], f.nodes, f.connections, 'batch'), expected);
     }
+    const disabled = variantFixture();
+    disabled.parameter.metadata.productVariants.forEach(item => { item.enabled = false; });
+    assert.deepEqual(generation.planProductGenerationJobs([disabled.config], disabled.nodes, disabled.connections, 'batch'), []);
 });
 
 test('遵守composer显式引用，停止媒体回溯，多个产品参数卡拒绝混图', () => {

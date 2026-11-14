@@ -1,0 +1,989 @@
+--- a/web/src/components/layout/client-root-init.tsx
++++ b/web/src/components/layout/client-root-init.tsx
+@@ -1,39 +1,6 @@
+ import type { ReactNode } from "react";
+-import { useEffect, useRef } from "react";
+-import { App } from "antd";
+-import { useTranslation } from "react-i18next";
+-
+-import { useConfigStore } from "@/stores/use-config-store";
+ import { usePromptSourceScheduler } from "@/hooks/use-prompt-source-scheduler";
+-
+ export function ClientRootInit({ children }: { children: ReactNode }) {
+-    const { message } = App.useApp();
+-    const { t } = useTranslation();
+-    const handledConfigParams = useRef(false);
+-    const importChannelCredentials = useConfigStore((state) => state.importChannelCredentials);
+-    const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
+-
+     usePromptSourceScheduler();
+-
+-    useEffect(() => {
+-        if (handledConfigParams.current) return;
+-        const searchParams = new URLSearchParams(window.location.search);
+-        const baseUrl = searchParams.get("baseUrl") || searchParams.get("baseurl");
+-        const apiKey = searchParams.get("apiKey") || searchParams.get("apikey");
+-        if (!baseUrl && !apiKey) return;
+-        handledConfigParams.current = true;
+-        searchParams.delete("baseUrl");
+-        searchParams.delete("baseurl");
+-        searchParams.delete("apiKey");
+-        searchParams.delete("apikey");
+-        window.history.replaceState(null, "", `${window.location.pathname}${searchParams.size ? `?${searchParams}` : ""}${window.location.hash}`);
+-        const result = importChannelCredentials({ baseUrl, apiKey });
+-        openConfigDialog(false, "channels");
+-        if (result.status === "created") message.success(t("config.importedChannelCreated", { name: result.channelName }));
+-        else if (result.status === "updated") message.success(t("config.importedChannelUpdated", { name: result.channelName }));
+-        else if (result.status === "missing-base-url") message.error(t("config.importedChannelBaseUrlRequired"));
+-        else message.error(t("config.importedChannelBaseUrlInvalid"));
+-    }, [importChannelCredentials, message, openConfigDialog, t]);
+-
+     return <>{children}</>;
+ }
+--- a/web/src/stores/use-config-store.ts
++++ b/web/src/stores/use-config-store.ts
+@@ -1,3 +1,4 @@
++import { requireAuxiliaryFeature } from "@/guan/精简与离线策略";
+ import { requireBusinessFeature } from "@/guan/脚本与提示词来源";
+ import { productFeatures, requireProductFeature } from "@/guan/功能开关";
+ import { useMemo } from "react";
+@@ -232,6 +233,7 @@
+                     },
+                 })),
+             importChannelCredentials: (input) => {
++                requireAuxiliaryFeature("urlCredentials");
+                 const currentConfig = get().config;
+                 const result = upsertChannelCredentials(currentConfig, input);
+                 if (result.config !== currentConfig) set({ config: result.config });
+--- a/web/src/components/canvas/canvas-node-hover-toolbar.tsx
++++ b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+@@ -1,13 +1,10 @@
+-import { useEffect, useMemo, useState, type ReactNode } from "react";
+-import { App, Modal, Segmented, Tooltip } from "antd";
+-import { Download, Ellipsis, FolderPlus, Image as ImageIcon, Info, MessageSquare, Minus, Music2, Plus, RefreshCw, Settings2, Trash2, Ungroup, Upload, Video } from "lucide-react";
++import { isGenerationModeEnabled } from "@/guan/精简与离线策略";
++import { useEffect, useState, type ReactNode } from "react";
++import { App, Tooltip } from "antd";
++import { Download, Ellipsis, FolderPlus, Image as ImageIcon, MessageSquare, Minus, Music2, Plus, RefreshCw, Settings2, Trash2, Ungroup, Upload, Video } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ 
+-import { canvasThemes } from "@/lib/canvas-theme";
+-import { getNodeDefinition } from "@/lib/canvas/node-registry";
+-import { formatBytes, getDataUrlByteSize } from "@/lib/image-utils";
+ import { useCopyText } from "@/hooks/use-copy-text";
+-import { useThemeStore } from "@/stores/use-theme-store";
+ import { CanvasNodeType, type CanvasNodeData, type ViewportTransform } from "@/types/canvas";
+ import type { CanvasNodeToolbarItem } from "@/types/canvas-plugin";
+ import { ImageToolSettingsModal, type ImageToolbarSettingsTool } from "./canvas-image-toolbar-settings-modal";
+@@ -18,7 +15,6 @@
+     viewport: ViewportTransform;
+     onKeep: (nodeId: string) => void;
+     onLeave: () => void;
+-    onInfo: (node: CanvasNodeData) => void;
+     onDecreaseFont: (node: CanvasNodeData) => void;
+     onIncreaseFont: (node: CanvasNodeData) => void;
+     onToggleDialog: (node: CanvasNodeData) => void;
+@@ -30,7 +26,6 @@
+     onCrop: (node: CanvasNodeData) => void;
+     onSplit: (node: CanvasNodeData) => void;
+     onUpscale: (node: CanvasNodeData) => void;
+-    onSuperResolve: (node: CanvasNodeData) => void;
+     onAngle: (node: CanvasNodeData) => void;
+     onViewImage: (node: CanvasNodeData) => void;
+     onReversePrompt: (node: CanvasNodeData) => void;
+@@ -56,7 +51,6 @@
+     viewport,
+     onKeep,
+     onLeave,
+-    onInfo,
+     onDecreaseFont,
+     onIncreaseFont,
+     onToggleDialog,
+@@ -68,7 +62,6 @@
+     onCrop,
+     onSplit,
+     onUpscale,
+-    onSuperResolve,
+     onAngle,
+     onViewImage,
+     onReversePrompt,
+@@ -117,7 +110,7 @@
+     const hasAudio = isAudio && Boolean(node.metadata?.content);
+     const isText = node.type === CanvasNodeType.Text;
+     const isConfig = node.type === CanvasNodeType.Config;
+-    const canRetry = node.metadata?.status === "error" && !(isVideo && Boolean(node.metadata?.videoTaskId) && !hasVideo);
++    const canRetry = isGenerationModeEnabled(isVideo ? "video" : isAudio ? "audio" : node.metadata?.generationMode || "image") && node.metadata?.status === "error" && !(isVideo && Boolean(node.metadata?.videoTaskId) && !hasVideo);
+     const canQueryVideoTask = isVideo && Boolean(node.metadata?.videoTaskId) && !hasVideo && node.metadata?.status !== "loading";
+     const quickImageToolIdSet = new Set(quickImageToolIds);
+     const copyImagePrompt = (target: CanvasNodeData) => {
+@@ -128,7 +121,7 @@
+         }
+         copyText(prompt, t("common.promptCopied"));
+     };
+-    const imageTools = buildImageToolbarTools(node, { onUpload, onToggleFreeResize, onMaskEdit, onCrop, onSplit, onUpscale, onSuperResolve, onAngle, onViewImage, onCopyPrompt: copyImagePrompt, onReversePrompt });
++    const imageTools = buildImageToolbarTools(node, { onUpload, onToggleFreeResize, onMaskEdit, onCrop, onSplit, onUpscale, onAngle, onViewImage, onCopyPrompt: copyImagePrompt, onReversePrompt });
+ 
+     function openImageToolSettings() {
+         onKeep(activeNode.id);
+@@ -138,7 +131,6 @@
+     }
+ 
+     const baseToolbarTools: ToolbarTool[] = [
+-        { id: "info", title: t("canvas.nodeToolbar.infoTitle"), label: t("canvas.nodeToolbar.info"), icon: <Info className="size-4" />, onClick: () => onInfo(node) },
+         ...(node.type === CanvasNodeType.Group && onUngroup ? [{ id: "ungroup", title: t("canvas.nodeToolbar.ungroupTitle"), label: t("canvas.nodeToolbar.ungroup"), icon: <Ungroup className="size-4" />, onClick: () => onUngroup(node) }] : []),
+         { id: "delete", title: t("canvas.nodeToolbar.removeTitle"), label: t("common.delete"), icon: <Trash2 className="size-4" />, onClick: () => onDelete(node), danger: true },
+     ];
+@@ -147,7 +139,7 @@
+         ...(canRetry ? [{ id: "retry", title: t("canvas.nodeToolbar.retryTitle"), label: t("canvas.node.retry"), icon: <RefreshCw className="size-4" />, onClick: () => onRetry(node) }] : []),
+         ...(hasImage || hasVideo || isText ? [{ id: "saveAsset", title: t("common.addToAssets"), label: t("canvas.nodeToolbar.saveAsset"), icon: <FolderPlus className="size-4" />, onClick: () => onSaveAsset(node) }] : []),
+         ...(hasImage || hasVideo || hasAudio ? [{ id: "download", title: t(hasAudio ? "canvas.nodeToolbar.downloadAudio" : hasVideo ? "canvas.nodeToolbar.downloadVideo" : "canvas.nodeToolbar.downloadImage"), label: t("common.download"), icon: <Download className="size-4" />, onClick: () => onDownload(node) }] : []),
+-        ...(isVideo ? [{ id: "edit", title: t("common.edit"), label: t("common.edit"), icon: <MessageSquare className="size-4" />, onClick: () => onToggleDialog(node) }] : []),
++        ...(isVideo && isGenerationModeEnabled("video") ? [{ id: "edit", title: t("common.edit"), label: t("common.edit"), icon: <MessageSquare className="size-4" />, onClick: () => onToggleDialog(node) }] : []),
+         ...(isText ? [{ id: "generateImage", title: t("canvas.node.generateImage"), label: t("canvas.node.generate"), icon: <ImageIcon className="size-4" />, onClick: () => onGenerateImage(node) }] : []),
+         ...(isConfig ? [{ id: "config", title: t("canvas.configNode.title"), label: t("canvas.configNode.title"), icon: <Settings2 className="size-4" />, onClick: () => onToggleDialog(node) }] : []),
+         ...(isText ? [{ id: "decreaseFont", title: t("canvas.nodeToolbar.decreaseFont"), label: t("canvas.nodeToolbar.zoomOut"), icon: <Minus className="size-4" />, onClick: () => onDecreaseFont(node) }] : []),
+@@ -216,77 +208,7 @@
+     );
+ }
+ 
+-export function CanvasNodeInfoModal({ node, open, onClose }: { node: CanvasNodeData | null; open: boolean; onClose: () => void }) {
+-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+-    const { t } = useTranslation();
+-    const [view, setView] = useState<"info" | "json">("info");
+-    const imageBytes = node?.type === CanvasNodeType.Image && node.metadata?.content ? getDataUrlByteSize(node.metadata.content) : 0;
+-    const batchCount = node?.type === CanvasNodeType.Image ? node.metadata?.images?.length || 0 : 0;
+-    const json = useMemo(() => {
+-        if (!node) return "";
+-        return JSON.stringify(
+-            node,
+-            (key, value) => {
+-                if (key === "content" && typeof value === "string" && value.startsWith("data:image/")) {
+-                    return "[base64 image]";
+-                }
+-                return value;
+-            },
+-            2,
+-        );
+-    }, [node]);
+-
+-    useEffect(() => {
+-        if (open) setView("info");
+-    }, [node?.id, open]);
+ 
+-    const title = (
+-        <div className="flex items-center justify-between gap-4 pr-12">
+-            <span>{t("canvas.nodeToolbar.nodeInfo")}</span>
+-            <Segmented
+-                size="small"
+-                value={view}
+-                onChange={(value) => setView(value as "info" | "json")}
+-                options={[
+-                    { label: t("canvas.nodeToolbar.info"), value: "info" },
+-                    { label: "JSON", value: "json" },
+-                ]}
+-            />
+-        </div>
+-    );
+-
+-    return (
+-        <Modal className="canvas-node-info-modal" title={title} open={open && Boolean(node)} centered footer={null} onCancel={onClose}>
+-            {node ? (
+-                <div className="h-[56vh] min-h-[360px] select-text text-sm" data-canvas-shortcuts-ignore>
+-                    {view === "info" ? (
+-                        <div className="thin-scrollbar h-full space-y-3 overflow-auto pr-1">
+-                            <InfoRow label="ID" value={node.id} />
+-                            <InfoRow label={t("canvas.nodeToolbar.name")} value={node.title || t("canvas.node.untitled")} />
+-                            <InfoRow label={t("canvas.nodeToolbar.type")} value={node.type === CanvasNodeType.Group ? t("canvas.node.group") : node.type === CanvasNodeType.Config ? t("canvas.configNode.title") : [CanvasNodeType.Image, CanvasNodeType.Video, CanvasNodeType.Audio, CanvasNodeType.Text].includes(node.type as CanvasNodeType) ? t(`assets.kinds.${node.type}`) : getNodeDefinition(node.type)?.title || node.type} />
+-                            <InfoRow label={t("canvas.nodeToolbar.size")} value={`${Math.round(node.width)} x ${Math.round(node.height)}`} />
+-                            <InfoRow label={t("canvas.nodeToolbar.position")} value={`${Math.round(node.position.x)}, ${Math.round(node.position.y)}`} />
+-                            <InfoRow label={t("canvas.nodeToolbar.status")} value={node.metadata?.status || "idle"} />
+-                            {batchCount > 1 ? <InfoRow label={t("canvas.nodeToolbar.imageGroup")} value={t("canvas.configNode.images", { count: batchCount })} /> : null}
+-                            {node.metadata?.prompt ? <InfoRow label={t("canvas.configNode.prompt")} value={node.metadata.prompt} /> : null}
+-                            {node.metadata?.videoTaskId ? <InfoRow label={t("canvas.nodeToolbar.videoTaskId")} value={node.metadata.videoTaskId} /> : null}
+-                            {imageBytes ? <InfoRow label={t("canvas.nodeToolbar.imageSize")} value={formatBytes(imageBytes)} /> : null}
+-                            {node.metadata?.errorDetails ? (
+-                                <div className="rounded-lg border p-3 text-red-400" style={{ borderColor: theme.node.stroke }}>
+-                                    {node.metadata.errorDetails}
+-                                </div>
+-                            ) : null}
+-                        </div>
+-                    ) : (
+-                        <pre className="thin-scrollbar h-full overflow-auto rounded-lg border p-3 text-xs leading-5" style={{ background: theme.node.fill, borderColor: theme.node.stroke, color: theme.node.text }}>
+-                            {json}
+-                        </pre>
+-                    )}
+-                </div>
+-            ) : null}
+-        </Modal>
+-    );
+-}
+ 
+ function ToolbarAction({ title, label, icon, onClick, showLabel, active = false, danger = false }: ToolbarTool & { showLabel: boolean }) {
+     const hasText = showLabel && Boolean(label);
+@@ -302,11 +224,4 @@
+     );
+ }
+ 
+-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
+-    return (
+-        <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3">
+-            <span className="opacity-50">{label}</span>
+-            <span className="min-w-0 whitespace-pre-wrap break-words">{value}</span>
+-        </div>
+-    );
+-}
++
+--- a/web/src/components/canvas/canvas-image-toolbar-tools.tsx
++++ b/web/src/components/canvas/canvas-image-toolbar-tools.tsx
+@@ -1,5 +1,5 @@
+ import type { ReactNode } from "react";
+-import { Brush, Camera, Copy, FileText, Grid2x2, Lock, LockOpen, Maximize2, Scissors, Sparkles, Upload, ZoomIn } from "lucide-react";
++import { Brush, Camera, Copy, FileText, Grid2x2, Lock, LockOpen, Maximize2, Scissors, Upload, ZoomIn } from "lucide-react";
+ 
+ import type { CanvasNodeData } from "@/types/canvas";
+ import i18n from "@/i18n";
+@@ -14,7 +14,6 @@
+     onCrop: (node: CanvasNodeData) => void;
+     onSplit: (node: CanvasNodeData) => void;
+     onUpscale: (node: CanvasNodeData) => void;
+-    onSuperResolve: (node: CanvasNodeData) => void;
+     onAngle: (node: CanvasNodeData) => void;
+     onViewImage: (node: CanvasNodeData) => void;
+     onCopyPrompt: (node: CanvasNodeData) => void;
+@@ -38,7 +37,7 @@
+ 
+ export const IMAGE_QUICK_TOOLS_STORAGE_KEY = "canvas-image-quick-tools-v7";
+ 
+-const defaultBaseToolIds: ImageQuickToolId[] = ["info", "delete", "saveAsset", "download"];
++const defaultBaseToolIds: ImageQuickToolId[] = ["delete", "saveAsset", "download"];
+ 
+ export const imageToolDefinitions: ImageToolDefinition[] = [
+     {
+@@ -107,14 +106,6 @@
+         run: (node, handlers) => handlers.onUpscale(node),
+     },
+     {
+-        id: "superResolve",
+-        defaultVisible: false,
+-        label: () => i18n.t("canvas.imageTools.superResolve"),
+-        title: () => i18n.t("canvas.imageTools.superResolveTitle"),
+-        icon: () => <Sparkles className="size-4" />,
+-        run: (node, handlers) => handlers.onSuperResolve(node),
+-    },
+-    {
+         id: "angle",
+         defaultVisible: false,
+         label: () => i18n.t("canvas.imageTools.angle"),
+--- a/web/src/services/api/audio.ts
++++ b/web/src/services/api/audio.ts
+@@ -1,3 +1,4 @@
++import { requireGenerationMode } from "@/guan/精简与离线策略";
+ import axios from "axios";
+ 
+ import i18n from "@/i18n";
+@@ -21,6 +22,7 @@
+ }
+ 
+ export async function requestAudioGeneration(config: AiConfig, prompt: string, options?: RequestOptions): Promise<Blob> {
++    requireGenerationMode("audio");
+     const requestConfig = resolveModelRequestConfig(config, config.model || config.audioModel);
+     const model = requestConfig.model.trim();
+     const format = normalizeAudioFormatValue(config.audioFormat);
+--- a/web/src/services/api/video.ts
++++ b/web/src/services/api/video.ts
+@@ -1,3 +1,4 @@
++import { requireGenerationMode } from "@/guan/精简与离线策略";
+ import axios from "axios";
+ import { nanoid } from "nanoid";
+ 
+@@ -70,6 +71,7 @@
+ }
+ 
+ export async function createVideoGenerationTask(config: AiConfig, prompt: string, references: ReferenceImage[] = [], options?: VideoMediaOptions): Promise<VideoGenerationTask> {
++    requireGenerationMode("video");
+     const selectedModel = (config.model || config.videoModel).trim();
+     const requestConfig = resolveModelRequestConfig(config, selectedModel);
+     const script = resolveModelScript(config, selectedModel);
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,3 +1,4 @@
++import { isGenerationModeEnabled } from "@/guan/精简与离线策略";
+ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+ import type { ChangeEvent as ReactChangeEvent, DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
+ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+@@ -32,7 +33,7 @@
+ import { CanvasNodeSplitDialog, type CanvasImageSplitParams } from "@/components/canvas/canvas-node-split-dialog";
+ import { CanvasNodeUpscaleDialog, type CanvasImageUpscaleParams } from "@/components/canvas/canvas-node-upscale-dialog";
+ import { buildNodeGenerationContext, buildNodeGenerationInputs, buildNodeResponseMessages, hydrateNodeGenerationContext, type NodeGenerationInput } from "@/components/canvas/canvas-node-generation";
+-import { CanvasNodeHoverToolbar, CanvasNodeInfoModal } from "@/components/canvas/canvas-node-hover-toolbar";
++import { CanvasNodeHoverToolbar } from "@/components/canvas/canvas-node-hover-toolbar";
+ import { CanvasSelectionToolbar } from "@/components/canvas/canvas-selection-toolbar";
+ import { InfiniteCanvas } from "@/components/canvas/infinite-canvas";
+ import { Minimap } from "@/components/canvas/canvas-mini-map";
+@@ -253,13 +254,11 @@
+     const [toolbarNodeId, setToolbarNodeId] = useState<string | null>(null);
+     const [nodeImageSettingsOpen, setNodeImageSettingsOpen] = useState(false);
+     const [dialogNodeId, setDialogNodeId] = useState<string | null>(null);
+-    const [infoNodeId, setInfoNodeId] = useState<string | null>(null);
+     const [pluginManagerOpen, setPluginManagerOpen] = useState(false);
+     const [cropNodeId, setCropNodeId] = useState<string | null>(null);
+     const [maskEditNodeId, setMaskEditNodeId] = useState<string | null>(null);
+     const [splitNodeId, setSplitNodeId] = useState<string | null>(null);
+     const [upscaleNodeId, setUpscaleNodeId] = useState<string | null>(null);
+-    const [superResolveNodeId, setSuperResolveNodeId] = useState<string | null>(null);
+     const [angleNodeId, setAngleNodeId] = useState<string | null>(null);
+     const [previewNodeId, setPreviewNodeId] = useState<string | null>(null);
+     const [hoverPreviewNodeId, setHoverPreviewNodeId] = useState<string | null>(null);
+@@ -729,12 +728,10 @@
+     // It stays hidden for multi-selection and while isNodeDragging is true.
+     const singleSelectedNodeId = selectedNodeIds.size === 1 ? Array.from(selectedNodeIds)[0] : null;
+     const toolbarNode = (toolbarNodeId ? nodeById.get(toolbarNodeId) || null : null) || (singleSelectedNodeId ? nodeById.get(singleSelectedNodeId) || null : null);
+-    const infoNode = infoNodeId ? nodeById.get(infoNodeId) || null : null;
+     const cropNode = cropNodeId ? nodeById.get(cropNodeId) || null : null;
+     const maskEditNode = maskEditNodeId ? nodeById.get(maskEditNodeId) || null : null;
+     const splitNode = splitNodeId ? nodeById.get(splitNodeId) || null : null;
+     const upscaleNode = upscaleNodeId ? nodeById.get(upscaleNodeId) || null : null;
+-    const superResolveNode = superResolveNodeId ? nodeById.get(superResolveNodeId) || null : null;
+     const angleNode = angleNodeId ? nodeById.get(angleNodeId) || null : null;
+     const contextMenuNode = contextMenu?.type === "node" ? nodeById.get(contextMenu.nodeId) || null : null;
+     const previewNode = previewNodeId ? nodeById.get(previewNodeId) || null : null;
+@@ -880,7 +877,6 @@
+             setHoveredNodeId((current) => (current && allIds.has(current) ? null : current));
+             setToolbarNodeId((current) => (current && allIds.has(current) ? null : current));
+             setDialogNodeId((current) => (current && allIds.has(current) ? null : current));
+-            setInfoNodeId((current) => (current && allIds.has(current) ? null : current));
+             setCropNodeId((current) => (current && allIds.has(current) ? null : current));
+             setMaskEditNodeId((current) => (current && allIds.has(current) ? null : current));
+             setAngleNodeId((current) => (current && allIds.has(current) ? null : current));
+@@ -980,7 +976,6 @@
+     const clearCanvas = useCallback(() => {
+         setNodes([]);
+         setConnections([]);
+-        setInfoNodeId(null);
+         setCropNodeId(null);
+         setMaskEditNodeId(null);
+         setAngleNodeId(null);
+@@ -1657,7 +1652,6 @@
+                 setHoveredNodeId(null);
+                 setToolbarNodeId(null);
+                 setDialogNodeId(null);
+-                setInfoNodeId(null);
+                 setCropNodeId(null);
+                 setMaskEditNodeId(null);
+                 setPendingConnectionCreate(null);
+@@ -2326,6 +2320,7 @@
+ 
+     const handleGenerateNode = useCallback(
+         async (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string) => {
++            if (!isGenerationModeEnabled(mode)) { message.info("视频和语音新生成已关闭；已有媒体与视频任务保留。"); return; }
+             const sourceNode = nodesRef.current.find((node) => node.id === nodeId);
+             const generationConfig = buildGenerationConfig(effectiveConfig, sourceNode, mode);
+             if (!isAiConfigReady(generationConfig, generationConfig.model)) {
+@@ -3326,7 +3321,6 @@
+                     extraTools={toolbarNode ? buildNodeToolbarItems(toolbarNode) : undefined}
+                     onKeep={keepNodeToolbar}
+                     onLeave={hideNodeToolbar}
+-                    onInfo={(node) => setInfoNodeId(node.id)}
+                     onDecreaseFont={(node) => handleFontSizeChange(node.id, Math.max(10, (node.metadata?.fontSize || 14) - 2))}
+                     onIncreaseFont={(node) => handleFontSizeChange(node.id, Math.min(32, (node.metadata?.fontSize || 14) + 2))}
+                     onToggleDialog={(node) => setDialogNodeId((current) => (current === node.id ? null : node.id))}
+@@ -3338,7 +3332,6 @@
+                     onCrop={(node) => setCropNodeId(node.id)}
+                     onSplit={(node) => setSplitNodeId(node.id)}
+                     onUpscale={(node) => setUpscaleNodeId(node.id)}
+-                    onSuperResolve={(node) => setSuperResolveNodeId(node.id)}
+                     onAngle={(node) => setAngleNodeId(node.id)}
+                     onViewImage={handleNodeViewImage}
+                     onReversePrompt={createImageReversePromptNodes}
+@@ -3420,7 +3413,6 @@
+ 
+                 <input ref={imageInputRef} type="file" multiple accept="image/*,video/*,audio/mpeg,audio/wav,audio/x-wav,.mp3,.wav" className="hidden" onChange={handleImageInputChange} />
+ 
+-                <CanvasNodeInfoModal node={infoNode} open={Boolean(infoNode)} onClose={() => setInfoNodeId(null)} />
+                 {productFeatures.nodePlugins ? <CanvasPluginManagerModal open={pluginManagerOpen} onClose={() => setPluginManagerOpen(false)} /> : null}
+ 
+                 {cropNode?.metadata?.content ? <CanvasNodeCropDialog dataUrl={cropNode.metadata.content} open={Boolean(cropNode)} onClose={() => setCropNodeId(null)} onConfirm={(crop) => void cropImageNode(cropNode!, crop)} /> : null}
+@@ -3435,9 +3427,7 @@
+                     <CanvasNodeUpscaleDialog dataUrl={upscaleNode.metadata.content} open={Boolean(upscaleNode)} onClose={() => setUpscaleNodeId(null)} onConfirm={(params) => void upscaleImageNode(upscaleNode!, params)} />
+                 ) : null}
+ 
+-                <Modal title={t("canvas.projectPage.superResolve")} open={Boolean(superResolveNode?.metadata?.content)} centered footer={null} onCancel={() => setSuperResolveNodeId(null)}>
+-                    <div className="py-8 text-center text-base font-medium">{t("canvas.projectPage.notImplemented")}</div>
+-                </Modal>
++                
+ 
+                 {angleNode?.metadata?.content ? <CanvasNodeAngleDialog dataUrl={angleNode.metadata.content} open={Boolean(angleNode)} onClose={() => setAngleNodeId(null)} onConfirm={(params) => void generateAngleNode(angleNode!, params)} /> : null}
+ 
+--- a/web/src/components/canvas/canvas-config-node-panel.tsx
++++ b/web/src/components/canvas/canvas-config-node-panel.tsx
+@@ -1,3 +1,4 @@
++import { isGenerationModeEnabled } from "@/guan/精简与离线策略";
+ import type { CSSProperties } from "react";
+ import { Image as ImageIcon, LoaderCircle, MessageSquare, Music2, Play, Settings2, Square, Video } from "lucide-react";
+ import { Button, Segmented } from "antd";
+@@ -82,7 +83,7 @@
+                                     </span>
+                                 ),
+                             },
+-                        ]}
++                        ].filter((option) => isGenerationModeEnabled(option.value))}
+                     />
+                 </div>
+             </div>
+@@ -98,7 +99,7 @@
+                 </button>
+             </div>
+ 
+-            <div className="mb-2 grid min-w-0 cursor-default grid-cols-[minmax(0,1fr)_148px] items-center gap-2" onMouseDown={(event) => event.stopPropagation()}>
++            {isGenerationModeEnabled(mode) ? <div className="mb-2 grid min-w-0 cursor-default grid-cols-[minmax(0,1fr)_148px] items-center gap-2" onMouseDown={(event) => event.stopPropagation()}>
+                 <ModelPicker className="canvas-compact-control h-10" config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability={mode} onMissingConfig={() => openConfigDialog(true)} fullWidth />
+                 {mode === "video" ? (
+                     <CanvasVideoSettingsPopover config={config} placement="topRight" buttonClassName="canvas-compact-control !h-10 !w-full !justify-start !rounded-lg !px-2" onConfigChange={(key, value) => onConfigChange(node.id, videoConfigPatch(key, value))} />
+@@ -109,13 +110,13 @@
+                 ) : (
+                     <CanvasTextSettingsPopover config={config} count={node.metadata?.textCount || 1} placement="topRight" buttonClassName="canvas-compact-control !h-10 !w-full !justify-start !rounded-lg !px-2" onConfigChange={(_, value) => onConfigChange(node.id, { reasoningEffort: value })} onCountChange={(textCount) => onConfigChange(node.id, { textCount })} />
+                 )}
+-            </div>
++            </div> : <div role="status" className="mb-2 text-xs opacity-60">此卡片的视频/语音生成已关闭，原参数保留；可切换图片或文本。</div>}
+ 
+             <Button
+                 type="primary"
+                 className="mt-auto !h-9 !w-full !cursor-pointer !rounded-lg"
+                 danger={isRunning}
+-                disabled={!isRunning && !canGenerate}
++                disabled={!isRunning && (!isGenerationModeEnabled(mode) || !canGenerate)}
+                 onMouseDown={(event) => event.stopPropagation()}
+                 onClick={() => (isRunning ? onStop(node.id) : onGenerate(node.id))}
+             >
+--- a/web/src/components/canvas/canvas-node-prompt-panel.tsx
++++ b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+@@ -1,3 +1,4 @@
++import { isGenerationModeEnabled } from "@/guan/精简与离线策略";
+ import { useEffect, useState } from "react";
+ import { ArrowUp, LoaderCircle, Maximize2, Square } from "lucide-react";
+ import { Button, Modal, Tooltip } from "antd";
+@@ -61,6 +62,7 @@
+     };
+ 
+     const submit = () => {
++        if (!isGenerationModeEnabled(mode)) return;
+         const text = prompt.trim();
+         if (!text || isRunning) return;
+         onGenerate(node.id, mode, text);
+@@ -70,6 +72,8 @@
+         setExpanded(true);
+     };
+ 
++    if (!isGenerationModeEnabled(mode)) return <div role="status" className="rounded-xl border p-3 text-sm" style={{ background: theme.toolbar.panel, color: theme.node.text }}>视频和语音新生成及参数编辑已关闭；已有媒体、任务和原参数保留。{isRunning ? <Button onClick={() => onStop(node.id)}>停止当前任务</Button> : null}</div>;
++
+     return (
+         <div
+             data-canvas-no-zoom
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -1,3 +1,5 @@
++import { isGenerationModeEnabled } from "@/guan/精简与离线策略";
++import { ThemePreference } from "@/guan/三态主题设置";
+ import { businessFeatures, resolveBusinessConfigTab } from "@/guan/脚本与提示词来源";
+ import { productFeatures, resolveConfigTab } from "@/guan/功能开关";
+ import { App, Button, Form, Input, Modal, Progress, Radio, Select, Switch, Tabs } from "antd";
+@@ -7,7 +9,6 @@
+ import { useTranslation } from "react-i18next";
+ 
+ import { ModelPicker } from "@/components/model-picker";
+-import { videoResolutionOptions } from "@/components/video-settings-panel";
+ import { ChannelEditorDrawer } from "@/components/layout/channel-editor-drawer";
+ import { ConfigLocalProxy } from "@/components/layout/config-local-proxy";
+ import { ConfigPromptSources } from "@/components/layout/config-prompt-sources";
+@@ -16,8 +17,7 @@
+ import { exportAppConfig, importAppConfig } from "@/services/config-file";
+ import { syncAppDataToWebdav, type AppSyncDomainKey, type AppSyncProgressEvent } from "@/services/app-sync";
+ import { testWebdavConnection, WEBDAV_MANIFEST_FILE_NAME } from "@/services/webdav-sync";
+-import { audioFormatOptions, audioVoiceOptions, normalizeAudioSpeedValue } from "@/lib/audio-generation";
+-import { computeMediaSize, inferMediaRatio, inferMediaScale, mediaScaleOptions, parseVideoResolution } from "@/lib/media-size";
++import { computeMediaSize, inferMediaRatio, inferMediaScale, mediaScaleOptions } from "@/lib/media-size";
+ import { createModelChannel, modelOptionsFromChannels, normalizeModelOptionValue, selectableModelsByCapability, useConfigStore, type AiConfig, type ApiCallFormat, type ConfigTabKey, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
+ 
+ type ModelGroup = {
+@@ -227,9 +227,10 @@
+                         label: t("config.tabs.preferences"),
+                         children: (
+                             <Form layout="vertical" requiredMark={false}>
++                                <ThemePreference />
+                                 <div className="mb-2 text-sm font-semibold">{t("config.preferences.defaultModels")}</div>
+                                 <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+-                                    {modelGroups.map((group) => (
++                                    {modelGroups.filter((group) => isGenerationModeEnabled(group.capability)).map((group) => (
+                                         <Form.Item key={group.modelKey} label={t(group.labelKey)} className="mb-0">
+                                             <ModelPicker config={config} value={config[group.modelKey]} onChange={(model) => updateConfig(group.modelKey, model)} capability={group.capability} fullWidth />
+                                         </Form.Item>
+@@ -250,26 +251,10 @@
+                                     <Form.Item label={t("config.preferences.imageResolution")} className="mb-4">
+                                         <Select value={inferMediaScale(config.size)} options={imageResolutionOptions} onChange={(scale) => updateConfig("size", computeMediaSize(scale, inferMediaRatio(config.size)))} />
+                                     </Form.Item>
+-                                    <Form.Item label={t("config.preferences.videoResolution")} className="mb-4">
+-                                        <Select value={parseVideoResolution(config.vquality)} options={videoResolutionOptions} onChange={(value) => updateConfig("vquality", value)} />
+-                                    </Form.Item>
+-                                    <Form.Item label={t("config.preferences.audioVoice")} className="mb-4">
+-                                        <Select value={config.audioVoice} options={audioVoiceOptions} onChange={(value) => updateConfig("audioVoice", value)} />
+-                                    </Form.Item>
+-                                    <Form.Item label={t("config.preferences.audioFormat")} className="mb-4">
+-                                        <Select value={config.audioFormat} options={audioFormatOptions} onChange={(value) => updateConfig("audioFormat", value)} />
+-                                    </Form.Item>
+-                                    <Form.Item label={t("config.preferences.audioSpeed")} className="mb-4">
+-                                        <Input
+-                                            type="number"
+-                                            min={0.25}
+-                                            max={4}
+-                                            step={0.05}
+-                                            value={config.audioSpeed}
+-                                            onChange={(event) => updateConfig("audioSpeed", event.target.value)}
+-                                            onBlur={(event) => updateConfig("audioSpeed", normalizeAudioSpeedValue(event.target.value))}
+-                                        />
+-                                    </Form.Item>
++                                    
++                                    
++                                    
++                                    
+                                 </div>
+                                 <Form.Item label={t("config.preferences.regenerateBehavior")} className="mb-4">
+                                     <Radio.Group value={config.nodeRegenerateBehavior} onChange={(event) => updateConfig("nodeRegenerateBehavior", event.target.value)} className="flex flex-col gap-2">
+@@ -289,9 +274,7 @@
+                                         <Switch checked={config.autoFocusOnSelect} onChange={(checked) => updateConfig("autoFocusOnSelect", checked)} />
+                                     </div>
+                                 </Form.Item>
+-                                <Form.Item label={t("config.preferences.audioInstructions")} className="mb-4">
+-                                    <Input.TextArea rows={2} value={config.audioInstructions} placeholder={t("config.preferences.audioInstructionsPlaceholder")} onChange={(event) => updateConfig("audioInstructions", event.target.value)} />
+-                                </Form.Item>
++                                
+                                 <Form.Item label={t("config.preferences.systemPrompt")} className="mb-0">
+                                     <Input.TextArea rows={4} value={config.systemPrompt} placeholder={t("config.preferences.systemPromptPlaceholder")} onChange={(event) => updateConfig("systemPrompt", event.target.value)} />
+                                 </Form.Item>
+--- a/web/src/stores/use-theme-store.ts
++++ b/web/src/stores/use-theme-store.ts
+@@ -1,20 +1 @@
+-import { productFeatures } from "@/guan/功能开关";
+-import { create } from "zustand";
+-import { persist } from "zustand/middleware";
+-
+-export type ThemeName = "light" | "dark";
+-
+-type ThemeStore = {
+-    theme: ThemeName;
+-    setTheme: (theme: ThemeName) => void;
+-};
+-
+-export const useThemeStore = create<ThemeStore>()(
+-    persist(
+-        (set) => ({
+-            theme: "dark",
+-            setTheme: (theme) => { if (productFeatures.themeSwitch) set({ theme }); },
+-        }),
+-        { name: "infinite-canvas:theme_store" },
+-    ),
+-);
++export { useThemeStore, type ThemeName, type ThemeMode } from "@/guan/三态主题状态";
+--- a/web/src/components/layout/app-providers.tsx
++++ b/web/src/components/layout/app-providers.tsx
+@@ -1,3 +1,4 @@
++import { SystemThemeSync } from "@/guan/三态主题设置";
+ import type { ReactNode } from "react";
+ import { useEffect } from "react";
+ import { ProConfigProvider } from "@ant-design/pro-components";
+@@ -44,6 +45,7 @@
+ 
+     return (
+         <ConfigProvider locale={locale === "zh-CN" ? zhCN : enUS} theme={getAntThemeConfig(dark)}>
++            <SystemThemeSync />
+             <ProConfigProvider dark={dark}>
+                 <App>
+                     <QueryClientProvider client={queryClient}>
+--- a/web/src/guan/脚本与提示词来源.ts
++++ b/web/src/guan/脚本与提示词来源.ts
+@@ -1,10 +1,10 @@
+-// 全局界面恢复批次：恢复R02/R03；S03仍关闭，不清空来源、间隔或缓存。
++// 离线批次：R02仅保留本地查看，R03停止联网刷新；S03仍关闭，不清空来源、间隔或缓存。
+ export type BusinessFeature = "modelScripts" | "promptSources" | "promptRefresh";
+ 
+ export const businessFeatures: Readonly<Record<BusinessFeature, boolean>> = Object.freeze({
+     modelScripts: false,
+     promptSources: true,
+-    promptRefresh: true,
++    promptRefresh: false,
+ });
+ 
+ const names: Record<BusinessFeature, string> = {
+--- a/web/src/components/layout/config-prompt-sources.tsx
++++ b/web/src/components/layout/config-prompt-sources.tsx
+@@ -1,166 +1 @@
+-import { App, Button, Select, Switch, Tag } from "antd";
+-import { useQuery, useQueryClient } from "@tanstack/react-query";
+-import { Eye, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+-import { useState } from "react";
+-import { useTranslation } from "react-i18next";
+-
+-import { PromptSourceEditorDrawer } from "./prompt-source-editor-drawer";
+-import { PromptSourceContentModal } from "./prompt-source-content-modal";
+-import { fetchPromptSourceStatuses, refreshAllSources, refreshSource } from "@/services/api/prompts";
+-import { PROMPT_SOURCE_INTERVALS, usePromptSourceStore } from "@/stores/use-prompt-source-store";
+-import type { PromptSource } from "@/services/api/prompt-source-presets";
+-
+-const STATUS_QUERY_KEY = ["prompt-source-statuses"];
+-
+-export function ConfigPromptSources() {
+-    const { message, modal } = App.useApp();
+-    const { i18n, t } = useTranslation();
+-    const queryClient = useQueryClient();
+-    const sources = usePromptSourceStore((state) => state.sources);
+-    const schedule = usePromptSourceStore((state) => state.schedule);
+-    const addSource = usePromptSourceStore((state) => state.addSource);
+-    const saveSource = usePromptSourceStore((state) => state.saveSource);
+-    const removeSource = usePromptSourceStore((state) => state.removeSource);
+-    const toggleSource = usePromptSourceStore((state) => state.toggleSource);
+-    const updateSchedule = usePromptSourceStore((state) => state.updateSchedule);
+-    const statusQuery = useQuery({ queryKey: STATUS_QUERY_KEY, queryFn: fetchPromptSourceStatuses });
+-
+-    const [editingSource, setEditingSource] = useState<PromptSource | null>(null);
+-    const [viewingId, setViewingId] = useState("");
+-    const [refreshingId, setRefreshingId] = useState("");
+-    const [refreshingAll, setRefreshingAll] = useState(false);
+-    const viewingSource = sources.find((item) => item.id === viewingId) || null;
+-    const intervalOptions = PROMPT_SOURCE_INTERVALS.map((value) => ({ value, label: t(`config.promptSources.intervals.${intervalKey(value)}`) }));
+-
+-    const invalidatePrompts = async () => {
+-        await Promise.all([
+-            queryClient.invalidateQueries({ queryKey: ["prompts"] }),
+-            queryClient.invalidateQueries({ queryKey: ["side-panel-prompts"] }),
+-            queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY }),
+-        ]);
+-    };
+-
+-    const handleSave = (source: PromptSource) => {
+-        saveSource(source);
+-        void invalidatePrompts();
+-    };
+-
+-    const handleDelete = (source: PromptSource) => {
+-        modal.confirm({
+-            title: t("config.promptSources.deleteTitle", { name: source.name }),
+-            content: t("config.promptSources.deleteDescription"),
+-            okText: t("common.delete"),
+-            okButtonProps: { danger: true },
+-            cancelText: t("common.cancel"),
+-            onOk: async () => {
+-                removeSource(source.id);
+-                await invalidatePrompts();
+-            },
+-        });
+-    };
+-
+-    const handleRefreshOne = async (source: PromptSource) => {
+-        setRefreshingId(source.id);
+-        try {
+-            const result = await refreshSource(source.id);
+-            await invalidatePrompts();
+-            message.success(t("config.promptSources.refreshed", { name: source.name, count: result.count }));
+-        } catch (error) {
+-            await queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY });
+-            message.error(error instanceof Error ? error.message : t("config.promptSources.refreshFailedCached"));
+-        } finally {
+-            setRefreshingId("");
+-        }
+-    };
+-
+-    const handleRefreshAll = async () => {
+-        setRefreshingAll(true);
+-        try {
+-            const result = await refreshAllSources();
+-            updateSchedule("lastFetchedAt", new Date().toISOString());
+-            await invalidatePrompts();
+-            if (result.failureCount) message.warning(t("config.promptSources.refreshPartial", { success: result.successCount, failed: result.failureCount }));
+-            else message.success(t("config.promptSources.refreshAllSuccess", { sources: result.successCount, total: result.total }));
+-        } catch (error) {
+-            message.error(error instanceof Error ? error.message : t("config.promptSources.refreshFailed"));
+-        } finally {
+-            setRefreshingAll(false);
+-        }
+-    };
+-
+-    return (
+-        <div>
+-            <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
+-                <Button type="primary" icon={<Plus className="size-4" />} onClick={() => setEditingSource(addSource())}>
+-                    {t("config.promptSources.add")}
+-                </Button>
+-            </div>
+-
+-            <div className="space-y-2">
+-                {sources.map((source) => {
+-                    const status = statusQuery.data?.[source.id];
+-                    return (
+-                        <div key={source.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 px-4 py-3 dark:border-stone-800">
+-                            <Switch size="small" checked={source.enabled} onChange={(checked) => { toggleSource(source.id, checked); void invalidatePrompts(); }} />
+-                            <div className="min-w-[220px] flex-1">
+-                                <div className="flex min-w-0 items-center gap-2">
+-                                    <span className="truncate text-sm font-semibold">{source.name}</span>
+-                                    {source.builtIn ? <Tag className="m-0 shrink-0 text-[10px]">{t("config.promptSources.builtIn")}</Tag> : null}
+-                                </div>
+-                                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-500">
+-                                    <a className="max-w-full truncate hover:text-stone-800 hover:underline dark:hover:text-stone-200" href={source.homepage || source.url} target="_blank" rel="noreferrer">
+-                                        {source.homepage || source.url}
+-                                    </a>
+-                                    <span className="tabular-nums">{t("config.promptSources.itemCount", { count: status?.count ?? 0 })}</span>
+-                                    {status?.lastError ? <Tag color="error" className="m-0 text-[10px]" title={status.lastError}>{t("config.promptSources.failed")}</Tag> : status?.lastSuccessAt ? <Tag color="success" className="m-0 text-[10px]">{t("config.promptSources.healthy")}</Tag> : <Tag className="m-0 text-[10px]">{t("config.promptSources.unsynced")}</Tag>}
+-                                    <span>{status?.lastSuccessAt ? t("config.promptSources.lastSuccess", { time: formatTime(status.lastSuccessAt, i18n.resolvedLanguage) }) : t("config.promptSources.neverFetched")}</span>
+-                                </div>
+-                            </div>
+-                            <div className="ml-auto flex flex-wrap justify-end gap-2">
+-                                <Button size="small" icon={<Eye className="size-3.5" />} onClick={() => setViewingId(source.id)}>
+-                                    {t("config.promptSources.view")}
+-                                </Button>
+-                                <Button size="small" icon={<RefreshCw className="size-3.5" />} loading={refreshingId === source.id} onClick={() => void handleRefreshOne(source)}>
+-                                    {t("config.promptSources.refresh")}
+-                                </Button>
+-                                {!source.builtIn ? <Button size="small" icon={<Pencil className="size-3.5" />} onClick={() => setEditingSource(source)}>{t("config.promptSources.edit")}</Button> : null}
+-                                {!source.builtIn ? <Button size="small" danger icon={<Trash2 className="size-3.5" />} onClick={() => handleDelete(source)}>{t("common.delete")}</Button> : null}
+-                            </div>
+-                        </div>
+-                    );
+-                })}
+-            </div>
+-
+-            <section className="mt-5 rounded-lg border border-stone-200 p-4 dark:border-stone-800">
+-                <div className="mb-3 text-sm font-semibold">{t("config.promptSources.schedule")}</div>
+-                <div className="flex flex-wrap items-center gap-3">
+-                    <div className="flex items-center gap-2">
+-                        <span className="text-xs text-stone-500">{t("config.promptSources.interval")}</span>
+-                        <Select size="small" className="w-36" value={schedule.intervalMinutes} options={intervalOptions} onChange={(value) => updateSchedule("intervalMinutes", value)} />
+-                    </div>
+-                    <Button size="small" type="primary" icon={<RefreshCw className="size-3.5" />} loading={refreshingAll} onClick={() => void handleRefreshAll()}>
+-                        {t("config.promptSources.refreshAll")}
+-                    </Button>
+-                    <span className="text-xs text-stone-500">{schedule.lastFetchedAt ? t("config.promptSources.lastFetched", { time: formatTime(schedule.lastFetchedAt, i18n.resolvedLanguage) }) : t("config.promptSources.neverScheduled")}</span>
+-                </div>
+-                <div className="mt-2 text-xs text-stone-400">{t("config.promptSources.scheduleDescription")}</div>
+-            </section>
+-
+-            <PromptSourceEditorDrawer open={Boolean(editingSource)} source={editingSource} onSave={handleSave} onClose={() => setEditingSource(null)} />
+-            <PromptSourceContentModal source={viewingSource} onClose={() => setViewingId("")} />
+-        </div>
+-    );
+-}
+-
+-function formatTime(value: string, locale?: string) {
+-    const date = new Date(value);
+-    return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString(locale, { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+-}
+-
+-function intervalKey(value: number) {
+-    if (value === 30) return "minutes30";
+-    if (value === 60) return "hour1";
+-    if (value === 360) return "hours6";
+-    if (value === 1440) return "hours24";
+-    return "disabled";
+-}
++export { LocalPromptSources as ConfigPromptSources } from "@/guan/离线提示词来源";
+--- a/web/src/services/api/prompts.ts
++++ b/web/src/services/api/prompts.ts
+@@ -1,3 +1,4 @@
++import { requireAuxiliaryFeature, offlinePrompt } from "@/guan/精简与离线策略";
+ import { businessFeatures, requireBusinessFeature } from "@/guan/脚本与提示词来源";
+ import localforage from "localforage";
+ 
+@@ -66,7 +67,7 @@
+ }
+ 
+ function withSourceMeta(source: PromptSource, items: RawPrompt[]): Prompt[] {
+-    return items.map((item) => ({
++    return items.map((item) => offlinePrompt({
+         ...item,
+         description: item.description || "",
+         referenceImageUrls: Array.isArray(item.referenceImageUrls) ? item.referenceImageUrls : [],
+@@ -105,7 +106,7 @@
+ }
+ 
+ function getOrStartRefresh(source: PromptSource) {
+-    requireBusinessFeature("promptSources");
++    requireAuxiliaryFeature("promptNetwork");
+     const current = loadingSources.get(source.id);
+     if (current) return current;
+     const loading = refreshSourceRecord(source).finally(() => loadingSources.delete(source.id));
+@@ -164,7 +165,7 @@
+ }
+ 
+ export async function refreshSource(sourceId: string): Promise<PromptSourceRefreshResult> {
+-    requireBusinessFeature("promptSources");
++    requireAuxiliaryFeature("promptNetwork");
+     const source = usePromptSourceStore.getState().sources.find((item) => item.id === sourceId);
+     if (!source) throw new Error(i18n.t("prompts.sourceMissing"));
+     const result = await getOrStartRefresh(source);
+@@ -173,7 +174,7 @@
+ }
+ 
+ export async function refreshAllSources(): Promise<PromptSourceRefreshSummary> {
+-    requireBusinessFeature("promptSources");
++    requireAuxiliaryFeature("promptNetwork");
+     const results = await Promise.all(enabledSources().map(getOrStartRefresh));
+     return summarizeRefresh(results);
+ }
+--- a/web/src/services/api/prompt-source-runtime.ts
++++ b/web/src/services/api/prompt-source-runtime.ts
+@@ -1,4 +1,4 @@
+-import { requireBusinessFeature } from "@/guan/脚本与提示词来源";
++import { requireAuxiliaryFeature } from "@/guan/精简与离线策略";
+ import i18n from "@/i18n";
+ import type { PromptSource } from "./prompt-source-presets";
+ 
+@@ -30,7 +30,7 @@
+ }
+ 
+ export async function runPromptSource(source: PromptSource, options?: RunOptions): Promise<RawPrompt[]> {
+-    requireBusinessFeature("promptSources");
++    requireAuxiliaryFeature("promptNetwork");
+     if (!source.url.trim()) throw new Error(i18n.t("config.promptSources.runtime.urlRequired"));
+     let data: unknown;
+     try {
+--- a/web/src/components/layout/prompt-source-content-modal.tsx
++++ b/web/src/components/layout/prompt-source-content-modal.tsx
+@@ -56,8 +56,8 @@
+                             <div className="text-base font-semibold">{t("config.promptSources.content.title", { name: source?.name || "" })}</div>
+                             <div className="mt-0.5 text-xs font-normal text-stone-500">{t("config.promptSources.content.count", { count: items.length })}</div>
+                         </div>
+-                        <Button size="small" icon={<RefreshCw className="size-3.5" />} loading={loading} onClick={() => void load(true)}>
+-                            {t("config.promptSources.content.refresh")}
++                        <Button size="small" icon={<RefreshCw className="size-3.5" />} loading={loading} onClick={() => void load(false)}>
++                            重新读取本地缓存
+                         </Button>
+                     </div>
+                 }
+--- /dev/null
++++ b/web/src/guan/精简与离线策略.ts
+@@ -0,0 +1,21 @@
++// 待审查批次：禁止新生成，不删除媒体、任务、来源配置或缓存。
++export const closedFeatureIds = Object.freeze(["S06", "C15", "A02", "A03", "V03", "V04", "AI超分占位"]);
++export const auxiliaryFeatures = Object.freeze({ urlCredentials: false, nodeInfo: false, superResolve: false, promptNetwork: false });
++
++export function isGenerationModeEnabled(mode: string): boolean {
++    return mode === "image" || mode === "text";
++}
++
++export function requireAuxiliaryFeature(feature: keyof typeof auxiliaryFeatures): void {
++    if (!auxiliaryFeatures[feature]) throw Object.assign(new Error("此功能已关闭；原有配置、任务和本地数据保留。"), { code: "product_feature_disabled" });
++}
++
++export function requireGenerationMode(mode: string): void {
++    if (!isGenerationModeEnabled(mode)) throw Object.assign(new Error("视频和语音新生成已关闭；已有媒体及视频任务查询仍保留。"), { code: "product_feature_disabled" });
++}
++
++// 仅作用于读取结果。远程封面/参考图不再自动加载，原缓存不修改。
++export function offlinePrompt<T extends { coverUrl: string; referenceImageUrls: string[]; githubUrl: string; sourceUrl?: string }>(item: T): T {
++    const isEmbeddedImage = (url: string) => /^data:image\/(?:png|jpeg|webp|gif|avif);base64,/i.test(url);
++    return { ...item, coverUrl: isEmbeddedImage(item.coverUrl) ? item.coverUrl : "", referenceImageUrls: item.referenceImageUrls.filter(isEmbeddedImage), githubUrl: "", sourceUrl: "" };
++}
+--- /dev/null
++++ b/web/src/guan/三态主题状态.ts
+@@ -0,0 +1,52 @@
++import { create } from "zustand";
++import { persist } from "zustand/middleware";
++
++export type ThemeName = "light" | "dark";
++export type ThemeMode = ThemeName | "system";
++type ThemeStore = {
++    theme: ThemeName;
++    mode: ThemeMode;
++    setTheme: (theme: ThemeName) => void;
++    setMode: (mode: ThemeMode) => void;
++    syncSystemTheme: (dark: boolean) => void;
++};
++
++export function systemTheme(): ThemeName {
++    return typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
++}
++
++export function resolveThemeMode(saved: unknown): ThemeMode {
++    if (!saved || typeof saved !== "object") return "system";
++    const data = saved as { mode?: unknown; theme?: unknown };
++    if (data.mode === "light" || data.mode === "dark" || data.mode === "system") return data.mode;
++    // 旧版明确选择过的浅/深色保持原选择，不擅自改成跟随系统。
++    return data.theme === "light" || data.theme === "dark" ? data.theme : "system";
++}
++
++export const useThemeStore = create<ThemeStore>()(
++    persist(
++        (set, get) => ({
++            mode: "system",
++            theme: systemTheme(),
++            setTheme: (theme) => {
++                if (theme === "light" || theme === "dark") set({ mode: theme, theme });
++            },
++            setMode: (mode) => {
++                if (mode !== "system" && mode !== "light" && mode !== "dark") return;
++                set({ mode, theme: mode === "system" ? systemTheme() : mode });
++            },
++            syncSystemTheme: (dark) => {
++                const theme = dark ? "dark" : "light";
++                if (get().mode === "system" && get().theme !== theme) set({ theme });
++            },
++        }),
++        {
++            name: "infinite-canvas:theme_store",
++            partialize: (state) => ({ mode: state.mode }),
++            merge: (saved, current) => {
++                const mode = resolveThemeMode(saved);
++                return { ...current, mode, theme: mode === "system" ? systemTheme() : mode };
++            },
++        },
++    ),
++);
+--- /dev/null
++++ b/web/src/guan/三态主题设置.tsx
+@@ -0,0 +1,26 @@
++import { useEffect } from "react";
++import { Form, Select } from "antd";
++import { useThemeStore, type ThemeMode } from "./三态主题状态";
++
++// 全应用只挂载一次；系统改变时只更新解析后的颜色，不改变用户偏好。
++export function SystemThemeSync() {
++    useEffect(() => {
++        if (typeof window.matchMedia !== "function") return;
++        const media = window.matchMedia("(prefers-color-scheme: dark)");
++        const sync = () => useThemeStore.getState().syncSystemTheme(media.matches);
++        sync();
++        media.addEventListener("change", sync);
++        return () => media.removeEventListener("change", sync);
++    }, []);
++    return null;
++}
++
++export function ThemePreference() {
++    const mode = useThemeStore((state) => state.mode);
++    const setMode = useThemeStore((state) => state.setMode);
++    return <Form.Item label="界面主题" extra="跟随系统会自动响应 macOS 外观变化；顶栏太阳/月亮按钮会切换为手动浅色或深色。">
++        <Select aria-label="界面主题" value={mode} onChange={(value: ThemeMode) => setMode(value)} options={[
++            { value: "system", label: "跟随系统" }, { value: "light", label: "浅色" }, { value: "dark", label: "深色" },
++        ]} />
++    </Form.Item>;
++}
+--- /dev/null
++++ b/web/src/guan/离线提示词来源.tsx
+@@ -0,0 +1,20 @@
++import { useState } from "react";
++import { useQuery } from "@tanstack/react-query";
++import { Alert, Button, Empty, Spin } from "antd";
++import { PromptSourceContentModal } from "@/components/layout/prompt-source-content-modal";
++import { fetchPromptSourceStatuses } from "@/services/api/prompts";
++import { usePromptSourceStore } from "@/stores/use-prompt-source-store";
++
++export function LocalPromptSources() {
++    const sources = usePromptSourceStore((state) => state.sources);
++    const [viewingId, setViewingId] = useState("");
++    const status = useQuery({ queryKey: ["prompt-source-statuses"], queryFn: fetchPromptSourceStatuses });
++    return <div className="space-y-3">
++        <Alert type="info" showIcon title="提示词来源已切换为离线查看" description="不抓取网站、不自动刷新、不加载远程示例图。原来源配置和缓存保留；Excel 本地解析接入属于后续阶段，本页目前不提供 Excel 导入。" />
++        {status.isPending ? <Spin /> : status.isError ? <Alert type="error" title="本地提示词缓存读取失败" action={<Button onClick={() => void status.refetch()}>重试本地读取</Button>} /> : sources.length ? sources.map((source) => <div key={source.id} className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 p-3 dark:border-stone-800">
++            <div className="min-w-0"><div className="truncate font-medium">{source.name}</div><div className="text-xs text-stone-500">本地缓存 {status.data?.[source.id]?.count ?? 0} 条 · {source.enabled ? "侧栏显示" : "原设置未启用"}</div></div>
++            <Button onClick={() => setViewingId(source.id)}>查看本地内容</Button>
++        </div>) : <Empty description="暂无本地提示词来源" />}
++        <PromptSourceContentModal source={sources.find((item) => item.id === viewingId) ?? null} onClose={() => setViewingId("")} />
++    </div>;
++}

@@ -5,7 +5,7 @@ import { readDownloadBlob } from "../画布迁移扩展/media-download";
 import { createProductPortal, useProductActive } from "../产品/产品界面边界";
 import type { ProductImageSource } from "./产品主图规则";
 import { ImageUploadNumber } from "../媒体交付/图片上传编号";
-import { OutsidePopover } from "../主题/原生可关闭浮层";
+import { ImageReferenceHoverPreview } from "./图片引用悬浮预览";
 
 export function ParameterImageThumbnail({ image, name, className, style, number, children, hoverPreview = false }: {
     image: ProductImageSource;
@@ -53,10 +53,12 @@ export function ParameterImageThumbnail({ image, name, className, style, number,
             onPointerDown={event => event.stopPropagation()}
             onMouseDown={event => event.stopPropagation()}
             onClick={event => event.stopPropagation()}>
-            {hoverPreview ? <OutsidePopover trigger={["hover", "focus"]} content={<div className="w-56">
-                <MediaThumbnail storageKey={image.storageKey} fallback={image.url} alt={name} className="aspect-square w-full object-contain" />
-                <p className="mt-1 break-words text-xs">{name}</p>
-            </div>}>{button}</OutsidePopover> : button}
+            {hoverPreview ? <ImageReferenceHoverPreview content={<div data-image-reference-preview data-image-width={image.width} data-image-height={image.height}>
+                <p data-reference-preview-caption className="line-clamp-2 break-words text-xs leading-4" style={{ margin: "0 0 4px", lineHeight: "16px", textAlign: "left", textIndent: 0 }} title={name}>{name}</p>
+                <div style={{ width: "var(--reference-preview-width)", height: "var(--reference-preview-height)" }}><MediaThumbnail storageKey={image.storageKey} fallback={image.url} alt={name}
+                    className="h-full min-h-0 w-full min-w-0 object-contain"
+                    style={{ display: "grid", gridTemplateRows: "minmax(0, 1fr)", gridTemplateColumns: "minmax(0, 1fr)" }} /></div>
+            </div>}>{button}</ImageReferenceHoverPreview> : button}
             {requested ? createProductPortal(<Image src={current?.url} alt={name} styles={{ root: { display: "none" } }}
                 preview={{
                     open: active && open,

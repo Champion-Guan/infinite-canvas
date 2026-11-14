@@ -1,0 +1,30 @@
+diff --git a/web/src/components/agent/agent-panel.tsx b/web/src/components/agent/agent-panel.tsx
+index 24eadea..f69d0bf 100644
+--- a/web/src/components/agent/agent-panel.tsx
++++ b/web/src/components/agent/agent-panel.tsx
+@@ -1,14 +1,14 @@
+ import { sqlitePreferences } from "@/扩展功能/本机存储/上游浏览器存储桥";
+-import { useState, type PointerEvent as ReactPointerEvent } from "react";
++import { lazy, Suspense, useState, type PointerEvent as ReactPointerEvent } from "react";
+ import { motion } from "motion/react";
+ import { useTranslation } from "react-i18next";
+ 
+-import { LocalAgentPanel } from "./local-agent-panel";
+ import { canvasThemes } from "@/lib/canvas-theme";
+ import { CANVAS_AGENT_PANEL_MOTION_MS, useAgentStore } from "@/stores/use-agent-store";
+ import { useThemeStore } from "@/stores/use-theme-store";
+ 
+ const PANEL_MOTION_SECONDS = CANVAS_AGENT_PANEL_MOTION_MS / 1000;
++const LocalAgentPanel = lazy(() => import("./local-agent-panel").then(module => ({ default: module.LocalAgentPanel })));
+ 
+ export function AgentPanel() {
+     const { t } = useTranslation();
+@@ -58,7 +58,7 @@ export function AgentPanel() {
+                 style={{ width, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
+             >
+                 <button type="button" className="absolute inset-y-0 left-0 z-40 w-4 -translate-x-1/2 cursor-col-resize" onPointerDown={startResize} aria-label={t("agent.panel.resize")} />
+-                <LocalAgentPanel embedded />
++                <Suspense fallback={null}><LocalAgentPanel embedded /></Suspense>
+             </motion.aside>
+         </motion.div>
+     );

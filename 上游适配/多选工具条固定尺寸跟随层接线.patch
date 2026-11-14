@@ -1,0 +1,12 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index f67737f..752f0fe 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -3443,6 +3443,7 @@ function InfiniteCanvasPage() {
+                         onOrganize={() => organizeOverlappingNodes(new Set(selectedNodeIdsRef.current))}
+                         onDownload={() => void downloadSelected(selectedNodes)}
+                         downloading={downloadingSelection}
++                        toolbarRoot={nodeToolbarLayerRef.current}
+                     />
+                 ) : null}
+ 

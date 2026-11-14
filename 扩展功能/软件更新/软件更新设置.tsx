@@ -5,7 +5,7 @@ import { useVersionCheck } from "@/hooks/use-version-check";
 import { formatDisplayVersion } from "@/constant/env";
 import { updateMessages, updateRequest, type UpdatePreferences } from "./软件更新客户端";
 import { OnlineInstallActions } from "./在线安装操作";
-import { ReleaseTimeline } from "./版本历史时间线";
+import { GitHubReleaseNotes } from "./GitHub更新正文";
 
 // 读取前没有开关状态；以等尺寸占位代替假默认值，真实值到达后首次挂载。
 function UpdatePreferenceSwitch({ value, ...props }: Omit<SwitchProps, "checked" | "defaultChecked" | "defaultValue">) {
@@ -18,7 +18,7 @@ function UpdatePreferenceSwitch({ value, ...props }: Omit<SwitchProps, "checked"
 
 export function ConfigSoftwareUpdates({ active = true }: { active?: boolean }) {
     const { message } = App.useApp();
-    const { status, refresh, unavailable, currentVersion, latestVersion, releases, checking, checkLatestRelease } = useVersionCheck(active);
+    const { status, refresh, unavailable, currentVersion, checking, checkLatestRelease } = useVersionCheck(active);
     const [saving, setSaving] = useState(false);
     const save = async (input: Partial<UpdatePreferences>) => {
         setSaving(true);
@@ -48,7 +48,7 @@ export function ConfigSoftwareUpdates({ active = true }: { active?: boolean }) {
                 <label className="flex items-center gap-2"><UpdatePreferenceSwitch aria-label="自动检查更新" value={prefs?.autoCheck} disabled={!prefs || saving} onChange={autoCheck => void save({ autoCheck })} />自动检查（启动及每 6 小时）</label>
                 <label className="flex items-center gap-2"><UpdatePreferenceSwitch aria-label="自动下载更新" value={prefs?.autoDownload} disabled={!prefs || saving} onChange={autoDownload => void save({ autoDownload })} />自动下载（仅可信签名包）</label>
                 <label className="flex items-center gap-2"><UpdatePreferenceSwitch aria-label="自动安装更新" value={prefs?.autoInstall} disabled={!prefs || saving} onChange={autoInstall => void save({ autoInstall })} />空闲时自动安装</label>
-                <label className="flex items-center gap-2" title="开启后接收 Beta 和 Stable；关闭后仅接收 Stable"><UpdatePreferenceSwitch aria-label="开发者模式" value={prefs?.developerMode} disabled={!prefs || saving || checking || Boolean(channelBusy)} onChange={developerMode => void save({ developerMode })} />开发者模式</label>
+                <label className="flex items-center gap-2" title="开启后接收 Beta 和 Stable；关闭后仅接收 Stable"><UpdatePreferenceSwitch aria-label="开发者模式" aria-disabled={checking || undefined} value={prefs?.developerMode} disabled={!prefs || saving || Boolean(channelBusy)} onChange={developerMode => { if (!checking) void save({ developerMode }); }} />开发者模式</label>
             </div>
             <div className="flex items-center gap-3"><span>更新网络</span><Select aria-label="更新网络" className="min-w-44" value={prefs?.network} placeholder="正在读取…" disabled={!prefs || saving} options={[{ value: "auto", label: "自动（有代理则使用代理）" }, { value: "direct", label: "直连" }, { value: "proxy", label: "本地代理" }]} onChange={network => void save({ network })} /></div>
             <OnlineInstallActions active={active} status={status} refresh={refresh} leadingActions={<>
@@ -58,9 +58,9 @@ export function ConfigSoftwareUpdates({ active = true }: { active?: boolean }) {
             <div role="status">{status ? updateMessages[status.state] || status.state : unavailable ? "本机更新服务不可用，请刷新页面后重试" : "本机更新服务读取中"}{status?.error ? `：${updateMessages[status.error] || "检查未完成，原版本保留"}` : ""}</div>
 
             {status?.latest ? <div>
-                <div>发布时间：{new Date(status.latest.publishedAt).toLocaleString()}</div>
-                <ReleaseTimeline releases={releases.filter(release => release.version === latestVersion)}
-                    currentVersion={currentVersion} latestVersion={latestVersion} />
+                <div className="mb-3">发布时间：{new Date(status.latest.publishedAt).toLocaleString()}</div>
+                <GitHubReleaseNotes notes={status.latest.notes} publishedAt={status.latest.publishedAt}
+                    version={status.latest.version} currentVersion={currentVersion} />
             </div> : null}
             <div><div className="mb-2 font-medium">更新检查记录（最近 5 次，非安装记录）</div>{status?.history.slice(-5).reverse().map((entry, index) => <div key={`${entry.at}-${index}`} className="text-xs leading-6">{new Date(entry.at).toLocaleString()} · {entry.version || "—"} · {updateMessages[entry.error || entry.state] || "检查未完成"}</div>)}</div>
         </section>

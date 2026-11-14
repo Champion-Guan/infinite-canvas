@@ -42,7 +42,7 @@ test('统一时间线保留分类颜色、当前与最新标记、日期、换�
     assert.deepEqual(timeline.props.items.map(item => item.key), releases.map(item => item.version));
     const first = flatten(timeline.props.items[0].content);
     const tags = first.filter(node => node.type === 'Tag');
-    assert.deepEqual(tags.map(node => node.props.color), ['green', undefined, 'green', 'red', 'blue', 'default', 'purple']);
+    assert.deepEqual(tags.map(node => node.props.color), ['green', undefined, 'green', 'default', 'red', 'blue', 'purple']);
     assert.deepEqual(tags.slice(0, 2).map(node => node.props.children), ['version.latest', 'version.current']);
     assert.ok(first.some(node => node.props.children === '2026-11-08'));
     assert.ok(first.some(node => node.props.children === '新增说明\n保留换行' && node.props.className.includes('break-words')));
@@ -57,6 +57,23 @@ test('当前渠道没有可显示历史时说明空状态，不泄露被过滤�
     assert.ok(tree.some(node => node.props.children === '当前渠道暂无版本更新记录'));
 });
 
+test('各版本内按新增、优化、修复、调整归类，同类条目稳定且不同版本不混排', () => {
+    const input = [
+        { version: '2.0.0-beta.29', date: '2026-11-12', items: [
+            { type: '修复', content: '修复一' }, { type: '新增', content: '新增一' },
+            { type: '调整', content: '调整一' }, { type: '优化', content: '优化一' },
+            { type: '新增', content: '新增二' }, { type: '文档', content: '说明一' },
+        ] },
+        { version: '2.0.0-beta.28', date: '2026-11-10', items: [{ type: '新增', content: '旧版本新增' }] },
+    ];
+    const before = structuredClone(input);
+    const rows = flatten(ReleaseTimeline({ releases: input, currentVersion: input[0].version })).find(node => node.type === 'Timeline').props.items;
+    const contents = row => flatten(row.content).filter(node => node.props.className?.includes('break-words')).map(node => node.props.children);
+    assert.deepEqual(contents(rows[0]), ['新增一', '新增二', '优化一', '修复一', '调整一', '说明一']);
+    assert.deepEqual(contents(rows[1]), ['旧版本新增']);
+    assert.deepEqual(input, before);
+});
+
 test('当前日志沿用原时间线、彩色标签和正文布局，不增加概述或分组版式', () => {
     const release = { version: '2.0.0-beta.29', date: '2026-11-12', items: [{ type: '新增', content: '图片引用：点击看原图。' }] };
     const timeline = flatten(ReleaseTimeline({ releases: [release], currentVersion: release.version })).find(node => node.type === 'Timeline');
@@ -67,7 +84,7 @@ test('当前日志沿用原时间线、彩色标签和正文布局，不增加�
     assert.equal(elements.some(node => ['h4', 'p', 'strong'].includes(node.type)), false);
 });
 
-test('设置页保留原最新发布说明的显示条件与操作，正文统一样式；版本弹窗保留完整历史', () => {
+test('设置页原样展示GitHub正文；版本弹窗继续逐条展示完整历史，展示不提交更新操作', () => {
     const actions = [];
     const state = { open: true, currentVersion: '2.0.0-beta.27', latestVersion: '2.0.0-beta.27', releases,
         status: { latest: { version: '2.0.0-beta.27', publishedAt: '2026-11-08T10:30:10Z', notes: '## 2.0.0-beta.27\n+ [新增] 说明' },
@@ -86,7 +103,7 @@ test('设置页保留原最新发布说明的显示条件与操作，正文统�
         '@/扩展功能/软件更新/软件更新客户端': { updateMessages: {}, updateRequest: async () => actions.push('request') },
         './在线安装操作': { OnlineInstallActions: 'InstallActions' },
         '@/扩展功能/软件更新/在线安装操作': { OnlineInstallActions: 'InstallActions' },
-        './版本历史时间线': { ReleaseTimeline },
+        './GitHub更新正文': { GitHubReleaseNotes: 'GitHubReleaseNotes' },
         '@/扩展功能/软件更新/版本历史时间线': { ReleaseTimeline },
     };
     const { ConfigSoftwareUpdates } = load('扩展功能/软件更新/软件更新设置.tsx', shared);
@@ -94,8 +111,8 @@ test('设置页保留原最新发布说明的显示条件与操作，正文统�
     const settings = flatten(ConfigSoftwareUpdates({ active: true }));
     const modal = flatten(VersionReleaseModal({}));
     const timeline = tree => tree.find(node => node.type === 'Timeline').props.items;
-    assert.deepEqual(timeline(settings), timeline(modal).slice(0, 1));
-    assert.equal(timeline(settings).length, 1);
+    assert.equal(settings.filter(node => node.type === 'Timeline').length, 0);
+    assert.equal(settings.find(node => node.type === 'GitHubReleaseNotes').props.notes, state.status.latest.notes);
     assert.equal(timeline(modal).length, 2);
     assert.equal(settings.filter(node => node.type === 'InstallActions').length, 1);
     assert.equal(modal.filter(node => node.type === 'InstallActions').length, 1);

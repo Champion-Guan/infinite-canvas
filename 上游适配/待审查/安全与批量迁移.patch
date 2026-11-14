@@ -1,0 +1,1046 @@
+--- /dev/null
++++ b/web/src/guan/config/配置文件安全.ts
+@@ -0,0 +1,201 @@
++// 迁入旧版config-file.ts与config-portability.ts的导出/导入行为。
++// 来源与指纹由开发工具/预审配置文件安全.mjs锁定；SQLite负责凭据加密及保存ACK。
++import { saveAs } from "file-saver";
++
++import i18n from "@/i18n";
++import { defaultConfig, defaultWebdavSyncConfig, useConfigStore, type AiConfig, type WebdavSyncConfig } from "@/stores/use-config-store";
++import { usePromptSourceStore, type PromptSourceSchedule } from "@/stores/use-prompt-source-store";
++import { filterWorkbenchPromptSources, type PromptSource } from "@/services/api/prompt-source-presets";
++import { flushSQLiteStorage } from "@/guan/上游浏览器存储桥";
++
++type AppConfigFile = {
++    app: "infinite-canvas";
++    version: 1;
++    exportedAt: string;
++    credentialsOmitted?: true;
++    config: AiConfig;
++    webdav: WebdavSyncConfig;
++    promptSources: { sources: PromptSource[]; schedule: PromptSourceSchedule };
++};
++
++export const MAX_CONFIG_BYTES = 4 * 1024 * 1024;
++let importing = false;
++
++function portableEndpoint(value: string) {
++    if (!value) return value;
++    try {
++        const url = new URL(value, "http://config.invalid");
++        if (/\/(?:local-secure-api)(?:\/|$)/i.test(decodeURIComponent(url.pathname))) return "";
++        // Endpoint userinfo and query strings may themselves contain tokens.
++        if (url.username || url.password || url.search || url.hash) return "";
++    } catch {
++        // An invalid endpoint is not a usable portable configuration value.
++        return "";
++    }
++    return value;
++}
++
++export function createPortableAppConfig(config: AiConfig, webdav: WebdavSyncConfig, sources: PromptSource[], schedule: PromptSourceSchedule): AppConfigFile {
++    const fields = Object.fromEntries(Object.keys(defaultConfig).map((key) => [key, config[key as keyof AiConfig]])) as AiConfig;
++    return {
++        app: "infinite-canvas", version: 1, exportedAt: new Date().toISOString(), credentialsOmitted: true,
++        config: {
++            ...fields,
++            apiKey: "",
++            baseUrl: portableEndpoint(config.baseUrl),
++            proxyUrl: portableEndpoint(config.proxyUrl),
++            channels: config.channels.map((channel) => ({
++                id: channel.id, name: channel.name, apiFormat: channel.apiFormat, apiKey: "", baseUrl: portableEndpoint(channel.baseUrl),
++                // Arbitrary request scripts can contain embedded credentials.
++                models: channel.models.map((model) => ({ name: model.name, capability: model.capability, script: "" })),
++            })),
++        },
++        webdav: { username: webdav.username, directory: webdav.directory, lastSyncedAt: webdav.lastSyncedAt, password: "", url: portableEndpoint(webdav.url) },
++        promptSources: {
++            sources: sources.map((source) => ({ id: source.id, name: source.name, enabled: source.enabled, builtIn: source.builtIn,
++                url: portableEndpoint(source.url), homepage: portableEndpoint(source.homepage) })),
++            schedule: { intervalMinutes: schedule.intervalMinutes, lastFetchedAt: schedule.lastFetchedAt },
++        },
++    };
++}
++
++function invalid(): never { throw new Error(i18n.t("config.invalidFile")); }
++function record(value: unknown): value is Record<string, unknown> {
++    return value !== null && typeof value === "object" && !Array.isArray(value);
++}
++function string(value: unknown): string { if (typeof value !== "string") invalid(); return value; }
++function boolean(value: unknown): boolean { if (typeof value !== "boolean") invalid(); return value; }
++function secret(value: unknown): string {
++    const text = string(value);
++    if (/[\uD800-\uDFFF]/u.test(text) || new TextEncoder().encode(text).length > 2048) invalid();
++    return text;
++}
++
++// 凭据引用属于原工作区，不能让导入文件选择当前电脑的账户。
++export function assertPortableCredentialBindings(config: unknown, webdav: unknown) {
++    const object = (value: unknown): Record<string, unknown> => record(value) ? value : {};
++    const root = object(config);
++    const bindings = [root, ...(Array.isArray(root.channels) ? root.channels.map(object) : []), object(webdav)];
++    for (const binding of bindings) {
++        for (const key of ["apiKey", "password"]) {
++            const value = binding[key];
++            if (typeof value === "string" && /^(?:guan-vault|secret|provider):/i.test(value.trim())) throw new Error("config_local_credential_reference");
++        }
++        for (const key of ["baseUrl", "url"]) {
++            const value = binding[key];
++            if (typeof value !== "string" || !value.trim()) continue;
++            try {
++                const path = new URL(value, "http://config.invalid").pathname;
++                if (/\/(?:local-secure-api)(?:\/|$)/i.test(decodeURIComponent(path))) throw new Error("config_local_credential_reference");
++            } catch (error) {
++                if (error instanceof Error && error.message === "config_local_credential_reference") throw error;
++            }
++        }
++    }
++}
++
++function parseConfigFile(value: unknown): AppConfigFile {
++    if (!record(value) || value.app !== "infinite-canvas" || value.version !== 1 ||
++        (value.credentialsOmitted !== undefined && value.credentialsOmitted !== true) ||
++        !record(value.config) || !record(value.webdav) || !record(value.promptSources) ||
++        !Array.isArray(value.config.channels) || !value.config.channels.length ||
++        !Array.isArray(value.promptSources.sources) || !record(value.promptSources.schedule)) invalid();
++    const input = value.config;
++    // 只接收当前配置的已知数据字段；旧文件缺少的偏好补默认值，不将额外JSON展开到store。
++    const config = { ...defaultConfig, models: [...defaultConfig.models] };
++    for (const key of Object.keys(defaultConfig) as Array<keyof AiConfig>) {
++        if (key === "channels" || !Object.hasOwn(input, key)) continue;
++        const field = input[key], fallback = defaultConfig[key];
++        if (Array.isArray(fallback)) {
++            if (!Array.isArray(field) || field.some((item) => typeof item !== "string")) invalid();
++        } else if (typeof field !== typeof fallback) invalid();
++        Object.assign(config, { [key]: field });
++    }
++    config.apiKey = secret(config.apiKey);
++    const ids = new Set<string>();
++    config.channels = value.config.channels.map((channel) => {
++        if (!record(channel) || !Array.isArray(channel.models) || !["openai", "gemini"].includes(string(channel.apiFormat))) invalid();
++        const id = string(channel.id);
++        if (!id || ids.has(id)) invalid();
++        ids.add(id);
++        return {
++            id, name: string(channel.name), baseUrl: string(channel.baseUrl), apiKey: secret(channel.apiKey),
++            apiFormat: channel.apiFormat as "openai" | "gemini",
++            models: channel.models.map((model) => {
++                if (!record(model) || !["image", "video", "text", "audio"].includes(string(model.capability))) invalid();
++                return { name: string(model.name), capability: model.capability as "image" | "video" | "text" | "audio",
++                    ...(model.script === undefined ? {} : { script: string(model.script) }) };
++            }),
++        };
++    });
++    if (!["local", "remote"].includes(config.channelMode) || !["openai", "gemini"].includes(config.apiFormat) ||
++        !["auto", "low", "medium", "high", "xhigh"].includes(config.reasoningEffort) ||
++        !["new-node", "overwrite"].includes(config.nodeRegenerateBehavior)) invalid();
++    const webdav = { ...defaultWebdavSyncConfig };
++    for (const key of Object.keys(defaultWebdavSyncConfig) as Array<keyof WebdavSyncConfig>) {
++        if (Object.hasOwn(value.webdav, key)) webdav[key] = string(value.webdav[key]);
++    }
++    webdav.password = secret(webdav.password);
++    const sourceIds = new Set<string>();
++    const sources = value.promptSources.sources.map((source) => {
++        if (!record(source)) invalid();
++        const id = string(source.id);
++        if (!id || sourceIds.has(id)) invalid();
++        sourceIds.add(id);
++        return { id, name: string(source.name), url: string(source.url), homepage: string(source.homepage),
++            enabled: boolean(source.enabled), builtIn: boolean(source.builtIn) };
++    });
++    const schedule = value.promptSources.schedule;
++    if (typeof schedule.intervalMinutes !== "number" || ![0, 30, 60, 360, 1440].includes(schedule.intervalMinutes)) invalid();
++    const data: AppConfigFile = {
++        app: "infinite-canvas", version: 1, exportedAt: value.exportedAt === undefined ? "" : string(value.exportedAt),
++        ...(value.credentialsOmitted === true ? { credentialsOmitted: true } : {}), config, webdav,
++        promptSources: { sources: filterWorkbenchPromptSources(sources), schedule: { intervalMinutes: schedule.intervalMinutes, lastFetchedAt: string(schedule.lastFetchedAt) } },
++    };
++    try { assertPortableCredentialBindings(data.config, data.webdav); }
++    catch { throw new Error("配置包含仅限原工作区使用的安全凭据引用，请在此电脑重新授权；原配置未改变。"); }
++    return data;
++}
++
++export function exportAppConfig() {
++    const { config, webdav } = useConfigStore.getState();
++    const { sources, schedule } = usePromptSourceStore.getState();
++    const data = createPortableAppConfig(config, webdav, sources, schedule);
++    saveAs(new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" }), "guan-workbench-config-no-credentials.json");
++}
++
++export async function importAppConfig(file: File) {
++    if (importing) throw new Error("正在导入配置，请等待当前导入完成。");
++    importing = true;
++    try {
++        const original = useConfigStore.getState(), originalSources = usePromptSourceStore.getState();
++        // 既有失败保存先留在原队列，不能用一次新导入掩盖它。
++        await flushSQLiteStorage();
++        let raw: unknown;
++        try {
++            if (file.size > MAX_CONFIG_BYTES) invalid();
++            const text = await file.text();
++            if (new TextEncoder().encode(text).length > MAX_CONFIG_BYTES) invalid();
++            raw = JSON.parse(text);
++        } catch { invalid(); }
++        const data = parseConfigFile(raw);
++        if (data.credentialsOmitted) {
++            for (const channel of data.config.channels) {
++                const old = original.config.channels.find((item) => item.id === channel.id);
++                channel.apiKey = old && channel.baseUrl && channel.apiFormat === old.apiFormat && channel.baseUrl === old.baseUrl ? old.apiKey : "";
++            }
++            data.config.apiKey = data.config.baseUrl && data.config.apiFormat === original.config.apiFormat && data.config.baseUrl === original.config.baseUrl ? original.config.apiKey : "";
++            data.webdav.password = data.webdav.url && data.webdav.username === original.webdav.username && data.webdav.url === original.webdav.url ? original.webdav.password : "";
++        }
++        const current = useConfigStore.getState(), currentSources = usePromptSourceStore.getState();
++        if (current.config !== original.config || current.webdav !== original.webdav ||
++            currentSources.sources !== originalSources.sources || currentSources.schedule !== originalSources.schedule) {
++            throw new Error("配置已改变，请重新导入；本次导入未覆盖现有编辑。");
++        }
++        useConfigStore.setState({ config: data.config, webdav: data.webdav });
++        usePromptSourceStore.setState({ sources: data.promptSources.sources, schedule: data.promptSources.schedule });
++        // 两份store沿用既有保存队列；不把页面setState当成已落盘，也不自动回滚覆盖期间的新编辑。
++        try { await flushSQLiteStorage(); }
++        catch { throw new Error("导入配置的本机保存尚未确认，请保留页面并通过保存状态栏重试。"); }
++    } finally { importing = false; }
++}
+--- a/web/src/services/config-file.ts
++++ b/web/src/services/config-file.ts
+@@ -1,37 +1 @@
+-import { saveAs } from "file-saver";
+-
+-import i18n from "@/i18n";
+-import { useConfigStore, type AiConfig, type WebdavSyncConfig } from "@/stores/use-config-store";
+-import { usePromptSourceStore, type PromptSourceSchedule } from "@/stores/use-prompt-source-store";
+-import { filterWorkbenchPromptSources, type PromptSource } from "@/services/api/prompt-source-presets";
+-
+-type AppConfigFile = {
+-    app: "infinite-canvas";
+-    version: 1;
+-    exportedAt: string;
+-    config: AiConfig;
+-    webdav: WebdavSyncConfig;
+-    promptSources: {
+-        sources: PromptSource[];
+-        schedule: PromptSourceSchedule;
+-    };
+-};
+-
+-export function exportAppConfig() {
+-    const { config, webdav } = useConfigStore.getState();
+-    const { sources, schedule } = usePromptSourceStore.getState();
+-    const data: AppConfigFile = { app: "infinite-canvas", version: 1, exportedAt: new Date().toISOString(), config, webdav, promptSources: { sources, schedule } };
+-    saveAs(new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" }), "infinite-canvas-config.json");
+-}
+-
+-export async function importAppConfig(file: File) {
+-    let data: AppConfigFile;
+-    try {
+-        data = JSON.parse(await file.text()) as AppConfigFile;
+-    } catch {
+-        throw new Error(i18n.t("config.invalidFile"));
+-    }
+-    if (data.app !== "infinite-canvas" || data.version !== 1 || !data.config || !data.webdav || !data.promptSources) throw new Error(i18n.t("config.invalidFile"));
+-    useConfigStore.setState({ config: data.config, webdav: data.webdav });
+-    usePromptSourceStore.setState({ ...data.promptSources, sources: filterWorkbenchPromptSources(data.promptSources.sources) });
+-}
++export { exportAppConfig, importAppConfig } from "@/guan/config/配置文件安全";
+--- /dev/null
++++ b/web/src/guan/recovery/recovery-read-gate.ts
+@@ -0,0 +1,60 @@
++import { createPersistenceCheckpoint } from "./persistence-checkpoint";
++import { frontendActivity } from "./update-activity";
++
++// A failed/pending restore is not an empty library. Preserve the disk record
++// until an explicit, non-overlapping successful read has confirmed recovery.
++// No business values, credentials or original errors are retained here.
++export function createRecoveryReadGate() {
++    const checkpoint = createPersistenceCheckpoint();
++    const states = new Map<string, { active: number; failed: boolean; revision: number }>();
++    let overflow = false;
++    return {
++        read<T>(name: string, operation: () => T): T {
++            let state = states.get(name);
++            if (!state) {
++                if (states.size >= 4096) overflow = true;
++                else { state = { active: 0, failed: false, revision: 0 }; states.set(name, state); }
++            }
++            const overlapped = Boolean(state?.active);
++            if (state) state.active++;
++            const revision = state ? ++state.revision : 0;
++            const release = frontendActivity.acquire("storage");
++            const finish = (success: boolean) => {
++                if (state) {
++                    state.active--;
++                    if (!success) state.failed = true;
++                    else if (!overlapped && state.revision === revision) state.failed = false;
++                    if (!state.active && !state.failed) states.delete(name);
++                }
++                release();
++            };
++            let value: T;
++            let asynchronous = false;
++            try { value = checkpoint.runSync(`start:${name}`, () => {
++                const result = operation();
++                // Inspect inside the checkpoint: an accessor can throw before
++                // Promise assimilation, and must not leak the restore lease.
++                asynchronous = Boolean(result && typeof (result as { then?: unknown }).then === "function");
++                return result;
++            }); }
++            catch (error) { finish(false); throw error; }
++            if (asynchronous) {
++                const work = checkpoint.run(`read:${name}`, () => value).then(
++                    result => { finish(true); return result; },
++                    error => { finish(false); throw error; },
++                );
++                // Observe rejection even when Zustand restores asynchronously.
++                void work.catch(() => undefined);
++                return work as T;
++            }
++            // Also supersede a prior asynchronous read failure on a sync retry.
++            checkpoint.runSync(`read:${name}`, () => undefined);
++            finish(true);
++            return value;
++        },
++        assertWritable(name: string) {
++            const state = states.get(name);
++            if (overflow || state?.active || state?.failed) throw new Error("Stored data recovery incomplete; original data retained");
++        },
++    };
++}
+--- /dev/null
++++ b/web/src/guan/recovery/persistence-checkpoint.ts
+@@ -0,0 +1,100 @@
++// Local persistence evidence, not a complete browser inventory. No values,
++// credentials or backend error text are retained or exposed by checkpoints.
++export class PersistenceCheckpoint {
++    private states = new Map<string, { active: number; failed: boolean; generation: number }>();
++    private pending = new Set<Promise<unknown>>();
++    private overflow = false;
++    private changeRevision = 0;
++
++    constructor(private capacity = 4096) {}
++    revision() { return this.changeRevision; }
++
++    private begin(key: string, recoverable = true) {
++        this.changeRevision++;
++        let state = this.states.get(key);
++        if (!state) {
++            if (this.states.size >= this.capacity) {
++                // Preserve business operations, but never silently evict evidence.
++                this.overflow = true;
++                return (_success: boolean) => {};
++            }
++            state = { active: 0, failed: false, generation: 0 };
++            this.states.set(key, state);
++        }
++        const overlapped = state.active > 0;
++        state.active++;
++        const generation = ++state.generation;
++        return (success: boolean) => {
++            this.changeRevision++;
++            state.active--;
++            if (!success) state.failed = true;
++            // Concurrent writes have no reliable commit ordering. Only a fresh,
++            // non-overlapping successful retry of this operation clears failure.
++            else if (recoverable && !overlapped && state.generation === generation) state.failed = false;
++            if (!state.active && !state.failed) this.states.delete(key);
++        };
++    }
++
++    runSync<T>(key: string, operation: () => T): T {
++        const finish = this.begin(key);
++        try { const result = operation(); finish(true); return result; }
++        catch (error) { finish(false); throw error; }
++    }
++
++    run<T>(key: string, operation: () => T | PromiseLike<T>, recoverable = true): Promise<T> {
++        const finish = this.begin(key, recoverable);
++        // Invoke synchronously to preserve native callback timing/receiver.
++        let result: T | PromiseLike<T>;
++        try { result = operation(); }
++        catch (error) { finish(false); return Promise.reject(error); }
++        const work = Promise.resolve(result).then(
++            value => { finish(true); return value; },
++            error => { finish(false); throw error; },
++        );
++        this.pending.add(work);
++        // Handle cleanup without creating a detached rejected promise. The
++        // caller still receives the original failure, not a success substitute.
++        void work.then(() => this.pending.delete(work), () => this.pending.delete(work));
++        return work;
++    }
++
++    async flush(): Promise<void> {
++        while (this.pending.size) await Promise.allSettled([...this.pending]);
++        if (this.overflow || [...this.states.values()].some(state => state.failed || state.active)) {
++            throw new Error("Persistence checkpoint incomplete");
++        }
++    }
++}
++
++const checkpoints = new Set<PersistenceCheckpoint>();
++const listeners = new Set<() => void>();
++let topology = 0;
++let overflow = false;
++
++export function createPersistenceCheckpoint() {
++    const checkpoint = new PersistenceCheckpoint();
++    if (checkpoints.size < 256) checkpoints.add(checkpoint);
++    else overflow = true;
++    topology++;
++    for (const listener of listeners) { try { listener(); } catch { /* diagnostics must not break writes */ } }
++    return checkpoint;
++}
++
++export function subscribePersistenceCheckpoints(listener: () => void) {
++    listeners.add(listener);
++    return () => { listeners.delete(listener); };
++}
++
++export async function flushStorageCheckpoints() {
++    const revision = topology;
++    for (;;) {
++        const entries = [...checkpoints].map(checkpoint => ({ checkpoint, revision: checkpoint.revision() }));
++        const results = await Promise.allSettled(entries.map(({ checkpoint }) => checkpoint.flush()));
++        if (overflow || revision !== topology || results.some(result => result.status === "rejected")) {
++            throw new Error("Storage persistence incomplete");
++        }
++        // A previously flushed store may receive another write while a sibling
++        // is finishing. Revalidate the whole set, not only the slowest store.
++        if (entries.every(entry => entry.revision === entry.checkpoint.revision())) return;
++    }
++}
+--- /dev/null
++++ b/web/src/guan/recovery/update-activity.ts
+@@ -0,0 +1,77 @@
++// Observational only: this module cannot pause tasks or authorize installation.
++// Counts contain no prompts, URLs, keys, product names or user data.
++export const activityDomains = ["canvas", "workbench", "agent", "webdav", "storage"] as const;
++export type ActivityDomain = (typeof activityDomains)[number];
++export type ActivityCounts = Record<ActivityDomain, number>;
++type Lifecycle = { begin: (domain: ActivityDomain) => unknown | PromiseLike<unknown>; complete: (lease: unknown, successful: boolean) => void | PromiseLike<void> };
++
++export class FrontendActivityRegistry {
++    private counts: ActivityCounts = { canvas: 0, workbench: 0, agent: 0, webdav: 0, storage: 0 };
++    private listeners = new Set<() => void>();
++    private changeRevision = 0;
++    private lifecycle: Lifecycle | null = null;
++    setLifecycle(value: Lifecycle) {
++        if (this.lifecycle) throw Error("Activity lifecycle already registered");
++        this.lifecycle = value;
++        return () => { if (this.lifecycle === value) this.lifecycle = null; };
++    }
++
++    snapshot(): ActivityCounts { return { ...this.counts }; }
++    revision() { return this.changeRevision; }
++    subscribe(listener: () => void) {
++        this.listeners.add(listener);
++        return () => { this.listeners.delete(listener); };
++    }
++    private changed() {
++        this.changeRevision++;
++        // Telemetry must never break a business operation or its cleanup.
++        for (const listener of this.listeners) { try { listener(); } catch { /* observation only */ } }
++    }
++    acquire(domain: ActivityDomain) {
++        if (!activityDomains.includes(domain)) throw new Error("Invalid activity domain");
++        this.counts[domain]++;
++        this.changed();
++        let released = false;
++        return () => {
++            if (released) return;
++            released = true;
++            this.counts[domain]--;
++            this.changed();
++        };
++    }
++    async run<T>(domain: ActivityDomain, operation: () => T | PromiseLike<T>): Promise<T> {
++        const release = this.acquire(domain);
++        try { return await operation(); }
++        finally { release(); }
++    }
++    // Explicitly asynchronous network boundaries only. Synchronous mutations
++    // and storage callback contracts keep using run(), never this hook.
++    async runNetwork<T>(domain: ActivityDomain, operation: () => T | PromiseLike<T>): Promise<T> {
++        const release = this.acquire(domain);
++        const lifecycle = this.lifecycle;
++        let lease: unknown, successful = false;
++        try {
++            // With no enabled write-ahead hook, preserve the existing contract:
++            // operation starts synchronously, before this function's first await.
++            if (lifecycle) {
++                const beginning = lifecycle.begin(domain);
++                lease = beginning && typeof (beginning as PromiseLike<unknown>).then === "function" ? await beginning : beginning;
++            }
++            const value = await operation(); successful = true; return value;
++        } finally {
++            // A lost completion must keep durable evidence, but must not turn
++            // an already committed business write into a false business error.
++            try { if (lifecycle) await lifecycle.complete(lease, successful); }
++            catch { /* Durable row stays pending; never invent completion. */ }
++            finally { release(); }
++        }
++    }
++}
++
++export const frontendActivity = new FrontendActivityRegistry();
++export function observeActivity<T>(domain: ActivityDomain, operation: () => T | PromiseLike<T>): Promise<T> {
++    return frontendActivity.run(domain, operation);
++}
++export function observeNetworkActivity<T>(domain: ActivityDomain, operation: () => T | PromiseLike<T>): Promise<T> {
++    return frontendActivity.runNetwork(domain, operation);
++}
+--- /dev/null
++++ b/web/src/guan/recovery/settle-activity-group.ts
+@@ -0,0 +1,8 @@
++// Promise.all rejects before its siblings finish. Task/lock boundaries must drain
++// all started operations before returning an error or releasing exclusivity.
++export async function settleActivityGroup<const T extends readonly unknown[]>(operations: T): Promise<{ -readonly [P in keyof T]: Awaited<T[P]> }> {
++    const results = await Promise.allSettled(operations);
++    const failure = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
++    if (failure) throw failure.reason;
++    return results.map(result => (result as PromiseFulfilledResult<unknown>).value) as { -readonly [P in keyof T]: Awaited<T[P]> };
++}
+--- /dev/null
++++ b/web/src/guan/recovery/prompt-generation-mode.ts
+@@ -0,0 +1,24 @@
++import type { CanvasConnection, CanvasGenerationMode, CanvasNodeData } from "@/types/canvas";
++
++// Follow final-prompt provenance rather than searching prompt prose: image
++// instructions often mention video references without requesting video output.
++export function promptGenerationMode(source: CanvasNodeData, nodes: CanvasNodeData[], connections: CanvasConnection[]): CanvasGenerationMode | undefined {
++    const queue = [source];
++    const visited = new Set<string>();
++    while (queue.length) {
++        const node = queue.shift()!;
++        if (visited.has(node.id)) continue;
++        visited.add(node.id);
++        const label = String(node.metadata?.excelPromptLabel || node.title || "");
++        if (/视频提示词|(?:最终生成提示图|最终生图提示词)\s*·\s*视频|\bvideo\s*prompt\b/i.test(label)) return "video";
++        if (/音频提示词|语音提示词|\baudio\s*prompt\b/i.test(label)) return "audio";
++        if (/文本提示词|\btext\s*prompt\b/i.test(label)) return "text";
++        if (/主图|详情页|富内容|图片提示词/i.test(label)) return "image";
++        const ids = [node.metadata?.promptVariableSourceNodeId, ...connections.filter(edge => edge.toNodeId === node.id).map(edge => edge.fromNodeId)];
++        for (const id of ids) {
++            const upstream = nodes.find(candidate => candidate.id === id && candidate.type === "text");
++            if (upstream) queue.push(upstream);
++        }
++    }
++    return undefined;
++}
+--- a/web/src/stores/use-asset-store.ts
++++ b/web/src/stores/use-asset-store.ts
+@@ -1,4 +1,7 @@
+ import { create } from "zustand";
++import { createRecoveryReadGate } from "@/guan/recovery/recovery-read-gate";
++import { createPersistenceCheckpoint } from "@/guan/recovery/persistence-checkpoint";
++import { settleActivityGroup } from "@/guan/recovery/settle-activity-group";
+ import { projectsWithRecycleMedia } from "@/guan/产品回收规则";
+ import { persist, type PersistStorage, type StorageValue } from "zustand/middleware";
+ 
+@@ -45,8 +48,11 @@
+ 
+ const ASSET_STORE_KEY = "infinite-canvas:asset_store";
+ 
++const assetReadGate = createRecoveryReadGate();
++const assetCleanupCheckpoint = createPersistenceCheckpoint();
++
+ const assetStorage: PersistStorage<AssetStore> = {
+-    getItem: async (name) => {
++    getItem: async (name) => assetReadGate.read(name, async () => {
+         const value = await localForageStorage.getItem(name);
+         if (!value) return null;
+         const parsed = JSON.parse(value) as StorageValue<AssetStore>;
+@@ -68,9 +74,9 @@
+             }),
+         );
+         return parsed;
+-    },
+-    setItem: (name, value) => localForageStorage.setItem(name, JSON.stringify(value)),
+-    removeItem: (name) => localForageStorage.removeItem(name),
++    }),
++    setItem: (name, value) => { assetReadGate.assertWritable(name); return localForageStorage.setItem(name, JSON.stringify(value)); },
++    removeItem: (name) => { assetReadGate.assertWritable(name); return localForageStorage.removeItem(name); },
+ };
+ 
+ export const useAssetStore = create<AssetStore>()(
+@@ -96,11 +102,12 @@
+                 }),
+             replaceAssets: (assets) => set({ assets }),
+             cleanupImages: (extra) => {
+-                window.setTimeout(async () => {
++                window.setTimeout(() => {
++                    void assetCleanupCheckpoint.run("cleanup", async () => {
+                     const { useCanvasStore } = await import("@/stores/canvas/use-canvas-store");
+                     const projects = projectsWithRecycleMedia(useCanvasStore.getState());
+-                    await cleanupUnusedImages({ assets: get().assets, projects, extra });
+-                    await cleanupUnusedMedia({ assets: get().assets, projects, extra });
++                    await settleActivityGroup([cleanupUnusedImages({ assets: get().assets, projects, extra }), cleanupUnusedMedia({ assets: get().assets, projects, extra })]);
++                    }).catch(() => undefined);
+                 }, 0);
+             },
+         }),
+@@ -108,8 +115,10 @@
+             name: ASSET_STORE_KEY,
+             storage: assetStorage,
+             partialize: (state) => ({ assets: state.assets }) as StorageValue<AssetStore>["state"],
+-            onRehydrateStorage: () => () => {
+-                useAssetStore.setState({ hydrated: true });
++            onRehydrateStorage: () => (_state, error) => {
++                // Failed recovery is not an empty, successfully loaded library.
++                // Don't persist default assets over an unreadable original.
++                if (_state !== undefined && error === undefined) useAssetStore.setState({ hydrated: true });
+             },
+         },
+     ),
+--- a/web/src/services/file-storage.ts
++++ b/web/src/services/file-storage.ts
+@@ -9,7 +9,13 @@
+ const objectUrls = new Map<string, string>();
+ 
+ export async function uploadMediaFile(input: string | Blob, prefix = "file"): Promise<UploadedFile> {
+-    const blob = typeof input === "string" ? await (await fetch(withLocalProxy(input))).blob() : input;
++    let blob: Blob;
++    if (typeof input === "string") {
++        const response = await fetch(withLocalProxy(input), { signal: AbortSignal.timeout(10 * 60_000) });
++        if (!response.ok) throw new Error(`缓存媒体原文件失败（HTTP ${response.status}）`);
++        blob = await response.blob();
++    } else blob = input;
++    if (!blob.size || /(?:text\/html|application\/json)/i.test(blob.type)) throw new Error("返回内容不是有效的媒体文件");
+     const storageKey = `${prefix}:${nanoid()}`;
+     await store.setItem(storageKey, blob);
+     const url = URL.createObjectURL(blob);
+@@ -57,7 +63,10 @@
+     await store.iterate((_value, key) => {
+         if (!usedKeys.has(key)) unused.push(key);
+     });
+-    await Promise.all(unused.map((key) => store.removeItem(key)));
++    // Current assets/projects are not an authoritative reference inventory:
++    // history, recycled products, cached frames and in-flight saves may own keys.
++    // Never delete originals based on this partial automatic scan.
++    return { status: "retained" as const, candidates: unused.length, reason: "reference_inventory_unverified" as const };
+ }
+ 
+ export function collectMediaStorageKeys(value: unknown, keys = new Set<string>()) {
+@@ -70,7 +79,13 @@
+ function readVideoMeta(url: string) {
+     return new Promise<{ width: number; height: number; durationMs?: number }>((resolve) => {
+         const video = document.createElement("video");
+-        const done = () => resolve({ width: video.videoWidth || 1280, height: video.videoHeight || 720, durationMs: Number.isFinite(video.duration) ? Math.round(video.duration * 1000) : undefined });
++        const done = () => {
++            window.clearTimeout(timer);
++            video.onloadedmetadata = null;
++            video.onerror = null;
++            resolve({ width: video.videoWidth || 1280, height: video.videoHeight || 720, durationMs: Number.isFinite(video.duration) ? Math.round(video.duration * 1000) : undefined });
++        };
++        const timer = window.setTimeout(done, 10_000);
+         video.onloadedmetadata = done;
+         video.onerror = done;
+         video.src = url;
+@@ -80,7 +95,13 @@
+ function readAudioMeta(url: string) {
+     return new Promise<{ durationMs?: number }>((resolve) => {
+         const audio = document.createElement("audio");
+-        const done = () => resolve({ durationMs: Number.isFinite(audio.duration) ? Math.round(audio.duration * 1000) : undefined });
++        const done = () => {
++            window.clearTimeout(timer);
++            audio.onloadedmetadata = null;
++            audio.onerror = null;
++            resolve({ durationMs: Number.isFinite(audio.duration) ? Math.round(audio.duration * 1000) : undefined });
++        };
++        const timer = window.setTimeout(done, 10_000);
+         audio.onloadedmetadata = done;
+         audio.onerror = done;
+         audio.src = url;
+--- a/web/src/services/api/video.ts
++++ b/web/src/services/api/video.ts
+@@ -138,13 +138,7 @@
+ 
+ export async function storeGeneratedVideo(result: VideoGenerationResult): Promise<UploadedFile> {
+     if (result.blob) return uploadMediaFile(result.blob, "video");
+-    if (result.url) {
+-        try {
+-            return await uploadMediaFile(result.url, "video");
+-        } catch {
+-            return { url: result.url, storageKey: "", bytes: 0, mimeType: result.mimeType || "video/mp4" };
+-        }
+-    }
++    if (result.url) return uploadMediaFile(result.url, "video");
+     throw new Error(apiText("noPlayableVideo"));
+ }
+ 
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -1,6 +1,9 @@
+ import { sqliteForage as localforage } from "@/guan/上游浏览器存储桥";
+ 
+ import { nanoid } from "nanoid";
++import { createPersistenceCheckpoint } from "@/guan/recovery/persistence-checkpoint";
++import { settleActivityGroup } from "@/guan/recovery/settle-activity-group";
++const previewCheckpoint = createPersistenceCheckpoint();
+ import i18n from "@/i18n";
+ import { withLocalProxy } from "@/stores/use-config-store";
+ import { createImageThumbnail } from "@/lib/image-thumbnail";
+@@ -23,7 +26,7 @@
+ const previewListeners = new Set<() => void>();
+ let previewRevision = 0;
+ let previewQueue: Promise<unknown> = Promise.resolve();
+-const IMAGE_PREVIEW_VERSION = 1;
++const IMAGE_PREVIEW_VERSION = 2;
+ const IMAGE_DOWNLOAD_TIMEOUT_MS = 10 * 60_000;
+ const IMAGE_REMOTE_LOAD_TIMEOUT_MS = 10 * 60_000;
+ const IMAGE_DECODE_TIMEOUT_MS = 10_000;
+@@ -53,13 +56,14 @@
+     const storageKey = `image:${nanoid()}`;
+     const url = URL.createObjectURL(blob);
+     try {
+-        const meta = await loadImageMeta(url, options);
+-        if (!meta) throw new Error(i18n.t("common.imageReadFailed"));
+         throwIfAborted(options?.signal);
+         await store.setItem(storageKey, blob);
++        const meta = await loadImageMeta(url, options);
++        if (!meta) throw new Error(i18n.t("common.imageReadFailed"));
+         throwIfAborted(options?.signal);
+         objectUrls.set(storageKey, url);
+-        await storeImagePreview(storageKey, blob);
++        // The original is ready now; thumbnail work must not delay success/download.
++        queueImagePreview(storageKey);
+         return { url, storageKey, width: meta.width, height: meta.height, bytes: blob.size, mimeType: blob.type.startsWith("image/") ? blob.type : "" };
+     } catch (error) {
+         URL.revokeObjectURL(url);
+@@ -193,8 +197,10 @@
+ }
+ 
+ async function storeImagePreview(storageKey: string, original: Blob) {
+-    const preview = await createImageThumbnail(original).catch(() => undefined);
+-    await previewStore.setItem<StoredImagePreview>(storageKey, { version: IMAGE_PREVIEW_VERSION, blob: preview }).catch(() => undefined);
++    let preview: Blob | undefined;
++    try { preview = await previewCheckpoint.run(`decode:${storageKey}`, () => createImageThumbnail(original)); }
++    catch { return undefined; } // Failed decode is not a valid "preview unnecessary" cache record.
++    await previewCheckpoint.run(`save:${storageKey}`, () => previewStore.setItem<StoredImagePreview>(storageKey, { version: IMAGE_PREVIEW_VERSION, blob: preview }));
+     return preview ? cacheImagePreview(storageKey, preview) : undefined;
+ }
+ 
+@@ -242,7 +248,7 @@
+ 
+ export async function cleanupUnusedImages(usedData: unknown) {
+     const usedKeys = collectImageStorageKeys(usedData);
+-    await Promise.all([
++    await settleActivityGroup([
+         imageLogStore.iterate((value) => {
+             collectImageStorageKeys(value, usedKeys);
+         }),
+@@ -258,7 +264,10 @@
+     await previewStore.iterate((_value, key) => {
+         if (!usedKeys.has(key)) orphanPreviews.push(key);
+     });
+-    await Promise.all([deleteStoredImages(unused), ...orphanPreviews.map(deleteImagePreview)]);
++    // History alone does not cover recycled snapshots, cached frames or pending
++    // writes. Retain originals/previews until a trusted reference inventory exists.
++    // Explicit user-requested deletion remains available through deleteStoredImages.
++    return { status: "retained" as const, candidates: unused.length, previews: orphanPreviews.length, reason: "reference_inventory_unverified" as const };
+ }
+ 
+ export function collectImageStorageKeys(value: unknown, keys = new Set<string>()) {
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -107,8 +107,56 @@
+ import type { ReferenceImage } from "@/types/image";
+ import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
+ 
++import { promptGenerationMode } from "@/guan/recovery/prompt-generation-mode";
++import { settleActivityGroup } from "@/guan/recovery/settle-activity-group";
++
+ // Register built-in nodes in the shared registry once when the module loads.
+ registerBuiltinNodes();
++
++function promptGenerationPatch(prompt: string): CanvasNodeMetadata {
++    const size = prompt.match(/\b(\d{3,5})\s*[x×]\s*(\d{3,5})\s*px\b/i);
++    const ratio = prompt.match(/\b(\d+\s*:\s*\d+)\b/);
++    const imageType = prompt.match(/\b(MAIN IMAGE|DETAIL IMAGE|RICH[- ]CONTENT IMAGE|VIDEO FRAME)\b/i)?.[1] || "";
++    const normalizedRatio = ratio?.[1]?.replace(/\s+/g, "");
++    const pixelSize = size ? `${size[1]}x${size[2]}` : undefined;
++    return {
++        ...(pixelSize || normalizedRatio ? { size: pixelSize || normalizedRatio } : {}),
++        ...(normalizedRatio ? { generationAspectRatio: normalizedRatio } : {}),
++        ...(size ? { generationPixelWidth: Number(size[1]), generationPixelHeight: Number(size[2]) } : {}),
++        ...(imageType ? { generationImageType: imageType.toLowerCase() } : {}),
++        ...(normalizedRatio || size || imageType ? { generationParamsDetected: true } : {}),
++    };
++}
++
++const INHERITED_GENERATION_SETTINGS = ["model", "quality", "moderation", "size", "background", "count", "reasoningEffort", "seconds", "vquality", "generateAudio", "watermark", "videoMode", "audioVoice", "audioFormat", "audioSpeed", "audioInstructions", "generationAspectRatio", "generationPixelWidth", "generationPixelHeight", "generationImageType", "generationParamsDetected", "generationParamsSourceNodeId"] as const;
++
++function generationSettingsFromNode(node: CanvasNodeData | undefined) {
++    if (!node) return {};
++    return Object.fromEntries(INHERITED_GENERATION_SETTINGS.flatMap((key) => {
++        const value = node.metadata?.[key];
++        return value === undefined || value === null || value === "" ? [] : [[key, value]];
++    }));
++}
++
++function generationNodeWithConnectedSettings(node: CanvasNodeData | null | undefined, nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[]): CanvasNodeData | undefined {
++    if (!node) return undefined;
++    const upstream = connections
++        .filter((connection) => connection.toNodeId === nodeId)
++        .map((connection) => nodes.find((candidate) => candidate.id === connection.fromNodeId))
++        .filter((candidate): candidate is CanvasNodeData => Boolean(candidate));
++    if (!upstream.length) return node;
++    const inherited = upstream.reduce<Record<string, unknown>>((result, candidate) => ({ ...result, ...generationSettingsFromNode(candidate) }), {});
++    return Object.keys(inherited).length ? { ...node, metadata: { ...node.metadata, ...inherited } } : node;
++}
++
++// A generation-config card is a snapshot of its settings. Once it exists,
++// executing or retrying it must not re-read settings from connected prompt
++// cards; only prompt text/references remain connected inputs.
++function generationNodeForExecution(node: CanvasNodeData | null | undefined, nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[]): CanvasNodeData | undefined {
++    if (node?.type === CanvasNodeType.Config) return node;
++    return generationNodeWithConnectedSettings(node, nodeId, nodes, connections);
++}
++
+ registerExcelParameterNode();
+ const excelFactory = { create: createCanvasNode, edgeId: nanoid, place: placeCanvasNode };
+ 
+@@ -2460,7 +2508,7 @@
+         async (nodeId: string, mode: CanvasNodeGenerationMode, prompt: string) => {
+             if (!isGenerationModeEnabled(mode)) { message.info("不支持的生成模式。"); return; }
+             const sourceNode = nodesRef.current.find((node) => node.id === nodeId);
+-            const generationConfig = buildGenerationConfig(effectiveConfig, sourceNode, mode);
++            const generationConfig = buildGenerationConfig(effectiveConfig, generationNodeForExecution(sourceNode, nodeId, nodesRef.current, connectionsRef.current), mode);
+             if (!isAiConfigReady(generationConfig, generationConfig.model)) {
+                 openConfigDialog(true);
+                 return;
+@@ -3113,6 +3161,98 @@
+         [effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, message, t],
+     );
+ 
++    const addGenerationConfigsForPromptNodes = useCallback(() => {
++        const promptNodes = nodesRef.current.filter((node) => node.type === CanvasNodeType.Text && Boolean((node.metadata?.content || node.metadata?.prompt || "").trim()));
++        const connectedPromptIds = new Set(connectionsRef.current.map((connection) => connection.fromNodeId));
++        const candidates = promptNodes.filter((node) => !connectedPromptIds.has(node.id));
++        if (!candidates.length) {
++            message.info("没有找到尚未连接生成配置的提示词卡片");
++            return;
++        }
++        const configSpec = getNodeSpec(CanvasNodeType.Config);
++        const occupied = [...nodesRef.current];
++        const created: CanvasNodeData[] = [];
++        const nextConnections = [...connectionsRef.current];
++        candidates.forEach((sourceNode) => {
++            const mode = promptGenerationMode(sourceNode, nodesRef.current, connectionsRef.current) || "image";
++            const x = sourceNode.position.x + sourceNode.width + 96;
++            const y = sourceNode.position.y;
++            const configNode = placeCanvasNode(createCanvasNode(CanvasNodeType.Config, { x: x + configSpec.width / 2, y: y + configSpec.height / 2 }, {
++                prompt: "",
++                model: effectiveConfig.imageModel || effectiveConfig.model,
++                size: effectiveConfig.size,
++                count: getGenerationCount(effectiveConfig.canvasImageCount || effectiveConfig.count),
++                // Excel prompt cards can contain image parameters in their
++                // text rather than explicit metadata. Parse the same prompt
++                // contract used by normal generation so the new config card
++                // is a complete snapshot and does not fall back to globals.
++                ...promptGenerationPatch(String(sourceNode.metadata?.content || sourceNode.metadata?.prompt || "")),
++                ...generationSettingsFromNode(sourceNode),
++                generationMode: mode,
++                ...(mode !== "image" ? { model: mode === "video" ? effectiveConfig.videoModel : mode === "audio" ? effectiveConfig.audioModel : effectiveConfig.textModel } : {}),
++            }), occupied);
++            created.push(configNode);
++            occupied.push(configNode);
++            nextConnections.push({ id: nanoid(), fromNodeId: sourceNode.id, toNodeId: configNode.id });
++        });
++        const nextNodes = [...nodesRef.current, ...created];
++        nodesRef.current = nextNodes;
++        connectionsRef.current = nextConnections;
++        setNodes(nextNodes);
++        setConnections(nextConnections);
++        setSelectedNodeIds(new Set(created.map((node) => node.id)));
++        setSelectedConnectionId(null);
++        message.success(`已补齐 ${created.length} 个生成配置`);
++    }, [effectiveConfig.videoModel, effectiveConfig.audioModel, effectiveConfig.textModel, effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, message, setNodes]);
++
++    const batchGenerationRunning = useRef(false);
++    const generateAllConfigNodes = useCallback(async () => {
++        if (batchGenerationRunning.current) return;
++        const configNodes = nodesRef.current.filter((node) => node.type === CanvasNodeType.Config && node.metadata?.status !== NODE_STATUS_LOADING);
++        if (!configNodes.length) {
++            message.info("画布上没有生成配置卡片");
++            return;
++        }
++        batchGenerationRunning.current = true;
++        message.info(`已加入 ${configNodes.length} 个生成任务，最多同时执行 3 个`);
++        let cursor = 0;
++        let failed = 0;
++        const worker = async () => {
++            while (cursor < configNodes.length) {
++                const queued = configNodes[cursor++];
++                const node = nodesRef.current.find((item) => item.id === queued.id);
++                if (!node || node.metadata?.status === NODE_STATUS_LOADING) continue;
++                try {
++                    await handleGenerateNode(node.id, node.metadata?.generationMode || "image", node.metadata?.composerContent || node.metadata?.prompt || "");
++                } catch {
++                    failed++;
++                }
++            }
++        };
++        try {
++            await settleActivityGroup(Array.from({ length: Math.min(3, configNodes.length) }, worker));
++            if (failed) message.warning(`${failed} 个任务提交失败，其余任务已继续执行`);
++        } finally {
++            batchGenerationRunning.current = false;
++        }
++    }, [handleGenerateNode, message]);
++
++    const completeAndGenerateRunning = useRef(false);
++    const completeAndGenerateAll = useCallback(async () => {
++        if (completeAndGenerateRunning.current) return;
++        completeAndGenerateRunning.current = true;
++        try {
++            // Completion updates nodesRef/connectionsRef synchronously, so
++            // generation includes the new cards without waiting on a render.
++            addGenerationConfigsForPromptNodes();
++            await generateAllConfigNodes();
++        } catch {
++            message.error("批量生成未完成，请检查生成任务的错误信息后重试");
++        } finally {
++            completeAndGenerateRunning.current = false;
++        }
++    }, [addGenerationConfigsForPromptNodes, generateAllConfigNodes, message]);
++
+     const insertAssistantImage = useCallback(
+         async (image: CanvasAssistantImage) => {
+             const storedImage = image.storageKey ? { url: image.dataUrl, storageKey: image.storageKey, width: 1, height: 1, bytes: 0, mimeType: "image/png" } : await uploadImage(image.dataUrl);
+@@ -3519,6 +3659,9 @@
+                     onAddAudio={() => createNode(CanvasNodeType.Audio)}
+                     onAddText={() => createNode(CanvasNodeType.Text)}
+                     onAddConfig={() => createNode(CanvasNodeType.Config)}
++                    onAddGenerationConfigs={addGenerationConfigsForPromptNodes}
++                    onGenerateAllConfigs={() => void generateAllConfigNodes()}
++                    onCompleteAndGenerateAll={() => void completeAndGenerateAll()}
+                     onAddGroup={() => createNode(CanvasNodeType.Group)}
+                     onAddPromptVariables={() => createNode(PROMPT_VARIABLES_NODE_TYPE)}
+                     onAddExtensionNode={(type) => createNode(type)}
+--- a/web/src/components/canvas/canvas-toolbar.tsx
++++ b/web/src/components/canvas/canvas-toolbar.tsx
+@@ -1,8 +1,8 @@
+ import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from "react";
+ import { useEffect, useRef, useState } from "react";
+ import { productFeatures } from "@/guan/功能开关";
+-import { Button, Segmented, Switch } from "antd";
+-import { Braces, CircleDot, Eraser, Grid2x2, Group, Hand, Image as ImageIcon, Info, LocateFixed, Moon, MousePointer2, Music2, Palette, Puzzle, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Upload, Video } from "lucide-react";
++import { Button, Dropdown, Segmented, Switch } from "antd";
++import { Braces, CircleDot, Eraser, Grid2x2, Group, Hand, Image as ImageIcon, Info, Link2, LocateFixed, Moon, MousePointer2, Music2, Palette, Play, Puzzle, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Upload, Video } from "lucide-react";
+ 
+ import { canvasThemes, type CanvasBackgroundMode, type CanvasColorTheme, type CanvasTheme } from "@/lib/canvas-theme";
+ import { getNodePluginId, listNodeDefinitions, useNodeRegistryVersion } from "@/lib/canvas/node-registry";
+@@ -25,6 +25,9 @@
+     onAddPromptVariables,
+     onAddConfig,
+     onAddGroup,
++    onAddGenerationConfigs,
++    onGenerateAllConfigs,
++    onCompleteAndGenerateAll,
+     onAddExtensionNode,
+     onUndo,
+     onRedo,
+@@ -49,6 +52,9 @@
+     onAddPromptVariables: () => void;
+     onAddConfig: () => void;
+     onAddGroup: () => void;
++    onAddGenerationConfigs: () => void;
++    onGenerateAllConfigs: () => void;
++    onCompleteAndGenerateAll: () => void;
+     onAddExtensionNode: (type: string) => void;
+     onUndo: () => void;
+     onRedo: () => void;
+@@ -72,6 +78,8 @@
+     const [panelX, setPanelX] = useState(0);
+     const [extensionsOpen, setExtensionsOpen] = useState(false);
+     const [extPanelX, setExtPanelX] = useState(0);
++    const [batchOpen, setBatchOpen] = useState(false);
++    const batchMenuRef = useRef<HTMLDivElement>(null);
+     // Keep extension plugin nodes synchronized with registry changes.
+     useNodeRegistryVersion();
+     const extensionDefs = productFeatures.nodePlugins ? listNodeDefinitions().filter((def) => def.showInCreateMenu !== false && getNodePluginId(def.type) !== "builtin") : [];
+@@ -80,18 +88,21 @@
+     const activeStyle = { background: theme.toolbar.activeBg, color: theme.toolbar.activeText };
+     const tip = hovered ? toolLabel(hovered, t) : "";
+ 
+-    // Close extension-node and canvas-appearance popovers when clicking outside the toolbar and its panels.
++    // Capture pointerdown before canvas pan handlers can consume the event.
++    // The batch menu is portalled, so it needs its own inside-click check.
+     useEffect(() => {
+-        if (!extensionsOpen && !appearanceOpen) return;
++        if (!extensionsOpen && !appearanceOpen && !batchOpen) return;
+         const handlePointerDown = (event: PointerEvent) => {
++            if (batchMenuRef.current?.contains(event.target as Node)) return;
+             if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+                 setExtensionsOpen(false);
+                 setAppearanceOpen(false);
++                setBatchOpen(false);
+             }
+         };
+         document.addEventListener("pointerdown", handlePointerDown, true);
+         return () => document.removeEventListener("pointerdown", handlePointerDown, true);
+-    }, [extensionsOpen, appearanceOpen]);
++    }, [extensionsOpen, appearanceOpen, batchOpen]);
+ 
+     return (
+         <div ref={rootRef} className="pointer-events-none absolute bottom-5 z-50 flex justify-center" style={{ left: 300, right: 16 }} data-canvas-bottom-toolbar>
+@@ -128,6 +139,25 @@
+                 <ToolbarButton id="tool-config" label={t("canvas.toolbar.config")} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onAddConfig}>
+                     <Settings2 className="size-4.5" />
+                 </ToolbarButton>
++                <Dropdown
++                    open={batchOpen}
++                    trigger={["click"]}
++                    placement="top"
++                    popupRender={(menu) => <div ref={batchMenuRef}>{menu}</div>}
++                    menu={{ onClick: () => setBatchOpen(false), items: [
++                        { key: "auto-config", label: "一键为未连接提示词补齐配置卡片并连线", icon: <Link2 className="size-4" />, onClick: onAddGenerationConfigs },
++                        { key: "generate-all", label: "一键执行全部生成配置卡片", icon: <Play className="size-4" />, onClick: onGenerateAllConfigs },
++                        { type: "divider" },
++                        { key: "complete-and-generate", label: "一键补齐配置并执行全部生成任务", icon: <Play className="size-4" />, onClick: onCompleteAndGenerateAll },
++                    ] }}
++                    onOpenChange={(open) => { setBatchOpen(open); setHovered(null); setAppearanceOpen(false); setExtensionsOpen(false); }}
++                >
++                    <span>
++                        <ToolbarButton id="tool-batch-actions" label="批量操作" hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={() => {}}>
++                            <Link2 className="size-4.5" />
++                        </ToolbarButton>
++                    </span>
++                </Dropdown>
+                 <ToolbarButton id="tool-group" label={t("canvas.toolbar.group")} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onAddGroup}>
+                     <Group className="size-4.5" />
+                 </ToolbarButton>
+@@ -377,6 +407,7 @@
+     if (id === "tool-video") return t("canvas.toolbar.video");
+     if (id === "tool-audio") return t("canvas.toolbar.audio");
+     if (id === "tool-config") return t("canvas.toolbar.config");
++    if (id === "tool-batch-actions") return "批量操作";
+     if (id === "tool-group") return t("canvas.toolbar.group");
+     if (id === "tool-extensions") return t("canvas.toolbar.extensions");
+     if (id === "tool-upload") return t("canvas.toolbar.upload");
+--- a/web/src/types/canvas.ts
++++ b/web/src/types/canvas.ts
+@@ -51,6 +51,14 @@
+     status?: CanvasNodeStatus;
+     errorDetails?: string;
+     generationStartedAt?: number;
++    // Parameters parsed from an image prompt and copied to generated config cards.
++    generationAspectRatio?: string;
++    generationPixelWidth?: number;
++    generationPixelHeight?: number;
++    generationImageType?: string;
++    generationParamsDetected?: boolean;
++    generationParamsSourceNodeId?: string;
++
+     fontSize?: number;
+     generationMode?: CanvasGenerationMode;
+     generationType?: CanvasImageGenerationType;
+@@ -58,6 +66,7 @@
+     reasoningEffort?: "auto" | "low" | "medium" | "high" | "xhigh";
+     size?: string;
+     quality?: string;
++    moderation?: string;
+     background?: string;
+     count?: number;
+     textCount?: number;

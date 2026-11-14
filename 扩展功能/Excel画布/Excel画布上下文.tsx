@@ -3,6 +3,7 @@ import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { productExcelContext } from "./Excel卡片上下文";
 import { excelProductPromptSource, excelWorkbookPromptSources } from "./Excel工作簿来源";
 import { usePromptSourceStore } from "@/stores/use-prompt-source-store";
+import { productFeatures } from "../产品配置/功能开关";
 
 const ProductIdContext = createContext<string | null>(null);
 export function ExcelCanvasScope({ productId, children }: { productId: string; children: ReactNode }) {
@@ -28,11 +29,11 @@ export function useExcelPromptSource(productId: string) {
     return state.guanWorkbooks?.contract.productSets.find(item => item.id === owner);
   });
   const preferences = usePromptSourceStore(state => state.excelSources);
-  return useMemo(() => excelProductPromptSource(context, book, preferences), [context, book, preferences]);
+  return useMemo(() => productFeatures.excel ? excelProductPromptSource(context, book, preferences) : null, [context, book, preferences]);
 }
 
 export function useExcelWorkbookSources() {
   const books = useCanvasStore(state => state.guanWorkbooks?.contract.productSets);
   const preferences = usePromptSourceStore(state => state.excelSources);
-  return useMemo(() => excelWorkbookPromptSources(books ?? [], preferences), [books, preferences]);
+  return useMemo(() => productFeatures.excel ? excelWorkbookPromptSources(books ?? [], preferences) : [], [books, preferences]);
 }

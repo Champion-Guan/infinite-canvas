@@ -1,7 +1,8 @@
 // 用户已选择的产品策略；只通过获批适配接入，不读取 URL 或改写用户配置。
-export type ProductFeature = "webdav" | "externalAgent" | "analytics" | "localProxy" | "nodePlugins" | "languageSwitch" | "themeSwitch" | "authorVersion" | "docsLink";
+export type ProductFeature = "excel" | "webdav" | "externalAgent" | "analytics" | "localProxy" | "nodePlugins" | "languageSwitch" | "themeSwitch" | "authorVersion" | "docsLink";
 
 export const productFeatures: Readonly<Record<ProductFeature, boolean>> = Object.freeze({
+    excel: false,
     webdav: false,
     externalAgent: false,
     analytics: false,
@@ -26,6 +27,7 @@ export const closedFeatureIds: readonly string[] = Object.freeze([
 ]);
 
 const names: Record<ProductFeature, string> = {
+    excel: "Excel 功能",
     webdav: "WebDAV 同步", externalAgent: "外部 Agent", analytics: "访问统计",
     localProxy: "原版本地请求代理", nodePlugins: "原版节点插件",
     languageSwitch: "语言切换", themeSwitch: "主题切换", authorVersion: "原作者版本检测", docsLink: "作者文档入口",

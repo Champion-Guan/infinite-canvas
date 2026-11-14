@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { imageSizeRetryBlocked } from '../扩展功能/媒体交付/生成图片尺寸交付.mjs';
 
 const require = createRequire(new URL('../.运行/3100源/画布副本/web/package.json', import.meta.url));
 const ts = require('typescript');
@@ -11,6 +12,7 @@ function load(file, dependencies = {}, extra = '') {
     const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
     const module = { exports: {} };
     new Function('require', 'module', 'exports', 'window', code)(id => {
+        if (id === '../本机存储/启动画面交接.mjs') return { finishStartupScreen() {} };
         assert.ok(Object.hasOwn(dependencies, id), id); return dependencies[id];
     }, module, module.exports, { matchMedia: () => ({ matches: false }) });
     return module.exports;
@@ -18,7 +20,7 @@ function load(file, dependencies = {}, extra = '') {
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 const settle = () => new Promise(resolve => setImmediate(resolve));
 const rules = load('产品/产品规则.ts');
-const tasks = load('产品/产品任务摘要.js');
+const tasks = load('产品/产品任务摘要.js', { '../媒体交付/生成图片尺寸交付.mjs': { imageSizeRetryBlocked } });
 const recycle = load('产品/产品回收规则.ts', { './产品任务摘要.js': tasks, './产品规则': rules });
 const project = (id, owner = 'book', at = '2026-11-06T00:00:00Z') => ({
     id, title: '画布' + id, productSetId: owner, createdAt: at, updatedAt: at,
@@ -48,8 +50,13 @@ function harness(projects = order(), initiallyActive = 'B', initiallyVisited = [
         storageStatus: () => status, retrySQLiteStorage: async () => {},
         async flushSQLiteStorage() { const count = ++flushCount; status.state = 'saving'; try { await control(count); status.state = 'saved'; } catch (error) { status.state = 'error'; throw error; } } };
     const ownership = { workbookProjects: (items, owner) => items.filter(project => (project.productSetId ?? null) === owner),
+        orderedWorkbookProjects: (items, owner) => rules.orderedProducts(items.filter(project => (project.productSetId ?? null) === owner)),
         rememberWorkbookProduct: () => null, visibleWorkbookId: () => 'book', withVisibleSelection: value => value,
         workbookEntry: snapshot => rules.orderedProducts(snapshot.projects.filter(project => project.productSetId === 'book'))[0]?.id ?? null };
+    const navigationScope = load('产品/产品导航范围.ts', {
+        '../产品配置/功能开关': { productFeatures: { excel: true } },
+        '../Excel/Excel产品归属': ownership, './产品规则': rules,
+    });
     const navigation = load('产品/产品操作.ts', {
         react, 'react-router-dom': router, '@/stores/canvas/use-canvas-store': { useCanvasStore: store },
         '../画布导入/画布导入': {}, '../本机存储/上游浏览器存储桥': storage, './产品规则': rules, './产品回收规则': recycle,
@@ -59,6 +66,7 @@ function harness(projects = order(), initiallyActive = 'B', initiallyVisited = [
         '../Excel画布/产品参数卡片默认': {}, './产品恢复挂载门禁': restore, '../画布生成/批量保存协调': {},
         '../软件更新/升级页面状态.mjs': { registerUpgradeParticipant() {} },
         './画布驻留保护': { productCanvasResidency: { changed() {}, register() { throw Error('只读画布不应驻留注册'); } } },
+        './产品导航范围': navigationScope, '../产品配置/功能开关': { requireProductFeature() {} },
     }, '\nexport { saves as testSaves };');
     for (const item of projects) navigation.testSaves.register(item.id, async () => {});
     const workspace = load('产品/产品工作区.tsx', {
@@ -81,6 +89,7 @@ function harness(projects = order(), initiallyActive = 'B', initiallyVisited = [
         '@/stores/use-theme-store': { useThemeStore: select => select({ theme: 'light' }) },
         '../本机存储/上游浏览器存储桥': storage, '../产品/产品操作': { ACTIVE_PRODUCT_KEY: 'active', useProductNavigation: navigation.useProductNavigation },
         '../Excel/Excel产品归属': ownership, '../产品/产品恢复挂载门禁': restore, '../首页/工作台首页': { WorkbenchHome: 'WorkbenchHome' },
+        '../产品/产品导航范围': navigationScope,
     });
     return { state, render, navigation, navigations, writes, preferences, status, entry: entry.CanvasEntry,
         nav: () => navigation.useProductNavigation(), flushes: () => flushCount, control: callback => { control = callback; } };

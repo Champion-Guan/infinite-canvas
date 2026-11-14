@@ -1,0 +1,227 @@
+{
+  "日期": "2026-10-20",
+  "状态": "待具体隔离接入批准；未装配候选、未接管3100、未执行真实Mihomo",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/凭据网关任务-qD9PwY/凭据网关任务接入记录.json",
+  "前置差异SHA256": "723841e0f57b5fb3bd21d9071b9223706833d4532ca3b3a463633e409eb1fb05",
+  "差异SHA256": "b023f9e8bdb1b6f2681d3d428fd063abd3d13ea9a6ffbd28cacb7f6e89ed8695",
+  "文件数": 21,
+  "类型预审通过": true,
+  "真实代理核心已分发": false,
+  "已接通图片网关": false,
+  "已访问真实订阅或凭据": false,
+  "已接管3100": false,
+  "来源": [
+    {
+      "文件": "src/server/proxy-service.mjs",
+      "SHA256": "5d40a1efbf1b6d4592fd4e8ffb96fc4560cfc51174cd2ea06a8994486deffaf8"
+    },
+    {
+      "文件": "src/server/proxy-process.mjs",
+      "SHA256": "c4db430b1e455649f257689001a0fc0b2ecbe1fa686e037abdded360d06125e6"
+    },
+    {
+      "文件": "src/server/proxy-supervisor.mjs",
+      "SHA256": "b1609942df17bf6a3ac3a7b8d3f9577944db5a893edd9c6a9a65d980cd9d5184"
+    },
+    {
+      "文件": "src/server/index.mjs",
+      "SHA256": "8938c9968dbf3149dfb632cf75bf0743b44272a32378e02b50f42e8004d40710"
+    },
+    {
+      "文件": "LICENSE",
+      "SHA256": "4a3ea42531a7fc18b11471baa1676b11ef6c8badee4e02711392d9fdc8f59d58"
+    }
+  ],
+  "自有来源": [
+    {
+      "文件": "扩展功能/网络代理/package.json",
+      "SHA256": "24433ee1d8213aa47077be4c67d2628c1d5bf56cf21648d628fa1dc277b7fb81"
+    },
+    {
+      "文件": "扩展功能/网络代理/package-lock.json",
+      "SHA256": "25a3847f9d340c2b36cc40b7c7deb4c1683e33060db534720317d189d15893fc"
+    },
+    {
+      "文件": "扩展功能/网络代理/原项目MIT许可.txt",
+      "SHA256": "4a3ea42531a7fc18b11471baa1676b11ef6c8badee4e02711392d9fdc8f59d58"
+    },
+    {
+      "文件": "扩展功能/网络代理/旧版配置转换.mjs",
+      "SHA256": "57a6e8ed1f8bc24293230aa51ee8fa471a1d3a442740d191a85b0edaa0c57665"
+    },
+    {
+      "文件": "扩展功能/网络代理/旧版进程管理.mjs",
+      "SHA256": "c55457f675dc0301e0814a0e616f46745a0c60d99e59401e3ebbafd2f44309c0"
+    },
+    {
+      "文件": "扩展功能/网络代理/旧版进程守护.mjs",
+      "SHA256": "b1609942df17bf6a3ac3a7b8d3f9577944db5a893edd9c6a9a65d980cd9d5184"
+    },
+    {
+      "文件": "扩展功能/网络代理/配置边界.mjs",
+      "SHA256": "a92406fe73a2e0e5a8ee8668e3b78d32e0ebcca236f37294c80b1f90768c22ab"
+    },
+    {
+      "文件": "扩展功能/网络代理/代理配置存储.mjs",
+      "SHA256": "d2374b7dc2470f55960f693922a193a18562a9944015a4148c5a10d25e3dd75c"
+    },
+    {
+      "文件": "扩展功能/网络代理/订阅读取.mjs",
+      "SHA256": "7aa02efae2cc70722a3cc7bf7dd227d7fe49697a119e4332ee0bf1a52dd70bfd"
+    },
+    {
+      "文件": "扩展功能/网络代理/内置代理运行.mjs",
+      "SHA256": "77572b4eb0dcd1ad98b5e0c533457a9d1c592352aa93f2f4f2a26c2c9ffcfb94"
+    },
+    {
+      "文件": "扩展功能/网络代理/代理服务.mjs",
+      "SHA256": "68982d79696d6ab9f9806ec6b83407e39cdabac7dd34f67c71c9f1028b963333"
+    },
+    {
+      "文件": "扩展功能/网络代理/代理HTTP入口.mjs",
+      "SHA256": "90e51bb6f4c9bd27e43f61f154a68e0e4c17b6d124ba28de3a6d1ba691ccc222"
+    },
+    {
+      "文件": "扩展功能/网络代理/代理服务装配.mjs",
+      "SHA256": "7b48368d1565be84bbd2feb8b4afd091bfb63a223bbe34bf2808b6dd4025a91b"
+    },
+    {
+      "文件": "扩展功能/网络代理/代理客户端.mjs",
+      "SHA256": "9a768b04c8ba8eb407d97aea132b76f55836547e384f1d79154e3ab7802ec96c"
+    },
+    {
+      "文件": "扩展功能/网络代理/原版网络代理面板.tsx",
+      "SHA256": "67c9cffb5db9b1cceee73625e5eb322ae41580d34bceeb72e5f8d78d9f6f818e"
+    },
+    {
+      "文件": "扩展功能/网络代理/原版网络代理.css",
+      "SHA256": "57b67e7ac882398a373986c9eeaf429eb3f7fa7fe470a1b616cb0ef4d5a7f3e7"
+    }
+  ],
+  "工具来源": [
+    {
+      "文件": "开发工具/预审内置网络代理.mjs",
+      "SHA256": "e16a67007cb7ed0fd7379b03d55ccd4133844a9b0808e9941f1ac835b452576e"
+    },
+    {
+      "文件": "开发工具/内置网络代理.test.mjs",
+      "SHA256": "632e2032e27f7876d461ef678fbc20510c86c0849bcb2dc33f7466c05dfb47c8"
+    },
+    {
+      "文件": "开发工具/内置代理模拟核心.mjs",
+      "SHA256": "cc54808ba9758da57fd5d487c339c3391442d3faa2607b2a4c5b146185fb7183"
+    },
+    {
+      "文件": "开发工具/执行内置代理基础预审.mjs",
+      "SHA256": "c3d7093653def7ec7f6ba565897ca354ffd7c9bc5ec4e3266d8d78140d595c86"
+    }
+  ],
+  "文件": [
+    {
+      "文件": "画布副本/扩展功能/网络代理/package.json",
+      "原始SHA256": null,
+      "候选SHA256": "24433ee1d8213aa47077be4c67d2628c1d5bf56cf21648d628fa1dc277b7fb81"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/package-lock.json",
+      "原始SHA256": null,
+      "候选SHA256": "25a3847f9d340c2b36cc40b7c7deb4c1683e33060db534720317d189d15893fc"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/原项目MIT许可.txt",
+      "原始SHA256": null,
+      "候选SHA256": "4a3ea42531a7fc18b11471baa1676b11ef6c8badee4e02711392d9fdc8f59d58"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/旧版配置转换.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "57a6e8ed1f8bc24293230aa51ee8fa471a1d3a442740d191a85b0edaa0c57665"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/旧版进程管理.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "c55457f675dc0301e0814a0e616f46745a0c60d99e59401e3ebbafd2f44309c0"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/旧版进程守护.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "b1609942df17bf6a3ac3a7b8d3f9577944db5a893edd9c6a9a65d980cd9d5184"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/配置边界.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "a92406fe73a2e0e5a8ee8668e3b78d32e0ebcca236f37294c80b1f90768c22ab"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/代理配置存储.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "d2374b7dc2470f55960f693922a193a18562a9944015a4148c5a10d25e3dd75c"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/订阅读取.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "7aa02efae2cc70722a3cc7bf7dd227d7fe49697a119e4332ee0bf1a52dd70bfd"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/内置代理运行.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "77572b4eb0dcd1ad98b5e0c533457a9d1c592352aa93f2f4f2a26c2c9ffcfb94"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/代理服务.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "68982d79696d6ab9f9806ec6b83407e39cdabac7dd34f67c71c9f1028b963333"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/代理HTTP入口.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "90e51bb6f4c9bd27e43f61f154a68e0e4c17b6d124ba28de3a6d1ba691ccc222"
+    },
+    {
+      "文件": "画布副本/扩展功能/网络代理/代理服务装配.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "7b48368d1565be84bbd2feb8b4afd091bfb63a223bbe34bf2808b6dd4025a91b"
+    },
+    {
+      "文件": "画布副本/web/src/guan/network-proxy/代理客户端.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "9a768b04c8ba8eb407d97aea132b76f55836547e384f1d79154e3ab7802ec96c"
+    },
+    {
+      "文件": "画布副本/web/src/guan/network-proxy/原版网络代理面板.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "67c9cffb5db9b1cceee73625e5eb322ae41580d34bceeb72e5f8d78d9f6f818e"
+    },
+    {
+      "文件": "画布副本/web/src/guan/network-proxy/原版网络代理.css",
+      "原始SHA256": null,
+      "候选SHA256": "57b67e7ac882398a373986c9eeaf429eb3f7fa7fe470a1b616cb0ef4d5a7f3e7"
+    },
+    {
+      "文件": "服务包/扩展功能/本机服务/数据服务.mjs",
+      "原始SHA256": "8081721ec24b4591e0725c71b12d9d941e92b04ce84cb643e7ca8145937be7df",
+      "候选SHA256": "48e14893d3215ff7da3d4ec963faeadc1c5f15052c95c1ba7765eeea57d8faf5"
+    },
+    {
+      "文件": "画布副本/扩展功能/本机服务/受限工作台启动器.mjs",
+      "原始SHA256": "ba2171d147715a1fe195515d5d3fb00faded4cce55fd574ad89171183b8277c0",
+      "候选SHA256": "624d423c1307225bbeea7fcdeb43615eea9ee1ca4e6f5c10c736161fd6365087"
+    },
+    {
+      "文件": "画布副本/web/src/guan/sqlite/本机授权客户端.mjs",
+      "原始SHA256": "91039f9323c368f906fa578436584f97e489640ad5e4edb09f232eb1b8840d6c",
+      "候选SHA256": "224a10fa7646a1a654ddc15d984ba6ea8e5ff49532967ddf4d240d06462d7094"
+    },
+    {
+      "文件": "画布副本/web/src/guan/sqlite/工作台自动入口.mjs",
+      "原始SHA256": "e0dd70adba6ee42e39861a46aa1a0e7277940e813feb8466b88d41b22adff9c4",
+      "候选SHA256": "75ba4176da62d426b2836de039b67f85eda374765b5c10f07cb79a67618a0a23"
+    },
+    {
+      "文件": "画布副本/web/src/components/layout/config-local-proxy.tsx",
+      "原始SHA256": "88506bb2da3905a81d805c860c6231849b8e6e80fb182226bd49f4ee409a626f",
+      "候选SHA256": "0c6ede060731100b7b447626fccd51a804d36d352d1a8ef6e0a0fba2f7128ff4"
+    }
+  ]
+}

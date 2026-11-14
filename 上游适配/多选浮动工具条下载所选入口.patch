@@ -1,0 +1,51 @@
+diff --git a/web/src/components/canvas/canvas-selection-toolbar.tsx b/web/src/components/canvas/canvas-selection-toolbar.tsx
+index 3911edd..6d1a4b7 100644
+--- a/web/src/components/canvas/canvas-selection-toolbar.tsx
++++ b/web/src/components/canvas/canvas-selection-toolbar.tsx
+@@ -1,5 +1,6 @@
+ import type { ReactNode } from "react";
+-import { Grid2x2, Group, Ungroup } from "lucide-react";
++import { Download, Grid2x2, Group, LoaderCircle, Ungroup } from "lucide-react";
++import { selectedDownloadFiles } from "@/扩展功能/媒体交付/画布下载操作";
+ import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+ import { useTranslation } from "react-i18next";
+ 
+@@ -19,6 +20,8 @@ export function CanvasSelectionToolbar({
+     onGroup,
+     onUngroup,
+     onOrganize,
++    onDownload,
++    downloading = false,
+ }: {
+     nodes: CanvasNodeData[];
+     viewport: ViewportTransform;
+@@ -28,6 +31,8 @@ export function CanvasSelectionToolbar({
+     onGroup: () => void;
+     onUngroup: () => void;
+     onOrganize: () => void;
++    onDownload: () => void;
++    downloading?: boolean;
+ }) {
+     const { t } = useTranslation();
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+@@ -68,16 +73,18 @@ export function CanvasSelectionToolbar({
+                     {canGroup ? <SelectionAction title={t("canvas.nodeToolbar.groupTitle")} label={t("canvas.nodeToolbar.group")} icon={<Group className="size-4" />} onClick={onGroup} /> : null}
+                     {canUngroup ? <SelectionAction title={t("canvas.nodeToolbar.ungroupTitle")} label={t("canvas.nodeToolbar.ungroup")} icon={<Ungroup className="size-4" />} onClick={onUngroup} /> : null}
+                     <SelectionAction title="整理选中卡片（可撤销）" label="整理卡片" icon={<Grid2x2 className="size-4" />} onClick={onOrganize} />
++                    <SelectionAction title="下载所选" label={downloading ? "正在打包" : "下载所选"} disabled={downloading || !selectedDownloadFiles(nodes).length}
++                        icon={downloading ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />} onClick={onDownload} />
+                 </div>
+             ) : null}
+         </>
+     );
+ }
+ 
+-function SelectionAction({ title, label, icon, onClick }: { title: string; label: string; icon: ReactNode; onClick: () => void }) {
++function SelectionAction({ title, label, icon, onClick, disabled }: { title: string; label: string; icon: ReactNode; onClick: () => void; disabled?: boolean }) {
+     return (
+         <Tooltip title={title} placement="top" mouseEnterDelay={0.2} color="#ffffff" styles={{ root: { color: "#242529", boxShadow: "0 8px 24px rgba(15,23,42,.16)", fontSize: 13, fontWeight: 500 } }}>
+-            <button type="button" className="group relative flex h-12 items-center whitespace-nowrap px-1.5" onClick={onClick} aria-label={title}>
++            <button type="button" disabled={disabled} className="group relative flex h-12 items-center whitespace-nowrap px-1.5 disabled:cursor-not-allowed disabled:opacity-40" onClick={onClick} aria-label={title}>
+                 <span className="flex h-9 items-center gap-2 rounded-lg px-2.5 transition group-hover:bg-[#f0f0f1]">
+                     {icon}
+                     <span>{label}</span>

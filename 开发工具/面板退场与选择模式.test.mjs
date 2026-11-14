@@ -9,6 +9,7 @@ const jsx = (type, props) => ({ type, props: props || {} });
 function fixture(name) {
     const cells = []; let cursor = 0, present = true, reduced = false, removed = 0, outsideTrigger;
     const hooks = {
+        createContext: value => ({ Provider: 'Provider', value }), useContext: context => context.value, useLayoutEffect() {},
         useState(initial) { const slot = cursor++; cells[slot] ||= { value: typeof initial === 'function' ? initial() : initial }; return [cells[slot].value, value => { cells[slot].value = typeof value === 'function' ? value(cells[slot].value) : value; }]; },
         useRef: value => hooks.useState(() => ({ current: value }))[0],
         useEffect(callback, deps) { const slot = cursor++, old = cells[slot]; if (!old || deps.some((value, index) => value !== old.deps[index])) { old?.cleanup?.(); cells[slot] = { deps, cleanup: callback() }; } },
@@ -18,12 +19,16 @@ function fixture(name) {
         react: hooks, 'react/jsx-runtime': { jsx, jsxs: jsx }, antd: { Modal: 'NativeModal' },
         'motion/react': { motion: { div: 'motion.div', span: 'motion.span' }, usePresence: () => [present, safeToRemove], useIsPresent: () => present, useReducedMotion: () => reduced },
         './苹果动效': { APPLE_SURFACE_SPRING: { type: 'spring', bounce: 0, duration: .28 } },
+        './苹果弹窗布局.module.css': { default: {} },
         './原生可关闭浮层': { OutsidePanelScope: 'PanelScope', useOutsidePanel: (_open, trigger) => { outsideTrigger = trigger; return { layer: {} }; } },
     };
     const code = ts.transpileModule(readFileSync(new URL('../扩展功能/主题/' + name + '.tsx', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
     const module = { exports: {} };
-    new Function('require', 'module', 'exports', 'document', code)(id => { assert.ok(Object.hasOwn(dependencies, id), id); return dependencies[id]; }, module, module.exports, { getElementById: id => ({ id }) });
-    return { render(key, props) { cursor = 0; const node = module.exports[key](props); return key === 'AppleModal' ? node.props.children : node; }, trigger: () => outsideTrigger(), setPresent(value) { present = value; }, reduce(value) { reduced = value; }, removed: () => removed };
+    new Function('require', 'module', 'exports', 'document', 'HTMLElement', code)(id => { assert.ok(Object.hasOwn(dependencies, id), id); return dependencies[id]; }, module, module.exports, { getElementById: id => ({ id, getBoundingClientRect: () => ({ left: 0, top: 0, width: 20, height: 20 }) }) }, class {});
+    return { render(key, props) { cursor = 0; const node = module.exports[key](props); if (key !== 'AppleModal') return node;
+        const modal = node.props.children.props.children, render = modal.props.modalRender;
+        modal.props.modalRender = child => { const surface = render(child); return surface.type(surface.props); };
+        return modal; }, trigger: () => { const target = outsideTrigger(); return target ? { id: target.id } : null; }, setPresent(value) { present = value; }, reduce(value) { reduced = value; }, removed: () => removed };
 }
 
 test('设置触发器属于弹窗外部边界，捕获阶段不先关闭再由按钮重新打开', () => {

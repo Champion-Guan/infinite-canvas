@@ -43,7 +43,12 @@ export function useCanvasImageResults({ projectId, nodesRef, restoredProjectIdRe
         const exactSize = nodesRef.current.find(node => node.id === request.nodeId)?.metadata?.imageSuperSourceSize;
         const targetSize = exactSize || request.image.deliverySize || request.requestedSize;
         const uploaded = await uploadGeneratedImage(request.image.dataUrl, {
-            signal: request.signal, targetSize,
+            signal: request.signal, targetSize, padding: request.image.padding,
+        }).catch((error: unknown) => {
+            if (error instanceof Error && "code" in error && error.code === "image_delivery_size_mismatch")
+                throw Object.assign(new Error(`${error.message}上游原始响应已保留在原任务中，此结果不支持重试。`, { cause: error }),
+                    { code: error.code });
+            throw error;
         });
         try {
             assertTarget();

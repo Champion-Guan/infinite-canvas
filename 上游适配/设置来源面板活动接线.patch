@@ -1,0 +1,13 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index d721500..3126235 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -314,7 +314,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                     {
+                         key: "prompt-sources",
+                         label: t("config.tabs.promptSources"),
+-                        children: <ConfigPromptSources />,
++                        children: <ConfigPromptSources active={active && activeTab === "prompt-sources"} />,
+                     },
+                     {
+                         key: "webdav",

@@ -12,6 +12,7 @@ function getTagColor(type: string) {
 }
 
 const typeKeys: Record<string, string> = { 新增: "added", 修复: "fixed", 调整: "changed", 优化: "optimized", 文档: "docs" };
+const typeOrder: Record<string, number> = { 新增: 0, Added: 0, 优化: 1, Optimized: 1, 修复: 2, Fixed: 2, 调整: 3, Changed: 3, 文档: 4, Docs: 4 };
 
 export function ReleaseTimeline({ releases, currentVersion, latestVersion }: {
     releases: readonly ReleaseInfo[];
@@ -37,7 +38,7 @@ export function ReleaseTimeline({ releases, currentVersion, latestVersion }: {
                     </div>
                 </div>
                 <div className="mt-2 space-y-1.5">
-                    {release.items.map((item, index) => <div key={`${release.version}-${index}`}
+                    {[...release.items].sort((a, b) => (typeOrder[a.type] ?? 5) - (typeOrder[b.type] ?? 5)).map((item, index) => <div key={`${release.version}-${index}`}
                         className="flex items-start gap-2 text-sm leading-6 text-stone-700 dark:text-stone-300">
                         <Tag color={getTagColor(item.type)} className="m-0 mt-0.5 shrink-0 whitespace-nowrap">
                             {typeKeys[item.type] ? t(`version.types.${typeKeys[item.type]}`) : item.type}

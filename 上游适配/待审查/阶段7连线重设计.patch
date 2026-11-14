@@ -1,0 +1,318 @@
+diff --git a/web/src/components/canvas/canvas-connections.tsx b/web/src/components/canvas/canvas-connections.tsx
+index 95cbb7a..7362ead 100644
+--- a/web/src/components/canvas/canvas-connections.tsx
++++ b/web/src/components/canvas/canvas-connections.tsx
+@@ -1,6 +1,7 @@
+ import type { MouseEvent as ReactMouseEvent } from "react";
+ 
+ import { canvasThemes } from "@/lib/canvas-theme";
++import { routeConnection, type ConnectionRoutingIndex } from "@/lib/canvas/canvas-connection-routing";
+ import { useThemeStore } from "@/stores/use-theme-store";
+ import type { CanvasConnection, CanvasNodeData, ConnectionHandle, Position } from "@/types/canvas";
+ 
+@@ -18,15 +19,10 @@ export function ConnectionPath({
+     active: boolean;
+     onSelect: () => void;
+     onContextMenu?: (event: ReactMouseEvent<SVGPathElement>) => void;
++    routing?: ConnectionRoutingIndex;
+ }) {
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+-    const startX = from.position.x + from.width;
+-    const startY = from.position.y + from.height / 2;
+-    const endX = to.position.x;
+-    const endY = to.position.y + to.height / 2;
+-    const dx = Math.abs(endX - startX);
+-    const curvature = Math.max(dx * 0.5, 50);
+-    const pathD = `M ${startX} ${startY} C ${startX + curvature} ${startY}, ${endX - curvature} ${endY}, ${endX} ${endY}`;
++    const pathD = routeConnection(from, to, routing).d;
+ 
+     return (
+         <g>
+@@ -63,16 +59,10 @@ export function ActiveConnectionPath({ node, handle, mouseWorld, target }: { nod
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+     if (!node) return null;
+ 
+-    const startX = handle.handleType === "source" ? node.position.x + node.width : mouseWorld.x;
+-    const startY = handle.handleType === "source" ? node.position.y + node.height / 2 : mouseWorld.y;
+-    const endX = handle.handleType === "source" ? mouseWorld.x : node.position.x;
+-    const endY = handle.handleType === "source" ? mouseWorld.y : node.position.y + node.height / 2;
+-    const snappedStartX = handle.handleType === "target" && target ? target.position.x + target.width : startX;
+-    const snappedStartY = handle.handleType === "target" && target ? target.position.y + target.height / 2 : startY;
+-    const snappedEndX = handle.handleType === "source" && target ? target.position.x : endX;
+-    const snappedEndY = handle.handleType === "source" && target ? target.position.y + target.height / 2 : endY;
+-    const distance = Math.abs(snappedEndX - snappedStartX);
+-    const pathD = `M ${snappedStartX} ${snappedStartY} C ${snappedStartX + distance * 0.5} ${snappedStartY}, ${snappedEndX - distance * 0.5} ${snappedEndY}, ${snappedEndX} ${snappedEndY}`;
++    const emptyNode = { position: mouseWorld, width: 0, height: 0 };
++    const from = handle.handleType === "source" ? node : target || emptyNode;
++    const to = handle.handleType === "source" ? target || emptyNode : node;
++    const pathD = routeConnection(from, to).d;
+ 
+     return <path d={pathD} stroke={theme.node.activeStroke} strokeWidth="2" fill="none" strokeDasharray="5,5" />;
+ }
+diff --git a/web/src/lib/canvas/canvas-connection-routing.ts b/web/src/lib/canvas/canvas-connection-routing.ts
+new file mode 100644
+index 0000000..a8e613e
+--- /dev/null
++++ b/web/src/lib/canvas/canvas-connection-routing.ts
+@@ -0,0 +1,159 @@
++import type { CanvasConnection, CanvasNodeData, Position } from "@/types/canvas";
++
++export type ConnectionRoutingIndex = {
++    sourceIndex: number;
++    sourceCount: number;
++    targetIndex: number;
++    targetCount: number;
++};
++
++export type ConnectionRouteBounds = {
++    left: number;
++    top: number;
++    right: number;
++    bottom: number;
++};
++
++export type ConnectionRoute = {
++    d: string;
++    points: Position[];
++    bounds: ConnectionRouteBounds;
++};
++
++const ROUTE_STUB = 28;
++const ROUTE_RADIUS = 12;
++const FANOUT_STEP = 12;
++const REVERSE_ROUTE_GAP = 64;
++
++function centerOffset(index: number, count: number) {
++    return (index - (count - 1) / 2) * FANOUT_STEP;
++}
++
++function samePoint(first: Position, second: Position) {
++    return first.x === second.x && first.y === second.y;
++}
++
++function isCollinear(first: Position, middle: Position, last: Position) {
++    return (middle.x - first.x) * (last.y - middle.y) === (middle.y - first.y) * (last.x - middle.x);
++}
++
++function simplifyPoints(points: Position[]) {
++    const compact = points.filter((point, index) => index === 0 || !samePoint(point, points[index - 1]));
++    return compact.filter((point, index) => index === 0 || index === compact.length - 1 || !isCollinear(compact[index - 1], point, compact[index + 1]));
++}
++
++function roundedPath(points: Position[], radius: number) {
++    const compact = simplifyPoints(points);
++    if (compact.length < 2) return `M ${compact[0]?.x || 0} ${compact[0]?.y || 0}`;
++
++    let path = `M ${compact[0].x} ${compact[0].y}`;
++    for (let index = 1; index < compact.length - 1; index += 1) {
++        const previous = compact[index - 1];
++        const current = compact[index];
++        const next = compact[index + 1];
++        const previousDistance = Math.hypot(current.x - previous.x, current.y - previous.y);
++        const nextDistance = Math.hypot(next.x - current.x, next.y - current.y);
++        const offset = Math.min(radius, previousDistance / 2, nextDistance / 2);
++        const before = {
++            x: current.x - ((current.x - previous.x) / previousDistance) * offset,
++            y: current.y - ((current.y - previous.y) / previousDistance) * offset,
++        };
++        const after = {
++            x: current.x + ((next.x - current.x) / nextDistance) * offset,
++            y: current.y + ((next.y - current.y) / nextDistance) * offset,
++        };
++        path += ` L ${before.x} ${before.y} Q ${current.x} ${current.y} ${after.x} ${after.y}`;
++    }
++    const last = compact[compact.length - 1];
++    path += ` L ${last.x} ${last.y}`;
++    return path;
++}
++
++function routeBounds(points: Position[], radius: number): ConnectionRouteBounds {
++    const xs = points.map((point) => point.x);
++    const ys = points.map((point) => point.y);
++    return {
++        left: Math.min(...xs) - radius,
++        top: Math.min(...ys) - radius,
++        right: Math.max(...xs) + radius,
++        bottom: Math.max(...ys) + radius,
++    };
++}
++
++export function getConnectionAnchors(from: Pick<CanvasNodeData, "position" | "width" | "height">, to: Pick<CanvasNodeData, "position" | "width" | "height">) {
++    return {
++        start: { x: from.position.x + from.width, y: from.position.y + from.height / 2 },
++        end: { x: to.position.x, y: to.position.y + to.height / 2 },
++    };
++}
++
++export function routeConnection(
++    from: Pick<CanvasNodeData, "position" | "width" | "height">,
++    to: Pick<CanvasNodeData, "position" | "width" | "height">,
++    routing: Partial<ConnectionRoutingIndex> = {},
++): ConnectionRoute {
++    const { start, end } = getConnectionAnchors(from, to);
++    const sourceOffset = centerOffset(routing.sourceIndex ?? 0, routing.sourceCount ?? 1);
++    const targetOffset = centerOffset(routing.targetIndex ?? 0, routing.targetCount ?? 1);
++    const sourceBranch = { x: start.x + ROUTE_STUB, y: start.y + sourceOffset };
++    const targetBranch = { x: end.x - ROUTE_STUB, y: end.y + targetOffset };
++    const forward = targetBranch.x > sourceBranch.x + ROUTE_STUB;
++    let points: Position[];
++
++    if (forward) {
++        const trunkX = (sourceBranch.x + targetBranch.x) / 2;
++        points = [
++            start,
++            { x: sourceBranch.x, y: start.y },
++            sourceBranch,
++            { x: trunkX, y: sourceBranch.y },
++            { x: trunkX, y: targetBranch.y },
++            targetBranch,
++            { x: targetBranch.x, y: end.y },
++            end,
++        ];
++    } else {
++        // When the target is visually behind the source, route above both cards. This
++        // keeps the final segment entering the target from its left anchor instead of
++        // drawing through the target card.
++        const lane = Math.max(Math.abs(sourceOffset), Math.abs(targetOffset));
++        const safeY = Math.min(from.position.y, to.position.y) - REVERSE_ROUTE_GAP - lane;
++        points = [
++            start,
++            { x: sourceBranch.x, y: start.y },
++            { x: sourceBranch.x, y: safeY + sourceOffset },
++            { x: targetBranch.x, y: safeY + targetOffset },
++            { x: targetBranch.x, y: end.y },
++            end,
++        ];
++    }
++
++    const compact = simplifyPoints(points);
++    return { d: roundedPath(compact, ROUTE_RADIUS), points: compact, bounds: routeBounds(compact, ROUTE_RADIUS) };
++}
++
++export function buildConnectionRoutingMeta(connections: CanvasConnection[]) {
++    const sourceGroups = new Map<string, CanvasConnection[]>();
++    const targetGroups = new Map<string, CanvasConnection[]>();
++    connections.forEach((connection) => {
++        const sources = sourceGroups.get(connection.fromNodeId) || [];
++        sources.push(connection);
++        sourceGroups.set(connection.fromNodeId, sources);
++        const targets = targetGroups.get(connection.toNodeId) || [];
++        targets.push(connection);
++        targetGroups.set(connection.toNodeId, targets);
++    });
++
++    const result = new Map<string, ConnectionRoutingIndex>();
++    connections.forEach((connection) => {
++        const sources = [...(sourceGroups.get(connection.fromNodeId) || [])].sort((first, second) => first.id.localeCompare(second.id));
++        const targets = [...(targetGroups.get(connection.toNodeId) || [])].sort((first, second) => first.id.localeCompare(second.id));
++        result.set(connection.id, {
++            sourceIndex: sources.findIndex((item) => item.id === connection.id),
++            sourceCount: sources.length,
++            targetIndex: targets.findIndex((item) => item.id === connection.id),
++            targetCount: targets.length,
++        });
++    });
++    return result;
++}
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index d1fedd9..3fa6f80 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -75,6 +75,7 @@ import { CanvasPluginManagerModal } from "@/components/canvas/canvas-plugin-mana
+ import { CanvasRefreshShell } from "@/components/canvas/canvas-refresh-shell";
+ import { CanvasTopBar } from "@/components/canvas/canvas-top-bar";
+ import { ConnectionCreateMenu, NodeCreateMenu, type PendingConnectionCreate } from "@/components/canvas/canvas-create-menus";
++import { buildConnectionRoutingMeta, routeConnection, type ConnectionRoutingIndex } from "@/lib/canvas/canvas-connection-routing";
+ import {
+     CanvasNodeType,
+     type CanvasAssistantImage,
+@@ -706,23 +707,22 @@ function InfiniteCanvasPage() {
+ 
+     const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
+ 
+-    // Connections are culled like nodes; a cubic curve stays inside its control-point hull, so endpoint bounds widened by the curvature is a safe test.
++    const connectionRoutingMeta = useMemo(() => buildConnectionRoutingMeta(connections), [connections]);
++
++    // Connections are culled using the same route geometry that is rendered. This keeps
++    // reverse and fan-out routes visible without widening every connection excessively.
+     const visibleConnections = useMemo(
+         () =>
+             connections.flatMap((connection) => {
+                 const from = nodeById.get(connection.fromNodeId);
+                 const to = nodeById.get(connection.toNodeId);
+                 if (!from || !to) return [];
+-                const startX = from.position.x + from.width;
+-                const startY = from.position.y + from.height / 2;
+-                const endX = to.position.x;
+-                const endY = to.position.y + to.height / 2;
+-                const curvature = Math.max(Math.abs(endX - startX) * 0.5, 50);
+-                const inView =
+-                    Math.max(startX + curvature, endX) > viewBounds.left && Math.min(startX, endX - curvature) < viewBounds.right && Math.max(startY, endY) > viewBounds.top && Math.min(startY, endY) < viewBounds.bottom;
+-                return inView ? [{ connection, from, to }] : [];
++                const routing = connectionRoutingMeta.get(connection.id) as ConnectionRoutingIndex | undefined;
++                const bounds = routeConnection(from, to, routing).bounds;
++                const inView = bounds.right > viewBounds.left && bounds.left < viewBounds.right && bounds.bottom > viewBounds.top && bounds.top < viewBounds.bottom;
++                return inView ? [{ connection, from, to, routing }] : [];
+             }),
+-        [connections, nodeById, viewBounds],
++        [connections, connectionRoutingMeta, nodeById, viewBounds],
+     );
+     // The toolbar follows a single selected node selected by click, creation, marquee, or keyboard.
+     // It stays hidden for multi-selection and while isNodeDragging is true.
+@@ -3209,6 +3209,7 @@ function InfiniteCanvasPage() {
+                                 connection={connection}
+                                 from={from}
+                                 to={to}
++                                routing={routing}
+                                 active={selectedConnectionId === connection.id || relatedHighlight.connectionIds.has(connection.id)}
+                                 onSelect={() => {
+                                     setSelectedConnectionId(connection.id);
+diff --git a/web/tests/canvas-connection-routing.test.ts b/web/tests/canvas-connection-routing.test.ts
+new file mode 100644
+index 0000000..0af0cb8
+--- /dev/null
++++ b/web/tests/canvas-connection-routing.test.ts
+@@ -0,0 +1,43 @@
++import { expect, test } from "bun:test";
++
++import { buildConnectionRoutingMeta, routeConnection } from "../src/lib/canvas/canvas-connection-routing";
++
++const node = (x: number, y: number) => ({ position: { x, y }, width: 200, height: 120 });
++
++test("assigns stable fan-out and fan-in indexes by connection id", () => {
++    const connections = [
++        { id: "z", fromNodeId: "source", toNodeId: "target" },
++        { id: "a", fromNodeId: "source", toNodeId: "other" },
++        { id: "m", fromNodeId: "third", toNodeId: "target" },
++    ];
++    const meta = buildConnectionRoutingMeta(connections);
++    expect(meta.get("a")).toEqual({ sourceIndex: 0, sourceCount: 2, targetIndex: 0, targetCount: 1 });
++    expect(meta.get("z")).toEqual({ sourceIndex: 1, sourceCount: 2, targetIndex: 1, targetCount: 2 });
++    expect(meta.get("m")).toEqual({ sourceIndex: 0, sourceCount: 1, targetIndex: 0, targetCount: 2 });
++});
++
++test("produces rounded orthogonal routes for forward layouts", () => {
++    const route = routeConnection(node(0, 0), node(600, 220), { sourceIndex: 1, sourceCount: 3, targetIndex: 2, targetCount: 3 });
++    expect(route.d).toContain("Q");
++    expect(route.d).not.toContain("C");
++    expect(route.points[0]).toEqual({ x: 200, y: 60 });
++    expect(route.points[route.points.length - 1]).toEqual({ x: 600, y: 280 });
++    expect(route.bounds.top).toBeLessThan(60);
++    expect(route.bounds.bottom).toBeGreaterThan(280);
++});
++
++test("routes reverse layouts outside the cards before entering the target", () => {
++    const route = routeConnection(node(600, 220), node(0, 0));
++    expect(route.d).toContain("Q");
++    expect(route.points.some((point) => point.y < 0)).toBe(true);
++    expect(route.points[0]).toEqual({ x: 800, y: 280 });
++    expect(route.points[route.points.length - 1]).toEqual({ x: 0, y: 60 });
++});
++
++test("magnetic preview routing never mutates node positions", () => {
++    const source = node(0, 0);
++    const target = node(500, 300);
++    const before = JSON.stringify(target.position);
++    routeConnection(source, target);
++    expect(JSON.stringify(target.position)).toBe(before);
++});

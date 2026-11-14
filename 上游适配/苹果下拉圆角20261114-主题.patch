@@ -1,0 +1,31 @@
+diff --git a/web/src/lib/app-theme.ts b/web/src/lib/app-theme.ts
+index 6c956cb..6287afc 100644
+--- a/web/src/lib/app-theme.ts
++++ b/web/src/lib/app-theme.ts
+@@ -69,6 +69,7 @@ export function getAntThemeConfig(dark: boolean): ThemeConfig {
+                 primaryShadow: "none",
+             },
+             Dropdown: {
++                borderRadiusLG: 16,
+                 colorBgElevated: color.elevatedBg,
+                 colorText: color.itemText,
+                 controlItemBgHover: color.itemHoverBg,
+@@ -76,6 +77,8 @@ export function getAntThemeConfig(dark: boolean): ThemeConfig {
+                 controlItemBgActiveHover: color.itemSelectedHoverBg,
+             },
+             Menu: {
++                itemBorderRadius: 10,
++                subMenuItemBorderRadius: 10,
+                 popupBg: color.elevatedBg,
+                 itemActiveBg: color.itemSelectedBg,
+                 itemHoverBg: color.itemHoverBg,
+@@ -87,6 +90,9 @@ export function getAntThemeConfig(dark: boolean): ThemeConfig {
+                 darkItemSelectedColor: neutral.dark.itemText,
+             },
+             Select: {
++                borderRadiusLG: 16,
++                optionPadding: "7px 12px",
++                optionHeight: 34,
+                 optionActiveBg: color.itemHoverBg,
+                 optionSelectedBg: color.itemSelectedBg,
+                 optionSelectedColor: color.itemText,

@@ -1,0 +1,14 @@
+diff --git a/web/src/hooks/use-version-check.ts b/web/src/hooks/use-version-check.ts
+index 0513b13..aea7e95 100644
+--- a/web/src/hooks/use-version-check.ts
++++ b/web/src/hooks/use-version-check.ts
+@@ -56,7 +56,8 @@ export function useVersionCheck(enabled = true) {
+     // The backend owns the running application version. The canvas bundle may
+     // be ahead during source-mode rollout or stale in an already-open iframe.
+     const currentVersion = resolveCurrentWorkbenchVersion(status?.currentVersion);
+-    const remoteItems = latest ? parseChangelog(`## ${latest.version}\n${latest.notes || ""}`)[0]?.items : undefined;
++    const currentRelease = latest?.version === currentVersion ? localReleases.find(release => release.version === currentVersion) : undefined;
++    const remoteItems = currentRelease?.items ?? (latest ? parseChangelog(`## ${latest.version}\n${latest.notes || ""}`)[0]?.items : undefined);
+     const allReleases = latest ? [{ version: latest.version, date: latest.publishedAt.slice(0, 10),
+         items: remoteItems || [{ type: "更新", content: latest.notes || "暂无更新说明" }] },
+         ...localReleases.filter(r => r.version !== latest.version)] : localReleases;

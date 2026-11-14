@@ -92,6 +92,7 @@ test('Excel残留手绘开关改用同一原生Switch，布尔状态和既有持
         '../本机存储/上游浏览器存储桥': { sqlitePreferences: { getItem: () => 'false', setItem: (...args) => writes.push(args) } },
         './Excel画布上下文': { useExcelProductId: () => 'product', useExcelPromptContext: () => ({ activeProductName: '产品' }), useExcelPromptSource: () => ({ source: { enabled: true, name: '来源' }, items: [item] }) },
         './Excel拖入校验': { EXCEL_PROMPT_DRAG_TYPE: 'excel' }, './Excel提示词列表.css': {},
+        '../产品配置/功能开关': { productFeatures: { excel: true } },
     });
     const render = () => { cursor = 0; return module.ExcelPromptGroup({ keyword: '', theme: { node: { text: '#111' } }, renderRow: () => null }); };
     let control = all(render()).find(node => node.type === 'Switch');

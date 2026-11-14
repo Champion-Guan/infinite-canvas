@@ -1,0 +1,121 @@
+--- a/扩展功能/本机服务/受限工作台启动器.mjs
++++ b/扩展功能/本机服务/受限工作台启动器.mjs
+@@ -38,11 +38,18 @@
+   return { files, scriptHashes: [...hashes].join(' ') };
+ }
+ 
+-// 只允许动态临时端口；不接管3100、旧数据或默认生产目录，不安装常驻服务。
++// 默认仍为动态隔离入口；固定localhost:3100只能由另行批准的日常装配调用，不安装常驻服务。
+ // storage由可信启动工具装配同一个已批准的四文件包，避免跨模块StorageError身份漂移。
+-export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, initialize = false, storage, credentialKeyProvider } = {}) {
++export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, initialize = false, storage, credentialKeyProvider, endpoint = { hostname: '127.0.0.1', port: 0 } } = {}) {
+   requireValue(typeof webRoot === 'string' && typeof dataRoot === 'string' && isAbsolute(dataRoot) && typeof initialize === 'boolean' &&
+     typeof storage?.openWorkspace === 'function' && typeof storage?.startDataService === 'function' && typeof credentialKeyProvider?.read === 'function' && typeof credentialKeyProvider?.create === 'function', 'invalid_launcher_config', '必须明确传入静态产物、独立数据根及完整存储装配。');
++  requireValue(endpoint && typeof endpoint === 'object' && !Array.isArray(endpoint) &&
++    Object.keys(endpoint).sort().join(',') === 'hostname,port' &&
++    ['127.0.0.1', 'localhost'].includes(endpoint.hostname) &&
++    (endpoint.port === 0 || endpoint.port === 3100 && endpoint.hostname === 'localhost'),
++    'invalid_launcher_endpoint', '只允许隔离临时入口或明确的localhost:3100日常入口。');
++  // 复制值，避免等待期间调用方修改endpoint导致Host/Origin错配；监听始终仅127.0.0.1。
++  const { hostname, port } = endpoint;
+   const { files, scriptHashes } = readStaticBundle(webRoot);
+   let ready = false, gateway, controller, service, workspace, backup, credentialPort, closing = null;
+   const server = createServer(async (req, res) => {
+@@ -51,7 +58,7 @@
+     res.setHeader('Content-Security-Policy', `default-src 'none'; script-src 'self' ${scriptHashes}; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: ${service?.url ?? ''}; worker-src 'self' blob:; frame-ancestors 'none'; form-action 'self'; base-uri 'none'`);
+     if (!ready) { res.writeHead(503); res.end('本机工作区尚未就绪。'); req.resume(); return; }
+     if (await gateway.handle(req, res)) return;
+-    const expected = `127.0.0.1:${server.address().port}`;
++    const expected = `${hostname}:${server.address().port}`;
+     if (req.headers.host !== expected || req.headers.origin && req.headers.origin !== 'http://' + expected || req.headers['sec-fetch-site'] && !['same-origin', 'none'].includes(req.headers['sec-fetch-site'])) {
+       res.writeHead(403); res.end(); req.resume(); return;
+     }
+@@ -89,8 +96,8 @@
+     if (errors.length) throw new AggregateError(errors, '隔离工作台清理不完整，请保留数据根并检查锁；没有自动清锁。');
+   }
+   try {
+-    await new Promise((done, fail) => { server.once('error', fail); server.listen(0, '127.0.0.1', done); });
+-    const origin = 'http://127.0.0.1:' + server.address().port;
++    await new Promise((done, fail) => { server.once('error', fail); server.listen(port, '127.0.0.1', done); });
++    const origin = 'http://' + hostname + ':' + server.address().port;
+     workspace = storage.openWorkspace({ dataRoot, initialize });
+     credentialPort = await openSQLiteCredentialVault({ workspace, keyProvider: credentialKeyProvider, initialize });
+     service = await storage.startDataService({ workspace, allowedOrigins: [origin] });
+--- /dev/null
++++ b/扩展功能/本机服务/日常数据根.mjs
+@@ -0,0 +1,41 @@
++import { lstatSync, mkdirSync, readdirSync, realpathSync } from 'node:fs';
++import { homedir } from 'node:os';
++import { isAbsolute, join } from 'node:path';
++import { requireValue } from '../本机存储/协议.mjs';
++
++// 独立于旧工作台；不借用浏览器Origin、旧数据目录或iCloud作为主数据库。
++export function dailyWorkbenchPaths(applicationSupport = join(homedir(), 'Library/Application Support')) {
++  requireValue(typeof applicationSupport === 'string' && isAbsolute(applicationSupport), 'invalid_daily_root', '必须明确使用本机应用数据父目录。');
++  const container = join(applicationSupport, 'AI-Workbench-重建版');
++  return Object.freeze({ applicationSupport, container, dataRoot: join(container, '工作区') });
++}
++
++function privateDirectory(path, parent = false) {
++  const stat = lstatSync(path);
++  requireValue(!stat.isSymbolicLink() && stat.isDirectory() && stat.uid === process.getuid() &&
++    (stat.mode & (parent ? 0o022 : 0o077)) === 0, 'unsafe_daily_root', '日常数据目录类型、所有者或权限不安全；未自动修复。');
++}
++function present(path) {
++  try { lstatSync(path); return true; } catch (error) { if (error.code === 'ENOENT') return false; throw error; }
++}
++
++// 仅供可信本机启动器调用。测试可传全新临时父目录；正式入口不提供路径覆盖选项。
++// 不创建工作区本体，不清文件；数据库及工作区标记仍完全交给原存储层校验。
++export function prepareDailyDataRoot({ applicationSupport, initialize = false } = {}) {
++  requireValue(typeof initialize === 'boolean', 'invalid_daily_root', '初始化选择必须明确。');
++  const plan = dailyWorkbenchPaths(applicationSupport);
++  privateDirectory(plan.applicationSupport, true);
++  const parent = realpathSync(plan.applicationSupport);
++  const paths = dailyWorkbenchPaths(parent);
++  if (!present(paths.container)) {
++    requireValue(initialize, 'daily_initialization_required', '日常工作区不存在，须明确首次初始化。');
++    mkdirSync(paths.container, { mode: 0o700 });
++  }
++  privateDirectory(paths.container);
++  requireValue(readdirSync(paths.container).every(name => name === '工作区'), 'unknown_daily_root', '日常目录包含未知文件，未接管或清理。');
++  if (present(paths.dataRoot)) {
++    privateDirectory(paths.dataRoot);
++    requireValue(!initialize || readdirSync(paths.dataRoot).length === 0, 'daily_initialization_denied', '已有工作区不能再次初始化；请正常重开。');
++  } else requireValue(initialize, 'daily_initialization_required', '工作区不存在，未自动新建空库。');
++  return paths.dataRoot;
++}
+--- /dev/null
++++ b/扩展功能/本机服务/日常工作台.mjs
+@@ -0,0 +1,31 @@
++import { requireValue } from '../本机存储/协议.mjs';
++import { createMacOSMasterKeyProvider } from '../本机凭据/钥匙串主密钥.mjs';
++import { startIsolatedAuthorizedWorkbench } from './受限工作台启动器.mjs';
++import { dailyWorkbenchPaths, prepareDailyDataRoot } from './日常数据根.mjs';
++
++// 仅为Web本机服务装配，不安装launchd、不接管既有进程、不打开默认浏览器。
++// 运行副本须先按精确差异获批装配；本文件不会自行应用任何补丁。
++export async function startDailyWorkbench({ webRoot, storage, helperPath, helperSHA256,
++  initialize = false, savedAndClosed = false } = {}) {
++  requireValue(savedAndClosed === true, 'maintenance_confirmation_required', '请先保存、结束任务并关闭工作台页面，再启动日常SQLite入口。');
++  requireValue(typeof initialize === 'boolean' && typeof storage?.openWorkspace === 'function' &&
++    typeof storage?.startDataService === 'function', 'invalid_daily_config', '日常启动必须明确装配完整存储服务。');
++  const paths = dailyWorkbenchPaths();
++  const provider = createMacOSMasterKeyProvider({ helperPath, helperSHA256 });
++  const guardedStorage = { ...storage, openWorkspace(options) {
++    requireValue(options.dataRoot === paths.dataRoot && options.initialize === initialize,
++      'invalid_daily_root', '日常工作区装配不一致，未打开数据库。');
++    const dataRoot = prepareDailyDataRoot({ initialize });
++    return storage.openWorkspace({ ...options, dataRoot });
++  } };
++  // 启动器先独占监听端口，再调用openWorkspace。端口冲突不创建数据、不读钥匙串。
++  const app = await startIsolatedAuthorizedWorkbench({ webRoot, dataRoot: paths.dataRoot, initialize,
++    storage: guardedStorage, credentialKeyProvider: provider, endpoint: { hostname: 'localhost', port: 3100 } });
++  return Object.freeze({ origin: app.origin, workspaceId: app.workspaceId, dataRoot: paths.dataRoot,
++    getStatus: () => app.getStatus(),
++    async close({ savedAndClosed = false } = {}) {
++      requireValue(savedAndClosed === true, 'maintenance_confirmation_required', '停止服务前须确认页面已保存并关闭；服务排空不证明页面已保存。');
++      return app.close();
++    },
++  });
++}

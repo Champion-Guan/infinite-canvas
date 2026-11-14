@@ -140,12 +140,21 @@ test('悬浮独立线及共享主干时高亮与流动点留在卡片下、不�
 });
 test('提示词 Portal 保留位置锚点与事件边界，面板操作不穿透画布', () => {
     const { CardPanelLayer } = moduleWith('扩展功能/画布连线/卡片浮层.tsx', {
+        'motion/react': { motion: { div: 'motion.div' }, useIsPresent: () => true, useReducedMotion: () => false },
+        react: { useLayoutEffect() {}, useRef: current => ({ current }), useState: value => [value, () => {}] },
+        '../产品/产品界面边界': { useProductActive: () => true },
+        '../画布交互/浮层可见区域': {},
+        '../主题/苹果动效': { APPLE_SURFACE_SPRING: {} },
         'react/jsx-runtime': { jsx, jsxs: jsx }, 'react-dom': { createPortal: (children, target) => ({ children, target }) },
     });
     const n = node('prompt', 100, 200, 'text'), target = {}, child = {};
-    const portal = CardPanelLayer({ node: n, target, children: child });
-    assert.equal(portal.target, target); assert.equal(portal.children.props.children, child);
-    assert.equal(portal.children.props.style.transform, 'translate(100px, 200px)');
+    const originalDocument = globalThis.document, body = {};
+    let portal;
+    try { globalThis.document = { body }; portal = CardPanelLayer({ node: n, target, children: child }); }
+    finally { if (originalDocument === undefined) delete globalThis.document; else globalThis.document = originalDocument; }
+    assert.equal(portal.target, body); assert.equal(portal.children.props.children.props.children, child);
+    assert.match(portal.children.props.className, /fixed/);
+    assert.equal(portal.children.props.style.overflowY, 'auto');
     assert.equal(portal.children.props['data-canvas-no-zoom'], true);
     for (const event of ['onPointerDown', 'onMouseDown', 'onClick', 'onContextMenu', 'onDoubleClick', 'onWheel']) {
         let stopped = false; portal.children.props[event]({ stopPropagation() { stopped = true; } }); assert.equal(stopped, true);

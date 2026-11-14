@@ -1,0 +1,1032 @@
+--- /dev/null
++++ b/画布副本/扩展功能/网络代理/package.json
+@@ -0,0 +1,6 @@
++{
++  "name": "guan-network-proxy-boundary",
++  "private": true,
++  "type": "module",
++  "dependencies": { "yaml": "2.8.2" }
++}
+--- /dev/null
++++ b/画布副本/扩展功能/网络代理/package-lock.json
+@@ -0,0 +1,28 @@
++{
++  "name": "guan-network-proxy-boundary",
++  "lockfileVersion": 3,
++  "requires": true,
++  "packages": {
++    "": {
++      "name": "guan-network-proxy-boundary",
++      "dependencies": {
++        "yaml": "2.8.2"
++      }
++    },
++    "node_modules/yaml": {
++      "version": "2.8.2",
++      "resolved": "https://registry.npmjs.org/yaml/-/yaml-2.8.2.tgz",
++      "integrity": "sha512-mplynKqc1C2hTVYxd0PU2xQAc22TI1vShAYGksCCfxbn/dFwnHTNi1bvYsBTkhdUNtGIf5xNOg938rrSSYvS9A==",
++      "license": "ISC",
++      "bin": {
++        "yaml": "bin.mjs"
++      },
++      "engines": {
++        "node": ">= 14.6"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/eemeli"
++      }
++    }
++  }
++}
+--- /dev/null
++++ b/画布副本/扩展功能/网络代理/原项目MIT许可.txt
+@@ -0,0 +1,21 @@
++MIT License
++
++Copyright (c) 2026 basketikun
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
+--- /dev/null
++++ b/画布副本/扩展功能/网络代理/旧版配置转换.mjs
+@@ -0,0 +1,251 @@
++// 来源：旧项目 src/server/proxy-service.mjs；保留原配置转换算法。安全限制在调用边界执行。
++function decodeBase64Url(value) {
++  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
++  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
++  return Buffer.from(padded, "base64").toString("utf8");
++}
++
++function yamlString(value) {
++  return JSON.stringify(String(value ?? ""));
++}
++
++function decodeFragment(value) {
++  if (!value) return "";
++  try {
++    return decodeURIComponent(value);
++  } catch {
++    return value;
++  }
++}
++
++function uniqueName(preferred, index, used) {
++  const base = String(preferred || `image-relay-${index + 1}`).trim() || `image-relay-${index + 1}`;
++  let name = base;
++  let suffix = 2;
++  while (used.has(name)) name = `${base}-${suffix++}`;
++  used.add(name);
++  return name;
++}
++
++function parseSsNode(line, index, used) {
++  const source = line.trim();
++  if (!/^ss:\/\//i.test(source)) return null;
++  let url;
++  try {
++    url = new URL(source);
++  } catch {
++    return null;
++  }
++
++  let method = decodeFragment(url.username);
++  let password = decodeFragment(url.password);
++  let server = url.hostname;
++  let port = Number(url.port || 0);
++  if (!server || !port || !method || !password) {
++    const encoded = source.slice(source.indexOf("://") + 3).split(/[?#]/, 1)[0];
++    let decoded;
++    try {
++      decoded = decodeBase64Url(encoded);
++    } catch {
++      decoded = "";
++    }
++    const at = decoded.lastIndexOf("@");
++    const credentials = at >= 0 ? decoded.slice(0, at) : "";
++    const address = at >= 0 ? decoded.slice(at + 1) : decoded;
++    const separator = credentials.indexOf(":");
++    if (separator > 0) {
++      method = method || credentials.slice(0, separator);
++      password = password || credentials.slice(separator + 1);
++    }
++    const colon = address.lastIndexOf(":");
++    if (colon > 0) {
++      server = server || address.slice(0, colon);
++      port = port || Number(address.slice(colon + 1));
++    }
++  }
++  if (!server || !port || !method || !password) return null;
++
++  const node = {
++    name: uniqueName(decodeFragment(url.hash.slice(1)), index, used),
++    type: "ss",
++    server,
++    port,
++    cipher: method,
++    password,
++  };
++  const plugin = url.searchParams.get("plugin");
++  if (plugin) node.plugin = plugin;
++  return node;
++}
++
++function parseHysteriaNode(line, index, used) {
++  const source = line.trim().replace(/^hy2:\/\//i, "hysteria2://");
++  if (!/^hysteria2:\/\//i.test(source)) return null;
++  let url;
++  try {
++    url = new URL(source);
++  } catch {
++    return null;
++  }
++  const server = url.hostname;
++  const port = Number(url.port || 0);
++  const password = decodeFragment(url.username || url.password);
++  if (!server || !port || !password) return null;
++
++  const node = {
++    name: uniqueName(decodeFragment(url.hash.slice(1)), index, used),
++    type: "hysteria2",
++    server,
++    port,
++    password,
++  };
++  const sni = url.searchParams.get("sni") || url.searchParams.get("peer");
++  if (sni) node.sni = sni;
++  if (["1", "true", "yes"].includes((url.searchParams.get("insecure") || "").toLowerCase())) {
++    node["skip-cert-verify"] = true;
++  }
++  const obfs = url.searchParams.get("obfs");
++  const obfsPassword = url.searchParams.get("obfs-password") || url.searchParams.get("obfs_password");
++  if (obfs) {
++    node.obfs = obfs;
++    if (obfsPassword) node["obfs-password"] = obfsPassword;
++  }
++  const alpn = url.searchParams.getAll("alpn");
++  if (alpn.length) node.alpn = alpn;
++  return node;
++}
++
++function parseSubscriptionNodes(source) {
++  let text = String(source || "").replace(/^\uFEFF/, "").trim();
++  if (!text) return [];
++  if (!/^proxies\s*:/m.test(text) && !/^[a-z][a-z\d+.-]*:\/\//im.test(text)) {
++    try {
++      const decoded = decodeBase64Url(text.replace(/\s+/g, ""));
++      if (/[a-z][a-z\d+.-]*:\/\//i.test(decoded)) text = decoded;
++    } catch {
++      // Leave malformed/unsupported subscription data for the diagnostic below.
++    }
++  }
++
++  if (/^proxies\s*:/m.test(text)) return null;
++  const used = new Set();
++  const nodes = [];
++  for (const [index, line] of text.split(/\r?\n/).entries()) {
++    const clean = line.trim();
++    if (!clean || clean.startsWith("#")) continue;
++    const node = parseSsNode(clean, index, used) || parseHysteriaNode(clean, index, used);
++    if (node) nodes.push(node);
++  }
++  return nodes;
++}
++
++function nodeYaml(node) {
++  const lines = [
++    `  - name: ${yamlString(node.name)}`,
++    `    type: ${node.type}`,
++    `    server: ${yamlString(node.server)}`,
++    `    port: ${node.port}`,
++  ];
++  if (node.type === "ss") {
++    lines.push(`    cipher: ${yamlString(node.cipher)}`);
++    lines.push(`    password: ${yamlString(node.password)}`);
++    if (node.plugin) lines.push(`    plugin: ${yamlString(node.plugin)}`);
++  } else {
++    lines.push(`    password: ${yamlString(node.password)}`);
++    if (node.sni) lines.push(`    sni: ${yamlString(node.sni)}`);
++    if (node["skip-cert-verify"]) lines.push("    skip-cert-verify: true");
++    if (node.obfs) lines.push(`    obfs: ${yamlString(node.obfs)}`);
++    if (node["obfs-password"]) lines.push(`    obfs-password: ${yamlString(node["obfs-password"])}`);
++    if (node.alpn?.length) lines.push(`    alpn: ${JSON.stringify(node.alpn)}`);
++  }
++  return lines.join("\n");
++}
++
++export function buildMihomoConfig(source, port) {
++  const nodes = parseSubscriptionNodes(source);
++  if (nodes === null) {
++    // A complete Clash/Mihomo document can be supplied through a local file
++    // or a private subscription URL. Existing routing is preserved;
++    // node credentials stay in the temporary runtime file.
++    let config = String(source).replace(/^\uFEFF/, "");
++    // Mihomo removed the global-client-fingerprint option. Older Clash
++    // exports may still contain it; per-proxy client-fingerprint values are
++    // retained, so remove only this obsolete top-level setting.
++    config = config.replace(/^global-client-fingerprint\s*:\s*[^\n]*\n?/gim, "");
++    // Do not block the local listener on downloading GeoIP/GeoSite assets.
++    // The relay only needs an HTTP mixed port; remote rule providers remain
++    // available to Mihomo after startup when the user's config references them.
++    config = config.replace(/^geodata-mode\s*:\s*[^\n]*\n?/gim, "geodata-mode: false\n");
++    config = config.replace(/^geox-url:\s*\n(?:^[ \t]+[^\n]*\n?)*/gim, "");
++    config = config.replace(/^[ \t]*-[ \t]*GEOSITE,[^\n]*\n?/gim, "  - MATCH,DIRECT\n");
++    const replacements = [
++      ["mixed-port", String(port)],
++      ["port", "0"],
++      ["socks-port", "0"],
++      ["redir-port", "0"],
++      ["tproxy-port", "0"],
++      ["external-controller", '""'],
++    ];
++    for (const [key, value] of replacements) {
++      const expression = new RegExp(`^${key}\\s*:[^\\n]*$`, "mi");
++      if (expression.test(config)) config = config.replace(expression, `${key}: ${value}`);
++      else config = `${key}: ${value}\n${config}`;
++    }
++    // A provider export may contain only proxies, not a runnable routing
++    // policy. Rule mode without rules silently sends every request DIRECT.
++    const rulesSection = config.match(/^rules\s*:([^\n]*)(?:\n((?:[ \t]+[^\n]*\n?|\s*\n|#[^\n]*\n)*))?/m);
++    const rulesBody = rulesSection
++      ? `${rulesSection[1]}\n${rulesSection[2] || ""}`.replace(/#[^\n]*/g, "").trim()
++      : "";
++    if (!rulesBody || rulesBody === "[]" || rulesBody === "null" || rulesBody === "~") {
++      const groupName = "WORKBENCH-IMAGE-RELAY";
++      const group = [
++        `  - name: ${groupName}`,
++        "    type: url-test",
++        "    include-all-proxies: true",
++        "    exclude-type: direct|reject|pass",
++        "    url: https://www.gstatic.com/generate_204",
++        "    interval: 300",
++        "    tolerance: 0",
++        "    lazy: false",
++      ].join("\n");
++      // Do not parse/re-serialize node credentials. Mihomo includes the
++      // configured outbound nodes itself, including flow-style YAML nodes.
++      const groupsHeader = /^proxy-groups\s*:([^\n]*)$/m;
++      const groups = config.match(groupsHeader);
++      if (groups && !/^(?:\s*|\s*\[\]\s*|\s*null\s*|\s*~\s*)(?:#.*)?$/.test(groups[1])) {
++        throw new Error("代理配置缺少路由规则，请为已有内联代理组配置 rules");
++      }
++      if (groups) config = config.replace(groupsHeader, `proxy-groups:\n${group}`);
++      else config += `\nproxy-groups:\n${group}\n`;
++      if (rulesSection) config = config.replace(rulesSection[0], "");
++      config += `\nrules:\n  - MATCH,${groupName}\n`;
++      if (/^mode\s*:/mi.test(config)) config = config.replace(/^mode\s*:[^\n]*$/mi, "mode: rule");
++      else config = `mode: rule\n${config}`;
++    }
++    return config.endsWith("\n") ? config : `${config}\n`;
++  }
++  if (!nodes.length) throw new Error("未找到可用的 SS 或 Hysteria2 节点");
++  const names = nodes.map((node) => node.name);
++  return [
++    `mixed-port: ${port}`,
++    "allow-lan: false",
++    "mode: rule",
++    "log-level: warning",
++    "ipv6: true",
++    "proxies:",
++    ...nodes.map(nodeYaml),
++    "proxy-groups:",
++    "  - name: IMAGE-RELAY",
++    "    type: url-test",
++    "    url: https://www.gstatic.com/generate_204",
++    "    interval: 300",
++    "    tolerance: 0",
++    "    lazy: false",
++    "    proxies:",
++    ...names.map((name) => `      - ${yamlString(name)}`),
++    "rules:",
++    "  - MATCH,IMAGE-RELAY",
++    "",
++  ].join("\n");
++}
+--- /dev/null
++++ b/画布副本/扩展功能/网络代理/旧版进程管理.mjs
+@@ -0,0 +1,37 @@
++import { spawn } from "node:child_process";
++import { fileURLToPath } from "node:url";
++
++const supervisor = fileURLToPath(new URL("./旧版进程守护.mjs", import.meta.url));
++const children = new Set();
++const stops = new WeakMap();
++let shuttingDown = false;
++
++export function spawnProxyProcess(binary, args, options) {
++  if (shuttingDown) throw new Error("服务正在退出，不能启动新的代理");
++  const child = spawn(process.execPath, [supervisor, String(process.pid), binary, ...args], options);
++  children.add(child); // Track immediately, even before proxy startup completes.
++  child.once("exit", () => children.delete(child));
++  child.once("error", () => children.delete(child));
++  return child;
++}
++
++export function stopProxyProcess(child) {
++  if (stops.has(child)) return stops.get(child);
++  const result = new Promise((resolve) => {
++    if (child.exitCode !== null || child.signalCode !== null) { resolve(); return; }
++    child.once("exit", resolve);
++    child.once("error", resolve);
++    child.kill("SIGTERM");
++  });
++  stops.set(child, result);
++  return result;
++}
++
++export async function stopAllProxyProcesses() {
++  shuttingDown = true;
++  await Promise.all([...children].map(stopProxyProcess));
++}
++
++process.on("exit", () => {
++  for (const child of children) child.kill("SIGTERM");
++});
+--- /dev/null
++++ b/画布副本/扩展功能/网络代理/旧版进程守护.mjs
+@@ -0,0 +1,34 @@
++// A separate watchdog survives abrupt service termination (including SIGKILL)
++// long enough to stop its own Mihomo child. Never kill by port or process name.
++import { spawn } from "node:child_process";
++
++// Pass the original owner explicitly: it may die before this watchdog starts.
++const [owner, binary, ...args] = process.argv.slice(2);
++const parentPid = Number(owner);
++const child = spawn(binary, args, { stdio: "inherit" });
++let stopping = false;
++let forceTimer;
++const stop = () => {
++  if (stopping) return;
++  stopping = true;
++  child.kill("SIGTERM");
++  forceTimer = setTimeout(() => child.kill("SIGKILL"), 1500);
++};
++for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, stop);
++process.on("exit", () => { if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL"); });
++const watchdog = setInterval(() => {
++  try { process.kill(parentPid, 0); } catch (error) {
++    if (error.code === "ESRCH") stop();
++  }
++}, 250);
++child.once("error", () => {
++  console.error("无法启动 Mihomo 子进程");
++  clearInterval(watchdog);
++  clearTimeout(forceTimer);
++  process.exitCode = 1;
++});
++child.once("exit", (code) => {
++  clearInterval(watchdog);
++  clearTimeout(forceTimer);
++  process.exitCode = stopping ? 0 : code ?? 1;
++});
+--- /dev/null
++++ b/画布副本/扩展功能/网络代理/配置边界.mjs
+@@ -0,0 +1,53 @@
++import { parseDocument, stringify, visit } from 'yaml';
++import { buildMihomoConfig } from './旧版配置转换.mjs';
++import { requireValue } from '../本机存储/协议.mjs';
++
++export const PROXY_PROTOCOL = 'guan-network-proxy.v1';
++export const MAX_PROXY_SOURCE = 10 * 1024 * 1024;
++export const exact = (value, keys) => value && Object.getPrototypeOf(value) === Object.prototype &&
++  Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
++export function subscriptionURL(value) {
++  requireValue(typeof value === 'string' && value.length <= 4096 && !/[\s\\\0]/.test(value), 'proxy_subscription_invalid', '订阅须为公开HTTPS地址。');
++  let url; try { url = new URL(value); } catch { requireValue(false, 'proxy_subscription_invalid', '订阅地址格式无效。'); }
++  requireValue(url.protocol === 'https:' && !url.username && !url.password && !url.hash &&
++    /^[a-z0-9.-]+$/i.test(url.hostname) && url.hostname.includes('.') && !/^(?:\d+\.){3}\d+$/.test(url.hostname) &&
++    !/(?:^|\.)(?:localhost|local|internal|test|invalid)$/.test(url.hostname), 'proxy_subscription_invalid', '订阅须为公开HTTPS地址。');
++  return url.href;
++}
++export function validateSourceText(value) {
++  requireValue(typeof value === 'string' && value.isWellFormed() && value.trim() && Buffer.byteLength(value) <= MAX_PROXY_SOURCE,
++    'proxy_source_invalid', '代理配置为空、编码无效或超过10MiB。');
++  return value;
++}
++
++// 沿用旧版SS/Hysteria2、Base64订阅和内联Clash/Mihomo转换；不继承环境文件和其他应用配置。
++export function buildIsolatedProxyConfig(source, { port, controllerToken, proxyPassword }) {
++  validateSourceText(source);
++  requireValue(Number.isInteger(port) && port >= 1024 && port < 65535 && /^[a-f0-9]{64}$/.test(controllerToken) && /^[a-f0-9]{64}$/.test(proxyPassword),
++    'proxy_runtime_invalid', '代理运行参数无效。');
++  let value;
++  try {
++    const document = parseDocument(buildMihomoConfig(source, port), { uniqueKeys: true, strict: true, schema: 'core' });
++    requireValue(document.errors.length === 0 && document.warnings.length === 0, 'proxy_yaml_invalid', '代理配置格式无效。');
++    visit(document, { Alias() { throw new Error('proxy_alias_denied'); } });
++    value = document.toJS({ maxAliasCount: 0 });
++  } catch { requireValue(false, 'proxy_yaml_invalid', '代理配置格式无效；不接受别名或自定义标签。'); }
++  requireValue(value && Object.getPrototypeOf(value) === Object.prototype &&
++    !value['proxy-providers'] && !value['rule-providers'] && !value.script && !value.listeners,
++  'proxy_external_config_denied', '请上传包含内联节点的完整配置；外部提供器、脚本及自定义监听器暂不接入。');
++  requireValue(Array.isArray(value.proxies) && value.proxies.length > 0 && value.proxies.length <= 2048 &&
++    value.proxies.every(node => node && ['ss', 'hysteria2', 'vmess', 'vless', 'trojan', 'http', 'socks5', 'tuic', 'hysteria'].includes(node.type) &&
++      typeof node.name === 'string' && node.name.length > 0 && node.name.length <= 256 && !/[\r\n\0]/.test(node.name) &&
++      typeof node.server === 'string' && node.server.length <= 256 && Number.isInteger(node.port) && node.port > 0 && node.port <= 65535),
++  'proxy_nodes_invalid', '代理节点类型、数量或连接参数无效。');
++  requireValue(new Set(value.proxies.map(node => node.name)).size === value.proxies.length, 'proxy_nodes_invalid', '代理节点名称不能重复。');
++  const retained = {};
++  for (const key of ['proxies', 'proxy-groups', 'rules', 'mode', 'ipv6', 'tcp-concurrent', 'unified-delay']) if (Object.hasOwn(value, key)) retained[key] = value[key];
++  return stringify({ ...retained, 'mixed-port': port, port: 0, 'socks-port': 0, 'redir-port': 0, 'tproxy-port': 0,
++    'bind-address': '127.0.0.1', 'allow-lan': false, authentication: ['workbench:' + proxyPassword], 'skip-auth-prefixes': [],
++    'external-controller': '127.0.0.1:' + (port + 1), secret: controllerToken,
++    'external-controller-unix': '', 'external-controller-pipe': '', 'external-ui': '', 'external-ui-url': '',
++    tun: { enable: false }, dns: { enable: false }, sniffer: { enable: false }, 'log-level': 'silent',
++    profile: { 'store-selected': false, 'store-fake-ip': false },
++  });
++}
+--- /dev/null
++++ b/画布副本/扩展功能/网络代理/代理配置存储.mjs
+@@ -0,0 +1,56 @@
++import { createHash, randomUUID } from 'node:crypto';
++import { requireValue } from '../本机存储/协议.mjs';
++import { validCredentialRef } from '../本机凭据/凭据协议.mjs';
++import { exact, MAX_PROXY_SOURCE } from './配置边界.mjs';
++
++export const PROXY_STATE_ID = 'guan-network-proxy-state-v1';
++const format = 'guan-network-proxy-state.v1';
++const hash = value => createHash('sha256').update(value).digest('hex');
++const empty = () => ({ format, enabled: false, sourceKind: 'text', source: null, config: null, configName: '' });
++export function createProxyConfigurationStore({ workspace, vault, runTrustedWrite }) {
++  requireValue(workspace?.workspaceId && typeof vault?.store === 'function' && typeof vault.read === 'function' && typeof runTrustedWrite === 'function',
++    'proxy_store_invalid', '代理配置需要同一工作区的凭据保管与写入协调。');
++  async function seal(text) {
++    requireValue(typeof text === 'string' && text.isWellFormed() && text.length && Buffer.byteLength(text) <= MAX_PROXY_SOURCE, 'proxy_source_invalid', '代理配置大小无效。');
++    const refs = []; let part = '', size = 0;
++    for (const character of text) {
++      const bytes = Buffer.byteLength(character);
++      if (size + bytes > 1984) { refs.push(await runTrustedWrite(() => vault.store(part))); part = ''; size = 0; }
++      part += character; size += bytes;
++    }
++    if (part) refs.push(await runTrustedWrite(() => vault.store(part)));
++    return { refs, hash: hash(text) };
++  }
++  function validSeal(value) { return exact(value, ['refs', 'hash']) && Array.isArray(value.refs) && value.refs.length > 0 && value.refs.length <= 6000 && value.refs.every(validCredentialRef) && /^[a-f0-9]{64}$/.test(value.hash); }
++  function read() {
++    const doc = workspace.readDocument('extension', PROXY_STATE_ID);
++    if (!doc) return { revision: 0, value: empty() };
++    const v = doc.value;
++    requireValue(doc.workspaceId === workspace.workspaceId && doc.mediaIds.length === 0 &&
++      exact(v, ['format', 'enabled', 'sourceKind', 'source', 'config', 'configName']) && v.format === format &&
++      typeof v.enabled === 'boolean' && ['text', 'url'].includes(v.sourceKind) && typeof v.configName === 'string' && v.configName.length <= 200 &&
++      validSeal(v.source) && validSeal(v.config), 'proxy_state_corrupt', '代理配置记录损坏，未初始化或覆盖。', 409);
++    return { revision: doc.revision, value: structuredClone(v) };
++  }
++  async function unseal(value) {
++    requireValue(validSeal(value), 'proxy_state_corrupt', '代理配置密文索引无效。', 409);
++    const chunks = []; let size = 0;
++    for (const ref of value.refs) { const part = await vault.read(ref); size += Buffer.byteLength(part); requireValue(size <= MAX_PROXY_SOURCE, 'proxy_state_corrupt', '代理配置超限。', 409); chunks.push(part); }
++    const result = chunks.join(''); requireValue(hash(result) === value.hash, 'proxy_state_corrupt', '代理配置密文校验失败。', 409); return result;
++  }
++  return Object.freeze({ read, unseal,
++    async prepare({ sourceKind, source, config, configName }) {
++      requireValue(['text', 'url'].includes(sourceKind) && typeof configName === 'string' && configName.length <= 200 && !/[\r\n\0]/.test(configName), 'proxy_source_invalid', '代理配置来源无效。');
++      return { format, enabled: true, sourceKind, source: await seal(source), config: await seal(config), configName };
++    },
++    save(value, expectedRevision) {
++      return runTrustedWrite(() => {
++        const operationId = randomUUID(), ack = workspace.writeDocument({ collection: 'extension', id: PROXY_STATE_ID, value, expectedRevision, operationId });
++        requireValue(ack.persisted === true && ack.operationId === operationId && ack.workspaceId === workspace.workspaceId && ack.collection === 'extension' &&
++          ack.id === PROXY_STATE_ID && ack.revision === expectedRevision + 1 && ack.hash === hash(JSON.stringify(value)),
++        'proxy_save_unconfirmed', '代理配置保存未确认，未报告保存成功。', 503);
++        return { revision: ack.revision, value: structuredClone(value) };
++      });
++    },
++  });
++}
+--- /dev/null
++++ b/画布副本/扩展功能/网络代理/订阅读取.mjs
+@@ -0,0 +1,12 @@
++import { requestProviderBytes } from '../生成网关/受限上游传输.mjs';
++import { requireValue } from '../本机存储/协议.mjs';
++import { subscriptionURL, validateSourceText, MAX_PROXY_SOURCE } from './配置边界.mjs';
++
++// 订阅可能携带私密查询参数，只在本机传输；不跟随跳转，不放入日志或业务JSON。
++export async function readProxySubscription(value, { signal } = {}) {
++  const url = new URL(subscriptionURL(value));
++  const reply = await requestProviderBytes({ url, method: 'GET', headers: { accept: 'text/plain, application/yaml', 'accept-encoding': 'identity' }, bytes: Buffer.alloc(0), signal, timeout: 30_000 });
++  requireValue(reply.status === 200 && reply.bytes.length <= MAX_PROXY_SOURCE, 'proxy_subscription_failed', '订阅获取失败或超过10MiB。', 502);
++  let text; try { text = new TextDecoder('utf-8', { fatal: true }).decode(reply.bytes); } catch { requireValue(false, 'proxy_subscription_failed', '订阅编码无效。', 502); }
++  return validateSourceText(text);
++}
+--- /dev/null
++++ b/画布副本/扩展功能/网络代理/内置代理运行.mjs
+@@ -0,0 +1,91 @@
++import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
++import { createServer } from 'node:net';
++import { request } from 'node:http';
++import { lstat, readFile, realpath, mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises';
++import { isAbsolute, join } from 'node:path';
++import { spawnProxyProcess, stopProxyProcess } from './旧版进程管理.mjs';
++import { buildIsolatedProxyConfig } from './配置边界.mjs';
++import { StorageError, requireValue } from '../本机存储/协议.mjs';
++
++export async function assertProxyPortsAvailable(port) {
++  requireValue(Number.isInteger(port) && port >= 1024 && port < 65535, 'proxy_port_invalid', '代理端口无效。');
++  const listeners = [];
++  try { for (const value of [port, port + 1]) { const server = createServer(); listeners.push(server); await new Promise((done, fail) => { server.once('error', fail); server.listen(value, '127.0.0.1', done); }); } }
++  catch { throw new StorageError('proxy_port_occupied', '代理端口被占用，未连接或停止其他进程。', 409); }
++  finally { await Promise.all(listeners.filter(server => server.listening).map(server => new Promise(done => server.close(done)))); }
++}
++async function verifyCore(core) {
++  requireValue(core && isAbsolute(core.path) && /^[a-f0-9]{64}$/.test(core.sha256), 'proxy_core_missing', '尚未配置经过校验的内置代理核心。', 503);
++  const stat = await lstat(core.path);
++  requireValue(await realpath(core.path) === core.path && stat.isFile() && stat.nlink === 1 && !stat.isSymbolicLink() && stat.size <= 128 * 1024 * 1024 &&
++    (stat.mode & 0o111) && !(stat.mode & 0o6022), 'proxy_core_invalid', '代理核心文件权限或来源不符合要求。', 503);
++  const digest = createHash('sha256').update(await readFile(core.path)).digest('hex');
++  requireValue(timingSafeEqual(Buffer.from(digest), Buffer.from(core.sha256)), 'proxy_core_invalid', '代理核心指纹不匹配，未执行。', 503);
++}
++export function createMihomoRuntime({ core, runtimeParent, port = 23210, coreArguments = [], startupTimeout = 15_000 } = {}) {
++  requireValue(typeof runtimeParent === 'string' && isAbsolute(runtimeParent) && Array.isArray(coreArguments) && coreArguments.every(value => typeof value === 'string') &&
++    Number.isInteger(startupTimeout) && startupTimeout >= 100 && startupTimeout <= 120_000, 'proxy_runtime_invalid', '代理运行目录或启动参数无效。');
++  let active = null;
++  return Object.freeze({
++    async start(source) {
++      requireValue(!active, 'proxy_already_running', '代理已经运行。', 409);
++      await verifyCore(core); await assertProxyPortsAvailable(port);
++      await mkdir(runtimeParent, { recursive: true, mode: 0o700 });
++      requireValue(await realpath(runtimeParent) === runtimeParent && (await lstat(runtimeParent)).isDirectory(), 'proxy_runtime_invalid', '代理运行目录不能使用链接。');
++      const directory = await mkdtemp(join(runtimeParent, 'workbench-proxy-'));
++      const token = randomBytes(32).toString('hex'), password = randomBytes(32).toString('hex');
++      let child, stopping = null;
++      try {
++        const config = buildIsolatedProxyConfig(source, { port, controllerToken: token, proxyPassword: password });
++        const file = join(directory, 'config.yaml'); await writeFile(file, config, { mode: 0o600, flag: 'wx' });
++        child = spawnProxyProcess(core.path, [...coreArguments, '-d', directory, '-f', file], {
++          cwd: directory, stdio: ['ignore', 'ignore', 'ignore'],
++          // 不继承用户的代理、自动下载或私人路径环境设置。
++          env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8', TMPDIR: directory },
++        });
++        const api = (path, { method = 'GET', value } = {}) => new Promise((resolve, reject) => {
++          if (child.exitCode !== null || child.signalCode !== null) { reject(new StorageError('proxy_core_exited', '内置代理进程已退出。', 503)); return; }
++          const bytes = value === undefined ? undefined : Buffer.from(JSON.stringify(value));
++          const req = request({ hostname: '127.0.0.1', port: port + 1, path, method, agent: false,
++            headers: { Authorization: 'Bearer ' + token, ...(bytes ? { 'content-type': 'application/json', 'content-length': bytes.length } : {}) } }, res => {
++            const chunks = []; let size = 0;
++            res.on('data', chunk => { size += chunk.length; if (size > 1024 * 1024) res.destroy(); else chunks.push(chunk); });
++            res.once('error', () => reject(new StorageError('proxy_controller_failed', '代理控制请求未确认。', 503)));
++            res.once('end', () => {
++              try { requireValue(res.statusCode >= 200 && res.statusCode < 300, 'proxy_controller_failed', '代理控制请求失败。', 503); resolve(size ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}); }
++              catch { reject(new StorageError('proxy_controller_failed', '代理控制请求失败。', 503)); }
++            });
++          });
++          req.setTimeout(5000, () => req.destroy()); req.once('error', () => reject(new StorageError('proxy_controller_failed', '代理控制连接失败。', 503))); req.end(bytes);
++        });
++        const until = Date.now() + startupTimeout;
++        for (;;) {
++          try { const version = await api('/version'); requireValue(typeof version.version === 'string', 'proxy_core_invalid', '代理核心未就绪。'); break; }
++          catch { requireValue(child.exitCode === null && child.signalCode === null && Date.now() < until, 'proxy_start_failed', '代理启动未通过认证健康检查。', 503); await new Promise(done => setTimeout(done, 50)); }
++        }
++        const handle = Object.freeze({
++          running: () => child.exitCode === null && child.signalCode === null,
++          route: () => ({ proxyURL: 'http://127.0.0.1:' + port, username: 'workbench', password }),
++          async inspect() {
++            const data = await api('/proxies'), entries = Object.entries(data.proxies || {}).slice(0, 2048);
++            return entries.map(([name, v]) => ({ name: String(name).slice(0, 256), type: String(v.type || '').slice(0, 40),
++              selected: typeof v.now === 'string' ? v.now.slice(0, 256) : '', choices: Array.isArray(v.all) ? v.all.filter(item => typeof item === 'string').slice(0, 2048) : [] }));
++          },
++          async select(group, name) {
++            const nodes = await handle.inspect(), target = nodes.find(node => node.name === group);
++            requireValue(target?.type === 'Selector' && target.choices.includes(name), 'proxy_node_denied', '只允许选择当前配置中的可选节点。');
++            await api('/proxies/' + encodeURIComponent(group), { method: 'PUT', value: { name } }); return handle.inspect();
++          },
++          async diagnose() {
++            const nodes = await handle.inspect(), node = nodes.find(value => value.choices.length && !['GLOBAL', 'DIRECT', 'REJECT'].includes(value.name)) || nodes.find(value => !value.choices.length && !['DIRECT', 'REJECT'].includes(value.name));
++            requireValue(node, 'proxy_probe_failed', '没有可以诊断的节点。', 502);
++            const result = await api('/proxies/' + encodeURIComponent(node.name) + '/delay?url=https%3A%2F%2Fwww.gstatic.com%2Fgenerate_204&timeout=5000');
++            requireValue(Number.isFinite(result.delay) && result.delay >= 0, 'proxy_probe_failed', '代理节点连通诊断未通过。', 502); return { node: node.name, delay: result.delay };
++          },
++          stop() { if (!stopping) stopping = (async () => { await stopProxyProcess(child); await rm(directory, { recursive: true, force: true }); if (active === handle) active = null; })(); return stopping; },
++        });
++        active = handle; return handle;
++      } catch (error) { if (child) await stopProxyProcess(child); await rm(directory, { recursive: true, force: true }); throw error; }
++    },
++  });
++}
+--- /dev/null
++++ b/画布副本/扩展功能/网络代理/代理服务.mjs
+@@ -0,0 +1,79 @@
++import { StorageError, requireValue } from '../本机存储/协议.mjs';
++import { createProxyConfigurationStore } from './代理配置存储.mjs';
++import { buildIsolatedProxyConfig, subscriptionURL, validateSourceText } from './配置边界.mjs';
++import { readProxySubscription } from './订阅读取.mjs';
++
++// 只管理自己的实例。状态查询不发起网络探测；配置/启停串行，路由租约阻止中途换代理。
++export async function openNetworkProxyService({ workspace, vault, runTrustedWrite, runtime, readSubscription = readProxySubscription } = {}) {
++  requireValue(typeof runtime?.start === 'function' && typeof readSubscription === 'function', 'proxy_runtime_invalid', '代理服务需要可信进程内运行器。');
++  const store = createProxyConfigurationStore({ workspace, vault, runTrustedWrite });
++  let state = store.read(), handle = null, closed = false, pending = 0, leases = 0, tail = Promise.resolve(), lastError = null;
++  const status = () => ({ configured: !!state.value.config, enabled: state.value.enabled, running: !!handle?.running(),
++    configName: state.value.configName, source: state.value.config ? state.value.sourceKind === 'url' ? 'subscription' : 'uploaded' : null,
++    busy: pending > 0, activeRequests: leases, lastError });
++  const run = operation => {
++    requireValue(!closed, 'proxy_closed', '代理服务已关闭。', 503);
++    pending++;
++    const flight = tail.then(async () => {
++      requireValue(leases === 0, 'proxy_busy', '仍有请求使用代理，未中断或切换网络。', 409);
++      try { const result = await operation(); lastError = null; return result; }
++      catch (error) { lastError = lastError === 'proxy_restore_failed' ? lastError : error instanceof StorageError ? error.code : 'proxy_operation_failed'; throw new StorageError(lastError, '代理操作未确认，已重新检查实际保存状态；请检查配置、核心及端口，不要反复提交。', error instanceof StorageError ? error.status : 503); }
++    }).finally(() => { pending--; });
++    tail = flight.then(() => {}, () => {}); return flight;
++  };
++  async function stop() { if (handle) { await handle.stop(); handle = null; } }
++  async function transition(next) {
++    const before = state;
++    lastError = null;
++    await stop();
++    try {
++      if (next.enabled) handle = await runtime.start(await store.unseal(next.config));
++      state = await store.save(next, before.revision); return status();
++    } catch (error) {
++      await stop();
++      // 丢ACK可能已经提交。只按重新读到的真实落盘状态恢复，不伪称旧配置已回滚。
++      state = store.read();
++      if (state.value.enabled && state.value.config) { try { handle = await runtime.start(await store.unseal(state.value.config)); } catch { lastError = 'proxy_restore_failed'; } }
++      throw error;
++    }
++  }
++  async function configure({ configText, subscriptionUrl, fileName = '' }) {
++    requireValue(typeof configText === 'string' && typeof subscriptionUrl === 'string' && !!configText.trim() !== !!subscriptionUrl.trim(), 'proxy_source_invalid', '请选择配置文件或订阅地址其中一种。');
++    const sourceKind = configText.trim() ? 'text' : 'url', source = sourceKind === 'text' ? validateSourceText(configText) : subscriptionURL(subscriptionUrl.trim());
++    const config = sourceKind === 'text' ? source : validateSourceText(await readSubscription(source));
++    // 先验证再停旧进程。运行器会再次生成随机认证材料；这里只验证同一配置能安全装配。
++    buildIsolatedProxyConfig(config, { port: 23210, controllerToken: '1'.repeat(64), proxyPassword: '2'.repeat(64) });
++    const configName = sourceKind === 'url' ? '远端订阅配置' : fileName || '上传的代理配置.yaml';
++    requireValue(!/https?:|[\r\n\0]/i.test(configName), 'proxy_source_invalid', '配置名称不能包含网址或控制字符。');
++    const next = await store.prepare({ sourceKind, source, config, configName }); return transition(next);
++  }
++  if (state.value.enabled) {
++    try { handle = await runtime.start(await store.unseal(state.value.config)); }
++    catch { lastError = 'proxy_restore_failed'; } // 无代理不阻止打开画布，但后续代理请求必须失败，不能偷偷直连。
++  }
++  return Object.freeze({ status,
++    configure: value => run(() => configure(value)),
++    toggle: enabled => run(async () => {
++      requireValue(typeof enabled === 'boolean' && state.value.config, 'proxy_not_configured', '请先保存代理配置。');
++      return transition({ ...state.value, enabled });
++    }),
++    refresh: () => run(async () => {
++      requireValue(state.value.sourceKind === 'url' && state.value.source, 'proxy_not_subscription', '当前不是订阅配置。');
++      return configure({ configText: '', subscriptionUrl: await store.unseal(state.value.source) });
++    }),
++    async nodes() { requireValue(!closed && !pending && handle?.running(), 'proxy_not_running', '网络代理未运行。', 409); return handle.inspect(); },
++    select: (group, name) => run(async () => { requireValue(handle?.running(), 'proxy_not_running', '网络代理未运行。', 409); return handle.select(group, name); }),
++    async diagnose() {
++      const lease = this.acquireRoute();
++      try { return await handle.diagnose(); } finally { lease.release(); }
++    },
++    // 仅可信生成网关可获取认证材料；HTTP/浏览器不暴露此接口，后继批次才连接生成网关。
++    acquireRoute() {
++      requireValue(!closed && !pending && handle?.running(), 'proxy_not_running', '网络代理不可用，未改为直连。', 409);
++      leases++; let released = false;
++      return Object.freeze({ ...handle.route(), release() { if (!released) { released = true; leases--; } } });
++    },
++    assertCanClose() { requireValue(pending === 0 && leases === 0, 'proxy_busy', '仍有代理配置或请求未结束，不能关闭。', 409); },
++    async close() { this.assertCanClose(); closed = true; await stop(); },
++  });
++}
+--- /dev/null
++++ b/画布副本/扩展功能/网络代理/代理HTTP入口.mjs
+@@ -0,0 +1,39 @@
++import { StorageError, requireValue } from '../本机存储/协议.mjs';
++import { PROXY_PROTOCOL, MAX_PROXY_SOURCE, exact } from './配置边界.mjs';
++
++export function createNetworkProxyHTTPHandler({ origin, authorize, proxy, now = Date.now } = {}) {
++  requireValue(/^http:\/\/(?:localhost|127\.0\.0\.1):\d+$/.test(origin) && typeof authorize === 'function' && typeof proxy?.status === 'function', 'proxy_http_invalid', '代理入口必须使用当前工作台授权。');
++  let active = 0, count = 0, windowStart = now();
++  return async function handle(request, response) {
++    if (request.url !== '/__guan-local/network-proxy') return false;
++    response.setHeader('Cache-Control', 'no-store'); response.setHeader('X-Content-Type-Options', 'nosniff'); response.setHeader('Referrer-Policy', 'no-referrer');
++    const json = (status, value) => { if (!response.destroyed && !response.writableEnded) { response.writeHead(status, { 'Content-Type': 'application/json' }); response.end(JSON.stringify({ protocol: PROXY_PROTOCOL, ...value })); } };
++    let counted = false;
++    try {
++      requireValue(request.headers.host === new URL(origin).host && request.headers.origin === origin && (!request.headers['sec-fetch-site'] || request.headers['sec-fetch-site'] === 'same-origin') &&
++        request.method === 'POST' && request.headers['content-type'] === 'application/json' && request.headers['x-guan-proxy-protocol'] === PROXY_PROTOCOL,
++      'proxy_origin_denied', '代理请求必须来自当前授权工作台。', 403);
++      await authorize(request);
++      const time = now(); if (time - windowStart >= 60_000) { count = 0; windowStart = time; }
++      requireValue(++count <= 60 && active < 2, 'proxy_http_busy', '代理入口繁忙。', 429); active++; counted = true;
++      const limit = MAX_PROXY_SOURCE * 6 + 16384, length = request.headers['content-length'];
++      requireValue(!length || /^\d+$/.test(length) && Number(length) <= limit, 'proxy_body_large', '代理请求过大。', 413);
++      const chunks = []; let size = 0;
++      for await (const chunk of request) { size += chunk.length; requireValue(size <= limit, 'proxy_body_large', '代理请求过大。', 413); chunks.push(chunk); }
++      let value; try { value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))); } catch { throw new StorageError('proxy_json_invalid', '代理请求格式无效。'); }
++      await authorize(request);
++      let result;
++      if (exact(value, ['operation']) && value.operation === 'status') result = proxy.status();
++      else if (exact(value, ['operation', 'configText', 'subscriptionUrl', 'fileName']) && value.operation === 'configure') result = await proxy.configure(value);
++      else if (exact(value, ['operation', 'enabled']) && value.operation === 'toggle') result = await proxy.toggle(value.enabled);
++      else if (exact(value, ['operation']) && value.operation === 'refresh') result = await proxy.refresh();
++      else if (exact(value, ['operation']) && value.operation === 'nodes') result = await proxy.nodes();
++      else if (exact(value, ['operation']) && value.operation === 'diagnose') result = await proxy.diagnose();
++      else if (exact(value, ['operation', 'group', 'name']) && value.operation === 'select' && typeof value.group === 'string' && typeof value.name === 'string' && value.group.length <= 256 && value.name.length <= 256) result = await proxy.select(value.group, value.name);
++      else requireValue(false, 'proxy_command_denied', '代理操作不受支持。');
++      await authorize(request); json(200, { result });
++    } catch (error) { json(error instanceof StorageError ? error.status : 503, { error: { code: error instanceof StorageError ? error.code : 'proxy_unavailable', message: '代理操作未确认，配置保留；请检查状态，不要反复提交。' } }); request.resume(); }
++    finally { if (counted) active--; }
++    return true;
++  };
++}
+--- /dev/null
++++ b/画布副本/扩展功能/网络代理/代理服务装配.mjs
+@@ -0,0 +1,9 @@
++import { createMihomoRuntime } from './内置代理运行.mjs';
++import { openNetworkProxyService } from './代理服务.mjs';
++import { createNetworkProxyHTTPHandler } from './代理HTTP入口.mjs';
++
++export async function assembleNetworkProxyService({ workspace, vault, runTrustedWrite, authorize, origin, runtimeOptions } = {}) {
++  const runtime = createMihomoRuntime(runtimeOptions), proxy = await openNetworkProxyService({ workspace, vault, runTrustedWrite, runtime });
++  return Object.freeze({ handle: createNetworkProxyHTTPHandler({ origin, authorize, proxy }), getStatus: proxy.status,
++    assertCanClose: () => proxy.assertCanClose(), close: () => proxy.close(), acquireRoute: () => proxy.acquireRoute() });
++}
+--- /dev/null
++++ b/画布副本/web/src/guan/network-proxy/代理客户端.mjs
+@@ -0,0 +1,12 @@
++export const PROXY_PROTOCOL = 'guan-network-proxy.v1';
++// 认证与端口由既有页面授权传入；不读写localStorage/IndexedDB，不向浏览器提供代理密码或订阅读回。
++export function createNetworkProxyClient({ command }) {
++  const call = async value => {
++    const reply = await command(value);
++    if (reply?.protocol !== PROXY_PROTOCOL || reply.error) throw new Error('网络代理操作未确认，请检查状态。');
++    return reply.result;
++  };
++  return Object.freeze({ status: () => call({ operation: 'status' }), configure: value => call({ operation: 'configure', ...value }),
++    toggle: enabled => call({ operation: 'toggle', enabled }), refresh: () => call({ operation: 'refresh' }),
++    nodes: () => call({ operation: 'nodes' }), diagnose: () => call({ operation: 'diagnose' }), select: (group, name) => call({ operation: 'select', group, name }) });
++}
+--- /dev/null
++++ b/画布副本/web/src/guan/network-proxy/原版网络代理面板.tsx
+@@ -0,0 +1,74 @@
++import { useCallback, useEffect, useRef, useState } from "react";
++import "./原版网络代理.css";
++
++type Status = { configured: boolean; enabled: boolean; running: boolean; configName: string; source: string | null; busy: boolean; activeRequests: number; lastError: string | null };
++type ProxyHost = { status(): Promise<Status>; configure(value: { configText: string; subscriptionUrl: string; fileName: string }): Promise<Status>; toggle(enabled: boolean): Promise<Status>; diagnose(): Promise<{ node: string; delay: number }> };
++function host() { return (window as unknown as { __guanNetworkProxyHost?: ProxyHost }).__guanNetworkProxyHost; }
++
++// 迁入旧版makeNetworkPanel的真实结构、文案、尺寸与样式；只替换事件/状态出口，不注入DOM。
++export function OriginalNetworkProxyPanel() {
++    const [status, setStatus] = useState<Status | null>(null);
++    const [input, setInput] = useState("");
++    const [fileText, setFileText] = useState("");
++    const [fileName, setFileName] = useState("");
++    const [busy, setBusy] = useState(false);
++    const [frozen, setFrozen] = useState(false);
++    const [notice, setNotice] = useState("");
++    const [error, setError] = useState("");
++    const fileRef = useRef<HTMLInputElement>(null);
++    const mounted = useRef(false), flight = useRef(false), polling = useRef(false), revision = useRef(0), fileRevision = useRef(0), unlocked = useRef(false);
++    const invalidateRequests = useCallback(() => { revision.current++; fileRevision.current++; }, []);
++    const refresh = useCallback(async () => {
++        const port = host(); if (!port || flight.current || polling.current) return;
++        const snapshot = revision.current; polling.current = true;
++        try { const next = await port.status(); if (mounted.current && revision.current === snapshot) { setStatus(next); if (!unlocked.current) setFrozen(next.running); } }
++        catch { if (mounted.current && revision.current === snapshot) setError("网络代理：状态获取失败"); }
++        finally { polling.current = false; }
++    }, []);
++    useEffect(() => {
++        mounted.current = true; void refresh();
++        const timer = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 10000);
++        return () => { mounted.current = false; invalidateRequests(); window.clearInterval(timer); };
++    }, [refresh, invalidateRequests]);
++    useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(""), 10000); return () => window.clearTimeout(timer); }, [notice]);
++    const act = async (operation: (port: ProxyHost) => Promise<Status>, success: string, clearInput = false) => {
++        const port = host(); if (!port || flight.current) return;
++        flight.current = true; revision.current++; fileRevision.current++; setBusy(true); setError(""); setNotice("切换中…");
++        try {
++            const next = await operation(port);
++            if (mounted.current) { setStatus(next); unlocked.current = !next.running; setFrozen(next.running); setNotice(success); if (clearInput) { setFileText(""); setFileName(""); setInput(""); } }
++        } catch { if (mounted.current) { setNotice(""); setError("代理操作未完成，配置保留。请检查状态、代理核心及端口。"); } }
++        finally { flight.current = false; if (mounted.current) { setBusy(false); void refresh(); } }
++    };
++    const unavailable = !host();
++    const state = busy ? "pending" : status?.running ? "active" : status?.lastError ? "error" : "inactive";
++    return <div className="guan-network-proxy"><div className="local-canvas-settings-tabpanel">
++        <section className="local-canvas-settings-card">
++            <div className="local-canvas-settings-header"><h4>设置网络代理</h4>
++                <label className="local-canvas-settings-toggle"><input data-canvas-proxy-toggle type="checkbox" checked={status?.running === true} disabled={busy || unavailable || !status?.configured} onChange={event => { const enabled = event.currentTarget.checked; void act(port => port.toggle(enabled), enabled ? "代理启动成功" : "代理已停止"); }} />启用网络代理</label>
++            </div>
++            <div className="local-canvas-proxy-state" data-status={state} role="status" aria-live="polite">{busy ? "网络代理：切换中…" : status?.running ? "网络代理：已启动" : unavailable ? "网络代理：本机端口尚未接入" : "网络代理：未启动"}</div>
++            <div className="local-canvas-settings-field"><label htmlFor="guan-network-proxy-input">代理配置文件或远端订阅地址</label>
++                <div className="local-canvas-settings-input-row"><input id="guan-network-proxy-input" className="local-canvas-settings-input" data-canvas-proxy-input type="text" placeholder="https://example.com/your-subscription" autoComplete="off" spellCheck={false} disabled={busy || frozen || unavailable} value={fileName || input} onChange={event => { setInput(event.currentTarget.value); setFileText(""); setFileName(""); fileRevision.current++; }} />
++                    <button type="button" className="local-canvas-settings-file" data-canvas-proxy-file disabled={busy || frozen || unavailable} onClick={() => fileRef.current?.click()}>选择文件</button>
++                    <input ref={fileRef} data-canvas-proxy-file-input type="file" accept=".yaml,.yml,.txt,text/plain,application/yaml" hidden onChange={async event => {
++                        const file = event.currentTarget.files?.[0]; event.currentTarget.value = ""; const snapshot = ++fileRevision.current;
++                        if (!file) return;
++                        if (file.size > 10 * 1024 * 1024) { setError("代理配置超过10MiB。"); return; }
++                        try { const text = await file.text(); if (mounted.current && snapshot === fileRevision.current && !flight.current) { setFileText(text); setFileName(file.name); setInput(""); setError(""); } }
++                        catch { if (mounted.current && snapshot === fileRevision.current) setError("配置文件读取失败。"); }
++                    }} />
++                </div>
++            </div>
++            <div className="local-canvas-settings-actions"><span className="local-canvas-settings-status" role="status">{notice}</span>
++                <button type="button" data-canvas-proxy-unfreeze hidden={!frozen} disabled={busy} onClick={() => { unlocked.current = true; setFrozen(false); }}>取消冻结</button>
++                <button type="button" className="primary" data-canvas-proxy-save disabled={busy || frozen || unavailable} onClick={() => {
++                    const configText = fileText, subscriptionUrl = fileText ? "" : input.trim(), name = fileName;
++                    if (!configText && !subscriptionUrl) { setError("请先上传配置文件或填写订阅地址"); return; }
++                    void act(port => port.configure({ configText, subscriptionUrl, fileName: name }), "代理启动成功", true);
++                }}>保存并启动代理</button>
++            </div>
++            <div className="local-canvas-settings-note" data-canvas-proxy-error role="alert">{error || (status?.lastError ? status.running ? "上次操作未确认，当前配置已重新读取，请确认状态后再操作。" : "代理未恢复，请检查配置、核心及端口。" : "")}</div>
++        </section>
++    </div></div>;
++}
+--- /dev/null
++++ b/画布副本/web/src/guan/network-proxy/原版网络代理.css
+@@ -0,0 +1,38 @@
++.guan-network-proxy .local-canvas-settings-tabpanel{padding:2px 0 12px;min-height:260px}
++.guan-network-proxy .local-canvas-proxy-section{margin-top:16px}
++.guan-network-proxy .local-canvas-settings-card{border:1px solid #e7e5e4;border-radius:8px;padding:12px;background:transparent}
++.guan-network-proxy .local-canvas-settings-card h4{margin:0;color:#17181a;font-size:14px;font-weight:650}
++.guan-network-proxy .local-canvas-settings-card p{margin:4px 0 0;color:#78716c;font-size:12px;line-height:1rem}
++.guan-network-proxy .local-canvas-settings-field{display:grid;gap:7px;margin-top:16px}
++.guan-network-proxy .local-canvas-settings-field label{font-size:12px;color:#454950;font-weight:600}
++.guan-network-proxy .local-canvas-settings-input-row{display:flex;gap:8px;align-items:center;border:1px solid #d9dce2;border-radius:9px;padding:4px 5px 4px 10px}
++.guan-network-proxy .local-canvas-settings-input-row:focus-within{border-color:#3478f6;box-shadow:0 0 0 3px rgba(52,120,246,.14)}
++.guan-network-proxy .local-canvas-settings-input{min-width:0;flex:1;border:0;outline:0;padding:7px 0;font:inherit;background:transparent;color:inherit}
++.guan-network-proxy .local-canvas-settings-file{border:1px solid #d9dce2;border-radius:7px;padding:6px 9px;background:#f7f8fa;color:#34363b;font-size:12px;cursor:pointer}
++.guan-network-proxy .local-canvas-settings-actions{display:flex;align-items:center;gap:8px;margin-top:16px}
++.guan-network-proxy .local-canvas-settings-actions button{border:1px solid #d9dce2;border-radius:8px;padding:7px 11px;background:#fff;color:#24262a;font-size:12px;cursor:pointer}
++.guan-network-proxy .local-canvas-settings-actions [data-canvas-proxy-unfreeze]{min-width:72px;color:#24262a;background:#fff}
++.guan-network-proxy .local-canvas-settings-actions button.primary{border-color:#111;background:#111;color:#fff}
++.guan-network-proxy .local-canvas-settings-actions button:disabled{opacity:.55;cursor:not-allowed}
++.guan-network-proxy .local-canvas-settings-status{margin-right:auto;font-size:12px;color:#22925a}.guan-network-proxy .local-canvas-settings-status[data-status='pending']{color:#b7791f}.guan-network-proxy .local-canvas-settings-status[data-status='inactive'],.guan-network-proxy .local-canvas-settings-status[data-status='error'],.guan-network-proxy .local-canvas-settings-status.error{color:#d92d20}
++.guan-network-proxy .local-canvas-settings-header{display:flex;align-items:center;justify-content:space-between;gap:12px}
++.guan-network-proxy .local-canvas-settings-toggle{display:inline-flex;align-items:center;gap:8px;color:#454950;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
++.guan-network-proxy .local-canvas-settings-toggle input{appearance:none;-webkit-appearance:none;position:relative;width:44px;height:24px;flex:0 0 44px;margin:0;border:1px solid #cfd3da;border-radius:999px;background:#d9dce2;cursor:pointer;transition:background .18s,border-color .18s,box-shadow .18s}
++.guan-network-proxy .local-canvas-settings-toggle input::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .18s}
++.guan-network-proxy .local-canvas-settings-toggle input:checked{border-color:#1f2024;background:#1f2024}
++.guan-network-proxy .local-canvas-settings-toggle input:checked::after{transform:translateX(20px)}
++.guan-network-proxy .local-canvas-settings-toggle input:focus-visible{outline:2px solid #3478f6;outline-offset:2px}
++.guan-network-proxy .local-canvas-settings-toggle input:disabled{cursor:not-allowed;opacity:.55}
++.guan-network-proxy .local-canvas-proxy-state{margin-top:8px;font-size:12px;color:#22925a}.guan-network-proxy .local-canvas-proxy-state[data-status='pending']{color:#b7791f}.guan-network-proxy .local-canvas-proxy-state[data-status='inactive'],.guan-network-proxy .local-canvas-proxy-state[data-status='error'],.guan-network-proxy .local-canvas-proxy-state.error{color:#d92d20}
++.guan-network-proxy .local-canvas-settings-note{margin-top:12px;font-size:12px;line-height:1rem;color:#78716c}
++html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-card,html.dark .guan-network-proxy .local-canvas-settings-card{border-color:#292524;background:transparent;color:#f4f4f5}
++html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-card h4,html.dark .guan-network-proxy .local-canvas-settings-card h4{color:#f4f4f5}
++html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-card p,html.dark .guan-network-proxy .local-canvas-settings-card p,html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-note,html.dark .guan-network-proxy .local-canvas-settings-note{color:#78716c}
++html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-field label,html.dark .guan-network-proxy .local-canvas-settings-field label{color:#d8dce3}
++html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-input-row,html.dark .guan-network-proxy .local-canvas-settings-input-row,html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-file,html.dark .guan-network-proxy .local-canvas-settings-file,html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-actions button,html.dark .guan-network-proxy .local-canvas-settings-actions button{border-color:rgba(255,255,255,.14);background:transparent;color:#f4f4f5}
++html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-actions button.primary,html.dark .guan-network-proxy .local-canvas-settings-actions button.primary{border-color:#f4f4f5;background:#f4f4f5;color:#1e2024}
++html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-actions [data-canvas-proxy-unfreeze],html.dark .guan-network-proxy .local-canvas-settings-actions [data-canvas-proxy-unfreeze]{border-color:rgba(255,255,255,.14);background:transparent;color:#f4f4f5}
++html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-toggle,html.dark .guan-network-proxy .local-canvas-settings-toggle{color:#d8dce3}
++html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-toggle input,html.dark .guan-network-proxy .local-canvas-settings-toggle input{border-color:rgba(255,255,255,.22);background:#4b4f57}
++html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-toggle input:checked,html.dark .guan-network-proxy .local-canvas-settings-toggle input:checked{border-color:#f4f4f5;background:#f4f4f5}
++html[data-theme="dark"] .guan-network-proxy .local-canvas-settings-toggle input:checked::after,html.dark .guan-network-proxy .local-canvas-settings-toggle input:checked::after{background:#1e2024}
+--- a/服务包/扩展功能/本机服务/数据服务.mjs
++++ b/服务包/扩展功能/本机服务/数据服务.mjs
+@@ -84,7 +84,7 @@
+           requireValue(result, 'document_not_found', '文档不存在。', 404); json(200, result); return;
+         }
+         requireValue(request.method === 'PUT' && second, 'method_denied', '文档只支持读取和指定版本保存。', 405);
+-        requireValue(!(first === 'extension' && /^(?:provider:|guan-generation-ledger-v1$)/.test(second)), 'reserved_generation_document', '生成绑定与任务账本只能由可信本机服务写入。', 403);
++        requireValue(!(first === 'extension' && /^(?:provider:|guan-generation-ledger-v1$|guan-network-proxy-state-v1$)/.test(second)), 'reserved_generation_document', '生成绑定与任务账本只能由可信本机服务写入。', 403);
+         requireValue(request.headers['content-type'] === 'application/json', 'content_type_denied', '必须提交JSON。', 415);
+         const bytes = await readBody(request, MAX_JSON_BODY);
+         let body; try { body = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); } catch { throw new StorageError('invalid_json', 'JSON格式无效。'); }
+--- a/画布副本/扩展功能/本机服务/受限工作台启动器.mjs
++++ b/画布副本/扩展功能/本机服务/受限工作台启动器.mjs
+@@ -1,4 +1,6 @@
+ import { createServer } from 'node:http';
++import { tmpdir } from 'node:os';
++import { assembleNetworkProxyService } from '../网络代理/代理服务装配.mjs';
+ import { assembleGenerationService } from '../生成网关/生成服务装配.mjs';
+ import { createHash } from 'node:crypto';
+ import { lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
+@@ -41,7 +43,7 @@
+ 
+ // 默认仍为动态隔离入口；固定localhost:3100只能由另行批准的日常装配调用，不安装常驻服务。
+ // storage由可信启动工具装配同一个已批准的四文件包，避免跨模块StorageError身份漂移。
+-export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, initialize = false, storage, credentialKeyProvider, endpoint = { hostname: '127.0.0.1', port: 0 } } = {}) {
++export async function startIsolatedAuthorizedWorkbench({ webRoot, dataRoot, initialize = false, storage, credentialKeyProvider, endpoint = { hostname: '127.0.0.1', port: 0 }, networkProxyOptions = {} } = {}) {
+   requireValue(typeof webRoot === 'string' && typeof dataRoot === 'string' && isAbsolute(dataRoot) && typeof initialize === 'boolean' &&
+     typeof storage?.openWorkspace === 'function' && typeof storage?.startDataService === 'function' && typeof credentialKeyProvider?.read === 'function' && typeof credentialKeyProvider?.create === 'function', 'invalid_launcher_config', '必须明确传入静态产物、独立数据根及完整存储装配。');
+   requireValue(endpoint && typeof endpoint === 'object' && !Array.isArray(endpoint) &&
+@@ -52,12 +54,13 @@
+   // 复制值，避免等待期间调用方修改endpoint导致Host/Origin错配；监听始终仅127.0.0.1。
+   const { hostname, port } = endpoint;
+   const { files, scriptHashes } = readStaticBundle(webRoot);
+-  let ready = false, gateway, controller, service, workspace, backup, credentialPort, generation, closing = null;
++  let ready = false, gateway, controller, service, workspace, backup, credentialPort, generation, networkProxy, closing = null;
+   const server = createServer(async (req, res) => {
+     res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'no-referrer');
+     res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+     res.setHeader('Content-Security-Policy', `default-src 'none'; script-src 'self' ${scriptHashes}; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: ${service?.url ?? ''}; worker-src 'self' blob:; frame-ancestors 'none'; form-action 'self'; base-uri 'none'`);
+     if (!ready) { res.writeHead(503); res.end('本机工作区尚未就绪。'); req.resume(); return; }
++    if (await networkProxy.handle(req, res)) return;
+     if (await generation.handle(req, res)) return;
+     if (await gateway.handle(req, res)) return;
+     const expected = `${hostname}:${server.address().port}`;
+@@ -90,9 +93,10 @@
+   const closeHTTP = () => new Promise((done, fail) => server.close(error => error ? fail(error) : done()));
+   async function cleanup() {
+     generation?.assertCanClose();
++    networkProxy?.assertCanClose();
+     ready = false;
+     const errors = [];
+-    for (const action of [() => generation?.close(), () => backup?.stop(), () => gateway?.close(), () => controller?.close(),
++    for (const action of [() => networkProxy?.close(), () => generation?.close(), () => backup?.stop(), () => gateway?.close(), () => controller?.close(),
+       () => server.listening ? closeHTTP() : undefined, () => service?.close(), () => credentialPort?.close(), () => workspace?.close()]) {
+       try { await action(); } catch (error) { errors.push(error); }
+     }
+@@ -112,12 +116,15 @@
+     gateway = createLocalAuthorizationGateway({ origin, dataURL: service.url, controller, credentialPort });
+     requireValue(typeof service.runTrustedWrite === 'function', 'generation_write_coordination_required', '生成任务需要同一写入协调。');
+     generation = await assembleGenerationService({ workspace, vault: credentialPort, origin, runTrustedWrite: operation => service.runTrustedWrite(operation), authorize: request => gateway.assertGenerationPage(request) });
++    networkProxy = await assembleNetworkProxyService({ workspace, vault: credentialPort, origin, runTrustedWrite: operation => service.runTrustedWrite(operation), authorize: request => gateway.assertGenerationPage(request),
++      runtimeOptions: { runtimeParent: join(realpathSync(tmpdir()), 'ai-workbench-proxy-' + workspace.workspaceId), ...networkProxyOptions } });
+     ready = true;
+     return Object.freeze({ origin, workspaceId: workspace.workspaceId,
+       issueTicket() { requireValue(ready, 'launcher_stopping', '入口正在停止。', 503); return gateway.issueTicket(); },
+-      getStatus() { return { ready, authorization: gateway.getStatus(), backup: backup.getStatus(), generation: generation.getStatus() }; },
++      getStatus() { return { ready, authorization: gateway.getStatus(), backup: backup.getStatus(), generation: generation.getStatus(), networkProxy: networkProxy.getStatus() }; },
+       async close() {
+         // 此函数不证明页面已保存。可信调用者必须先完成维护确认；本实现只用于新建隔离工作区。
++        networkProxy?.assertCanClose();
+         generation?.assertCanClose(); // 忙时不缓存拒绝的closing，任务结束后仍可正常关闭。
+         if (!closing) closing = cleanup();
+         return closing;
+--- a/画布副本/web/src/guan/sqlite/本机授权客户端.mjs
++++ b/画布副本/web/src/guan/sqlite/本机授权客户端.mjs
+@@ -1,6 +1,7 @@
+ import { StorageError, requireValue } from './协议.mjs';
+ import { createCredentialClient } from './凭据客户端.mjs';
+ import { createGenerationClient } from '../generation/生成任务客户端.mjs';
++import { createNetworkProxyClient } from '../network-proxy/代理客户端.mjs';
+ 
+ const protocol = 'guan-local-authorization.v1';
+ function localOrigin(value, data = false) {
+@@ -15,11 +16,11 @@
+     let response, result;
+     try {
+       response = await fetchImpl(origin + '/__guan-local/' + path, { method: 'POST', credentials: 'omit', redirect: 'error', cache: 'no-store', referrerPolicy: 'no-referrer',
+-        headers: { 'Content-Type': 'application/json', 'X-Guan-Local-Protocol': protocol, ...(path === 'generation' ? { 'X-Guan-Generation-Protocol': 'guan-generation.v1' } : {}), ...(capability ? { Authorization: 'Bearer ' + capability } : {}) },
+-        body: JSON.stringify(value), signal: AbortSignal.timeout(5000) });
++        headers: { 'Content-Type': 'application/json', 'X-Guan-Local-Protocol': protocol, ...(path === 'network-proxy' ? { 'X-Guan-Proxy-Protocol': 'guan-network-proxy.v1' } : {}), ...(path === 'generation' ? { 'X-Guan-Generation-Protocol': 'guan-generation.v1' } : {}), ...(capability ? { Authorization: 'Bearer ' + capability } : {}) },
++        body: JSON.stringify(value), signal: AbortSignal.timeout(path === 'network-proxy' ? 180_000 : 5000) });
+       result = await response.json();
+     } catch { throw new StorageError('authorization_connection_failed', '本机授权响应未确认；不会重发一次性授权码，请从可信入口重新授权。', 503); }
+-    requireValue(response.ok && (path === 'credentials' ? result?.format === 'guan-credentials.v1' : path === 'generation' ? result?.protocol === 'guan-generation.v1' : result?.protocol === protocol) && !result.error,
++    requireValue(response.ok && (path === 'credentials' ? result?.format === 'guan-credentials.v1' : path === 'network-proxy' ? result?.protocol === 'guan-network-proxy.v1' : path === 'generation' ? result?.protocol === 'guan-generation.v1' : result?.protocol === protocol) && !result.error,
+       /^[a-z_]{3,64}$/.test(result?.error?.code ?? '') ? result.error.code : 'authorization_denied', '本机授权已拒绝或结束，请从可信入口重新授权。', response.status || 503);
+     return result;
+   }
+@@ -40,6 +41,10 @@
+   }
+   return Object.freeze({
+     url: exchange.dataURL,
++    networkProxyPort: createNetworkProxyClient({ command(value) {
++      requireValue(!closed && now() < exchange.expiresAt, 'authorization_expired', '页面授权已结束。', 401);
++      return post('network-proxy', value, capability);
++    } }),
+     generationPort: createGenerationClient({ command(value) {
+       requireValue(!closed && now() < exchange.expiresAt, 'authorization_expired', '页面授权已结束。', 401);
+       return post('generation', value, capability);
+--- a/画布副本/web/src/guan/sqlite/工作台自动入口.mjs
++++ b/画布副本/web/src/guan/sqlite/工作台自动入口.mjs
+@@ -34,6 +34,8 @@
+       if (Object.getOwnPropertyDescriptor(view, '__guanSQLiteHost')) throw Error('本页面已安装存储入口。');
+       // 恢复只替换client内的会话；app、React根、页内队列及编辑缓存保持同一个实例。
+       if (Object.getOwnPropertyDescriptor(view, '__guanGenerationHost')) throw Error('本页面已安装生成端口。');
++      if (Object.getOwnPropertyDescriptor(view, '__guanNetworkProxyHost')) throw Error('本页面已安装网络代理端口。');
++      Object.defineProperty(view, '__guanNetworkProxyHost', { value: authorization.networkProxyPort, configurable: false, writable: false });
+       Object.defineProperty(view, '__guanGenerationHost', { value: authorization.generationPort, configurable: false, writable: false });
+       Object.defineProperty(view, '__guanSQLiteHost', { value: Object.freeze({ initialize: async () => app, reconnect: () => client.reconnect() }), configurable: false, writable: false });
+       started = true; root.replaceChildren();
+--- a/画布副本/web/src/components/layout/config-local-proxy.tsx
++++ b/画布副本/web/src/components/layout/config-local-proxy.tsx
+@@ -1,3 +1,4 @@
++import { OriginalNetworkProxyPanel } from "@/guan/network-proxy/原版网络代理面板";
+ import { App, Button, Form, Input, Switch } from "antd";
+ import { Copy, Network, Wifi } from "lucide-react";
+ import { useState } from "react";
+@@ -28,6 +29,8 @@
+     };
+ 
+     return (
++        <>
++        <OriginalNetworkProxyPanel />
+         <Form layout="vertical" requiredMark={false}>
+             <section className="rounded-lg border border-stone-200 p-3 dark:border-stone-800">
+                 <div className="flex flex-wrap items-start justify-between gap-3">
+@@ -65,6 +68,7 @@
+                 ) : null}
+             </section>
+         </Form>
++        </>
+     );
+ }
+ 

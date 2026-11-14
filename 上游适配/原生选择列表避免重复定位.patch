@@ -1,0 +1,25 @@
+diff --git a/web/src/components/ui/select.tsx b/web/src/components/ui/select.tsx
+index 6c23a46..4e0c3d7 100644
+--- a/web/src/components/ui/select.tsx
++++ b/web/src/components/ui/select.tsx
+@@ -68,8 +68,7 @@ function SelectContent({
+   align = "center",
+   ...props
+ }: React.ComponentProps<typeof SelectPrimitive.Content>) {
+-  return (
+-    <SelectPrimitive.Portal><CanvasFloatingBoundary>
++  const content = (
+       <SelectPrimitive.Content
+         data-slot="select-content"
+         data-align-trigger={position === "item-aligned"}
+@@ -90,8 +89,8 @@ function SelectContent({
+         </SelectPrimitive.Viewport>
+         <SelectScrollDownButton />
+       </SelectPrimitive.Content>
+-    </CanvasFloatingBoundary></SelectPrimitive.Portal>
+-  )
++  );
++  return <SelectPrimitive.Portal>{position === "popper" ? content : <CanvasFloatingBoundary>{content}</CanvasFloatingBoundary>}</SelectPrimitive.Portal>;
+ }
+ 
+ function SelectLabel({

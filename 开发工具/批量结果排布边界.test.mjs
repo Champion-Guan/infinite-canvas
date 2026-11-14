@@ -119,6 +119,7 @@ function generatorFixture() {
         ...variants.load('画布生成/参考图数量限制.ts'),
         ...variants.load('Excel画布/商品提示词阻止反馈.ts'),
         saveProductCanvas: async () => {},
+        ...variants.load('画布生成/图片失败状态保存.ts'),
         isGenerationModeEnabled: () => true, isAiConfigReady: () => true, ensureModelConfigured: () => true, getNodeDefinition: () => null,
         generationNodeForExecution: source => source, buildGenerationConfig: () => ({ model: 'local-sample', count: '1', size: '900x1200' }),
         hydrateNodeGenerationContext: async context => context, buildNodeGenerationContext: (_id, _nodes, _edges, prompt) => ({ prompt, referenceImages: [], referenceVideos: [], referenceAudios: [] }),
@@ -139,8 +140,26 @@ function generatorFixture() {
     };
     const module = { exports: {} };
     new Function('port', 'module', 'exports', 'with (port) {' + generateCode + '}')(port, module, module.exports);
-    return { sources, nodesRef, connectionsRef, errors, requests, generate: module.exports.generate };
+    return { port, sources, nodesRef, connectionsRef, errors, requests, generate: module.exports.generate };
 }
+test('真实生成回调保留尺寸验收错误，配置和结果卡均不能冒充成功', async () => {
+    const fixture = generatorFixture(), source = fixture.sources[0];
+    const detail = '图片尺寸不符：要求 1152 × 1536，上游返回 1024 × 1536。原始响应已保留，未自动重新生成。';
+    fixture.port.saveCanvasImageResult = async () => { throw Error(detail); };
+    await fixture.generate(source.id, 'image', source.metadata.prompt);
+    assert.deepEqual(fixture.requests, ['image']);
+    assert.deepEqual(fixture.errors, [detail]);
+    const edge = fixture.connectionsRef.current.find(item => item.fromNodeId === source.id);
+    const result = fixture.nodesRef.current.find(item => item.id === edge?.toNodeId);
+    const config = fixture.nodesRef.current.find(item => item.id === source.id);
+    for (const node of [config, result]) {
+        assert.equal(node.metadata.status, 'error');
+        assert.equal(node.metadata.errorDetails, detail, '不能被笼统的全部失败覆盖');
+    }
+    assert.equal(result.metadata.images[0].status, 'error');
+    assert.equal(result.metadata.images[0].errorDetails, detail);
+    assert.equal(result.metadata.content, undefined);
+});
 test('真实回调四种生成模式均使用批次同列，完成状态不被通用避让打散', async () => {
     const fixture = generatorFixture();
     const slots = fixture.sources.map(source => ({ source, ...sizes[source.metadata.generationMode], ...(source.metadata.generationMode === 'video' ? { height: 420 } : {}) }));

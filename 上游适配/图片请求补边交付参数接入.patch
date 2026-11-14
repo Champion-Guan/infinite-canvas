@@ -1,0 +1,25 @@
+diff --git a/web/src/services/image-storage.ts b/web/src/services/image-storage.ts
+index 2232ca7..196f9da 100644
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -9,7 +9,7 @@ import { decodeInlineImage } from "@/扩展功能/画布迁移扩展/内嵌图
+ import { createPersistenceCheckpoint } from "@/扩展功能/安全与批量/persistence-checkpoint";
+ import { settleActivityGroup } from "@/扩展功能/安全与批量/settle-activity-group";
+ const previewCheckpoint = createPersistenceCheckpoint();
+-import { parseDeliverySize, prepareGeneratedDelivery } from "@/扩展功能/媒体交付/生成图片尺寸交付.mjs";
++import { parseDeliverySize, prepareGeneratedDelivery, type ImageRequestPadding } from "@/扩展功能/媒体交付/生成图片尺寸交付.mjs";
+ import i18n from "@/i18n";
+ import { preflightImageUpload } from "@/扩展功能/媒体交付/图片上传预检.mjs";
+ import { prepareCompatibleImage } from "@/扩展功能/媒体交付/HEIC上传兼容.mjs";
+@@ -59,9 +59,9 @@ const IMAGE_TIMEOUT_ERROR = "ImageTimeoutError";
+ 
+ type StoredImagePreview = { version: number; blob?: Blob };
+ 
+-type ImageReadOptions = { signal?: AbortSignal; targetSize?: string; requireLocalCache?: boolean; assetProjectId?: string; registerAsset?: boolean };
++type ImageReadOptions = { signal?: AbortSignal; targetSize?: string; padding?: ImageRequestPadding; requireLocalCache?: boolean; assetProjectId?: string; registerAsset?: boolean };
+ 
+-export async function uploadGeneratedImage(input: string | Blob, options?: { signal?: AbortSignal; targetSize?: string }): Promise<UploadedImage> {
++export async function uploadGeneratedImage(input: string | Blob, options?: { signal?: AbortSignal; targetSize?: string; padding?: ImageRequestPadding }): Promise<UploadedImage> {
+     parseDeliverySize(options?.targetSize);
+     return uploadImage(input, { ...options, requireLocalCache: true, registerAsset: false });
+ }

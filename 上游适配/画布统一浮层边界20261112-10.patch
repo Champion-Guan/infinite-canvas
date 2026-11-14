@@ -1,0 +1,28 @@
+diff --git a/web/src/components/ui/select.tsx b/web/src/components/ui/select.tsx
+index 82950db..68eeadc 100644
+--- a/web/src/components/ui/select.tsx
++++ b/web/src/components/ui/select.tsx
+@@ -1,4 +1,5 @@
+ import * as React from "react"
++import { CanvasFloatingBoundary } from "@/扩展功能/画布交互/画布浮层容器"
+ import { Select as SelectPrimitive } from "radix-ui"
+ 
+ import { cn } from "@/lib/utils"
+@@ -67,7 +68,7 @@ function SelectContent({
+   ...props
+ }: React.ComponentProps<typeof SelectPrimitive.Content>) {
+   return (
+-    <SelectPrimitive.Portal>
++    <SelectPrimitive.Portal><CanvasFloatingBoundary>
+       <SelectPrimitive.Content
+         data-slot="select-content"
+         data-align-trigger={position === "item-aligned"}
+@@ -88,7 +89,7 @@ function SelectContent({
+         </SelectPrimitive.Viewport>
+         <SelectScrollDownButton />
+       </SelectPrimitive.Content>
+-    </SelectPrimitive.Portal>
++    </CanvasFloatingBoundary></SelectPrimitive.Portal>
+   )
+ }
+ 

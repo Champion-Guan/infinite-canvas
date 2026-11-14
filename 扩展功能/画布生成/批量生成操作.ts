@@ -88,16 +88,19 @@ export function useCanvasBatchGeneration({ projectId, nodesRef, connectionsRef, 
     }, [effectiveConfig.videoModel, effectiveConfig.audioModel, effectiveConfig.textModel, effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, message, setNodes, nodesRef, connectionsRef, setConnections, setSelectedNodeIds, setSelectedConnectionId]);
 
     const batchGenerationRunning = useRef(false);
-    const generateAllConfigNodes = useCallback(async () => {
+    const runConfigNodes = useCallback(async (configNodeIds?: readonly string[]) => {
         if (batchGenerationRunning.current) {
             message.info("当前画布的批量任务仍在执行或保存结果，可在生成配置卡片查看状态，无需重复提交。");
             return;
         }
-        const configNodes = nodesRef.current.filter((node) => node.type === CanvasNodeType.Config && node.metadata?.status !== NODE_STATUS_LOADING
+        const scope = configNodeIds === undefined ? undefined : new Set(configNodeIds);
+        const inScope = (node: CanvasNodeData) => node.type === CanvasNodeType.Config && (!scope || scope.has(node.id));
+        const configNodes = nodesRef.current.filter((node) => inScope(node) && node.metadata?.status !== NODE_STATUS_LOADING
             && !(node.metadata as ProductPromptMetadata)?.productPromptRetired);
         if (!configNodes.length) {
-            const hasRunningConfig = nodesRef.current.some(node => node.type === CanvasNodeType.Config && node.metadata?.status === NODE_STATUS_LOADING);
-            message.info(hasRunningConfig ? "生成配置正在执行，可在卡片查看状态或停止任务。" : "画布上没有可执行的生成配置卡片");
+            const hasRunningConfig = nodesRef.current.some(node => inScope(node) && node.metadata?.status === NODE_STATUS_LOADING);
+            message.info(hasRunningConfig ? "生成配置正在执行，可在卡片查看状态或停止任务。" : scope
+                ? "本次策划没有可执行的生成配置卡片，可能已移除或停用。" : "画布上没有可执行的生成配置卡片");
             return;
         }
         let jobs: ProductGenerationJob[];
@@ -105,6 +108,10 @@ export function useCanvasBatchGeneration({ projectId, nodesRef, connectionsRef, 
             jobs = planProductGenerationJobs(configNodes, nodesRef.current, connectionsRef.current, nanoid());
         } catch (error) {
             if (!pulseProductPromptWarning(error)) message.error(error instanceof Error ? error.message : "无法确定批量结果位置");
+            return;
+        }
+        if (!jobs.length) {
+            message.info("没有已勾选且可执行的变体，请先勾选需要生成的变体。");
             return;
         }
         for (const job of jobs) {
@@ -173,6 +180,9 @@ export function useCanvasBatchGeneration({ projectId, nodesRef, connectionsRef, 
         }
     }, [handleGenerateNode, message, nodesRef, connectionsRef, effectiveConfig, projectId, saveCanvas]);
 
+    const generateConfigNodes = useCallback((configNodeIds: readonly string[]) => runConfigNodes(configNodeIds ?? []), [runConfigNodes]);
+    const generateAllConfigNodes = useCallback(() => runConfigNodes(), [runConfigNodes]);
+
     const completeAndGenerateRunning = useRef(false);
     const completeAndGenerateAll = useCallback(async () => {
         if (completeAndGenerateRunning.current) {
@@ -215,5 +225,5 @@ export function useCanvasBatchGeneration({ projectId, nodesRef, connectionsRef, 
         }
     }, [addGenerationConfigsForPromptNodes, generateAllConfigNodes, message, projectId, saveCanvas, nodesRef, connectionsRef, effectiveConfig]);
 
-    return { addGenerationConfigsForPromptNodes, generateAllConfigNodes, completeAndGenerateAll };
+    return { addGenerationConfigsForPromptNodes, generateConfigNodes, generateAllConfigNodes, completeAndGenerateAll };
 }

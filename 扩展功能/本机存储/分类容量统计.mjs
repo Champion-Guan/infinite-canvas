@@ -3,11 +3,38 @@ import { createHash } from 'node:crypto';
 import { lstatSync, readdirSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { setImmediate } from 'node:timers/promises';
+import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { MEDIA_TYPES, PROTOCOL, SCHEMA_VERSION, StorageError, requireValue, validHash, validUUID } from './协议.mjs';
 import { readFragmentGraph } from './分片值编码.mjs';
 import { recycleOwnership, recycleCategory } from './回收站归属.mjs';
 
 export const USAGE_FORMAT = 'guan-sqlite-usage.v1';
+const workerOperation = 'guan-read-categorized-usage';
+
+// 全库分类留在独立只读连接中执行，避免同步 SQL、哈希和 JSON 解析占住服务主线程。
+export function readCategorizedUsageInBackground(options) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL(import.meta.url), {
+      workerData: { operation: workerOperation, options },
+      execArgv: [],
+    });
+    let result, failure;
+    worker.once('message', message => {
+      if (message.error) failure = new StorageError(message.error.code, message.error.message, message.error.status);
+      else result = message.value;
+    });
+    worker.once('error', () => {
+      failure = new StorageError('usage_unavailable', '容量读取失败，未报告为空；请稍后刷新。', 503);
+    });
+    // 等待退出，确保只读事务与文件句柄已释放后再交付结果。
+    worker.once('exit', code => {
+      if (failure) reject(failure);
+      else if (code !== 0 || !result) reject(new StorageError('usage_unavailable', '容量读取失败，未报告为空；请稍后刷新。', 503));
+      else resolve(result);
+    });
+  });
+}
+
 const sha = value => createHash('sha256').update(value).digest('hex');
 const namespaces = {
   app_state: 'workspace', preferences: 'workspace', image_generation_logs: 'image_logs', video_generation_logs: 'video_logs',
@@ -329,4 +356,12 @@ export async function readCategorizedUsage({ dataRoot, workspaceId }) {
   } finally {
     if (db) { try { if (db.isTransaction) db.exec('ROLLBACK'); } finally { db.close(); } }
   }
+}
+
+if (!isMainThread && workerData?.operation === workerOperation) {
+  try { parentPort.postMessage({ value: await readCategorizedUsage(workerData.options) }); }
+  catch (error) {
+    parentPort.postMessage({ error: { code: error.code, message: error.message, status: error.status } });
+  }
+  parentPort.close();
 }

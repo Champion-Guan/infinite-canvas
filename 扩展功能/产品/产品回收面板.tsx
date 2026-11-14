@@ -1,5 +1,6 @@
 import { useId, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence } from "motion/react";
+import { X } from "lucide-react";
 import { AppleModal as Modal } from "../主题/苹果弹窗";
 import { retrySQLiteStorage } from "../本机存储/上游浏览器存储桥";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
@@ -47,7 +48,7 @@ export function ProductDeleteDialog({ id, name, onClose }: { id: string; name: s
       <div className="guan-dc-confirm-icon" aria-hidden="true"><ProductTrashIcon /></div>
       <div className="guan-dc-confirm-copy">
         <h2 id={title}>删除「{name}」及对应画布？</h2>
-        <p>产品和对应画布将移入产品回收站，可恢复。原始 Excel 和其他产品不受影响。</p>
+        <p>产品和对应画布将移入产品回收站，可恢复，其他产品不受影响。</p>
         <p className="guan-product-file-note">已生成图片、视频等文件将保留，不会一并删除；恢复产品后可继续查看和下载。</p>
         {error ? <p role="alert">{error} 保存未确认时请勿刷新或关闭工作台。</p> : null}
       </div>
@@ -80,7 +81,10 @@ export function ProductTrashEntry({ variant = "icon" }: { variant?: "icon" | "te
     <button type="button" data-empty-action={variant === "text" ? "trash" : undefined} disabled={busy} title="产品回收站" aria-label="产品回收站" onClick={() => setOpen(true)}>{variant === "text" ? "产品回收站" : <ProductTrashIcon />}</button>
     <AnimatePresence>{open ? <LegacyProductDialog key="product-trash" title="产品回收站" busy={busy || retrying} onClose={() => setOpen(false)}>
       <section className="guan-dc-confirm-card guan-product-trash-card" role="document" aria-labelledby={title}>
-        <h2 id={title}>产品回收站</h2>
+        <div className={styles.trashHeading}>
+          <h2 id={title}>产品回收站</h2>
+          <button type="button" className={styles.trashClose} aria-label="关闭产品回收站" title="关闭" disabled={busy || retrying} onClick={() => setOpen(false)}><X size={20} aria-hidden /></button>
+        </div>
         <p>恢复产品会同时恢复对应画布；已生成文件仍保留。</p>
         <div className="guan-product-trash-list">
           {entries.length ? entries.map((entry) => <div key={entry.id} className="guan-product-trash-row">
@@ -89,10 +93,7 @@ export function ProductTrashEntry({ variant = "icon" }: { variant?: "icon" | "te
           </div>) : <p>暂无已删除产品</p>}
         </div>
         {error ? <p role="alert">{error} 保存未确认时请勿刷新或关闭工作台。</p> : null}
-        <div className="guan-dc-confirm-actions">
-          {error && pendingId.current ? <button type="button" disabled={busy || retrying} onClick={() => void restore(pendingId.current, true)}>重试保存后继续</button> : null}
-          <button type="button" disabled={busy || retrying} onClick={() => setOpen(false)}>关闭</button>
-        </div>
+        {error && pendingId.current ? <div className="guan-dc-confirm-actions"><button type="button" disabled={busy || retrying} onClick={() => void restore(pendingId.current, true)}>重试保存后继续</button></div> : null}
       </section>
     </LegacyProductDialog> : null}</AnimatePresence>
   </>;

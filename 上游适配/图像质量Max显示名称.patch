@@ -1,0 +1,31 @@
+diff --git a/web/src/components/image-settings-panel.tsx b/web/src/components/image-settings-panel.tsx
+index 02d396f..4660dd5 100644
+--- a/web/src/components/image-settings-panel.tsx
++++ b/web/src/components/image-settings-panel.tsx
+@@ -39,7 +39,7 @@ export function imageQualityForModel(quality: string, model: string) {
+ export const imageQualityOptions = imageQualityOptionsForAgent("");
+ export function imageQualityOptionsForAgent(model: string) {
+     return imageQualityOptionsForModel(model).map((item) => ({ value: item.value, disabled: item.disabled,
+-        get label() { return item.value === "max" ? "max" : i18n.t(`settingsPanels.common.${item.labelKey}`); } }));
++        get label() { return item.value === "max" ? "Max" : i18n.t(`settingsPanels.common.${item.labelKey}`); } }));
+ }
+ export const imageAspectOptions = mediaRatioOptions.map((item) => ({ value: item.value, label: item.value === "auto" ? i18n.t("settingsPanels.common.auto") : item.value }));
+ export const imageScaleOptions = mediaScaleOptions.map((value) => ({ value, label: value === "auto" ? i18n.t("settingsPanels.common.auto") : value }));
+@@ -111,7 +111,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle =
+                             <OptionPill key={item.value} selected={selectedQuality === item.value} disabled={item.disabled}
+                                 title={item.disabled ? "GPT 图像模型 2.5 及以上支持此质量档位" : undefined}
+                                 theme={theme} onClick={() => { if (!item.disabled) onConfigChange("quality", item.value); }}>
+-                                {item.value === "max" ? "max" : t(`settingsPanels.common.${item.labelKey}`)}
++                                {item.value === "max" ? "Max" : t(`settingsPanels.common.${item.labelKey}`)}
+                             </OptionPill>
+                         ))}
+                     </div>
+@@ -218,7 +218,7 @@ export function ImageSettingsTheme({ theme, children }: { theme: CanvasTheme; ch
+ }
+ 
+ export function imageQualityLabel(value: string) {
+-    return value === "max" ? "max" : (["auto", "high", "medium", "low", "xhigh"].includes(value) ? i18n.t(`settingsPanels.common.${value}`) : value);
++    return value === "max" ? "Max" : (["auto", "high", "medium", "low", "xhigh"].includes(value) ? i18n.t(`settingsPanels.common.${value}`) : value);
+ }
+ 
+ export function imageSizeLabel(size: string) {

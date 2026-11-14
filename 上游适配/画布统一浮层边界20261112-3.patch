@@ -1,0 +1,28 @@
+diff --git a/web/src/components/canvas/canvas-context-menu.tsx b/web/src/components/canvas/canvas-context-menu.tsx
+index a163953..602d864 100644
+--- a/web/src/components/canvas/canvas-context-menu.tsx
++++ b/web/src/components/canvas/canvas-context-menu.tsx
+@@ -1,4 +1,5 @@
+ import { useEffect, useRef } from "react";
++import { CanvasFloatingBoundary } from "@/扩展功能/画布交互/画布浮层容器";
+ import type { ReactNode } from "react";
+ import { BetweenHorizontalStart, GalleryHorizontalEnd, GalleryHorizontal, Group, LockKeyhole, Plus, Trash2, Ungroup } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+@@ -24,7 +25,7 @@ export function CanvasNodeContextMenu({ menu, canCaptureVideoFrame, canGroup, ca
+     }, [onClose]);
+ 
+     return (
+-        <div
++        <CanvasFloatingBoundary><div
+             ref={panel}
+             className="fixed z-[80] min-w-44 overflow-hidden rounded-xl border py-1 shadow-2xl"
+             style={{ left: menu.x, top: menu.y, background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
+@@ -42,7 +43,7 @@ export function CanvasNodeContextMenu({ menu, canCaptureVideoFrame, canGroup, ca
+             {menu.type === "node" && canUngroup ? <MenuButton icon={<Ungroup className="size-4" />} label={t("canvas.nodeToolbar.ungroup")} onClick={onUngroup} /> : null}
+             {menu.type === "node" ? <MenuButton icon={<Plus className="size-4" />} label={t("canvas.controls.duplicate")} onClick={onDuplicate} /> : null}
+             <MenuButton icon={deleteDisabledReason ? <LockKeyhole className="size-4" /> : <Trash2 className="size-4" />} label={deleteDisabledReason ? "此连线不可删除" : t("canvas.controls.delete")} onClick={onDelete} danger={!deleteDisabledReason} disabled={Boolean(deleteDisabledReason)} title={deleteDisabledReason} />
+-        </div>
++        </div></CanvasFloatingBoundary>
+     );
+ }
+ 

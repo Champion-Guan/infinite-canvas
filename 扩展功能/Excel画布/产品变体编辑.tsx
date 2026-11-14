@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { Button, Checkbox, Tooltip } from "antd";
+import { AnimatePresence } from "motion/react";
 import { AppleModal as Modal } from "../主题/苹果弹窗";
-import { Check, ChevronDown, Copy, Images, Plus, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, Copy, Images, Plus, SlidersHorizontal, Trash2, X } from "lucide-react";
 import type { CanvasNodeContext } from "@/types/canvas-plugin";
 import type { CanvasNodeMetadata } from "@/types/canvas";
 import { MediaThumbnail } from "../媒体交付/媒体缩略图";
 import { ParameterImageThumbnail } from "./参数图片预览";
 import { productMainImages } from "./产品主图规则";
-import { PRODUCT_BRIEF_FIELDS, variableLabel } from "./旧版参数规则";
-import { DEFAULT_VARIANT_ATTRIBUTES, groupVariantImagesByFilename, newProductVariant, productVariants, variantLabel, type ProductVariant, type ProductVariantMetadata } from "./产品变体规则";
+import { DEFAULT_VARIANT_ATTRIBUTES, newProductVariant, productVariants, variantLabel, type ProductVariant, type ProductVariantMetadata } from "./产品变体规则";
+import { ProductVariantManager } from "./变体管理面板";
 import { generationProductParameters, generationPromptVariantId } from "../画布生成/产品变体生成";
 import type { ProductPromptMetadata } from "./商品提示词规则";
 import { getGenerationCount } from "@/lib/canvas/canvas-generation-helpers";
@@ -24,7 +25,7 @@ export function ProductVariantEditor({ ctx, onChange, tokens }: {
     const [expanded, setExpanded] = useState<string | null>(null);
     const [picking, setPicking] = useState<string | null>(null);
     const [newAttribute, setNewAttribute] = useState("");
-    const [notice, setNotice] = useState("");
+    const [managing, setManaging] = useState(false);
     const [removing, setRemoving] = useState<string | null>(null);
     const current = () => ctx.getNode(ctx.node.id)?.metadata as ProductVariantMetadata | undefined;
     const change = (update: (items: ProductVariant[]) => ProductVariant[]) => onChange({ productVariants: update(productVariants(current())) } as ProductVariantMetadata);
@@ -63,10 +64,13 @@ export function ProductVariantEditor({ ctx, onChange, tokens }: {
             onPointerDown={event => event.stopPropagation()} onMouseDown={event => event.stopPropagation()}>
             <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0 text-xs font-semibold">产品变体 <span className="font-normal opacity-55">{variants.length ? `已选 ${selected}/${variants.length}` : ""}</span></div>
+                <div className="flex shrink-0 items-center gap-1">
+                <Button size="small" icon={<SlidersHorizontal className="size-3.5" />} onClick={() => setManaging(true)}>变体管理</Button>
                 <Tooltip title="添加变体"><button type="button" aria-label="添加变体" className={iconClass} onClick={() => {
                     const variant = newProductVariant();
                     change(items => [...items, variant]); setExpanded(variant.id);
                 }}><Plus className="size-4" /></button></Tooltip>
+                </div>
             </div>
             {variants.length ? (
                 <>
@@ -121,20 +125,6 @@ export function ProductVariantEditor({ ctx, onChange, tokens }: {
                                             <label className="block text-[11px]">变体名称<input aria-label="变体名称" className={`${inputClass} mt-1`} style={style} value={variant.name} placeholder="例如：红色 / M / 2件装" onChange={event => edit(variant.id, item => ({ ...item, name: event.target.value }))} /></label>
                                             <div className="grid grid-cols-2 gap-2">{attributes.map(attribute => <label key={attribute} className="block min-w-0 text-[11px]">{attribute}<Tooltip title={`填写本变体的${attribute}。共用提示词可使用 [${attribute}]，生成时按变体替换；空白项沿用共用资料。`} trigger={["hover", "focus"]}><input aria-label={`变体${attribute}`} className={`${inputClass} mt-1`} style={style} value={variant.attributes[attribute] || ""} onChange={event => edit(variant.id, item => ({ ...item, attributes: { ...item.attributes, [attribute]: event.target.value } }))} /></Tooltip></label>)}</div>
                                             <button type="button" onClick={() => setPicking(variant.id)} className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md border text-xs hover:bg-black/[.04] dark:hover:bg-white/[.06]" style={style}><Images className="size-3.5" />分配图片 {variant.imageIds.length} 张</button>
-                                            <details className="text-[11px]">
-                                                <summary className="cursor-pointer py-1">差异资料与 Excel 变量</summary>
-                                                <div className="space-y-2 pt-2">
-                                                    {PRODUCT_BRIEF_FIELDS.filter(field => !["colorModel", "carouselCount", "richContent"].includes(field.key)).map(field => <label key={field.key} className="block">
-                                                        <span className="mb-1 block">{field.label}</span><Tooltip title={field.help} trigger={["hover", "focus"]}>
-                                                            <textarea aria-label={`变体${field.label}`} rows={2} className={"guan-scroll-field " + (`${inputClass} h-auto resize-y py-1.5` || "")} style={style}
-                                                                placeholder={metadata.productBrief?.[field.key] || "继承共用资料"} value={variant.brief?.[field.key] || ""}
-                                                                onChange={event => edit(variant.id, item => ({ ...item, brief: { ...item.brief, [field.key]: event.target.value } }))} />
-                                                        </Tooltip>
-                                                    </label>)}
-                                                    {tokens.map(token => <label key={token} className="block">{variableLabel(token)}<input aria-label={`变体变量 ${token}`} className={`${inputClass} mt-1`} style={style} placeholder={metadata.promptVariableValues?.[token] || "继承共用变量"}
-                                                        value={variant.variableValues?.[token] || ""} onChange={event => edit(variant.id, item => ({ ...item, variableValues: { ...item.variableValues, [token]: event.target.value } }))} /></label>)}
-                                                </div>
-                                            </details>
                                         </div>
                                     </div>
                                 </div>
@@ -143,15 +133,7 @@ export function ProductVariantEditor({ ctx, onChange, tokens }: {
                     </div>
                 </>
             ) : null}
-            {images.length ? <button type="button" className="text-[11px] underline-offset-2 hover:underline" onClick={() => {
-                const before = productVariants(current());
-                const latest = current();
-                const next = groupVariantImagesByFilename(productMainImages(latest).filter(image => !latest?.productSharedImageIds?.includes(image.id)), before);
-                onChange({ productVariants: next } as ProductVariantMetadata);
-                setNotice(next.length === before.length && next.every((item, index) => item.imageIds.length === before[index].imageIds.length)
-                    ? "未找到新的分组。文件名可使用“红色__正面.png”“红色__背面.png”。" : "已按文件名分组，请核对变体名称和图片。");
-            }}>按文件名分组</button> : null}
-            {notice ? <p role="status" className="text-[10px] leading-4 opacity-60">{notice}</p> : null}
+            <AnimatePresence>{managing ? <ProductVariantManager key={ctx.node.id} ctx={ctx} onChange={onChange} onClose={() => setManaging(false)} /> : null}</AnimatePresence>
             <Modal title={picking === "shared" ? "共用图片" : `${target ? variantLabel(target) : ""} · 分配图片`} open={Boolean(picking)} onCancel={() => setPicking(null)}
                 footer={null} destroyOnHidden width={640}>
                 <div className="guan-scroll-region max-h-[60vh] space-y-3 overflow-y-auto">

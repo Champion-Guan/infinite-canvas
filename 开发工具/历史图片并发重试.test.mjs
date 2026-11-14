@@ -4,8 +4,10 @@ import { readFileSync } from 'node:fs';
 import ts from '../.运行/3100源/画布副本/web/node_modules/typescript/lib/typescript.js';
 import { runHistoryRetries } from '../扩展功能/生成历史/历史失败重试.js';
 import { variantModules } from './产品变体生成夹具.mjs';
+import { imageSizeRetryBlocked } from '../扩展功能/媒体交付/生成图片尺寸交付.mjs';
 
 function compile(source, dependencies = {}, scope = {}) {
+    scope = { ...variantModules().load('画布生成/图片失败状态保存.ts'), ...scope };
     const code = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
     const module = { exports: {} };
     new Function('require', 'module', 'exports', ...Object.keys(scope), code)(id => {
@@ -14,7 +16,9 @@ function compile(source, dependencies = {}, scope = {}) {
     }, module, module.exports, ...Object.values(scope));
     return module.exports;
 }
-const guards = compile(readFileSync('扩展功能/画布生成/图片重试门控.ts', 'utf8'));
+const guards = compile(readFileSync('扩展功能/画布生成/图片重试门控.ts', 'utf8'), {
+    '../媒体交付/生成图片尺寸交付.mjs': { imageSizeRetryBlocked },
+});
 const { createCanvasGenerationRegistry } = compile(readFileSync('扩展功能/画布生成/并发生成状态.ts', 'utf8'), { react: {} });
 function deferred() { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; }
 const tick = () => new Promise(resolve => setImmediate(resolve));
@@ -107,6 +111,37 @@ test('真实handleRetryNode同节点两槽同时进入生图；同槽/整卡去�
     f.tasks[1].reject(Error('二槽失败')); await second;
     assert.equal(f.nodesRef.current[0].metadata.status, 'error'); assert.equal(f.registry.requests.size, 0);
     assert.equal(f.retryingNodeIdsRef.current.size, 0);
+});
+
+test('尺寸不符的整卡、槽位及迟到重试事件在真实入口停止，普通失败槽位仍可重试', async () => {
+    const f = await callbackFixture(), node = f.nodesRef.current[0];
+    node.metadata.errorDetails = '图片尺寸不符：要求 1152 × 1536，上游返回 1024 × 1536。';
+    node.metadata.images[0].errorDetails = node.metadata.errorDetails;
+    await f.run(node);
+    await f.run(node, 'one');
+    assert.equal(f.tasks.length, 0);
+    assert.equal(f.registry.requests.size, 0);
+    const allowed = f.run(node, 'two');
+    await tick();
+    assert.deepEqual(f.tasks.map(task => task.options.scope.slotId), ['two']);
+    f.tasks[0].reject(Error('普通网络错误')); await allowed;
+});
+
+test('历史批量重试跳过尺寸不符，迟到目标也须重新检查当前错误', async () => {
+    const node = imageNode('mixed', ['size', 'network']);
+    node.metadata.images[0].errorDetails = '图片尺寸不符：要求 1152 × 1536，上游返回 1024 × 1536。';
+    const blocked = imageNode('single');
+    blocked.metadata.errorDetails = node.metadata.images[0].errorDetails;
+    blocked.metadata.images = undefined;
+    const calls = [];
+    await runHistoryRetries([{ node, imageId: 'size' }, { node, imageId: 'network' }, { node: blocked }], {
+        getNode: id => id === node.id ? node : blocked, isActive: () => true,
+        onRetry: (item, imageId) => calls.push([item.id, imageId]), onError: assert.fail,
+    });
+    assert.deepEqual(calls, [['mixed', 'network']]);
+    assert.equal(guards.canRetryCanvasNode(node, undefined, new Set(), new Map()), false);
+    assert.equal(guards.canRetryCanvasNode(node, 'size', new Set(), new Map()), false);
+    assert.equal(guards.canRetryCanvasNode(node, 'network', new Set(), new Map()), true);
 });
 
 test('整卡重试独占全部槽位，取消同节点全部请求且不取消其他节点，迟到finally不删新请求', async () => {

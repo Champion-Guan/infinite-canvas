@@ -1,0 +1,25 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index 55ece7e..88ba227 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -61,7 +61,10 @@ function createWebdavDomainProgress(): Record<AppSyncDomainKey, WebdavDomainProg
+     );
+ }
+ 
+-export function AppConfigPanel({ showDoneButton = false, initialTab = "channels", active = true }: { showDoneButton?: boolean; initialTab?: ConfigTabKey; active?: boolean }) {
++export function AppConfigPanel({ showDoneButton = false, initialTab = "channels", active: standaloneActive = true, inDialog = false }: { showDoneButton?: boolean; initialTab?: ConfigTabKey; active?: boolean; inDialog?: boolean }) {
++    const dialogOpen = useConfigStore(state => state.isConfigOpen);
++    // 弹窗保留退出快照，直接观察开关才能在隐藏期间正确暂停并在重开时刷新。
++    const active = inDialog ? dialogOpen : standaloneActive;
+     const reducedMotion = useReducedMotion();
+     const { message } = App.useApp();
+     const { i18n, t } = useTranslation();
+@@ -414,7 +417,7 @@ export function AppConfigModal() {
+             className="guan-config-modal"
+             footer={<SettingsDoneButton />}
+         >
+-            <AppConfigPanel initialTab={configTab} active={isConfigOpen} />
++            <AppConfigPanel initialTab={configTab} inDialog />
+         </Modal>
+     );
+ }

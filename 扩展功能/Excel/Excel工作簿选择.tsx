@@ -11,6 +11,7 @@ import { WorkbookDeleteDialog } from "../Excel删除字体平滑/工作簿删除
 import { ExcelRecycleBinEntry } from "../Excel删除/Excel回收站面板";
 import { ExcelImportPanel } from "./Excel导入面板";
 import "./旧版Excel样式.css";
+import { productFeatures } from "../产品配置/功能开关";
 
 export function ExcelWorkbookPicker() {
   const { message } = App.useApp();
@@ -28,6 +29,7 @@ export function ExcelWorkbookPicker() {
   const closePanel = useCallback(() => setFile(null), []);
   const closeMenu = useCallback(() => setMenu(false), []);
   const sets = [...books?.contract.productSets ?? []].sort((a, b) => productDateKey(b.createdAt).localeCompare(productDateKey(a.createdAt)));
+  if (!productFeatures.excel) return null;
   return <div className="guan-excel-scope" data-theme={theme}>
     <div className="guan-dc-file-picker" ref={root} onKeyDown={event => { if (event.key === "Escape") { closeMenu(); root.current?.querySelector<HTMLButtonElement>(".guan-dc-file-trigger")?.focus(); } }}>
       <Dropdown open={menu && !file} onOpenChange={setMenu} trigger={["click"]} placement="bottomLeft" disabled={busy || !!file}

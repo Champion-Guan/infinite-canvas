@@ -1,0 +1,70 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index 7fab205..d721500 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -61,7 +61,7 @@ function createWebdavDomainProgress(): Record<AppSyncDomainKey, WebdavDomainProg
+     );
+ }
+ 
+-export function AppConfigPanel({ showDoneButton = false, initialTab = "channels" }: { showDoneButton?: boolean; initialTab?: ConfigTabKey }) {
++export function AppConfigPanel({ showDoneButton = false, initialTab = "channels", active = true }: { showDoneButton?: boolean; initialTab?: ConfigTabKey; active?: boolean }) {
+     const reducedMotion = useReducedMotion();
+     const { message } = App.useApp();
+     const { i18n, t } = useTranslation();
+@@ -82,6 +82,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+     const locale = i18n.resolvedLanguage as AppLocale;
+     const imageResolutionOptions = mediaScaleOptions.map((value) => ({ value, label: value === "auto" ? t("settingsPanels.common.auto") : value.toUpperCase() }));
+     useEffect(() => setActiveTab(resolveBusinessConfigTab(resolveConfigTab(initialTab))), [initialTab]);
++    useEffect(() => { if (!active) setEditingChannelId(""); }, [active]);
+ 
+     const saveConfig = (nextConfig: AiConfig) => {
+         (Object.keys(nextConfig) as Array<keyof AiConfig>).forEach((key) => updateConfig(key, nextConfig[key]));
+@@ -228,13 +229,12 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                     {
+                         key: "fallback",
+                         label: "Fallback 配置",
+-                        forceRender: true,
+-                        children: <OriginalFallbackPanel />,
++                        children: <OriginalFallbackPanel observing={active && activeTab === "fallback"} />,
+                     },
+                     {
+                         key: "local-proxy",
+                         label: "代理设置",
+-                        children: <ConfigLocalProxy active={activeTab === "local-proxy"} />,
++                        children: <ConfigLocalProxy active={active && activeTab === "local-proxy"} />,
+                     },
+                     {
+                         key: "preferences",
+@@ -363,12 +363,12 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                     {
+                         key: "local-storage",
+                         label: t("config.tabs.localStorage"),
+-                        children: <ConfigLocalStorage active={activeTab === "local-storage"} />,
++                        children: <ConfigLocalStorage active={active && activeTab === "local-storage"} />,
+                     },
+                     {
+                         key: "software-updates",
+                         label: "软件更新",
+-                        children: <ConfigSoftwareUpdates active={activeTab === "software-updates"} />,
++                        children: <ConfigSoftwareUpdates active={active && activeTab === "software-updates"} />,
+                     },
+                 ].filter((item) => (item.key !== "webdav" || productFeatures.webdav) && (item.key !== "local-proxy" || productFeatures.localProxy) && (item.key !== "prompt-sources" || businessFeatures.promptSources))}
+             />
+@@ -398,7 +398,7 @@ export function AppConfigModal() {
+             }
+             open={isConfigOpen}
+             triggerId="guan-settings-trigger"
+-            destroyOnHidden
++            destroyOnHidden={false}
+             width={980}
+             centered
+             onCancel={() => setConfigDialogOpen(false)}
+@@ -413,7 +413,7 @@ export function AppConfigModal() {
+             className="guan-config-modal"
+             footer={<SettingsDoneButton />}
+         >
+-            <AppConfigPanel initialTab={configTab} />
++            <AppConfigPanel initialTab={configTab} active={isConfigOpen} />
+         </Modal>
+     );
+ }

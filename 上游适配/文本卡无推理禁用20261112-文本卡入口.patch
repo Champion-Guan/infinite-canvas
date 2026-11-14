@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/canvas-node-prompt-panel.tsx b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+index 84b5ffe..18340c7 100644
+--- a/web/src/components/canvas/canvas-node-prompt-panel.tsx
++++ b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+@@ -135,7 +135,7 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+                     ) : (
+                         <>
+                             <ModelPicker config={config} value={config.model} onChange={(model) => onConfigChange(node.id, { model })} capability="text" onMissingConfig={() => openConfigDialog(true)} className="max-w-[190px]" />
+-                            <CanvasTextSettingsPopover config={config} count={node.metadata?.textCount || 1} onConfigChange={(_, value) => onConfigChange(node.id, { reasoningEffort: value })} onCountChange={(textCount) => onConfigChange(node.id, { textCount })} />
++                            <CanvasTextSettingsPopover showUnsupportedNone config={config} count={node.metadata?.textCount || 1} onConfigChange={(_, value) => onConfigChange(node.id, { reasoningEffort: value })} onCountChange={(textCount) => onConfigChange(node.id, { textCount })} />
+                         </>
+                     )}
+                     </div>

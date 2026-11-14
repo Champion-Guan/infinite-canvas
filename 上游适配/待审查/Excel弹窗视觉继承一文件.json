@@ -1,0 +1,29 @@
+{
+  "日期": "2026-10-19",
+  "状态": "待具体一文件差异批准；仅内存预审，未接入工作台包",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/SQLite会话恢复-gAYlzm/SQLite会话恢复接入记录.json",
+  "前置差异SHA256": "66224fee6704cff7f08daccaa5af3f2482df9c54e76e30ec2187ac4b8908d822",
+  "差异SHA256": "1f6b1e87ec8e48dc6cd46141fec6d2cdcf93029022920bf973e0461c6f239d46",
+  "文件数": 1,
+  "自有来源": "扩展功能/Excel/Excel弹窗行高边界.css",
+  "来源SHA256": "6f4895c2abb51079dab33c6c9f16fbde4c5e308e96622ad2c22b0f3ddafd82f9",
+  "生成器": "开发工具/预审Excel弹窗行高.mjs",
+  "生成器SHA256": "ea342eb83703192707f4b18745c7220c1e6a1735a785a432b250e7c007385383",
+  "文件": [
+    {
+      "文件": "web/src/guan/旧版Excel样式.css",
+      "原始SHA256": "e240cf2ac9c1227df6e3a01d281f7f301940745ef16b78c2b952fe94d0da6bae",
+      "候选SHA256": "69f7220d7d0e240b9509ac06d6de9ef0cdf2f73bd9c4c8c7a10932b5c9880ade"
+    }
+  ],
+  "已接入隔离副本": false,
+  "已接入3100": false,
+  "根因": "Ant Design unlayered html line-height:1.15覆盖旧版1.5继承；新宿主未继承旧html.antialiased字体平滑",
+  "范围": [
+    "仅给自有Excel弹窗恢复旧版行高1.5及antialiased字体平滑；全部原CSS字节保留，不改全局reset",
+    "不改HTML、React、字体、尺寸、动画、解析、工作簿归属、保存导航或SQLite协议",
+    "批准后新保护器、原态事务和全新完整前置组合包接入；旧批准对象及作者仓库保持不变",
+    "不授权3100启停/切换、真实数据/Keychain、提交推送或发布"
+  ]
+}

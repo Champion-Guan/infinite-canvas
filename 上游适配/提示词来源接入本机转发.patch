@@ -1,0 +1,21 @@
+diff --git a/web/src/services/api/prompt-source-runtime.ts b/web/src/services/api/prompt-source-runtime.ts
+index 4cb7333..a583763 100644
+--- a/web/src/services/api/prompt-source-runtime.ts
++++ b/web/src/services/api/prompt-source-runtime.ts
+@@ -1,4 +1,5 @@
+ import { requireBusinessFeature } from "@/扩展功能/产品配置/脚本与提示词来源";
++import { 本地转发地址, 本地转发请求 } from "@/扩展功能/网络代理/本地转发请求";
+ import i18n from "@/i18n";
+ import type { PromptSource } from "./prompt-source-presets";
+ 
+@@ -24,7 +25,9 @@ export type RawPrompt = {
+ type RunOptions = { signal?: AbortSignal };
+ 
+ async function fetchSource(source: PromptSource, options?: RunOptions) {
+-    const response = await fetch(source.url, { cache: "no-store", signal: options?.signal });
++    const url = source.url.trim();
++    const response = await 本地转发请求(url.startsWith("https://") ? 本地转发地址(url) : url,
++        { cache: "no-store", signal: options?.signal });
+     if (!response.ok) throw new Error(i18n.t("config.promptSources.runtime.requestFailed", { status: response.status }));
+     return response.json();
+ }

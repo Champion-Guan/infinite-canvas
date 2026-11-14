@@ -1,0 +1,19 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index 6610a57..71b667a 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -1,4 +1,5 @@
+ import { businessFeatures } from "@/扩展功能/产品配置/脚本与提示词来源";
++import { PromptImage } from "@/扩展功能/提示词/提示词图片";
+ import { isAudioFile } from "@/lib/canvas/canvas-generation-helpers";
+ import { MediaThumbnail } from "@/扩展功能/媒体交付/媒体缩略图";
+ import { ASSET_DRAG_TYPE, assetDragData } from "@/扩展功能/素材/上传资产规则";
+@@ -840,7 +841,7 @@ function PromptRow({ item, displayTitle = item.title, theme, onInsert, onView }:
+     return (
+         <div className="group relative flex cursor-grab items-center gap-2.5 rounded-lg px-2 py-2 transition hover:bg-black/5 active:cursor-grabbing dark:hover:bg-white/5" draggable data-canvas-prompt-drag onDragStart={handleDragStart} title={t("canvas.sidePanel.dragPrompt")}>
+             {item.coverUrl ? (
+-                <img src={item.coverUrl} alt="" className="size-10 shrink-0 rounded-md object-cover" loading="lazy" />
++                <PromptImage src={item.coverUrl} alt="" className="size-10 shrink-0 rounded-md object-cover" loading="lazy" />
+             ) : (
+                 <span className="grid size-10 shrink-0 place-items-center rounded-md" style={{ background: theme.node.panel }}>
+                     <FileText className="size-4 opacity-50" />

@@ -8,10 +8,10 @@ type PlanningNoticePort = {
     active: boolean;
     hasNode(id: string): boolean;
     assertActive(): void;
-    generateAllConfigNodes(): Promise<void>;
+    generateConfigNodes(configNodeIds: readonly string[]): Promise<void>;
 };
 
-function PlanningNoticeContent({ deadline, close, generate }: { deadline: number; close(): void; generate(): void }) {
+function PlanningNoticeContent({ deadline, close, generate, canGenerate }: { deadline: number; close(): void; generate(): void; canGenerate: boolean }) {
     const [seconds, setSeconds] = useState(() => planningNoticeSeconds(deadline));
     useEffect(() => {
         const update = () => setSeconds(planningNoticeSeconds(deadline));
@@ -22,10 +22,10 @@ function PlanningNoticeContent({ deadline, close, generate }: { deadline: number
     return <div className="flex max-w-[calc(100vw-96px)] flex-wrap items-center gap-x-4 gap-y-2 text-left">
         <span className="min-w-0 flex-1">AI策划已完成，提示词和生成配置已保存。</span>
         <span className="shrink-0 text-xs tabular-nums opacity-60" aria-live="off">{seconds} 秒后关闭</span>
-        <button type="button" onClick={generate}
+        {canGenerate ? <button type="button" onClick={generate}
             className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded border border-current/20 px-2 py-1 text-xs hover:bg-black/5 focus-visible:outline focus-visible:outline-2 dark:hover:bg-white/10">
             <Play aria-hidden className="size-3.5" />一键生图
-        </button>
+        </button> : null}
         <button type="button" onClick={close} aria-label="关闭策划完成提示"
             className="inline-flex size-6 shrink-0 items-center justify-center rounded opacity-60 hover:opacity-100 focus-visible:outline focus-visible:outline-2">
             <X aria-hidden className="size-3.5" />
@@ -61,7 +61,8 @@ export function useProductPlanningSuccessNotice(port: PlanningNoticePort) {
                 try {
                     current.assertActive();
                     if (!current.hasNode(notice.parameterId)) throw Error("产品参数卡已移除，请重新策划。");
-                    void current.generateAllConfigNodes().catch(error => {
+                    if (!notice.configNodeIds.length) throw Error("请在本次策划的生成配置卡片中开始生图。");
+                    void current.generateConfigNodes(notice.configNodeIds).catch(error => {
                         message.error(error instanceof Error ? error.message : "批量生成未完成，请重试。");
                     });
                 } catch (error) { message.error(error instanceof Error ? error.message : "请回到原画布重试。"); }
@@ -70,7 +71,7 @@ export function useProductPlanningSuccessNotice(port: PlanningNoticePort) {
             const timer = setTimeout(close, Math.max(0, deadline - Date.now()));
             dismiss = close;
             void message.open({ key, type: "success", duration: 0,
-                content: <PlanningNoticeContent deadline={deadline} close={close} generate={generate} /> });
+                content: <PlanningNoticeContent deadline={deadline} close={close} generate={generate} canGenerate={notice.configNodeIds.length > 0} /> });
         });
         return () => { unsubscribe(); dismiss?.(); };
     }, [message, port.active, port.projectId]);

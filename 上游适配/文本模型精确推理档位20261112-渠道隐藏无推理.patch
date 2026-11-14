@@ -1,0 +1,22 @@
+diff --git a/web/src/components/layout/channel-editor-drawer.tsx b/web/src/components/layout/channel-editor-drawer.tsx
+index 4dde62d..ba4dd39 100644
+--- a/web/src/components/layout/channel-editor-drawer.tsx
++++ b/web/src/components/layout/channel-editor-drawer.tsx
+@@ -13,7 +13,7 @@ import { defaultBaseUrlForApiFormat, guessCapability, normalizeChannelModels, ty
+ import { ModelScriptEditor } from "./model-script-editor";
+ import { ModelSelectModal } from "./model-select-modal";
+ import { reasoningEffortLabel } from "@/components/text-settings-panel";
+-import { defaultModelTextReasoningEfforts, modelAllowsTextReasoningEffort, TEXT_REASONING_EFFORTS } from "@/扩展功能/画布生成/文本推理强度";
++import { defaultModelTextReasoningEfforts, modelAllowsTextReasoningEffort, modelTextReasoningEffortOptions } from "@/扩展功能/画布生成/文本推理强度";
+ 
+ type ScriptTarget = { name: string; capability: ModelCapability; value: string };
+ 
+@@ -136,7 +136,7 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open:
+                                 <span className="shrink-0">支持的推理强度</span>
+                                 <Select mode="multiple" aria-label={`${model.name}支持的推理强度`} className="min-w-0 flex-1"
+                                     value={[...(model.reasoningEfforts ?? defaultModelTextReasoningEfforts(model.name))]}
+-                                    options={TEXT_REASONING_EFFORTS.map(value => ({ value, label: reasoningEffortLabel(value),
++                                    options={modelTextReasoningEffortOptions(model.name).map(value => ({ value, label: reasoningEffortLabel(value),
+                                         disabled: !modelAllowsTextReasoningEffort(model.name, value) }))}
+                                     onChange={reasoningEfforts => setModels(draft.models.map(item => item.name === model.name
+                                         ? { ...item, reasoningEfforts } : item))} />

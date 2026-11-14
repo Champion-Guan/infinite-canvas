@@ -270,6 +270,8 @@ test('批量执行期间视频身份保存只标记脏状态，批量结束后�
       ProductSaveRegistry: class { async flush() { flushes++; } },
       orderedProducts: () => [],
     },
+    './产品导航范围': {},
+    '../产品配置/功能开关': {},
     './产品保存检查点': { ProductCommitCheckpoint: class {} },
     './产品回收规则': { planProductRecycle: () => ({}), planProductRestore: () => ({}), recycledProducts: () => [] },
     '../Excel删除/工作簿删除规则': { planWorkbookDeletion: () => ({}), workbookDeletionIds: () => [] },

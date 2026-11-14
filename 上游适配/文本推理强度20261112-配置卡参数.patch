@@ -1,0 +1,19 @@
+diff --git a/web/src/components/canvas/canvas-config-node-panel.tsx b/web/src/components/canvas/canvas-config-node-panel.tsx
+index cd21340..48967ea 100644
+--- a/web/src/components/canvas/canvas-config-node-panel.tsx
++++ b/web/src/components/canvas/canvas-config-node-panel.tsx
+@@ -1,4 +1,5 @@
+ import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
++import { normalizeTextReasoningEffort } from "@/扩展功能/画布生成/文本推理强度";
+ import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+ import { Image as ImageIcon, LoaderCircle, MessageSquare, Music2, Play, Settings2, Square, Video } from "lucide-react";
+ import { Button, Segmented } from "antd";
+@@ -151,7 +152,7 @@ function buildNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mode: Can
+         model: resolveModelForCapability(globalConfig, node.metadata?.model, mode),
+         fallbackRequested: mode === "image" && (node.metadata?.model === FALLBACK_MODEL_OPTION || !node.metadata?.model && globalConfig.imageModel === FALLBACK_MODEL_OPTION),
+         fallbackCapability: mode,
+-        reasoningEffort: node.metadata?.reasoningEffort || globalConfig.reasoningEffort || defaultConfig.reasoningEffort,
++        reasoningEffort: normalizeTextReasoningEffort(node.metadata?.reasoningEffort ?? globalConfig.reasoningEffort),
+         quality: node.metadata?.quality || globalConfig.quality || defaultConfig.quality,
+         moderation: node.metadata?.moderation === "auto" ? "auto" : node.metadata?.moderation === "low" ? "low" : globalConfig.moderation || defaultConfig.moderation,
+         size: node.metadata?.size || globalConfig.size || defaultConfig.size,

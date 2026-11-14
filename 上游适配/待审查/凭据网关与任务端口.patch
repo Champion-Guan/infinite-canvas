@@ -1,0 +1,887 @@
+--- /dev/null
++++ b/画布副本/扩展功能/生成网关/生成协议.mjs
+@@ -0,0 +1,29 @@
++import { requireValue, validId, validUUID } from '../本机存储/协议.mjs';
++
++export const GENERATION_PROTOCOL = 'guan-generation.v1';
++export const MAX_REQUEST_BYTES = 32 * 1024 * 1024;
++export const MAX_RESPONSE_BYTES = 32 * 1024 * 1024;
++export const exactKeys = (value, keys) => value && Object.getPrototypeOf(value) === Object.prototype && Object.keys(value).sort().join(',') === [...keys].sort().join(',');
++export const bindingLike = value => typeof value === 'string' && /^provider:[0-9a-f]{64}$/.test(value);
++export const jobLike = validUUID;
++// 不用重复捕获组匹配整份base64；V8在大图片上会耗尽正则栈。
++// 单字符扫描保持线性，尾部位也必须规范，不解码/分配第二份大正文。
++export function canonicalBase64(value, maxBytes) {
++  if (typeof value !== 'string' || value.length % 4 !== 0 || value.length > Math.ceil(maxBytes / 3) * 4) return false;
++  const padding = value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0, end = value.length - padding;
++  if (value.length / 4 * 3 - padding > maxBytes || /[^A-Za-z0-9+/]/.test(value.slice(0, end))) return false;
++  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
++  return !padding || (alphabet.indexOf(value[end - 1]) & (padding === 2 ? 15 : 3)) === 0;
++}
++export function validateSubmission(value) {
++  requireValue(exactKeys(value, ['id', 'productId', 'nodeId', 'binding', 'request']) && validUUID(value.id) && validId(value.productId) && validId(value.nodeId) && bindingLike(value.binding), 'invalid_generation', '任务身份、产品、节点或渠道引用无效。');
++  const request = value.request;
++  requireValue(exactKeys(request, ['method', 'path', 'contentType', 'body']) && ['GET', 'POST'].includes(request.method) && typeof request.path === 'string' && request.path.length <= 8192 &&
++    typeof request.contentType === 'string' && /^(?:|application\/json|multipart\/form-data; boundary=[A-Za-z0-9-]{1,100})$/.test(request.contentType) &&
++    canonicalBase64(request.body, MAX_REQUEST_BYTES) &&
++    (request.method !== 'GET' || !request.body && !request.contentType), 'invalid_generation_request', '生成请求格式或大小不支持。');
++  return value;
++}
++
++export const TASK_STATES = Object.freeze(['accepted', 'running', 'succeeded', 'failed', 'uncertain', 'cancelled']);
++export const terminalState = value => ['succeeded', 'failed', 'uncertain', 'cancelled'].includes(value);
+--- /dev/null
++++ b/画布副本/扩展功能/生成网关/受限请求规划.mjs
+@@ -0,0 +1,49 @@
++import { isIP } from 'node:net';
++import { requireValue } from '../本机存储/协议.mjs';
++
++// 来源：旧项目src/server/secure-provider-proxy.mjs的planSecureProviderRequest。
++// 仅迁入OpenAI/Gemini白名单；Agent、WebDAV、GitHub和任意插件不属于生成网关。
++const openAIPath = /^\/v1\/(?:models(?:\/[\w.-]+)?|images\/(?:generations|edits|variations)|chat\/completions|responses(?:\/[\w-]+)?|audio\/(?:speech|transcriptions|translations)|videos(?:\/[\w-]+(?:\/content)?)?)$/;
++const geminiPath = /^\/v1(?:beta)?\/(?:models(?:\/[\w.:-]+)?|operations\/[\w.-]+|files\/[\w.-]+(?::download)?)$/;
++const unsafeCharacters = value => [...value].some(character => character === '\\' || character.charCodeAt(0) <= 0x20);
++
++export function normalizeEndpoint(value, { testOrigins = [] } = {}) {
++  requireValue(typeof value === 'string' && value.length <= 4096 && !unsafeCharacters(value), 'invalid_provider_endpoint', '渠道地址格式无效。');
++  let url;
++  try { url = new URL(value); } catch { requireValue(false, 'invalid_provider_endpoint', '渠道地址格式无效。'); }
++  const test = testOrigins.includes(url.origin) && url.hostname === '127.0.0.1' && url.protocol === 'http:';
++  requireValue(!url.username && !url.password && !url.search && !url.hash && (url.protocol === 'https:' || test) &&
++    !/%(?:2e|2f|5c|25|00)/i.test(value) && !/\/(?:__guan-local|local-secure-api|local-app)(?:\/|$)/.test(url.pathname) &&
++    (test || !isIP(url.hostname.replace(/^\[|\]$/g, '')) && url.hostname.includes('.') && !/(?:^|\.)(?:localhost|local|internal|invalid|test)$/.test(url.hostname)),
++  'invalid_provider_endpoint', '渠道必须使用公开HTTPS地址，不能带认证信息、查询或本机接口。');
++  return url.href.replace(/\/+$/, '');
++}
++
++export function planProviderRequest(profile, suffix, method, contentType = '') {
++  requireValue(['openai', 'gemini'].includes(profile?.kind) && ['GET', 'POST'].includes(method) && typeof suffix === 'string' && suffix.startsWith('/') && !suffix.startsWith('//') && suffix.length <= 8192 &&
++    !unsafeCharacters(suffix) && !/%(?:2e|2f|5c|25|00)/i.test(suffix.split('?')[0]) && !suffix.split('?')[0].split('/').some(part => ['.', '..'].includes(part)),
++  'provider_request_denied', '生成请求不在允许路径内。');
++  const parsed = new URL('https://request.invalid' + suffix), base = new URL(profile.endpoint);
++  requireValue(!parsed.hash && (profile.kind === 'openai' ? openAIPath : geminiPath).test(parsed.pathname), 'provider_request_denied', '生成请求不在允许路径内。');
++  for (const [name] of parsed.searchParams) requireValue(['alt', 'pageSize', 'pageToken'].includes(name), 'provider_query_denied', '不接受认证信息或任意渠道查询参数。');
++  const allowedMethod = profile.kind === 'openai'
++    ? method === 'GET' ? /^\/v1\/(?:models(?:\/[\w.-]+)?|responses\/[\w-]+|videos\/[\w-]+(?:\/content)?)$/.test(parsed.pathname)
++      : /^\/v1\/(?:images\/(?:generations|edits|variations)|chat\/completions|responses|audio\/(?:speech|transcriptions|translations)|videos)$/.test(parsed.pathname)
++    : method === 'GET' ? !parsed.pathname.includes(':') || /:download$/.test(parsed.pathname)
++      : /^\/v1(?:beta)?\/models\/[\w.:-]+:(?:generateContent|streamGenerateContent|predictLongRunning)$/.test(parsed.pathname);
++  requireValue(allowedMethod && (method === 'GET' ? !contentType : !!contentType), 'provider_request_denied', '请求方法与资源操作不匹配。');
++  let path = parsed.pathname;
++  const version = base.pathname.match(/\/(v1(?:beta)?)$/)?.[1];
++  if (version && path.startsWith('/' + version + '/')) path = path.slice(version.length + 1);
++  const url = new URL(base.href.replace(/\/+$/, '') + path + parsed.search);
++  requireValue(url.origin === base.origin, 'provider_request_denied', '不能覆盖渠道主机。');
++  return { url, headers: { accept: 'application/json, application/octet-stream', 'accept-encoding': 'identity', ...(contentType ? { 'content-type': contentType } : {}) } };
++}
++
++// DNS结果在实际连接时核验并固定；仅保守允许公网IPv4。IPv6-only渠道明确失败，不降级。
++export function publicIPv4(address) {
++  if (isIP(address) !== 4) return false;
++  const [a, b] = address.split('.').map(Number);
++  return !(a === 0 || a === 10 || a === 127 || a >= 224 || a === 169 && b === 254 || a === 172 && b >= 16 && b <= 31 ||
++    a === 192 && [0, 168].includes(b) || a === 100 && b >= 64 && b <= 127 || a === 198 && [18, 19, 51].includes(b) || a === 203 && b === 0);
++}
+--- /dev/null
++++ b/画布副本/扩展功能/生成网关/受限上游传输.mjs
+@@ -0,0 +1,40 @@
++import { request as httpsRequest } from 'node:https';
++import { request as httpRequest } from 'node:http';
++import { lookup } from 'node:dns';
++import { StorageError, requireValue } from '../本机存储/协议.mjs';
++import { MAX_REQUEST_BYTES, MAX_RESPONSE_BYTES } from './生成协议.mjs';
++import { publicIPv4 } from './受限请求规划.mjs';
++
++// 不使用全局fetch、不跟随重定向、不继承环境代理、Cookie或浏览器请求头。
++// HTTPS证书和SNI仍使用原主机名，lookup只提供经核验的地址。
++export function requestProviderBytes({ url, method, headers, bytes, signal, timeout = 10 * 60_000, testOrigins = [] }) {
++  requireValue(url instanceof URL && ['GET', 'POST'].includes(method) && Buffer.isBuffer(bytes) && bytes.length <= MAX_REQUEST_BYTES &&
++    Number.isSafeInteger(timeout) && timeout > 0 && timeout <= 10 * 60_000, 'invalid_provider_transport', '上游传输参数无效。');
++  const test = url.protocol === 'http:' && url.hostname === '127.0.0.1' && testOrigins.includes(url.origin);
++  requireValue(url.protocol === 'https:' || test, 'provider_transport_denied', '未允许的上游传输。');
++  return new Promise((resolve, reject) => {
++    let settled = false;
++    const finish = (error, result) => { if (!settled) { settled = true; clearTimeout(timer); if (error) reject(error); else resolve(result); } };
++    const pinnedLookup = (hostname, options, callback) => lookup(hostname, { all: true, family: 4, verbatim: true }, (error, addresses) => {
++      if (error || !addresses?.length || addresses.some(item => !publicIPv4(item.address))) return callback(new Error('provider_dns_denied'));
++      const entry = addresses[0];
++      callback(null, options?.all ? [entry] : entry.address, entry.family);
++    });
++    const req = (test ? httpRequest : httpsRequest)(url, { method, headers, signal, agent: false, ...(test ? {} : { lookup: pinnedLookup, family: 4 }) }, res => {
++      const chunks = []; let size = 0;
++      if (res.statusCode >= 300 && res.statusCode < 400) { res.destroy(); finish(new StorageError('provider_redirect_denied', '上游跳转已拒绝，未转发密钥到其他地址。', 502)); return; }
++      const encoding = res.headers['content-encoding'];
++      if (encoding && encoding !== 'identity') { res.destroy(); finish(new StorageError('provider_encoding_denied', '上游压缩响应不在本批验收范围。', 502)); return; }
++      res.on('data', chunk => {
++        size += chunk.length;
++        if (size > MAX_RESPONSE_BYTES) { res.destroy(); finish(new StorageError('provider_response_too_large', '上游响应超过32MiB，任务待核实，不会自动重发。', 502)); }
++        else chunks.push(chunk);
++      });
++      res.once('error', () => finish(new StorageError('provider_connection_lost', '上游响应未确认，不会自动重发。', 502)));
++      res.once('end', () => finish(null, { status: res.statusCode, contentType: String(res.headers['content-type'] || 'application/octet-stream'), bytes: Buffer.concat(chunks) }));
++    });
++    const timer = setTimeout(() => req.destroy(new Error('provider_timeout')), timeout);
++    req.once('error', () => finish(new StorageError('provider_connection_lost', '上游结果未确认，不会自动重发。', 502)));
++    req.end(bytes.length ? bytes : undefined);
++  });
++}
+--- /dev/null
++++ b/画布副本/扩展功能/生成网关/渠道凭据网关.mjs
+@@ -0,0 +1,76 @@
++import { createHash, randomUUID } from 'node:crypto';
++import { StorageError, requireValue } from '../本机存储/协议.mjs';
++import { validCredentialRef, validCredentialValue } from '../本机凭据/凭据协议.mjs';
++import { bindingLike, exactKeys, MAX_RESPONSE_BYTES } from './生成协议.mjs';
++import { normalizeEndpoint, planProviderRequest } from './受限请求规划.mjs';
++import { requestProviderBytes } from './受限上游传输.mjs';
++
++const digest = value => createHash('sha256').update(value).digest('hex');
++const format = 'guan-provider-binding.v1';
++const hashJSON = value => digest(JSON.stringify(value));
++const safeError = () => new StorageError('provider_unavailable', '本机渠道暂时不可用，原配置已保留。', 503);
++
++export function createProviderCredentialGateway({ workspace, vault, coordinator, testOrigins = [] } = {}) {
++  requireValue(workspace?.workspaceId && typeof workspace.readDocument === 'function' && typeof workspace.writeDocument === 'function' &&
++    typeof vault?.store === 'function' && typeof vault.read === 'function' && typeof coordinator?.runWrite === 'function' &&
++    Array.isArray(testOrigins) && testOrigins.every(value => /^http:\/\/127\.0\.0\.1:\d+$/.test(value)), 'invalid_provider_gateway', '渠道必须在可信本机进程中装配。');
++  const publicBinding = (id, profile) => ({ binding: id, kind: profile.kind, endpoint: profile.endpoint });
++  function readBinding(id) {
++    requireValue(bindingLike(id), 'invalid_provider_binding', '渠道引用无效。');
++    const doc = workspace.readDocument('extension', id);
++    requireValue(doc?.revision === 1 && doc.workspaceId === workspace.workspaceId && doc.mediaIds.length === 0 &&
++      exactKeys(doc.value, ['format', 'kind', 'endpoint', 'credentialRef']) && doc.value.format === format && ['openai', 'gemini'].includes(doc.value.kind) && validCredentialRef(doc.value.credentialRef) &&
++      normalizeEndpoint(doc.value.endpoint, { testOrigins }) === doc.value.endpoint && id === 'provider:' + hashJSON(doc.value),
++    'provider_binding_missing', '渠道绑定缺失或不匹配，未改用其他密钥。', 409);
++    return doc.value;
++  }
++  async function bind(value, serverMigration = false) {
++    requireValue(exactKeys(value, serverMigration ? ['kind', 'endpoint', 'credentialRef'] : ['kind', 'endpoint', 'value']), 'invalid_provider_binding', '渠道绑定字段无效。');
++    requireValue(['openai', 'gemini'].includes(value.kind), 'provider_kind_denied', '本批只支持OpenAI兼容与Gemini渠道。');
++    const endpoint = normalizeEndpoint(value.endpoint, { testOrigins });
++    requireValue(value.credentialRef ? validCredentialRef(value.credentialRef) : validCredentialValue(value.value) && !/[\r\n\0]/.test(value.value), 'invalid_provider_credential', '渠道凭据无效。');
++    let ref;
++    try {
++      ref = value.credentialRef || await vault.store(value.value);
++      const saved = await vault.read(ref);
++      requireValue(validCredentialValue(saved) && !/[\r\n\0]/.test(saved), 'invalid_provider_credential', '渠道凭据无效。');
++    } catch { throw safeError(); }
++    const profile = { format, kind: value.kind, endpoint, credentialRef: ref }, id = 'provider:' + hashJSON(profile);
++    return coordinator.runWrite(() => {
++      const existing = workspace.readDocument('extension', id);
++      if (existing) { readBinding(id); return publicBinding(id, profile); }
++      const operationId = randomUUID(), ack = workspace.writeDocument({ collection: 'extension', id, value: profile, expectedRevision: 0, operationId });
++      requireValue(ack.persisted === true && ack.workspaceId === workspace.workspaceId && ack.operationId === operationId && ack.hash === hashJSON(profile) && ack.revision === 1 && ack.id === id && ack.collection === 'extension', 'provider_save_unconfirmed', '渠道绑定保存未确认。', 503);
++      return publicBinding(id, profile);
++    });
++  }
++  return Object.freeze({
++    bind: value => bind(value),
++    // 仅可信后端迁移器可用，HTTP不暴露此入口；不能让页面用已知secret引用重定向旧密钥。
++    bindExistingProfile: value => bind(value, true),
++    describe(id) { return publicBinding(id, readBinding(id)); },
++    validate(id, request) { const profile = readBinding(id); planProviderRequest(profile, request.path, request.method, request.contentType); },
++    async execute(id, request, { signal } = {}) {
++      const profile = readBinding(id), plan = planProviderRequest(profile, request.path, request.method, request.contentType);
++      let credential;
++      try { credential = await vault.read(profile.credentialRef); } catch { throw safeError(); }
++      requireValue(validCredentialValue(credential) && !/[\r\n\0]/.test(credential), 'provider_unavailable', '本机渠道暂时不可用。', 503);
++      const headers = { ...plan.headers, [profile.kind === 'gemini' ? 'x-goog-api-key' : 'authorization']: profile.kind === 'gemini' ? credential : 'Bearer ' + credential };
++      const result = await requestProviderBytes({ ...plan, method: request.method, headers, bytes: Buffer.from(request.body, 'base64'), signal, testOrigins });
++      requireValue(Number.isInteger(result.status) && result.status >= 200 && result.status <= 599 && result.bytes.length <= MAX_RESPONSE_BYTES &&
++        result.contentType.length <= 256 && !/[\r\n\0]/.test(result.contentType), 'provider_response_invalid', '渠道响应未通过检查。', 502);
++      // 继承旧代理的已知凭据回显消毒，完整缓冲避免跨chunk漏出。
++      // 这不是任意脚本/提示词或未知编码的通用DLP承诺。
++      const variants = [...new Set([credential, encodeURIComponent(credential), JSON.stringify(credential).slice(1, -1), Buffer.from(credential).toString('base64')])];
++      let bytes = result.bytes;
++      if (/(?:json|text|xml|event-stream)/i.test(result.contentType)) {
++        let text;
++        try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { throw new StorageError('provider_response_invalid', '渠道文字响应编码无效。', 502); }
++        for (const value of variants) text = text.split(value).join('[credential-redacted]');
++        bytes = Buffer.from(text);
++      } else requireValue(!variants.some(value => bytes.includes(Buffer.from(value))), 'provider_response_sensitive', '渠道响应包含认证材料，未交付页面。', 502);
++      requireValue(bytes.length <= MAX_RESPONSE_BYTES && !variants.some(value => result.contentType.includes(value)), 'provider_response_invalid', '渠道响应未通过检查。', 502);
++      return { status: result.status, contentType: result.contentType, bytes };
++    },
++  });
++}
+--- /dev/null
++++ b/画布副本/扩展功能/生成网关/生成HTTP入口.mjs
+@@ -0,0 +1,54 @@
++import { StorageError, requireValue, validId } from '../本机存储/协议.mjs';
++import { GENERATION_PROTOCOL, MAX_REQUEST_BYTES, exactKeys, jobLike, bindingLike } from './生成协议.mjs';
++
++const path = '/__guan-local/generation';
++// 不签发新权限。authorize必须复用当前工作台页面能力、数据租约、撤销和期限检查。
++// 回调需要每次重新核验，尤其是慢请求和执行后；不能传入永久true的生产装配。
++export function createGenerationHTTPHandler({ origin, authorize, gateway, tasks, maxRequests = 4, rateLimit = 120, now = Date.now } = {}) {
++  requireValue(/^http:\/\/(?:localhost|127\.0\.0\.1):\d+$/.test(origin) && typeof authorize === 'function' && gateway?.bind && tasks?.submit &&
++    Number.isInteger(maxRequests) && maxRequests > 0 && maxRequests <= 8 && Number.isInteger(rateLimit) && rateLimit > 0 && rateLimit <= 240 && typeof now === 'function', 'invalid_generation_http', '必须复用可信工作台授权入口。');
++  let active = 0, count = 0, windowStart = null;
++  return async function handle(request, response) {
++    if (request.url !== path) return false;
++    response.setHeader('Cache-Control', 'no-store'); response.setHeader('X-Content-Type-Options', 'nosniff');
++    response.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
++    response.setHeader('Referrer-Policy', 'no-referrer');
++    const json = (status, value) => { if (!response.destroyed && !response.writableEnded) { response.writeHead(status, { 'Content-Type': 'application/json' }); response.end(JSON.stringify(value)); } };
++    let counted = false;
++    try {
++      requireValue(request.headers.host === new URL(origin).host && request.headers.origin === origin && (!request.headers['sec-fetch-site'] || request.headers['sec-fetch-site'] === 'same-origin'), 'generation_origin_denied', '生成请求必须来自当前工作台。', 403);
++      requireValue(request.method === 'POST' && request.headers['content-type'] === 'application/json' && request.headers['x-guan-generation-protocol'] === GENERATION_PROTOCOL, 'generation_headers_denied', '生成请求协议不匹配。', 403);
++      await authorize(request);
++      const time = now(); requireValue(Number.isSafeInteger(time) && time >= 0, 'invalid_generation_clock', '任务时钟无效。');
++      if (windowStart === null || time - windowStart >= 60_000) { windowStart = time; count = 0; }
++      requireValue(++count <= rateLimit && active < maxRequests, 'generation_http_busy', '生成入口繁忙，请稍后查询原任务。', 429);
++      active++; counted = true;
++      const limit = Math.ceil(MAX_REQUEST_BYTES / 3) * 4 + 16384, length = request.headers['content-length'];
++      requireValue(!length || /^\d+$/.test(length) && Number(length) <= limit, 'generation_body_too_large', '生成请求超过限制。', 413);
++      const chunks = []; let size = 0;
++      for await (const chunk of request) { size += chunk.length; requireValue(size <= limit, 'generation_body_too_large', '生成请求超过限制。', 413); chunks.push(chunk); }
++      let value;
++      try { value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))); } catch { throw new StorageError('generation_json_invalid', '生成请求格式无效。'); }
++      await authorize(request);
++      let result;
++      if (exactKeys(value, ['operation', 'profile']) && value.operation === 'bind') result = await gateway.bind(value.profile);
++      else if (exactKeys(value, ['operation', 'binding']) && value.operation === 'describe' && bindingLike(value.binding)) result = gateway.describe(value.binding);
++      else if (exactKeys(value, ['operation', 'task']) && value.operation === 'submit') result = await tasks.submit(value.task);
++      else if (exactKeys(value, ['operation', 'productId']) && value.operation === 'list' && validId(value.productId)) result = tasks.list(value.productId);
++      else if (exactKeys(value, ['operation', 'id', 'checkpoint']) && value.operation === 'applied' && jobLike(value.id)) result = await tasks.confirmApplied(value.id, value.checkpoint);
++      else if (exactKeys(value, ['operation', 'id']) && jobLike(value.id) && ['get', 'result', 'cancel', 'retry-save'].includes(value.operation)) {
++        if (value.operation === 'get') result = tasks.get(value.id);
++        if (value.operation === 'cancel') result = await tasks.cancel(value.id);
++        if (value.operation === 'retry-save') result = await tasks.retryResultSave(value.id);
++        if (value.operation === 'result') { const saved = tasks.result(value.id); result = { ...saved, bytes: saved.bytes.toString('base64') }; }
++      } else requireValue(false, 'generation_command_denied', '生成操作不受支持。');
++      await authorize(request); // 已撤销页面不能取走结果；任务本身继续保存在本机。
++      json(200, { protocol: GENERATION_PROTOCOL, result });
++    } catch (error) {
++      const known = error instanceof StorageError;
++      json(known ? error.status : 503, { protocol: GENERATION_PROTOCOL, error: { code: known && /^[a-z_]{3,64}$/.test(error.code) ? error.code : 'generation_unavailable', message: '生成请求未确认。原配置与任务结果保留，请勿自动重复生成。' } });
++      request.resume();
++    } finally { if (counted) active--; }
++    return true;
++  };
++}
+--- /dev/null
++++ b/画布副本/扩展功能/生成网关/生成服务装配.mjs
+@@ -0,0 +1,20 @@
++import { requireValue } from '../本机存储/协议.mjs';
++import { createProviderCredentialGateway } from './渠道凭据网关.mjs';
++import { createGenerationHTTPHandler } from './生成HTTP入口.mjs';
++import { openGenerationTasks } from '../生成任务/SQLite生成任务.mjs';
++import { createSavedCanvasVerifier } from '../生成任务/画布保存核验.mjs';
++
++// 自有边界。只依赖可信进程内端口，不打开数据库/监听端口/读取Keychain/重启服务。
++export async function assembleGenerationService({ workspace, vault, runTrustedWrite, authorize, origin } = {}) {
++  requireValue(typeof runTrustedWrite === 'function' && typeof authorize === 'function', 'invalid_generation_assembly', '生成装配需要既有写入协调与页面授权。');
++  const coordinator = Object.freeze({ runWrite: operation => runTrustedWrite(operation) });
++  const coordinatedVault = { read: ref => vault.read(ref), store: value => coordinator.runWrite(() => vault.store(value)) };
++  const gateway = createProviderCredentialGateway({ workspace, vault: coordinatedVault, coordinator });
++  const tasks = await openGenerationTasks({ workspace, gateway, coordinator, verifyApplied: createSavedCanvasVerifier({ workspace }) });
++  const handle = createGenerationHTTPHandler({ origin, gateway, tasks, authorize });
++  return Object.freeze({ handle, getStatus: tasks.getStatus,
++    // stop前先检查；业务未决时不得先拆其他服务/密钥再把close失败吞掉。
++    assertCanClose() { const state = tasks.getStatus(); requireValue(state.running === 0 && state.unpersistedResults === 0, 'generation_busy', '仍有生成或未确认结果，不能关闭。', 409); },
++    close: () => tasks.close(),
++  });
++}
+--- /dev/null
++++ b/画布副本/扩展功能/生成任务/SQLite生成任务.mjs
+@@ -0,0 +1,144 @@
++import { createHash, randomUUID } from 'node:crypto';
++import { requireValue, validHash, validId } from '../本机存储/协议.mjs';
++import { GENERATION_PROTOCOL, TASK_STATES, terminalState, validateSubmission, jobLike, exactKeys, bindingLike } from '../生成网关/生成协议.mjs';
++
++const ledgerId = 'guan-generation-ledger-v1', format = 'guan-generation-ledger.v1';
++const hash = value => createHash('sha256').update(value).digest('hex');
++const publicJob = job => ({ id: job.id, productId: job.productId, nodeId: job.nodeId, state: job.state, applied: job.applied, createdAt: job.createdAt, updatedAt: job.updatedAt,
++  result: job.result && { ...job.result }, reason: job.reason });
++
++// 请求正文只在进程内使用；账本只存摘要、归属、状态和已消毒响应的媒体引用。
++// running提交后才允许发出请求。重启不重发，succeeded不等于画布已保存。
++export async function openGenerationTasks({ workspace, gateway, coordinator, verifyApplied, maxTasks = 256, maxConcurrent = 4, now = Date.now } = {}) {
++  requireValue(workspace?.workspaceId && typeof workspace.writeMedia === 'function' && typeof workspace.readMedia === 'function' &&
++    typeof gateway?.validate === 'function' && typeof gateway.execute === 'function' && typeof coordinator?.runWrite === 'function' &&
++    typeof verifyApplied === 'function' && Number.isInteger(maxTasks) && maxTasks > 0 && maxTasks <= 512 && Number.isInteger(maxConcurrent) && maxConcurrent > 0 && maxConcurrent <= 8 && typeof now === 'function',
++  'invalid_generation_service', '生成任务必须显式接入同一工作区、网关、写入协调和画布保存核验。');
++  let closed = false, tail = Promise.resolve();
++  const active = new Map(), pendingResults = new Map();
++  function clock() { const value = now(); requireValue(Number.isSafeInteger(value) && value >= 0, 'invalid_generation_clock', '任务时钟无效。'); return value; }
++  function ledger() {
++    const doc = workspace.readDocument('extension', ledgerId);
++    if (!doc) return { revision: 0, jobs: [] };
++    requireValue(doc.workspaceId === workspace.workspaceId && exactKeys(doc.value, ['format', 'workspaceId', 'jobs']) && doc.value.format === format && doc.value.workspaceId === workspace.workspaceId && Array.isArray(doc.value.jobs) && doc.value.jobs.length <= maxTasks,
++      'generation_ledger_invalid', '任务账本不完整，未当作空账本。', 409);
++    const ids = new Set(), refs = new Set();
++    for (const job of doc.value.jobs) {
++      requireValue(exactKeys(job, ['id', 'productId', 'nodeId', 'binding', 'requestHash', 'state', 'applied', 'createdAt', 'updatedAt', 'result', 'reason']) &&
++        jobLike(job.id) && !ids.has(job.id) && validId(job.productId) && validId(job.nodeId) && bindingLike(job.binding) && validHash(job.requestHash) && TASK_STATES.includes(job.state) && typeof job.applied === 'boolean' &&
++        Number.isSafeInteger(job.createdAt) && job.createdAt >= 0 && Number.isSafeInteger(job.updatedAt) && job.updatedAt >= job.createdAt && typeof job.reason === 'string' && /^[a-z_]{0,64}$/.test(job.reason) &&
++        (!job.applied || job.state === 'succeeded') && (job.result === null || exactKeys(job.result, ['id', 'status', 'contentType', 'size']) && validHash(job.result.id) &&
++          Number.isInteger(job.result.status) && job.result.status >= 200 && job.result.status <= 599 && typeof job.result.contentType === 'string' && job.result.contentType.length <= 256 && !/[\r\n\0]/.test(job.result.contentType) &&
++          Number.isSafeInteger(job.result.size) && job.result.size > 0 && job.result.size <= 32 * 1024 * 1024) &&
++        (!['succeeded', 'failed'].includes(job.state) || job.result && (job.state === 'succeeded' ? job.result.status < 300 : job.result.status >= 400)), 'generation_ledger_invalid', '任务记录不完整或状态冲突。', 409);
++      ids.add(job.id); if (job.result) refs.add(job.result.id);
++    }
++    requireValue([...refs].sort().join(',') === [...doc.mediaIds].sort().join(','), 'generation_ledger_invalid', '任务结果媒体引用不完整。', 409);
++    return { revision: doc.revision, jobs: doc.value.jobs };
++  }
++  async function mutate(operation) {
++    const task = tail.then(() => coordinator.runWrite(() => {
++      const before = ledger(), jobs = structuredClone(before.jobs), result = operation(jobs);
++      const value = { format, workspaceId: workspace.workspaceId, jobs }, operationId = randomUUID(), expectedHash = hash(JSON.stringify(value));
++      try {
++        const ack = workspace.writeDocument({ collection: 'extension', id: ledgerId, value, expectedRevision: before.revision, operationId, mediaIds: [...new Set(jobs.flatMap(job => job.result ? [job.result.id] : []))].sort() });
++        requireValue(ack.persisted === true && ack.workspaceId === workspace.workspaceId && ack.collection === 'extension' && ack.id === ledgerId && ack.operationId === operationId && ack.revision === before.revision + 1 && ack.hash === expectedHash,
++          'generation_save_unconfirmed', '任务状态保存未确认，不会重新发送上游请求。', 503);
++      } catch (error) {
++        // 同步SQLite已提交但调用方丢ACK时，按精确后态核对，不新增请求或覆盖别人的更新。
++        const saved = workspace.readDocument('extension', ledgerId);
++        if (saved?.revision !== before.revision + 1 || saved.hash !== expectedHash) throw error;
++      }
++      return result;
++    }));
++    tail = task.catch(() => {}); return task;
++  }
++  const find = (jobs, id) => { const job = jobs.find(item => item.id === id); requireValue(job, 'generation_not_found', '生成任务不存在。', 404); return job; };
++  function read(id) { requireValue(jobLike(id), 'invalid_generation', '任务ID无效。'); return find(ledger().jobs, id); }
++  // 冷启动仅收口上次进程的未决状态。没有上游支持幂等时，不可能承诺exactly-once远端执行。
++  const previous = ledger();
++  if (previous.jobs.some(job => !terminalState(job.state))) await mutate(jobs => {
++    for (const job of jobs) if (!terminalState(job.state)) { job.reason = job.state === 'accepted' ? 'interrupted_before_dispatch' : 'upstream_result_unknown'; job.state = job.state === 'accepted' ? 'cancelled' : 'uncertain'; job.updatedAt = Math.max(clock(), job.updatedAt); }
++  });
++  async function persistResult(id) {
++    const result = pendingResults.get(id);
++    requireValue(result, 'generation_result_unavailable', '本进程没有可重试保存的结果；不会重新请求上游。', 409);
++    const media = await coordinator.runWrite(() => workspace.writeMedia(result.bytes, 'application/octet-stream'));
++    requireValue(media.id === hash(result.bytes) && media.size === result.bytes.length, 'generation_result_invalid', '任务结果落盘核验未通过。', 503);
++    await mutate(jobs => {
++      const job = find(jobs, id);
++      requireValue(job.state === 'running' || job.state === 'uncertain' && job.reason === 'result_save_unconfirmed', 'generation_state_conflict', '任务状态已变化，没有覆盖。', 409);
++      job.result = { id: media.id, status: result.status, contentType: result.contentType, size: media.size };
++      job.state = result.status >= 200 && result.status < 300 ? 'succeeded' : 'failed'; job.reason = job.state === 'failed' ? 'upstream_http_error' : ''; job.updatedAt = Math.max(clock(), job.updatedAt);
++    });
++    pendingResults.delete(id); return publicJob(read(id));
++  }
++  async function run(input, controller) {
++    try {
++      await mutate(jobs => { const job = find(jobs, input.id); requireValue(job.state === 'accepted', 'generation_state_conflict', '任务不能重复执行。', 409); job.state = 'running'; job.updatedAt = Math.max(clock(), job.updatedAt); });
++      requireValue(!controller.signal.aborted, 'generation_not_dispatched', '任务在发出前已取消。', 409);
++      const result = await gateway.execute(input.binding, input.request, { signal: controller.signal });
++      // 零长度响应也保留可校验内容，不把没有结果当作成功。
++      requireValue(Buffer.isBuffer(result.bytes) && result.bytes.length > 0, 'generation_empty_response', '上游没有可保存的结果。', 502);
++      pendingResults.set(input.id, result); await persistResult(input.id);
++    } catch {
++      try { await mutate(jobs => { const job = find(jobs, input.id); if (!terminalState(job.state)) { job.state = 'uncertain'; job.reason = pendingResults.has(input.id) ? 'result_save_unconfirmed' : 'upstream_result_unknown'; job.updatedAt = Math.max(clock(), job.updatedAt); } }); }
++      catch { /* 保留旧running记录；冷重开必须待核实，不能伪造失败或重发。 */ }
++    } finally { active.delete(input.id); }
++  }
++  return Object.freeze({
++    async submit(value) {
++      requireValue(!closed, 'generation_closed', '任务入口已关闭。', 503);
++      const input = structuredClone(validateSubmission(value)); gateway.validate(input.binding, input.request);
++      const requestHash = hash(JSON.stringify(input)), existing = ledger().jobs.find(job => job.id === input.id);
++      if (existing) { requireValue(existing.requestHash === requestHash, 'generation_id_conflict', '任务ID已用于不同请求。', 409); return publicJob(existing); }
++      const inflight = active.get(input.id);
++      if (inflight) {
++        requireValue(inflight.requestHash === requestHash, 'generation_id_conflict', '任务ID已用于不同请求。', 409);
++        await inflight.admitted; return publicJob(read(input.id));
++      }
++      requireValue(active.size < maxConcurrent && pendingResults.size < maxConcurrent, 'generation_busy', '任务容量已满，请稍后重试相同任务ID。', 429);
++      // 在第一个await前占位，避免并发submit越过容量限制或同ID重复调度。
++      const controller = new AbortController(); let accepted, rejected;
++      const admitted = new Promise((resolve, reject) => { accepted = resolve; rejected = reject; }); admitted.catch(() => {});
++      active.set(input.id, { controller, done: null, admitted, requestHash });
++      try {
++        const job = await mutate(jobs => {
++          requireValue(!jobs.some(job => job.id === input.id) && jobs.length < maxTasks, 'generation_capacity', '任务账本已满或ID正在提交，未发送上游请求。', 409);
++          const time = clock(), job = { id: input.id, productId: input.productId, nodeId: input.nodeId, binding: input.binding, requestHash, state: 'accepted', applied: false, createdAt: time, updatedAt: time, result: null, reason: '' };
++          jobs.push(job); return publicJob(job);
++        });
++        const entry = active.get(input.id); entry.done = run(input, controller); accepted(); return job;
++      } catch (error) { active.delete(input.id); rejected(error); throw error; }
++    },
++    get(id) { return publicJob(read(id)); },
++    list(productId) { return ledger().jobs.filter(job => job.productId === productId).map(publicJob); },
++    result(id) {
++      const job = read(id); requireValue(job.result && ['succeeded', 'failed'].includes(job.state), 'generation_result_unavailable', '任务结果尚未持久保存。', 409);
++      const saved = workspace.readMedia(job.result.id);
++      requireValue(saved.bytes.length === job.result.size && hash(saved.bytes) === job.result.id, 'generation_result_invalid', '任务结果损坏，未交付。', 409);
++      return { ...publicJob(job), bytes: Buffer.from(saved.bytes) };
++    },
++    async confirmApplied(id, checkpoint) {
++      const job = read(id);
++      requireValue(job.state === 'succeeded', 'generation_not_successful', '上游尚无成功结果，不能确认画布完成。', 409);
++      if (job.applied) return publicJob(job);
++      const media = workspace.readMedia(job.result.id);
++      requireValue(media.bytes.length === job.result.size && hash(media.bytes) === job.result.id, 'generation_result_invalid', '任务结果损坏，不能确认保存完成。', 409);
++      // 此回调只能由可信装配方提供；不能接受浏览器一句saved:true。
++      requireValue(await verifyApplied(Object.freeze(publicJob(job)), structuredClone(checkpoint)) === true, 'generation_canvas_unconfirmed', '原产品画布尚未核验保存，任务结果保留。', 409);
++      await mutate(jobs => { const current = find(jobs, id); requireValue(current.state === 'succeeded' && current.result.id === job.result.id, 'generation_state_conflict', '任务结果已变化。', 409); current.applied = true; current.updatedAt = Math.max(clock(), current.updatedAt); });
++      return publicJob(read(id));
++    },
++    retryResultSave: persistResult,
++    async cancel(id) {
++      const job = read(id), entry = active.get(id);
++      if (entry) { entry.controller.abort(); await entry.admitted; await entry.done; }
++      return publicJob(read(job.id)); // 已发出的取消不冒充远端已结束。
++    },
++    async drain() { await Promise.all([...active.values()].map(async entry => { await entry.admitted; await entry.done; })); await tail; },
++    getStatus: () => ({ closed, running: active.size, unpersistedResults: pendingResults.size }),
++    async close() { requireValue(active.size === 0 && pendingResults.size === 0, 'generation_busy', '仍有生成或未确认结果，不能正常关闭。', 409); closed = true; await tail; },
++    protocol: GENERATION_PROTOCOL,
++  });
++}
+--- /dev/null
++++ b/画布副本/扩展功能/生成任务/生成任务客户端.mjs
+@@ -0,0 +1,40 @@
++import { StorageError, requireValue } from '../本机存储/协议.mjs';
++import { GENERATION_PROTOCOL, validateSubmission, jobLike, terminalState, TASK_STATES, MAX_RESPONSE_BYTES, canonicalBase64 } from '../生成网关/生成协议.mjs';
++
++// 只接受已授权闭包，不接收URL、密钥导出端口或浏览器持久化实现。
++// 调用方必须保留同一id；传输失败不新建任务、不自动重发收费请求。
++export function createGenerationClient({ command } = {}) {
++  requireValue(typeof command === 'function', 'invalid_generation_client', '生成客户端需要本机授权闭包。');
++  async function call(value) {
++    let reply;
++    try { reply = await command(value); }
++    catch (error) { if (error instanceof StorageError) throw error; throw new StorageError('generation_connection_unknown', '本机响应未确认；请用原任务ID查询，不要再次生成。', 503); }
++    requireValue(reply?.protocol === GENERATION_PROTOCOL && !reply.error && Object.hasOwn(reply, 'result'), 'generation_ack_invalid', '生成响应协议不符。', 503);
++    return reply.result;
++  }
++  function match(job, expected) {
++    requireValue(jobLike(job?.id) && job.id === expected.id && job.productId === expected.productId && job.nodeId === expected.nodeId && TASK_STATES.includes(job.state) && typeof job.applied === 'boolean', 'generation_scope_mismatch', '任务结果与原产品或节点不匹配，未写入当前画布。', 409);
++    return job;
++  }
++  return Object.freeze({
++    bind: profile => call({ operation: 'bind', profile: structuredClone(profile) }),
++    describe: binding => call({ operation: 'describe', binding }),
++    async submit(task) { const snapshot = structuredClone(validateSubmission(task)); return match(await call({ operation: 'submit', task: snapshot }), snapshot); },
++    get: id => call({ operation: 'get', id }),
++    list: productId => call({ operation: 'list', productId }),
++    cancel: id => call({ operation: 'cancel', id }),
++    retryResultSave: id => call({ operation: 'retry-save', id }),
++    async deliver(task, { applyAndSave } = {}) {
++      requireValue(typeof applyAndSave === 'function', 'generation_save_port_required', '需要原产品的保存确认端口。');
++      const job = match(await call({ operation: 'result', id: task.id }), task);
++      requireValue(job.state === 'succeeded' && terminalState(job.state) && typeof job.bytes === 'string', 'generation_not_successful', '任务没有可应用的成功结果。', 409);
++      requireValue(canonicalBase64(job.bytes, MAX_RESPONSE_BYTES), 'generation_result_invalid', '任务结果编码无效。', 409);
++      const bytes = Uint8Array.from(atob(job.bytes), value => value.charCodeAt(0));
++      const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(value => value.toString(16).padStart(2, '0')).join('');
++      requireValue(job.result?.id === digest && job.result.size === bytes.length, 'generation_result_invalid', '任务结果大小或摘要不匹配。', 409);
++      // 原产品ID/节点ID来自提交时快照，绝不根据当前激活胶囊重新选目标。
++      const checkpoint = await applyAndSave(Object.freeze({ ...job }));
++      return match(await call({ operation: 'applied', id: task.id, checkpoint }), task);
++    },
++  });
++}
+--- /dev/null
++++ b/画布副本/扩展功能/生成任务/画布保存核验.mjs
+@@ -0,0 +1,45 @@
++import { createHash } from 'node:crypto';
++import { requireValue } from '../本机存储/协议.mjs';
++import { readFragmentGraph } from '../本机存储/分片值编码.mjs';
++import { exactKeys } from '../生成网关/生成协议.mjs';
++
++const rootId = 'app-' + createHash('sha256').update('app_state').digest('hex');
++function field(tree, name) {
++  if (!Array.isArray(tree) || tree[0] !== 'object' || !Array.isArray(tree[1])) return null;
++  const matches = tree[1].filter(pair => Array.isArray(pair) && pair[0] === name);
++  return matches.length === 1 ? matches[0][1] : null;
++}
++const string = tree => Array.isArray(tree) && tree[0] === 'string' ? tree[1] : null;
++const array = tree => Array.isArray(tree) && tree[0] === 'array' && Array.isArray(tree[1]) ? tree[1] : [];
++
++// 仅读取已落盘的app_state及其哈希校验分片，不解码媒体、不读取配置凭据。
++// 真实画布后续接入时，必须在原节点保存成功后附带任务+响应摘要，不能只发saved:true。
++export function createSavedCanvasVerifier({ workspace } = {}) {
++  requireValue(typeof workspace?.readDocument === 'function', 'invalid_canvas_verifier', '缺少真实工作区读端口。');
++  return async function verify(job, checkpoint) {
++    if (!exactKeys(checkpoint, ['rootRevision', 'rootHash'])) return false;
++    const root = workspace.readDocument('extension', rootId);
++    if (!root || root.revision !== checkpoint.rootRevision || root.hash !== checkpoint.rootHash) return false;
++    requireValue(root.value.namespace === 'app_state', 'generation_canvas_invalid', '画布保存命名空间不匹配。', 409);
++    let entries;
++    if (root.value.format === 'guan-app-storage.v1') entries = root.value.entries;
++    else {
++      requireValue(root.value.format === 'guan-app-storage.v2' && Number.isSafeInteger(root.value.entryCount), 'generation_canvas_invalid', '画布保存格式不匹配。', 409);
++      entries = await readFragmentGraph({ head: root.value.head, readDocument: async (collection, id) => workspace.readDocument(collection, id) });
++      requireValue(Array.isArray(entries) && entries.length === root.value.entryCount, 'generation_canvas_invalid', '画布分片目录不完整。', 409);
++    }
++    requireValue(Array.isArray(entries) && entries.every(item => Array.isArray(item) && item.length === 2 && typeof item[0] === 'string') && new Set(entries.map(item => item[0])).size === entries.length, 'generation_canvas_invalid', '画布记录目录无效。', 409);
++    const tree = entries.find(item => item[0] === 'infinite-canvas:canvas_store')?.[1]?.tree;
++    const projects = array(field(field(tree, 'state'), 'projects'));
++    const product = projects.filter(item => string(field(item, 'id')) === job.productId);
++    if (product.length !== 1) return false;
++    const nodes = array(field(product[0], 'nodes')).filter(item => string(field(item, 'id')) === job.nodeId);
++    if (nodes.length !== 1) return false;
++    const metadata = field(nodes[0], 'metadata');
++    if (string(field(metadata, 'status')) !== 'success') return false;
++    const receipts = array(field(metadata, 'gatewayGenerationReceipts'));
++    const matched = receipts.some(item => string(field(item, 'taskId')) === job.id && string(field(item, 'responseHash')) === job.result?.id);
++    const after = workspace.readDocument('extension', rootId);
++    return matched && after?.hash === root.hash && after.revision === root.revision;
++  };
++}
+--- /dev/null
++++ b/画布副本/扩展功能/本机存储/分片值编码.mjs
+@@ -0,0 +1,153 @@
++import { requireValue, serializeDocument } from './协议.mjs';
++
++export const FRAGMENT_FORMAT = 'guan-app-fragment.v1';
++export const MAX_FRAGMENT_BYTES = 1024 * 1024;
++export const MAX_LOGICAL_BYTES = 32 * 1024 * 1024;
++export const MAX_GRAPH_FRAGMENTS = 4096;
++const INLINE_BYTES = 768 * 1024, FIELD_BYTES = 192 * 1024, INLINE_DEPTH = 30, MAX_GRAPH_DEPTH = 128;
++const utf8 = new TextEncoder();
++const bytes = value => utf8.encode(JSON.stringify(value)).length;
++const sha = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', utf8.encode(value)))].map(byte => byte.toString(16).padStart(2, '0')).join('');
++const sameKeys = (value, keys) => value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
++const validRef = value => sameKeys(value, ['id']) && typeof value.id === 'string' && /^app-part-[a-f0-9]{64}$/.test(value.id);
++const typedObject = value => Array.isArray(value) && value.length === 2 && value[0] === 'object' && Array.isArray(value[1]);
++function shallow(value, depth = 0) {
++  if (depth > INLINE_DEPTH) return false;
++  // 大的带类型对象按字段隔离，不能被外层数组重新合并成整产品块。
++  if (typedObject(value) && bytes(value) > FIELD_BYTES) return false;
++  return value === null || typeof value !== 'object' || Object.values(value).every(child => shallow(child, depth + 1));
++}
++
++// 只接收应用值编码器产生的普通JSON，不用于绕过凭据检测。
++// 固定数组分页保持局部修改的块边界；先生成完整计划，后由应用适配器提交根目录。
++export async function buildFragmentPlan(value) {
++  const logicalBytes = bytes(value), fragments = new Map();
++  requireValue(logicalBytes <= MAX_LOGICAL_BYTES, 'logical_value_too_large', '逻辑命名空间超过当前32MiB分片验收范围。', 413);
++  async function save(body) {
++    const value = { format: FRAGMENT_FORMAT, ...body }, text = JSON.stringify(value), size = utf8.encode(text).length;
++    requireValue(size <= MAX_FRAGMENT_BYTES, 'fragment_too_large', '数据块超过1MiB上限，没有提交根目录。', 413);
++    const hash = await sha(text), id = 'app-part-' + hash;
++    serializeDocument('extension', id, value, []);
++    if (!fragments.has(id)) fragments.set(id, { id, hash, value });
++    requireValue(fragments.size <= MAX_GRAPH_FRAGMENTS, 'fragment_budget_exceeded', '数据块数量超过当前4096块验收范围。', 413);
++    return { id };
++  }
++  async function pack(value, depth = 0) {
++    requireValue(depth <= MAX_GRAPH_DEPTH, 'fragment_depth_exceeded', '分片结构层级超过安全范围。');
++    if (typedObject(value) && bytes(value) > FIELD_BYTES) {
++      const entries = [];
++      for (const pair of value[1]) {
++        requireValue(Array.isArray(pair) && pair.length === 2 && typeof pair[0] === 'string', 'invalid_fragment_value', '带类型对象字段无效。');
++        entries.push([pair[0], bytes(pair[1]) > FIELD_BYTES ? ['ref', await pack(pair[1], depth + 1)] : ['inline', pair[1]]]);
++      }
++      return save({ kind: 'typed-object', entries: await pack(entries, depth + 1) });
++    }
++    if (bytes(value) <= INLINE_BYTES && shallow(value)) return save({ kind: 'json', data: value });
++    if (typeof value === 'string') {
++      let parts = [];
++      // 按UTF-16固定位置切分，重组后保留原字符（含跨块代理对及孤立代理项）。
++      for (let offset = 0; offset < value.length; offset += 8192) parts.push(await save({ kind: 'json', data: value.slice(offset, offset + 8192) }));
++      while (parts.length > 64) {
++        const next = [];
++        for (let offset = 0; offset < parts.length; offset += 64) next.push(await save({ kind: 'text', parts: parts.slice(offset, offset + 64) }));
++        parts = next;
++      }
++      return save({ kind: 'text', parts });
++    }
++    if (Array.isArray(value)) {
++      if (value.length === 1) return save({ kind: 'single', part: await pack(value[0], depth + 1) });
++      const width = value.length > 64 ? 64 : Math.ceil(value.length / 2), parts = [];
++      for (let offset = 0; offset < value.length; offset += width) parts.push(await pack(value.slice(offset, offset + width), depth + 1));
++      // 多级分页也限制根块扇出，避免百万条小记录把根目录撑大。
++      while (parts.length > 64) {
++        const next = [];
++        for (let offset = 0; offset < parts.length; offset += 64) next.push(await save({ kind: 'array', parts: parts.slice(offset, offset + 64) }));
++        parts.splice(0, parts.length, ...next);
++      }
++      return save({ kind: 'array', parts });
++    }
++    requireValue(value && typeof value === 'object', 'invalid_fragment_value', '分片只接收普通JSON值。');
++    return save({ kind: 'object', entries: await pack(Object.entries(value), depth + 1) });
++  }
++  return { head: await pack(value), fragments, logicalBytes };
++}
++
++export async function verifyFragment(document, reference) {
++  requireValue(validRef(reference) && document?.collection === 'extension' && document.id === reference.id && Array.isArray(document.mediaIds) && document.mediaIds.length === 0 && document.value?.format === FRAGMENT_FORMAT,
++    'fragment_corrupt', '数据块缺失、身份或格式不符，未作为空值读取。', 409);
++  const text = serializeDocument('extension', reference.id, document.value, []);
++  requireValue(utf8.encode(text).length <= MAX_FRAGMENT_BYTES && await sha(text) === reference.id.slice(9), 'fragment_corrupt', '数据块大小或内容哈希不匹配。', 409);
++  return document.value;
++}
++
++// 不依赖集合列表，避免列表1000条上限造成静默遗漏；通过根引用逐块校验。
++export async function readFragmentGraph({ head, readDocument }) {
++  const cache = new Map(), visiting = new Set();
++  let loaded = 0;
++  const bounded = result => {
++    requireValue(result.size <= MAX_LOGICAL_BYTES && result.depth <= MAX_GRAPH_DEPTH, 'fragment_budget_exceeded', '分片重组超过大小或层级安全范围。', 413);
++    return result;
++  };
++  async function visit(ref, depth = 0) {
++    requireValue(validRef(ref) && depth <= MAX_GRAPH_DEPTH && !visiting.has(ref.id), 'fragment_corrupt', '数据块引用、层级或循环无效。', 409);
++    if (cache.has(ref.id)) return cache.get(ref.id);
++    requireValue(++loaded <= MAX_GRAPH_FRAGMENTS, 'fragment_budget_exceeded', '读取的数据块数量超过安全范围。', 413);
++    visiting.add(ref.id);
++    const body = await verifyFragment(await readDocument('extension', ref.id), ref);
++    let result;
++    if (body.kind === 'json') {
++      requireValue(sameKeys(body, ['format', 'kind', 'data']) && shallow(body.data), 'fragment_corrupt', '内联数据块结构无效。', 409);
++      result = bounded({ value: body.data, size: bytes(body.data), depth: 1 });
++    } else if (body.kind === 'single') {
++      requireValue(sameKeys(body, ['format', 'kind', 'part']), 'fragment_corrupt', '单元素数据块结构无效。', 409);
++      const child = await visit(body.part, depth + 1);
++      result = bounded({ value: [child.value], size: child.size + 2, depth: child.depth + 1 });
++    } else if (body.kind === 'array' || body.kind === 'text') {
++      requireValue(sameKeys(body, ['format', 'kind', 'parts']) && Array.isArray(body.parts) && body.parts.length > 0 && body.parts.length <= 64, 'fragment_corrupt', '分片目录结构无效。', 409);
++      const values = []; let size = 2, childDepth = 0, length = 0, lastCode = 0;
++      for (const part of body.parts) {
++        const child = await visit(part, depth + 1);
++        requireValue(body.kind === 'array' ? Array.isArray(child.value) : typeof child.value === 'string', 'fragment_corrupt', '数据块类型与目录不匹配。', 409);
++        // 数组页的外括号不属于展开结果；文本拼接还可能合并跨页代理对。
++        size += child.size - 2 + (body.kind === 'array' && length && child.value.length ? 1 : 0); childDepth = Math.max(childDepth, child.depth);
++        if (body.kind === 'text' && child.value.length) {
++          const firstCode = child.value.charCodeAt(0);
++          if (lastCode >= 0xd800 && lastCode <= 0xdbff && firstCode >= 0xdc00 && firstCode <= 0xdfff) size -= 8;
++          lastCode = child.value.charCodeAt(child.value.length - 1);
++        }
++        length += child.value.length;
++        bounded({ size, depth: childDepth + 1 });
++        requireValue(body.kind !== 'array' || length <= 1_000_000, 'fragment_budget_exceeded', '数组展开数量超过安全范围。', 413);
++        values.push(child.value);
++      }
++      const value = body.kind === 'array' ? values.flat() : values.join('');
++      result = bounded({ value, size: body.kind === 'text' ? bytes(value) : size, depth: childDepth + 1 });
++    } else if (body.kind === 'typed-object') {
++      requireValue(sameKeys(body, ['format', 'kind', 'entries']), 'fragment_corrupt', '带类型对象目录无效。', 409);
++      const child = await visit(body.entries, depth + 1), entries = [], names = new Set();
++      requireValue(Array.isArray(child.value), 'fragment_corrupt', '带类型对象字段目录无效。', 409);
++      let size = 13, childDepth = child.depth;
++      for (const pair of child.value) {
++        requireValue(Array.isArray(pair) && pair.length === 2 && typeof pair[0] === 'string' && !names.has(pair[0]) && Array.isArray(pair[1]) && pair[1].length === 2, 'fragment_corrupt', '带类型对象字段重复或无效。', 409);
++        const [tag, payload] = pair[1];
++        requireValue(tag === 'inline' && shallow(payload) || tag === 'ref' && validRef(payload), 'fragment_corrupt', '带类型字段引用无效。', 409);
++        const item = tag === 'ref' ? await visit(payload, depth + 1) : { value: payload, size: bytes(payload), depth: 1 };
++        size += bytes(pair[0]) + item.size + 3 + (entries.length ? 1 : 0); childDepth = Math.max(childDepth, item.depth);
++        bounded({ size, depth: childDepth + 1 }); names.add(pair[0]); entries.push([pair[0], item.value]);
++      }
++      const value = ['object', entries];
++      result = bounded({ value, size: bytes(value), depth: childDepth + 1 });
++    } else if (body.kind === 'object') {
++      requireValue(sameKeys(body, ['format', 'kind', 'entries']), 'fragment_corrupt', '对象数据块结构无效。', 409);
++      const child = await visit(body.entries, depth + 1), value = {}, names = new Set();
++      requireValue(Array.isArray(child.value), 'fragment_corrupt', '对象字段目录无效。', 409);
++      for (const pair of child.value) {
++        requireValue(Array.isArray(pair) && pair.length === 2 && typeof pair[0] === 'string' && !names.has(pair[0]), 'fragment_corrupt', '对象字段重复或无效。', 409);
++        names.add(pair[0]); Object.defineProperty(value, pair[0], { value: pair[1], enumerable: true, configurable: true, writable: true });
++      }
++      result = bounded({ value, size: child.size, depth: child.depth + 1 });
++    } else requireValue(false, 'fragment_corrupt', '未知数据块版本或类型。', 409);
++    visiting.delete(ref.id); cache.set(ref.id, result); return result;
++  }
++  return (await visit(head)).value;
++}
+--- /dev/null
++++ b/画布副本/web/src/guan/generation/生成协议.mjs
+@@ -0,0 +1,29 @@
++import { requireValue, validId, validUUID } from '../sqlite/协议.mjs';
++
++export const GENERATION_PROTOCOL = 'guan-generation.v1';
++export const MAX_REQUEST_BYTES = 32 * 1024 * 1024;
++export const MAX_RESPONSE_BYTES = 32 * 1024 * 1024;
++export const exactKeys = (value, keys) => value && Object.getPrototypeOf(value) === Object.prototype && Object.keys(value).sort().join(',') === [...keys].sort().join(',');
++export const bindingLike = value => typeof value === 'string' && /^provider:[0-9a-f]{64}$/.test(value);
++export const jobLike = validUUID;
++// 不用重复捕获组匹配整份base64；V8在大图片上会耗尽正则栈。
++// 单字符扫描保持线性，尾部位也必须规范，不解码/分配第二份大正文。
++export function canonicalBase64(value, maxBytes) {
++  if (typeof value !== 'string' || value.length % 4 !== 0 || value.length > Math.ceil(maxBytes / 3) * 4) return false;
++  const padding = value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0, end = value.length - padding;
++  if (value.length / 4 * 3 - padding > maxBytes || /[^A-Za-z0-9+/]/.test(value.slice(0, end))) return false;
++  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
++  return !padding || (alphabet.indexOf(value[end - 1]) & (padding === 2 ? 15 : 3)) === 0;
++}
++export function validateSubmission(value) {
++  requireValue(exactKeys(value, ['id', 'productId', 'nodeId', 'binding', 'request']) && validUUID(value.id) && validId(value.productId) && validId(value.nodeId) && bindingLike(value.binding), 'invalid_generation', '任务身份、产品、节点或渠道引用无效。');
++  const request = value.request;
++  requireValue(exactKeys(request, ['method', 'path', 'contentType', 'body']) && ['GET', 'POST'].includes(request.method) && typeof request.path === 'string' && request.path.length <= 8192 &&
++    typeof request.contentType === 'string' && /^(?:|application\/json|multipart\/form-data; boundary=[A-Za-z0-9-]{1,100})$/.test(request.contentType) &&
++    canonicalBase64(request.body, MAX_REQUEST_BYTES) &&
++    (request.method !== 'GET' || !request.body && !request.contentType), 'invalid_generation_request', '生成请求格式或大小不支持。');
++  return value;
++}
++
++export const TASK_STATES = Object.freeze(['accepted', 'running', 'succeeded', 'failed', 'uncertain', 'cancelled']);
++export const terminalState = value => ['succeeded', 'failed', 'uncertain', 'cancelled'].includes(value);
+--- /dev/null
++++ b/画布副本/web/src/guan/generation/生成任务客户端.mjs
+@@ -0,0 +1,40 @@
++import { StorageError, requireValue } from '../sqlite/协议.mjs';
++import { GENERATION_PROTOCOL, validateSubmission, jobLike, terminalState, TASK_STATES, MAX_RESPONSE_BYTES, canonicalBase64 } from './生成协议.mjs';
++
++// 只接受已授权闭包，不接收URL、密钥导出端口或浏览器持久化实现。
++// 调用方必须保留同一id；传输失败不新建任务、不自动重发收费请求。
++export function createGenerationClient({ command } = {}) {
++  requireValue(typeof command === 'function', 'invalid_generation_client', '生成客户端需要本机授权闭包。');
++  async function call(value) {
++    let reply;
++    try { reply = await command(value); }
++    catch (error) { if (error instanceof StorageError) throw error; throw new StorageError('generation_connection_unknown', '本机响应未确认；请用原任务ID查询，不要再次生成。', 503); }
++    requireValue(reply?.protocol === GENERATION_PROTOCOL && !reply.error && Object.hasOwn(reply, 'result'), 'generation_ack_invalid', '生成响应协议不符。', 503);
++    return reply.result;
++  }
++  function match(job, expected) {
++    requireValue(jobLike(job?.id) && job.id === expected.id && job.productId === expected.productId && job.nodeId === expected.nodeId && TASK_STATES.includes(job.state) && typeof job.applied === 'boolean', 'generation_scope_mismatch', '任务结果与原产品或节点不匹配，未写入当前画布。', 409);
++    return job;
++  }
++  return Object.freeze({
++    bind: profile => call({ operation: 'bind', profile: structuredClone(profile) }),
++    describe: binding => call({ operation: 'describe', binding }),
++    async submit(task) { const snapshot = structuredClone(validateSubmission(task)); return match(await call({ operation: 'submit', task: snapshot }), snapshot); },
++    get: id => call({ operation: 'get', id }),
++    list: productId => call({ operation: 'list', productId }),
++    cancel: id => call({ operation: 'cancel', id }),
++    retryResultSave: id => call({ operation: 'retry-save', id }),
++    async deliver(task, { applyAndSave } = {}) {
++      requireValue(typeof applyAndSave === 'function', 'generation_save_port_required', '需要原产品的保存确认端口。');
++      const job = match(await call({ operation: 'result', id: task.id }), task);
++      requireValue(job.state === 'succeeded' && terminalState(job.state) && typeof job.bytes === 'string', 'generation_not_successful', '任务没有可应用的成功结果。', 409);
++      requireValue(canonicalBase64(job.bytes, MAX_RESPONSE_BYTES), 'generation_result_invalid', '任务结果编码无效。', 409);
++      const bytes = Uint8Array.from(atob(job.bytes), value => value.charCodeAt(0));
++      const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(value => value.toString(16).padStart(2, '0')).join('');
++      requireValue(job.result?.id === digest && job.result.size === bytes.length, 'generation_result_invalid', '任务结果大小或摘要不匹配。', 409);
++      // 原产品ID/节点ID来自提交时快照，绝不根据当前激活胶囊重新选目标。
++      const checkpoint = await applyAndSave(Object.freeze({ ...job }));
++      return match(await call({ operation: 'applied', id: task.id, checkpoint }), task);
++    },
++  });
++}
+--- a/服务包/扩展功能/本机服务/数据服务.mjs
++++ b/服务包/扩展功能/本机服务/数据服务.mjs
+@@ -84,6 +84,7 @@
+           requireValue(result, 'document_not_found', '文档不存在。', 404); json(200, result); return;
+         }
+         requireValue(request.method === 'PUT' && second, 'method_denied', '文档只支持读取和指定版本保存。', 405);
++        requireValue(!(first === 'extension' && /^(?:provider:|guan-generation-ledger-v1$)/.test(second)), 'reserved_generation_document', '生成绑定与任务账本只能由可信本机服务写入。', 403);
+         requireValue(request.headers['content-type'] === 'application/json', 'content_type_denied', '必须提交JSON。', 415);
+         const bytes = await readBody(request, MAX_JSON_BODY);
+         let body; try { body = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); } catch { throw new StorageError('invalid_json', 'JSON格式无效。'); }
+@@ -120,6 +121,7 @@
+     revokeSession(token) { sessions.delete(token); },
+     // 只有可信进程内入口；不新增HTTP备份/授权端点，不将队列排空等同于所有页面已保存。
+     getWriteStatus: writeGate.getStatus,
++    runTrustedWrite(operation) { return writeGate.runWrite(() => { requireValue(!stopping, 'service_stopping', '本机服务正在停止。', 503); return operation(); }); },
+     createBackup() { return writeGate.runBackup(() => { requireValue(!stopping, 'service_stopping', '本机服务正在停止。', 503); return workspace.createBackup(); }); },
+     close() {
+       if (!closing) {
+--- a/画布副本/扩展功能/本机服务/本机授权网关.mjs
++++ b/画布副本/扩展功能/本机服务/本机授权网关.mjs
+@@ -116,6 +116,14 @@
+       } finally { if (counted) active--; }
+       return true;
+     },
++    assertGenerationPage(request) {
++      live();
++      requireValue(request.headers.host === host && request.headers.origin === origin && (!request.headers['sec-fetch-site'] || request.headers['sec-fetch-site'] === 'same-origin'), 'authorization_origin_denied', '生成请求必须来自当前工作台。', 403);
++      const capability = request.headers.authorization?.match(/^Bearer ([0-9a-f]{64})$/)?.[1];
++      const page = capability && pages.get(digest(capability));
++      requireValue(page, 'authorization_denied', '本页面授权已结束。', 401);
++      page.port.initialize();
++    },
+     getStatus() { const time = clock(); purge(time); return { closed, pendingTickets: tickets.size, authorizedPages: pages.size, activeRequests: active }; },
+     close() { closed = true; tickets.clear(); for (const page of pages.values()) page.port.close(); pages.clear(); },
+   });
+--- a/画布副本/扩展功能/本机服务/受限工作台启动器.mjs
++++ b/画布副本/扩展功能/本机服务/受限工作台启动器.mjs
+@@ -1,4 +1,5 @@
+ import { createServer } from 'node:http';
++import { assembleGenerationService } from '../生成网关/生成服务装配.mjs';
+ import { createHash } from 'node:crypto';
+ import { lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
+ import { extname, isAbsolute, join } from 'node:path';
+@@ -51,12 +52,13 @@
+   // 复制值，避免等待期间调用方修改endpoint导致Host/Origin错配；监听始终仅127.0.0.1。
+   const { hostname, port } = endpoint;
+   const { files, scriptHashes } = readStaticBundle(webRoot);
+-  let ready = false, gateway, controller, service, workspace, backup, credentialPort, closing = null;
++  let ready = false, gateway, controller, service, workspace, backup, credentialPort, generation, closing = null;
+   const server = createServer(async (req, res) => {
+     res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'no-referrer');
+     res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+     res.setHeader('Content-Security-Policy', `default-src 'none'; script-src 'self' ${scriptHashes}; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: ${service?.url ?? ''}; worker-src 'self' blob:; frame-ancestors 'none'; form-action 'self'; base-uri 'none'`);
+     if (!ready) { res.writeHead(503); res.end('本机工作区尚未就绪。'); req.resume(); return; }
++    if (await generation.handle(req, res)) return;
+     if (await gateway.handle(req, res)) return;
+     const expected = `${hostname}:${server.address().port}`;
+     if (req.headers.host !== expected || req.headers.origin && req.headers.origin !== 'http://' + expected || req.headers['sec-fetch-site'] && !['same-origin', 'none'].includes(req.headers['sec-fetch-site'])) {
+@@ -87,9 +89,10 @@
+   server.requestTimeout = 10_000; server.headersTimeout = 5000; server.keepAliveTimeout = 1000; server.maxConnections = 32; server.maxHeadersCount = 32;
+   const closeHTTP = () => new Promise((done, fail) => server.close(error => error ? fail(error) : done()));
+   async function cleanup() {
++    generation?.assertCanClose();
+     ready = false;
+     const errors = [];
+-    for (const action of [() => backup?.stop(), () => gateway?.close(), () => controller?.close(),
++    for (const action of [() => generation?.close(), () => backup?.stop(), () => gateway?.close(), () => controller?.close(),
+       () => server.listening ? closeHTTP() : undefined, () => service?.close(), () => credentialPort?.close(), () => workspace?.close()]) {
+       try { await action(); } catch (error) { errors.push(error); }
+     }
+@@ -107,12 +110,15 @@
+     await backup.start();
+     controller = createSessionController({ service, origin });
+     gateway = createLocalAuthorizationGateway({ origin, dataURL: service.url, controller, credentialPort });
++    requireValue(typeof service.runTrustedWrite === 'function', 'generation_write_coordination_required', '生成任务需要同一写入协调。');
++    generation = await assembleGenerationService({ workspace, vault: credentialPort, origin, runTrustedWrite: operation => service.runTrustedWrite(operation), authorize: request => gateway.assertGenerationPage(request) });
+     ready = true;
+     return Object.freeze({ origin, workspaceId: workspace.workspaceId,
+       issueTicket() { requireValue(ready, 'launcher_stopping', '入口正在停止。', 503); return gateway.issueTicket(); },
+-      getStatus() { return { ready, authorization: gateway.getStatus(), backup: backup.getStatus() }; },
++      getStatus() { return { ready, authorization: gateway.getStatus(), backup: backup.getStatus(), generation: generation.getStatus() }; },
+       async close() {
+         // 此函数不证明页面已保存。可信调用者必须先完成维护确认；本实现只用于新建隔离工作区。
++        generation?.assertCanClose(); // 忙时不缓存拒绝的closing，任务结束后仍可正常关闭。
+         if (!closing) closing = cleanup();
+         return closing;
+       },
+--- a/画布副本/web/src/guan/sqlite/本机授权客户端.mjs
++++ b/画布副本/web/src/guan/sqlite/本机授权客户端.mjs
+@@ -1,5 +1,6 @@
+ import { StorageError, requireValue } from './协议.mjs';
+ import { createCredentialClient } from './凭据客户端.mjs';
++import { createGenerationClient } from '../generation/生成任务客户端.mjs';
+ 
+ const protocol = 'guan-local-authorization.v1';
+ function localOrigin(value, data = false) {
+@@ -14,11 +15,11 @@
+     let response, result;
+     try {
+       response = await fetchImpl(origin + '/__guan-local/' + path, { method: 'POST', credentials: 'omit', redirect: 'error', cache: 'no-store', referrerPolicy: 'no-referrer',
+-        headers: { 'Content-Type': 'application/json', 'X-Guan-Local-Protocol': protocol, ...(capability ? { Authorization: 'Bearer ' + capability } : {}) },
++        headers: { 'Content-Type': 'application/json', 'X-Guan-Local-Protocol': protocol, ...(path === 'generation' ? { 'X-Guan-Generation-Protocol': 'guan-generation.v1' } : {}), ...(capability ? { Authorization: 'Bearer ' + capability } : {}) },
+         body: JSON.stringify(value), signal: AbortSignal.timeout(5000) });
+       result = await response.json();
+     } catch { throw new StorageError('authorization_connection_failed', '本机授权响应未确认；不会重发一次性授权码，请从可信入口重新授权。', 503); }
+-    requireValue(response.ok && (path === 'credentials' ? result?.format === 'guan-credentials.v1' : result?.protocol === protocol) && !result.error,
++    requireValue(response.ok && (path === 'credentials' ? result?.format === 'guan-credentials.v1' : path === 'generation' ? result?.protocol === 'guan-generation.v1' : result?.protocol === protocol) && !result.error,
+       /^[a-z_]{3,64}$/.test(result?.error?.code ?? '') ? result.error.code : 'authorization_denied', '本机授权已拒绝或结束，请从可信入口重新授权。', response.status || 503);
+     return result;
+   }
+@@ -39,6 +40,10 @@
+   }
+   return Object.freeze({
+     url: exchange.dataURL,
++    generationPort: createGenerationClient({ command(value) {
++      requireValue(!closed && now() < exchange.expiresAt, 'authorization_expired', '页面授权已结束。', 401);
++      return post('generation', value, capability);
++    } }),
+     secretPort: createCredentialClient({ command: credentialCommand }),
+     host: Object.freeze({
+       initialize: () => command({ operation: 'initialize' }),
+--- a/画布副本/web/src/guan/sqlite/工作台自动入口.mjs
++++ b/画布副本/web/src/guan/sqlite/工作台自动入口.mjs
+@@ -33,6 +33,8 @@
+       const view = document.defaultView;
+       if (Object.getOwnPropertyDescriptor(view, '__guanSQLiteHost')) throw Error('本页面已安装存储入口。');
+       // 恢复只替换client内的会话；app、React根、页内队列及编辑缓存保持同一个实例。
++      if (Object.getOwnPropertyDescriptor(view, '__guanGenerationHost')) throw Error('本页面已安装生成端口。');
++      Object.defineProperty(view, '__guanGenerationHost', { value: authorization.generationPort, configurable: false, writable: false });
+       Object.defineProperty(view, '__guanSQLiteHost', { value: Object.freeze({ initialize: async () => app, reconnect: () => client.reconnect() }), configurable: false, writable: false });
+       started = true; root.replaceChildren();
+       await loadApplication();

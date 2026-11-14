@@ -1,0 +1,165 @@
+{
+  "日期": "2026-10-19",
+  "状态": "待具体批准；仅内存候选，未接入/运行/重启3100",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/Excel视觉继承-7nFs1T/Excel视觉继承接入记录.json",
+  "前置差异SHA256": "1f6b1e87ec8e48dc6cd46141fec6d2cdcf93029022920bf973e0461c6f239d46",
+  "旧来源目录": "/Users/guanchengbin/CodexProjects/guan-ai-workbench-projects/guan-ai-workbench",
+  "旧来源SHA256": {
+    "components/canvas/nodes/prompt-variables-node.tsx": "67c2903421bcf5566459ba4282b2f20e857754930ba0e85877fc16362ec9e38f",
+    "lib/canvas/prompt-theme-labels.js": "ba69d3869675a05a3a1d3aea36820d6e892dd354ec9cdd8ebbf383b9e3b441a7",
+    "lib/canvas/excel-prompt-sync.ts": "36dc7db4fdd40fd0b507c1efdce702e6c54e662ee6cd2b0a6c77145b95f97227",
+    "lib/canvas/parameter-memory.js": "7b83c6b7958cdf8e4b524dc7296d88bdee24e6955c64110c9ae87b83e53696de",
+    "public/excel-prompts-bridge.js": "3bee43457c505123a51010c7e7fe8b7d080aa18ee9045976e26557ce75d36744",
+    "pages/canvas/project.tsx": "1fa007d1bdac287c1bee26ac1e186d5a69e544d89b7c57907843bfc8678e0bfb",
+    "types/canvas.ts": "fb02101c01e2d028075270606ce809129b972a3ac3b7165b1c0f92a12c67cf95",
+    "components/canvas/canvas-toolbar.tsx": "dadf9b13c4c91bb7e5066882accf3f794454cdf4d28d56572a8d841a83e7f45b",
+    "components/canvas/canvas-side-panel.tsx": "f76927e69b86d1b77af6df1d650940025fddc09139a8e2c8fa450cf52d523503",
+    "components/canvas/nodes/builtin-nodes.tsx": "5acb55cc075dcf2d9d21a458bbff8dce7ed6817ead107c885faa83bd0be847df"
+  },
+  "自有来源": [
+    {
+      "文件": "扩展功能/Excel画布/Excel卡片上下文.ts",
+      "SHA256": "a3b527e0e991a7067619804aadfe114875a400109d326d5f20324300c2a8ef9f"
+    },
+    {
+      "文件": "扩展功能/Excel画布/Excel画布上下文.tsx",
+      "SHA256": "74e73ec4d8e386e6a15d54cb2fa7c95d201466385eb9421604cfe94262e36abd"
+    },
+    {
+      "文件": "扩展功能/Excel画布/Excel参数记忆.ts",
+      "SHA256": "ba2afe6ad1538148f777137244872d37e4383590edb4d92ad84e42f0ea7bb1ae"
+    },
+    {
+      "文件": "扩展功能/Excel画布/Excel卡片事务.ts",
+      "SHA256": "6d36479afcfe463fbfaa15d5c45ecb051bccf3de0a9d4963ab7c23879ffe90e2"
+    },
+    {
+      "文件": "扩展功能/Excel画布/Excel提示词列表.tsx",
+      "SHA256": "e3f456d9342583789a27bb0450e48a8fbde64bd60d288dbe5bdb383f00b40627"
+    },
+    {
+      "文件": "扩展功能/Excel画布/Excel提示词列表.css",
+      "SHA256": "bdc66225738d10efe83e1a9d72c066c259b134b164dd4f9e7b42a4b5430a9257"
+    }
+  ],
+  "原文片段SHA256": {
+    "rawRules": "d253ff26245970bbbb72c54a71b045d880215476ce14f5c1c2bc8b8cffa7f6d1",
+    "rawUI": "1119b753a0812f744338e1e2054099882c7a6c9a278875271afb31bc999c9a2f",
+    "previewTitle": "b656bd35e6992a422e005a273056fa0098e20cec34b74bf3b1bb50a5146817ef",
+    "metadata": "7a9e1686eb97208f6cf0a63b6e943a33ce02943309c86f2dd127bd356fb8631b",
+    "toolbar": "aef55a112db0e78ffba09bc149ea5dfe28928a50d0fabf6368715c2b90caf156"
+  },
+  "工具来源": [
+    {
+      "文件": "开发工具/预审Excel卡片与变量迁入.mjs",
+      "SHA256": "ea332fc3f8444d7b72e8b7cc6150243da986f9a07a3923ddc9e2c2cf507b3390"
+    },
+    {
+      "文件": "开发工具/Excel卡片与变量迁入.test.mjs",
+      "SHA256": "2056544496df9ef61b69f54f1861c307ef65c2d604029908371294155a6954d8"
+    }
+  ],
+  "差异SHA256": "b0b146dbab238c866336a2f644821c589b79d9167225ee3b1c2af0432946be77",
+  "文件数": 17,
+  "完整虚拟类型检查通过": true,
+  "已接入": false,
+  "真实浏览器验收": false,
+  "已修改作者仓库": false,
+  "已访问正式数据": false,
+  "文件": [
+    {
+      "文件": "web/src/guan/Excel卡片上下文.ts",
+      "原始SHA256": null,
+      "候选SHA256": "a3b527e0e991a7067619804aadfe114875a400109d326d5f20324300c2a8ef9f"
+    },
+    {
+      "文件": "web/src/guan/Excel画布上下文.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "74e73ec4d8e386e6a15d54cb2fa7c95d201466385eb9421604cfe94262e36abd"
+    },
+    {
+      "文件": "web/src/guan/Excel参数记忆.ts",
+      "原始SHA256": null,
+      "候选SHA256": "ba2afe6ad1538148f777137244872d37e4383590edb4d92ad84e42f0ea7bb1ae"
+    },
+    {
+      "文件": "web/src/guan/Excel卡片事务.ts",
+      "原始SHA256": null,
+      "候选SHA256": "6d36479afcfe463fbfaa15d5c45ecb051bccf3de0a9d4963ab7c23879ffe90e2"
+    },
+    {
+      "文件": "web/src/guan/Excel提示词列表.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "e3f456d9342583789a27bb0450e48a8fbde64bd60d288dbe5bdb383f00b40627"
+    },
+    {
+      "文件": "web/src/guan/Excel提示词列表.css",
+      "原始SHA256": null,
+      "候选SHA256": "bdc66225738d10efe83e1a9d72c066c259b134b164dd4f9e7b42a4b5430a9257"
+    },
+    {
+      "文件": "web/src/guan/旧版参数规则.ts",
+      "原始SHA256": null,
+      "候选SHA256": "477cda087d68367e0bb81bec6b41c22923d77f303d7cfc0270531bbebc940cf7"
+    },
+    {
+      "文件": "web/src/guan/旧版参数卡片.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "46a8454ef3984af83fa1cf56844d7f559bf71a4da62a32e051ed92b60803c3d8"
+    },
+    {
+      "文件": "web/src/guan/旧版主题翻译.js",
+      "原始SHA256": null,
+      "候选SHA256": "ba69d3869675a05a3a1d3aea36820d6e892dd354ec9cdd8ebbf383b9e3b441a7"
+    },
+    {
+      "文件": "web/src/guan/旧版提示词同步.ts",
+      "原始SHA256": null,
+      "候选SHA256": "31b1da6270fdcdc2697f64ae05420bc96f09f273d7f764b4eb31926c2b1722c9"
+    },
+    {
+      "文件": "web/src/guan/旧版最终提示词标题.ts",
+      "原始SHA256": null,
+      "候选SHA256": "3d7418863f6e90693ae94a1082868d95d92a6d3992783c8b011bc94e3941caae"
+    },
+    {
+      "文件": "web/src/guan/Excel参数节点注册.tsx",
+      "原始SHA256": null,
+      "候选SHA256": "93930db85b84648ce5b22147d127d736b2cfb100397f9fb76e2d9dd633b24613"
+    },
+    {
+      "文件": "web/src/types/canvas.ts",
+      "原始SHA256": "8dd830028b91d79ce942476bc6473143dadf2ae850641abd453d520aef7135de",
+      "候选SHA256": "a062284b21c5a942721ea3356b5aed65de0dc8cb63a88014367b27ff0feeb93a"
+    },
+    {
+      "文件": "web/src/components/canvas/asset-picker-modal.tsx",
+      "原始SHA256": "b9a1b6086039f430a6d8fec3192f69eb22a0a5f9cb3bcc30841bdf931e1dfcd8",
+      "候选SHA256": "5fa6c0b062a719cecfb410fbe0910f98f4958acfe7514cb59a03ee99d16f972d"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-side-panel.tsx",
+      "原始SHA256": "29d284a3f32458dcc9d8dd2b13c6ece4b4629425f949e0b27289046a82735b21",
+      "候选SHA256": "7cb85cc137df12100cf26b58ec3250ca0198f27f7e0de2e0b7d6d80258c1513b"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-toolbar.tsx",
+      "原始SHA256": "0de11b03f2e401525aac14990d8e09ab8e6e187423b5de4ff7b8cc1f68804645",
+      "候选SHA256": "4ca2eb587cc94eea527193e683e1dfb7ea60e5925fa033fed98c6f84286032ed"
+    },
+    {
+      "文件": "web/src/pages/canvas/project.tsx",
+      "原始SHA256": "9ac6c1945b36c3fb6b35ef491031cbf2f28ff094760ed3fc4e3dc35fa8a6b922",
+      "候选SHA256": "8d38ae979a2ab6ca0c0c4f738564e5fcd466893057acd19b9610f403ade5c88b"
+    }
+  ],
+  "范围": [
+    "Excel本地提示词源、原列表行/详情、视频开关、单独及一键插入、拖入",
+    "原参数卡420×520、英文主题翻译、尺寸优先规则、变量替换、最终提示词预览",
+    "稳定产品ID隔离、SQLite参数记忆、重传手改保护、去重、删除/撤销关系一致性",
+    "一键导入只连接已有参数卡；不自动整理客户既有卡片，不沿用旧DOM扫描/定时点击",
+    "AI校准按钮保持外观但禁用并解释，收费调用/生成联动/工作簿整批删除另批",
+    "批准后独立后继保护器、原态快照事务及临时SQLite真实浏览器/视觉对照；不含3100切换或发布"
+  ]
+}

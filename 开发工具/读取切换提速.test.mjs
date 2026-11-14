@@ -13,6 +13,7 @@ import { buildFragmentPlan } from '../扩展功能/本机存储/分片值编码.
 import { readNamespaceSnapshot } from '../扩展功能/本机存储/命名空间快照.mjs';
 import { createPacedDataClient } from '../扩展功能/本机存储/请求调度.mjs';
 import { syntheticCanvas } from './分片合成数据.mjs';
+import * as deferredMedia from '../扩展功能/本机存储/画布媒体延迟恢复.mjs';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
 
 const rootId = name => 'app-' + createHash('sha256').update(name).digest('hex');
@@ -187,7 +188,9 @@ test('已发送但丢ACK的等值编辑仍保留恢复队列，原操作重试�
 
 const filename = '扩展功能/产品/画布保存判定.ts';
 const { code } = await transformWithEsbuild(readFileSync(filename, 'utf8'), filename, { loader: 'ts', format: 'cjs', tsconfigRaw: '{}' });
-const module = { exports: {} }; new Function('module', 'exports', code)(module, module.exports);
+const module = { exports: {} }; new Function('module', 'exports', 'require', code)(module, module.exports, id => {
+  assert.equal(id, '../本机存储/画布媒体延迟恢复.mjs'); return deferredMedia;
+});
 const { retainCanvasReferences, sameCanvasValue, canvasHasPendingChanges } = module.exports;
 
 test('产品恢复和未编辑切换复用等值字段；真实文字、连线和视区变化保留', () => {

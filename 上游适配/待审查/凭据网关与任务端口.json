@@ -1,0 +1,171 @@
+{
+  "日期": "2026-10-20",
+  "状态": "待具体批准；仅网关与任务端口，原画布生成调用尚未接入",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/Excel删除字体平滑-cK9Dtz/Excel删除字体平滑接入记录.json",
+  "前置差异SHA256": "52b00d9e890a00f1148d4ca2909e91e13bcce15ed5eddd20927c5bc96c5123e2",
+  "差异SHA256": "723841e0f57b5fb3bd21d9071b9223706833d4532ca3b3a463633e409eb1fb05",
+  "文件数": 17,
+  "完整虚拟类型检查通过": true,
+  "已接入": false,
+  "已接管3100": false,
+  "作者核心文件改动数": 0,
+  "原画布生成已切换": false,
+  "自有来源": [
+    {
+      "文件": "扩展功能/生成网关/生成协议.mjs",
+      "SHA256": "82a09c70c80013429743d02566b7db186f54c19c3ee3eba1f3fe9b4a2cce5e6e"
+    },
+    {
+      "文件": "扩展功能/生成网关/受限请求规划.mjs",
+      "SHA256": "7a56521d2a491b4389b6a473cf549cd2909c2051a5302098ffd19f49d18211a8"
+    },
+    {
+      "文件": "扩展功能/生成网关/受限上游传输.mjs",
+      "SHA256": "51938c5fa2d25ef1e13a53d54a4710f659222c6202c8271ccb2475e8ef372377"
+    },
+    {
+      "文件": "扩展功能/生成网关/渠道凭据网关.mjs",
+      "SHA256": "6dfc68847cc1744ec58e24e794ece1fe6647f7cbb505106a1eea790f172c7896"
+    },
+    {
+      "文件": "扩展功能/生成网关/生成HTTP入口.mjs",
+      "SHA256": "feaaaaec74d679680a4ee6b0f677e2c6cb8e35fe38f8c03bfaaedbdfc4fa6b36"
+    },
+    {
+      "文件": "扩展功能/生成网关/生成服务装配.mjs",
+      "SHA256": "bfdbe962aaf162f2097d6ab688ec58cf7afa23092aa58870a6be198f73f4fc67"
+    },
+    {
+      "文件": "扩展功能/生成任务/SQLite生成任务.mjs",
+      "SHA256": "93aff81485bca544160419d99038e5cf867ca6c4e73fd2f57ea026e920439f3d"
+    },
+    {
+      "文件": "扩展功能/生成任务/生成任务客户端.mjs",
+      "SHA256": "5b8e1b3ce0dbedd88f8eef40a043e2bbd36c25a8a68596ab437ad6e1c96b8271"
+    },
+    {
+      "文件": "扩展功能/生成任务/画布保存核验.mjs",
+      "SHA256": "b6b89bebcbc48ffa174eb0cfb7c5d48ad72b46197f6bf3ddd99040d4af003cca"
+    },
+    {
+      "文件": "扩展功能/本机存储/分片值编码.mjs",
+      "SHA256": "ca5fad4597fc2bddb225f33dcd7d6413dfc99935d4343fa29fe4595a07bf057c"
+    }
+  ],
+  "旧版参考来源": [
+    {
+      "文件": "src/server/secure-provider-proxy.mjs",
+      "SHA256": "b59b4818a73eadcabf71d07d489eea44f430fe32914781eca44111442502cdc5"
+    },
+    {
+      "文件": "src/server/credential-registry.mjs",
+      "SHA256": "73b308b1d5bdb03323e721a2e2ec30f98125d8e9789c05d7fa2e8e91db79e56f"
+    },
+    {
+      "文件": "src/canvas/services/secure-credentials.ts",
+      "SHA256": "68470dc410322254328aef33a15a930c2d7887c38c6033d1d2eb230575b0b228"
+    },
+    {
+      "文件": "src/canvas/services/api/image.ts",
+      "SHA256": "671f45c36a23e312047cb15d85db6b802454e759a342fc99ab763da8500f70eb"
+    },
+    {
+      "文件": "src/canvas/pages/canvas/project.tsx",
+      "SHA256": "1fa007d1bdac287c1bee26ac1e186d5a69e544d89b7c57907843bfc8678e0bfb"
+    }
+  ],
+  "工具来源": [
+    {
+      "文件": "开发工具/预审凭据网关任务端口.mjs",
+      "SHA256": "ba16d0651c89bb023d9f1441550e1a1ac489b67617c200387c067f0f836dec65"
+    }
+  ],
+  "文件": [
+    {
+      "文件": "画布副本/扩展功能/生成网关/生成协议.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "82a09c70c80013429743d02566b7db186f54c19c3ee3eba1f3fe9b4a2cce5e6e"
+    },
+    {
+      "文件": "画布副本/扩展功能/生成网关/受限请求规划.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "7a56521d2a491b4389b6a473cf549cd2909c2051a5302098ffd19f49d18211a8"
+    },
+    {
+      "文件": "画布副本/扩展功能/生成网关/受限上游传输.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "51938c5fa2d25ef1e13a53d54a4710f659222c6202c8271ccb2475e8ef372377"
+    },
+    {
+      "文件": "画布副本/扩展功能/生成网关/渠道凭据网关.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "6dfc68847cc1744ec58e24e794ece1fe6647f7cbb505106a1eea790f172c7896"
+    },
+    {
+      "文件": "画布副本/扩展功能/生成网关/生成HTTP入口.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "feaaaaec74d679680a4ee6b0f677e2c6cb8e35fe38f8c03bfaaedbdfc4fa6b36"
+    },
+    {
+      "文件": "画布副本/扩展功能/生成网关/生成服务装配.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "bfdbe962aaf162f2097d6ab688ec58cf7afa23092aa58870a6be198f73f4fc67"
+    },
+    {
+      "文件": "画布副本/扩展功能/生成任务/SQLite生成任务.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "93aff81485bca544160419d99038e5cf867ca6c4e73fd2f57ea026e920439f3d"
+    },
+    {
+      "文件": "画布副本/扩展功能/生成任务/生成任务客户端.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "5b8e1b3ce0dbedd88f8eef40a043e2bbd36c25a8a68596ab437ad6e1c96b8271"
+    },
+    {
+      "文件": "画布副本/扩展功能/生成任务/画布保存核验.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "b6b89bebcbc48ffa174eb0cfb7c5d48ad72b46197f6bf3ddd99040d4af003cca"
+    },
+    {
+      "文件": "画布副本/扩展功能/本机存储/分片值编码.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "ca5fad4597fc2bddb225f33dcd7d6413dfc99935d4343fa29fe4595a07bf057c"
+    },
+    {
+      "文件": "画布副本/web/src/guan/generation/生成协议.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "0abc40f5b3048b4b3d3c703a065ee6116afac70c0b894e2c0f0ecd0c0d415eb7"
+    },
+    {
+      "文件": "画布副本/web/src/guan/generation/生成任务客户端.mjs",
+      "原始SHA256": null,
+      "候选SHA256": "6f7f7538591acd0b0af5ca6d57f69d87c40a66819ca9f0fedf65237b985e2194"
+    },
+    {
+      "文件": "服务包/扩展功能/本机服务/数据服务.mjs",
+      "原始SHA256": "ee348246b855d356b671ba247a13f5c198e3b284df5079e050aecbe66980e228",
+      "候选SHA256": "8081721ec24b4591e0725c71b12d9d941e92b04ce84cb643e7ca8145937be7df"
+    },
+    {
+      "文件": "画布副本/扩展功能/本机服务/本机授权网关.mjs",
+      "原始SHA256": "8ef2c6ba640c9885a0d930ae49371440fdbbd4decd0d0a323a7f808c60be5eb0",
+      "候选SHA256": "b8549bb70ffb953e5f2821873e1c7f0435c552adb07787cf5667c247d7264438"
+    },
+    {
+      "文件": "画布副本/扩展功能/本机服务/受限工作台启动器.mjs",
+      "原始SHA256": "87def14798fee285a8b80d3a3be7023c9f8ede9eebefae18f4cac761de8bd2c6",
+      "候选SHA256": "ba2171d147715a1fe195515d5d3fb00faded4cce55fd574ad89171183b8277c0"
+    },
+    {
+      "文件": "画布副本/web/src/guan/sqlite/本机授权客户端.mjs",
+      "原始SHA256": "5a1e33894856ca9283422c6eaa69ba08553524d8e8b3e084714f9c3f9dc379fb",
+      "候选SHA256": "91039f9323c368f906fa578436584f97e489640ad5e4edb09f232eb1b8840d6c"
+    },
+    {
+      "文件": "画布副本/web/src/guan/sqlite/工作台自动入口.mjs",
+      "原始SHA256": "cd4153dc6d8b05378f4d6b33e7f8f1122b4daf56832d410b0228601e52d7cc00",
+      "候选SHA256": "e0dd70adba6ee42e39861a46aa1a0e7277940e813feb8466b88d41b22adff9c4"
+    }
+  ]
+}

@@ -84,6 +84,7 @@ export function createRecoverableApplicationStorage(options) {
       } finally { reads--; notify(); }
     }
     return {
+      ...(typeof instance.iterateDecodedState === 'function' ? { iterateDecodedState: callback => read('iterateDecodedState', [callback]) } : {}),
       getItem: key => read('getItem', [key]), keys: () => read('keys', []), length: () => read('length', []), iterate: callback => read('iterate', [callback]),
       setItem(key, value) {
         return enqueue(space, () => { const snapshot = structuredClone(value); return () => instance.setItem(key, snapshot); }, value);

@@ -1,0 +1,92 @@
+.tabs {
+    position: relative;
+    display: flex;
+    flex: 0 0 auto;
+    gap: 4px;
+    max-width: 100%;
+    overflow-x: auto;
+    margin-bottom: 8px;
+    padding: 3px;
+    background: color-mix(in srgb, currentColor 5%, transparent);
+    border-radius: 6px;
+    cursor: grab;
+    user-select: none;
+    overscroll-behavior-x: contain;
+}
+.tabs[data-capsule-dragging="true"],
+.tabs[data-capsule-dragging="true"] * { cursor: grabbing; }
+.tabs :global(.ant-checkbox)::after {
+    transition-property: opacity;
+}
+.selection :global(.ant-checkbox),
+.selection :global(.ant-checkbox):hover,
+.selection :global(.ant-checkbox-wrapper):hover :global(.ant-checkbox) {
+    background-color: var(--ant-color-bg-container, white);
+}
+.selection :global(.ant-checkbox)::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--ant-color-primary, #171717);
+    transform: scale(0);
+    transform-origin: center;
+    transition: transform 160ms cubic-bezier(.22,1,.36,1) 120ms;
+}
+.selection :global(.ant-checkbox-indeterminate)::before {
+    transform: scale(.5714286);
+}
+.selection :global(.ant-checkbox-checked)::before {
+    transform: scale(1);
+    transition-delay: 0ms;
+}
+.selection :global(.ant-checkbox)::after,
+.selection :global(.ant-checkbox-indeterminate)::after,
+.selection :global(.ant-checkbox-checked)::after {
+    top: 50%;
+    inset-inline-start: 21.4286%;
+    width: 40.8163%;
+    height: 65.3061%;
+    border: 2px solid var(--ant-color-white, white);
+    border-top: 0;
+    border-inline-start: 0;
+    background: transparent;
+    transform: rotate(45deg) translate(-50%, -50%);
+    clip-path: inset(0 100% 0 0);
+    opacity: 0;
+    transition: clip-path 120ms ease, opacity 120ms ease;
+}
+.selection :global(.ant-checkbox-checked)::after {
+    clip-path: inset(0);
+    opacity: 1;
+    transition-delay: 160ms;
+}
+@media (prefers-reduced-motion: reduce) {
+    .selection :global(.ant-checkbox)::before,
+    .selection :global(.ant-checkbox)::after {
+        transition: none;
+    }
+}
+.tab {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 4px;
+    min-height: 28px;
+    padding-left: 6px;
+    border-radius: 4px;
+}
+.active { background: color-mix(in srgb, Canvas 94%, transparent); }
+.label {
+    cursor: inherit;
+    min-width: 0;
+    max-width: 180px;
+    padding: 3px 6px 3px 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+}
+.label:focus-visible { outline: 2px solid #2684ff; outline-offset: 1px; }

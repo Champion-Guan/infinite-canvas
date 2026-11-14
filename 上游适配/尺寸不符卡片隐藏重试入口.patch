@@ -1,0 +1,62 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 94d4341..00c3593 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -1,4 +1,5 @@
+ import { CardEndpointLayer } from "@/扩展功能/画布连线/卡片端点层";
++import { imageSizeRetryBlocked } from "@/扩展功能/媒体交付/生成图片尺寸交付.mjs";
+ import { CardPanelLayer } from "@/扩展功能/画布连线/卡片浮层";
+ import "@/扩展功能/画布连线/并排图片关系透视.css";
+ import { promptHighlightSegments } from "@/扩展功能/画布迁移扩展/prompt-variable-highlight.js";
+@@ -548,7 +549,7 @@ function ErrorContent({ node, theme, onRetry }: Pick<NodeContentRendererProps, "
+     return (
+         <div className="flex max-w-[260px] flex-col items-center gap-3 px-5 text-center">
+             <div className="text-xs leading-5 text-red-300">{node.metadata?.errorDetails || t("canvas.node.failed")}</div>
+-            <button
++            {!imageSizeRetryBlocked(node.metadata) ? <button
+                 type="button"
+                 className="inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition hover:scale-[1.02]"
+                 style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
+@@ -560,7 +561,7 @@ function ErrorContent({ node, theme, onRetry }: Pick<NodeContentRendererProps, "
+             >
+                 <RefreshCw className="size-3.5" />
+                 {t("canvas.node.retry")}
+-            </button>
++            </button> : null}
+         </div>
+     );
+ }
+@@ -913,7 +914,7 @@ function ImageContent({
+                     <ImageSlotStatus node={node} image={primaryImage} />
+                 )}
+             </div>
+-            {primaryImage?.status === "error" ? <BatchImageFailureActions placement="left" onRetry={() => onRetryBatchImage?.(primaryImage.id)} onDelete={() => onDeleteBatchImage?.(primaryImage.id)} /> : null}
++            {primaryImage?.status === "error" ? <BatchImageFailureActions placement="left" retryable={!imageSizeRetryBlocked(primaryImage)} onRetry={() => onRetryBatchImage?.(primaryImage.id)} onDelete={() => onDeleteBatchImage?.(primaryImage.id)} /> : null}
+             {primaryImage && (primaryStorageKey || hasOriginalContent) ? (
+                 <button type="button" className="pointer-events-none absolute left-2.5 top-2.5 z-30 flex h-8 items-center gap-1 rounded-lg border px-2 text-[10px] font-medium opacity-0 shadow-[0_6px_18px_rgba(15,23,42,.16)] backdrop-blur-md transition hover:scale-[1.02] group-hover/node:pointer-events-auto group-hover/node:opacity-100" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.activeText }} title={t("common.download")} onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => (event.stopPropagation(), onDownloadBatchImage?.(primaryImage.id))}>
+                     <Download className="size-3" />
+@@ -1010,20 +1011,20 @@ function ExpandedImageCard({ node, image, sourceUrl, index, scale, onView, onSet
+                     </button>
+                 </div>
+             ) : null}
+-            {image.status === "error" ? <BatchImageFailureActions placement="right" onRetry={onRetry} onDelete={onDelete} /> : null}
++            {image.status === "error" ? <BatchImageFailureActions placement="right" retryable={!imageSizeRetryBlocked(image)} onRetry={onRetry} onDelete={onDelete} /> : null}
+         </div>
+     );
+ }
+ 
+-function BatchImageFailureActions({ placement, onRetry, onDelete }: { placement: "left" | "right"; onRetry: () => void; onDelete: () => void }) {
++function BatchImageFailureActions({ placement, retryable = true, onRetry, onDelete }: { placement: "left" | "right"; retryable?: boolean; onRetry: () => void; onDelete: () => void }) {
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+     const { t } = useTranslation();
+     return (
+         <div className={`absolute top-3 z-30 flex items-center gap-1.5 ${placement === "left" ? "left-3" : "right-3"}`}>
+-            <button type="button" className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium shadow-sm transition hover:scale-[1.02]" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }} onClick={(event) => (event.stopPropagation(), onRetry())}>
++            {retryable ? <button type="button" className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium shadow-sm transition hover:scale-[1.02]" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }} onClick={(event) => (event.stopPropagation(), onRetry())}>
+                 <RefreshCw className="size-3.5" />
+                 {t("canvas.node.retry")}
+-            </button>
++            </button> : null}
+             <button type="button" className="grid size-8 place-items-center rounded-lg border shadow-sm transition hover:scale-[1.02]" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }} onClick={(event) => (event.stopPropagation(), onDelete())} aria-label={t("common.delete")} title={t("common.delete")}>
+                 <Trash2 className="size-3.5" />
+             </button>

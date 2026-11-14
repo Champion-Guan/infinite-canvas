@@ -6,8 +6,8 @@ import { useProxyStatusRefresh } from "./代理状态刷新";
 
 type NodeInfo = { name: string; latencyMs: number | null; testedAt?: number; error?: string | null };
 type ResourceUpdate = { autoUpdate: boolean; state: string; checkedAt: number | null; error: string | null; model: string };
-type Status = { configured: boolean; enabled: boolean; running: boolean; configName: string; configInput: string; source: string | null; busy: boolean; activeRequests: number; lastError: string | null; currentNode?: NodeInfo | null; delayResults?: NodeInfo[]; live?: { observedAt: number; nodes: NodeInfo[]; activeConnections?: number; error?: string }; smart?: { enabled: boolean; groups: number; modelBundled: boolean; version?: string } | null; resourceUpdate?: ResourceUpdate | null };
-type ProxyHost = { status(): Promise<Status>; configure(value: { configText: string; subscriptionUrl: string; fileName: string }): Promise<Status>; toggle(enabled: boolean): Promise<Status>; diagnose(): Promise<Status & { reachable: boolean }>; testAll(): Promise<Status>; checkResources(): Promise<Status>; configureResourceUpdates(enabled: boolean): Promise<Status> };
+type Status = { configured: boolean; enabled: boolean; running: boolean; starting?: boolean; configName: string; configInput: string; source: string | null; busy: boolean; activeRequests: number; lastError: string | null; currentNode?: NodeInfo | null; delayResults?: NodeInfo[]; live?: { observedAt: number; nodes: NodeInfo[]; activeConnections?: number; error?: string }; smart?: { enabled: boolean; groups: number; modelBundled: boolean; version?: string } | null; resourceUpdate?: ResourceUpdate | null };
+type ProxyHost = { status(): Promise<Status>; snapshot?(): Promise<Status>; configure(value: { configText: string; subscriptionUrl: string; fileName: string }): Promise<Status>; toggle(enabled: boolean): Promise<Status>; diagnose(): Promise<Status & { reachable: boolean }>; testAll(): Promise<Status>; checkResources(): Promise<Status>; configureResourceUpdates(enabled: boolean): Promise<Status> };
 function host() { return (window as unknown as { __guanNetworkProxyHost?: ProxyHost }).__guanNetworkProxyHost; }
 
 // 迁入旧版makeNetworkPanel的真实结构、文案、尺寸与样式；只替换事件/状态出口，不注入DOM。
@@ -26,17 +26,19 @@ export function OriginalNetworkProxyPanel({ active = true }: { active?: boolean 
     const [refreshedAt, setRefreshedAt] = useState(0), [refreshError, setRefreshError] = useState("");
     const fileRef = useRef<HTMLInputElement>(null);
     const mounted = useRef(false), flight = useRef(false), polling = useRef(false), revision = useRef(0), fileRevision = useRef(0), unlocked = useRef(false);
+    const initialRead = useRef(true);
     const invalidateRequests = useCallback(() => { revision.current++; fileRevision.current++; }, []);
     const refresh = useCallback(async () => {
         const port = host(); if (!port || flight.current || polling.current) return;
         const snapshot = revision.current; polling.current = true;
-        try { const next = await port.status(); if (mounted.current && revision.current === snapshot) { setStatus(next); setRefreshedAt(Date.now()); setRefreshError(""); if (!unlocked.current) setFrozen(next.running); } }
+        try { const next = await (initialRead.current && port.snapshot ? port.snapshot() : port.status()); initialRead.current = false;
+            if (mounted.current && revision.current === snapshot) { setStatus(next); setRefreshedAt(Date.now()); setRefreshError(""); if (!unlocked.current) setFrozen(next.running); } }
         catch { if (mounted.current && revision.current === snapshot) setRefreshError("状态暂时读取失败，保留上次结果，正在自动重试"); }
         finally { polling.current = false; }
     }, []);
     useEffect(() => {
         if (!observing) return;
-        mounted.current = true; setBusy(flight.current);
+        mounted.current = true; initialRead.current = true; setBusy(flight.current);
         return () => { mounted.current = false; invalidateRequests(); };
     }, [observing, invalidateRequests]);
     useProxyStatusRefresh(observing, refresh);
@@ -58,7 +60,7 @@ export function OriginalNetworkProxyPanel({ active = true }: { active?: boolean 
             <div className="local-canvas-settings-header"><h4>设置网络代理</h4>
                 <label className="local-canvas-settings-toggle"><input data-canvas-proxy-toggle type="checkbox" checked={status?.enabled === true} disabled={busy || unavailable || !status} onChange={event => { const enabled = event.currentTarget.checked; void act(port => port.toggle(enabled), enabled ? status?.configured ? "代理启动成功" : "已开启，等待配置代理" : "代理已停止"); }} />启用网络代理</label>
             </div>
-            <div className="local-canvas-proxy-state" data-status={state} role="status" aria-live="polite">{busy ? "网络代理：切换中…" : status?.running ? "网络代理：已启动" : unavailable ? "网络代理：本机端口尚未接入" : status?.enabled && !status.configured ? "网络代理：已开启，等待配置" : "网络代理：未启动"}</div>
+            <div className="local-canvas-proxy-state" data-status={state} role="status" aria-live="polite">{busy ? "网络代理：切换中…" : status?.starting ? "网络代理：正在启动…" : status?.running ? "网络代理：已启动" : unavailable ? "网络代理：本机端口尚未接入" : status?.enabled && !status.configured ? "网络代理：已开启，等待配置" : "网络代理：未启动"}</div>
             <div className="local-canvas-settings-note" aria-live="off">{refreshError || `每 5 秒自动刷新${refreshedAt ? ` · 状态更新：${new Date(refreshedAt).toLocaleTimeString()}` : " · 正在读取…"}`}</div>
             {status?.running && <div className="local-canvas-settings-note">
                 {status.smart?.enabled && <div>Smart 智能选路：已启用 · {status.smart.groups} 个智能分组{status.smart.modelBundled ? " · 最大 LightGBM 模型" : ""}{status.smart.version ? ` · ${status.smart.version}` : ""}</div>}

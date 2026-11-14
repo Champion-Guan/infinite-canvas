@@ -35,6 +35,8 @@ test('参数卡记忆恢复和补齐一次提交；重复渲染不写入，明�
         useEffect: callback => effects.push(callback),
     };
     const { PromptVariablesContent } = load('Excel画布/旧版参数卡片.tsx', {
+        antd: { Tooltip: 'Tooltip' },
+        '../产品配置/功能开关': { productFeatures: { excel: false } },
         react: hooks, 'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
         'lucide-react': { Braces: 'Braces' }, '@/lib/canvas-theme': { canvasThemes: { light: { node: {}, toolbar: {} } } },
         '@/stores/use-theme-store': { useThemeStore: callback => callback({ theme: 'light' }) },
@@ -77,6 +79,8 @@ test('Wildberries 默认俄文但允许修改；重复渲染与重新打开保�
         node = { ...node, metadata: { ...node.metadata, ...patch } };
     };
     const { PromptVariablesContent } = load('Excel画布/旧版参数卡片.tsx', {
+        antd: { Tooltip: 'Tooltip' },
+        '../产品配置/功能开关': { productFeatures: { excel: false } },
         react: {
             useMemo: callback => callback(),
             useState: value => [value, () => {}],

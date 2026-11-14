@@ -9,6 +9,7 @@ import { usePromptSourceStore, type PromptSourceSchedule } from "@/stores/use-pr
 import { filterWorkbenchPromptSources, type PromptSource } from "@/services/api/prompt-source-presets";
 import { flushSQLiteStorage } from "../本机存储/上游浏览器存储桥";
 import { sealConfigurationCredentials } from "../本机凭据/配置凭据封存";
+import { isTextReasoningEffort, normalizeModelReasoningEfforts, normalizeTextReasoningEffort } from "../画布生成/文本推理强度";
 
 export type AppConfigFile = {
     app: "infinite-canvas";
@@ -50,6 +51,7 @@ export function createPortableAppConfig(config: AiConfig, webdav: WebdavSyncConf
                 id: channel.id, name: channel.name, apiFormat: channel.apiFormat, apiKey: "", baseUrl: portableEndpoint(channel.baseUrl),
                 // Arbitrary request scripts can contain embedded credentials.
                 models: channel.models.map((model) => ({ name: model.name, capability: model.capability, script: "",
+                    ...(model.reasoningEfforts ? { reasoningEfforts: normalizeModelReasoningEfforts(model.reasoningEfforts) } : {}),
                     ...(typeof model.price === "number" && Number.isFinite(model.price) && model.price >= 0 ? { price: model.price } : {}) })),
             })),
         },
@@ -129,14 +131,18 @@ export function parseConfigFile(value: unknown): AppConfigFile {
             models: channel.models.map((model) => {
                 if (!record(model) || !["image", "video", "text", "audio"].includes(string(model.capability))) invalid();
                 if (model.price !== undefined && (typeof model.price !== "number" || !Number.isFinite(model.price) || model.price < 0)) invalid();
+                if (model.reasoningEfforts !== undefined && (!Array.isArray(model.reasoningEfforts)
+                    || model.reasoningEfforts.length > 6 || model.reasoningEfforts.some(value => !isTextReasoningEffort(value) && value !== "ultra"))) invalid();
                 return { name: string(model.name), ...(model.price === undefined ? {} : { price: model.price as number }), capability: model.capability as "image" | "video" | "text" | "audio",
+                    ...(model.reasoningEfforts !== undefined ? { reasoningEfforts: normalizeModelReasoningEfforts(model.reasoningEfforts) } : {}),
                     ...(model.script === undefined ? {} : { script: string(model.script) }) };
             }),
         };
     });
     if (!["local", "remote"].includes(config.channelMode) || !["openai", "gemini"].includes(config.apiFormat) ||
-        !["auto", "low", "medium", "high", "xhigh"].includes(config.reasoningEffort) ||
+        !(isTextReasoningEffort(config.reasoningEffort) || ["auto", "ultra"].includes(config.reasoningEffort as string)) ||
         !["new-node", "overwrite"].includes(config.nodeRegenerateBehavior)) invalid();
+    config.reasoningEffort = normalizeTextReasoningEffort(config.reasoningEffort);
     const webdav = { ...defaultWebdavSyncConfig };
     for (const key of Object.keys(defaultWebdavSyncConfig) as Array<keyof WebdavSyncConfig>) {
         if (Object.hasOwn(value.webdav, key)) webdav[key] = string(value.webdav[key]);

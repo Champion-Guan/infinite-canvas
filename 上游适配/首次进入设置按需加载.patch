@@ -1,0 +1,21 @@
+diff --git a/web/src/layouts/user-layout.tsx b/web/src/layouts/user-layout.tsx
+index bdd88f0..41d5488 100644
+--- a/web/src/layouts/user-layout.tsx
++++ b/web/src/layouts/user-layout.tsx
+@@ -1,6 +1,6 @@
+ import type { ReactNode } from "react";
+ import { SettingsViewport } from "@/扩展功能/存储界面/设置视区";
+-import { AppConfigModal } from "@/components/layout/app-config-modal";
++import { DeferredSettings } from "@/扩展功能/存储界面/延迟设置入口";
+ import { LegacyHomeChrome } from "@/扩展功能/首页/旧版首页顶栏";
+ 
+ import { productFeatures } from "@/扩展功能/产品配置/功能开关";
+@@ -11,7 +11,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
+         <div className="flex h-dvh overflow-hidden bg-background text-foreground">
+             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+                 <LegacyHomeChrome />
+-                <SettingsViewport>{children}<AppConfigModal /></SettingsViewport>
++                <SettingsViewport>{children}<DeferredSettings /></SettingsViewport>
+             </div>
+             {productFeatures.externalAgent ? <AgentPanel /> : null}
+         </div>

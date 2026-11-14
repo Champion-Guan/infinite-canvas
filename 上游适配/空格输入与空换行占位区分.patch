@@ -1,0 +1,21 @@
+diff --git a/web/src/components/canvas/canvas-prompt-chip-input.tsx b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+index 1e50d73..5c7ff9d 100644
+--- a/web/src/components/canvas/canvas-prompt-chip-input.tsx
++++ b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+@@ -129,7 +129,7 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
+         emit(serializeEditor(editor));
+     };
+ 
+-    const showPlaceholder = !value.trim() && !isComposing;
++    const showPlaceholder = value.length === 0 && !isComposing;
+     const { borderColor, ...inputStyle } = style || {};
+ 
+     return (
+@@ -307,6 +307,7 @@ function createReferenceChip(reference: CanvasResourceReference, theme: (typeof
+ }
+ 
+ function serializeEditor(editor: HTMLElement) {
++    if (editor.childNodes.length === 1 && editor.firstChild?.nodeName === "BR") return "";
+     return serializeNodes(editor.childNodes).replace(/﻿/g, "");
+ }
+ 

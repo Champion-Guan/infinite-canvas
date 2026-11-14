@@ -6,6 +6,7 @@ import type { ProductExcelContext } from "./Excel卡片上下文";
 import { insertExcelPromptCards, type ExcelInsertRequest, type Factory } from "./Excel卡片事务";
 import { syncExcelPromptNodes } from "./旧版提示词同步";
 import { parseExcelPromptDrop } from "./Excel拖入校验";
+import { productFeatures, requireProductFeature } from "../产品配置/功能开关";
 
 type ExcelInsertionPort = {
     projectId: string;
@@ -32,6 +33,7 @@ export function useExcelCanvasInsertion({ projectId, productActive, projectLoade
     const insertExcelCards = useCallback((request: ExcelInsertRequest, center?: Position) => {
         if (!productActive || !projectLoaded || restoredProjectIdRef.current !== projectId || excelContext.productId !== projectId) return;
         try {
+            requireProductFeature("excel");
             const result = insertExcelPromptCards(nodesRef.current, connectionsRef.current, excelContext, request,
                 center || getCanvasCenter(), factory, confirmExcelOverwrite, syncExcelPromptNodes);
             setNodes(result.nodes);
@@ -46,7 +48,7 @@ export function useExcelCanvasInsertion({ projectId, productActive, projectLoade
         getCanvasCenter, factory, setNodes, setConnections, setSelectedNodeIds, setSelectedConnectionId, message]);
 
     useEffect(() => {
-        if (!projectLoaded || restoredProjectIdRef.current !== projectId || excelContext.productId !== projectId) return;
+        if (!productFeatures.excel || !projectLoaded || restoredProjectIdRef.current !== projectId || excelContext.productId !== projectId) return;
         const next = syncExcelPromptNodes(nodesRef.current, excelContext, node => productActive ? confirmExcelOverwrite(node) : undefined);
         if (next !== nodesRef.current) setNodes(next);
     }, [excelContext, projectLoaded, productActive, projectId, restoredProjectIdRef, nodesRef, setNodes]);

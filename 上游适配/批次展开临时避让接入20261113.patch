@@ -1,0 +1,78 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index dc72e84..54a257d 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -18,6 +18,8 @@ import { createVisibilityIndex } from "@/扩展功能/画布布局/空间可见
+ import { CachedConnectionLayer } from "@/扩展功能/画布布局/连线缓存层";
+ import { ignoreCanvasShortcut } from "@/扩展功能/画布交互/快捷键边界";
+ import { useViewportSpring } from "@/扩展功能/画布交互/视区弹簧动效";
++import { useBatchExpansionDisplay } from "@/扩展功能/画布布局/批次展开显示";
++import { batchExpansionBox } from "@/扩展功能/画布布局/批次展开避让";
+ import { useCanvasImageResults } from "@/扩展功能/媒体交付/图片结果保存操作";
+ import { usePromptTranslation } from "@/扩展功能/画布生成/提示词翻译操作";
+ import { usePromptOptimization } from "@/扩展功能/提示词/提示词优化窗口";
+@@ -888,15 +890,20 @@ function InfiniteCanvasPage() {
+         // `nodes` keeps the container rect re-read on node changes, matching the previous behaviour when the container resizes without a size update.
+     }, [nodes, size.height, size.width, viewport.k, viewport.x, viewport.y]);
+ 
+-    const queryVisibleNodes = useMemo(() => createVisibilityIndex(nodes, node => ({
+-        left: node.position.x, top: node.position.y, right: node.position.x + node.width, bottom: node.position.y + node.height,
+-    })), [nodes]);
++    const displayNodes = useBatchExpansionDisplay(nodes, expandedBatchNodeIds, productActive, containerRef, viewportRef, moveFocusViewport);
++    const displayNodeById = useMemo(() => new Map(displayNodes.map(node => [node.id, node])), [displayNodes]);
++    const displayNodesRef = useRef(displayNodes); displayNodesRef.current = displayNodes;
++    const queryVisibleNodes = useMemo(() => createVisibilityIndex(displayNodes, node => batchExpansionBox(node, expandedBatchNodeIds.has(node.id))), [displayNodes, expandedBatchNodeIds]);
+     const visibleNodes = useMemo(() => queryVisibleNodes(viewBounds), [queryVisibleNodes, viewBounds]);
+-    useVisibleCanvasMedia({ projectId, snapshot: currentProject, nodesRef, visibleNodes,
++    const visibleMediaNodes = useMemo(() => {
++        const visibleIds = new Set(visibleNodes.map(node => node.id));
++        return nodes.filter(node => visibleIds.has(node.id));
++    }, [nodes, visibleNodes]);
++    useVisibleCanvasMedia({ projectId, snapshot: currentProject, nodesRef, visibleNodes: visibleMediaNodes,
+         ready: projectLoaded && productActive, setNodes: setRawNodes, onError: setRestoreError });
+     const nodeById = useMemo(() => new Map(nodes.map(node => [node.id, node])), [nodes]);
+     const contentNodeById = useMemo(() => new Map(contentNodes.map(node => [node.id, node])), [contentNodes]);
+-    const { connectionGeometry, connectionFocus, obscuredResultIds, connectionPreviewNodeIds, setConnectionPreviewNodeIds, cardEndpointTarget, setCardEndpointTarget, cardPanelTarget, setCardPanelTarget, connectionFocusTarget, setConnectionFocusTarget, setDisplayConnectionIds, keepFocusBehindCards, portAlignmentGuide, setPortAlignmentGuide } = useCanvasConnectionSystem(connections, nodeById, selectedNodeIds, selectedConnectionId, hoveredNodeId);
++    const { connectionGeometry, connectionFocus, obscuredResultIds, connectionPreviewNodeIds, setConnectionPreviewNodeIds, cardEndpointTarget, setCardEndpointTarget, cardPanelTarget, setCardPanelTarget, connectionFocusTarget, setConnectionFocusTarget, setDisplayConnectionIds, keepFocusBehindCards, portAlignmentGuide, setPortAlignmentGuide } = useCanvasConnectionSystem(connections, displayNodeById, selectedNodeIds, selectedConnectionId, hoveredNodeId);
+     const queryVisibleConnections = useMemo(() => createVisibilityIndex(connectionGeometry, item => item.bounds), [connectionGeometry]);
+     const visibleConnections = useMemo(() => queryVisibleConnections(viewBounds), [queryVisibleConnections, viewBounds]);
+     const selectConnection = useCallback((id: string) => {
+@@ -909,7 +916,7 @@ function InfiniteCanvasPage() {
+     // The toolbar follows a single selected node selected by click, creation, marquee, or keyboard.
+     // It stays hidden for multi-selection and while isNodeDragging is true.
+     const singleSelectedNodeId = selectedNodeIds.size === 1 ? Array.from(selectedNodeIds)[0] : null;
+-    const toolbarNode = (toolbarNodeId ? nodeById.get(toolbarNodeId) || null : null) || (singleSelectedNodeId ? nodeById.get(singleSelectedNodeId) || null : null);
++    const toolbarNode = (toolbarNodeId ? displayNodeById.get(toolbarNodeId) || null : null) || (singleSelectedNodeId ? displayNodeById.get(singleSelectedNodeId) || null : null);
+     const infoNode = infoNodeId ? nodeById.get(infoNodeId) || null : null;
+     const cropNode = cropNodeId ? nodeById.get(cropNodeId) || null : null;
+     const maskEditNode = maskEditNodeId ? nodeById.get(maskEditNodeId) || null : null;
+@@ -1192,7 +1199,7 @@ function InfiniteCanvasPage() {
+ 
+     const focusNode = useCallback(
+         (nodeId: string) => {
+-            const node = nodesRef.current.find((item) => item.id === nodeId);
++            const node = displayNodesRef.current.find((item) => item.id === nodeId);
+             if (!node) return;
+             setHoverPreviewNodeId(null);
+             const target = focusViewportForNode(node, size, measureFocusFrame(containerRef.current, nodeId));
+@@ -1517,7 +1524,7 @@ function InfiniteCanvasPage() {
+             const rectH = Math.abs(world.y - currentSelection.startWorldY);
+             const nextSelected = new Set<string>(currentSelection.additive ? currentSelection.initialSelectedNodeIds : []);
+ 
+-            nodesRef.current
++            displayNodesRef.current
+                 .forEach((node) => {
+                     const intersects = rectX < node.position.x + node.width && rectX + rectW > node.position.x && rectY < node.position.y + node.height && rectY + rectH > node.position.y;
+ 
+@@ -1780,7 +1787,10 @@ function InfiniteCanvasPage() {
+     );
+ 
+     const handleNodeResize = useCallback((nodeId: string, width: number, height: number, position?: Position) => {
+-        setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, width, height, position: position || node.position } : node)));
++        const rendered = displayNodesRef.current.find(node => node.id === nodeId), original = nodesRef.current.find(node => node.id === nodeId);
++        const basePosition = position && rendered && original ? { x: position.x - rendered.position.x + original.position.x,
++            y: position.y - rendered.position.y + original.position.y } : position;
++        setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, width, height, position: basePosition || node.position } : node)));
+     }, []);
+ 
+     const handleNodeResizeStart = useCallback(() => {

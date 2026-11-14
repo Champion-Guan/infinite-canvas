@@ -1,0 +1,13 @@
+diff --git a/web/src/types/canvas.ts b/web/src/types/canvas.ts
+index 7827fa6..5a19851 100644
+--- a/web/src/types/canvas.ts
++++ b/web/src/types/canvas.ts
+@@ -97,7 +97,7 @@ export type CanvasNodeMetadata = {
+     generationMode?: CanvasGenerationMode;
+     generationType?: CanvasImageGenerationType;
+     model?: string;
+-    reasoningEffort?: "low" | "medium" | "high" | "xhigh" | "max" | "ultra";
++    reasoningEffort?: "none" | "low" | "medium" | "high" | "xhigh" | "max";
+     size?: string;
+     quality?: string;
+     moderation?: string;

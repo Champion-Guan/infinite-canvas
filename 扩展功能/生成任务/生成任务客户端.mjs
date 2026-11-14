@@ -9,6 +9,15 @@ import { confirmGenerationCheckpoint } from './保存检查点确认.mjs';
 // 调用方必须保留同一id；传输失败不新建任务、不自动重发收费请求。
 export function createGenerationClient({ command, observe } = {}) {
   requireValue(typeof command === 'function', 'invalid_generation_client', '生成客户端需要本机授权闭包。');
+  const watched = new Map(), snapshots = new Map();
+  function publish(job) {
+    if (!watched.has(job?.id)) return job;
+    const before = snapshots.get(job.id);
+    if (before?.state === job.state && JSON.stringify(before?.imageRetry) === JSON.stringify(job.imageRetry)) return job;
+    snapshots.set(job.id, job);
+    for (const listener of watched.get(job.id)) listener();
+    return job;
+  }
   async function call(value) {
     let reply;
     try { reply = await command(value); }
@@ -46,14 +55,25 @@ export function createGenerationClient({ command, observe } = {}) {
     async submit(task) { const snapshot = structuredClone(validateSubmission(task)); return match(await call({ operation: 'submit', task: snapshot }), snapshot); },
     async retirePreparedTask(task) { const snapshot = structuredClone(task); return match(await call({ operation: 'retire-prepared', task: snapshot }), snapshot); },
     checkpoint: id => call({ operation: 'checkpoint', id }),
-    get: id => call({ operation: 'get', id }),
+    get: async id => publish(await call({ operation: 'get', id })),
+    taskSnapshot: id => snapshots.get(id) || null,
+    subscribeTask(id, listener) {
+      if (!watched.has(id)) watched.set(id, new Set());
+      watched.get(id).add(listener);
+      return () => {
+        const listeners = watched.get(id);
+        listeners?.delete(listener);
+        if (!listeners?.size) { watched.delete(id); snapshots.delete(id); }
+      };
+    },
     list: productId => call({ operation: 'list', productId }),
     cancel: id => call({ operation: 'cancel', id }),
     retryResultSave: id => call({ operation: 'retry-save', id }),
     async failure(task, { signal, retryWait } = {}) {
       const { job, bytes } = await readResult(task, { signal, wait: retryWait });
       requireValue(job.state === 'failed' && job.result.status >= 400, 'generation_not_failed', '任务尚无已确认的上游失败响应。', 409);
-      return upstreamFailureMessage(bytes, job.result.status, job.result.contentType);
+      const retries = job.imageRetry?.attempt || 0;
+      return (retries ? `已自动重试 ${retries} 次。` : '') + upstreamFailureMessage(bytes, job.result.status, job.result.contentType);
     },
     // 独立确认已保存结果：没有result/submit/bind，也不重写图片或新建任务。
     async confirmSaved(task, { responseHash, signal, retryWait } = {}) {

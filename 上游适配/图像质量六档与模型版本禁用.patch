@@ -1,0 +1,81 @@
+diff --git a/web/src/components/image-settings-panel.tsx b/web/src/components/image-settings-panel.tsx
+index 09cfc27..02d396f 100644
+--- a/web/src/components/image-settings-panel.tsx
++++ b/web/src/components/image-settings-panel.tsx
+@@ -22,21 +22,24 @@ const ADVANCED_QUALITY_VALUES = new Set(["xhigh", "max"]);
+ 
+ export function supportsAdvancedImageQuality(model: string) {
+     const name = modelOptionName(model).trim().toLowerCase();
+-    return name.includes("gpt-image-2.5");
++    const version = name.match(/(?:^|[/:])gpt-image-(\d+)(?:\.(\d+))?(?=$|-)/);
++    return Boolean(version && (Number(version[1]) > 2 || Number(version[1]) === 2 && Number(version[2] || 0) >= 5));
+ }
+ 
+ export function imageQualityOptionsForModel(model: string) {
+     const advanced = supportsAdvancedImageQuality(model);
+-    return qualityOptions.filter((item) => advanced || !ADVANCED_QUALITY_VALUES.has(item.value));
++    return qualityOptions.map((item) => ({ ...item, disabled: !advanced && ADVANCED_QUALITY_VALUES.has(item.value) }));
+ }
+ 
+ export function imageQualityForModel(quality: string, model: string) {
+-    return !supportsAdvancedImageQuality(model) && ADVANCED_QUALITY_VALUES.has(quality) ? "auto" : quality;
++    const value = quality?.trim().toLowerCase() || "auto";
++    return !qualityOptions.some(item => item.value === value) || !supportsAdvancedImageQuality(model) && ADVANCED_QUALITY_VALUES.has(value) ? "auto" : value;
+ }
+ 
+-export const imageQualityOptions = imageQualityOptionsForModel("").map((item) => ({ value: item.value, get label() { return i18n.t(`settingsPanels.common.${item.labelKey}`); } }));
++export const imageQualityOptions = imageQualityOptionsForAgent("");
+ export function imageQualityOptionsForAgent(model: string) {
+-    return imageQualityOptionsForModel(model).map((item) => ({ value: item.value, get label() { return i18n.t(`settingsPanels.common.${item.labelKey}`); } }));
++    return imageQualityOptionsForModel(model).map((item) => ({ value: item.value, disabled: item.disabled,
++        get label() { return item.value === "max" ? "max" : i18n.t(`settingsPanels.common.${item.labelKey}`); } }));
+ }
+ export const imageAspectOptions = mediaRatioOptions.map((item) => ({ value: item.value, label: item.value === "auto" ? i18n.t("settingsPanels.common.auto") : item.value }));
+ export const imageScaleOptions = mediaScaleOptions.map((value) => ({ value, label: value === "auto" ? i18n.t("settingsPanels.common.auto") : value }));
+@@ -105,8 +108,10 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle =
+                     <SettingTitle color={theme.node.muted}>{t("settingsPanels.image.quality")}</SettingTitle>
+                     <div className={`grid gap-2.5 ${visibleQualityOptions.length > 4 ? "grid-cols-3" : "grid-cols-4"}`}>
+                         {visibleQualityOptions.map((item) => (
+-                            <OptionPill key={item.value} selected={selectedQuality === item.value} theme={theme} onClick={() => onConfigChange("quality", item.value)}>
+-                                {t(`settingsPanels.common.${item.labelKey}`)}
++                            <OptionPill key={item.value} selected={selectedQuality === item.value} disabled={item.disabled}
++                                title={item.disabled ? "GPT 图像模型 2.5 及以上支持此质量档位" : undefined}
++                                theme={theme} onClick={() => { if (!item.disabled) onConfigChange("quality", item.value); }}>
++                                {item.value === "max" ? "max" : t(`settingsPanels.common.${item.labelKey}`)}
+                             </OptionPill>
+                         ))}
+                     </div>
+@@ -213,7 +218,7 @@ export function ImageSettingsTheme({ theme, children }: { theme: CanvasTheme; ch
+ }
+ 
+ export function imageQualityLabel(value: string) {
+-    return (["auto", "high", "medium", "low", "xhigh", "max"].includes(value) ? i18n.t(`settingsPanels.common.${value}`) : value);
++    return value === "max" ? "max" : (["auto", "high", "medium", "low", "xhigh"].includes(value) ? i18n.t(`settingsPanels.common.${value}`) : value);
+ }
+ 
+ export function imageSizeLabel(size: string) {
+@@ -224,17 +229,20 @@ export function imageSizeLabel(size: string) {
+     return `${scale} · ${ratio}`;
+ }
+ 
+-function OptionPill({ selected, theme, onClick, children }: { selected: boolean; theme: CanvasTheme; onClick: () => void; children: ReactNode }) {
++function OptionPill({ selected, disabled = false, title, theme, onClick, children }: { selected: boolean; disabled?: boolean; title?: string; theme: CanvasTheme; onClick: () => void; children: ReactNode }) {
+     return (
+         <button
+             type="button"
+-            className="guan-option-pill h-9 cursor-pointer rounded-full border px-2 text-sm hover:opacity-80"
+-            style={{ background: "transparent", borderColor: selected ? theme.node.text : theme.node.stroke, color: theme.node.text }}
++            className="guan-option-pill h-9 cursor-pointer rounded-full border px-2 text-sm enabled:hover:opacity-80 disabled:cursor-not-allowed"
++            disabled={disabled}
++            aria-pressed={selected}
++            title={title}
++            style={{ background: "transparent", borderColor: selected ? theme.node.text : theme.node.stroke, color: disabled ? theme.node.muted : theme.node.text, opacity: disabled ? .45 : 1 }}
+             onPointerDown={(event) => event.stopPropagation()}
+             onMouseDown={(event) => event.stopPropagation()}
+             onClick={(event) => {
+                 event.stopPropagation();
+-                onClick();
++                if (!disabled) onClick();
+             }}
+         >
+             {children}

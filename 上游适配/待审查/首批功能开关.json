@@ -1,0 +1,69 @@
+{
+  "状态": "待单独批准",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "已应用到运行副本": false,
+  "预审类型通过": true,
+  "差异SHA256": "f74a3e245a04b5f006e9d1e61b128ddd804d5576947d72b6fbb81c86ccf9ad19",
+  "文件": [
+    {
+      "文件": "web/src/router.tsx",
+      "原始SHA256": "d46a2157d77f0c4d72386713a3262c5e5c7fafaf1381a7455cb51685377ad833",
+      "候选SHA256": "fcdf1d361e4caeb051683661752f1d8f278d869983fdad4f202b07fc69a5e584"
+    },
+    {
+      "文件": "web/src/lib/analytics.ts",
+      "原始SHA256": "cdc17fa61d050f029cf043395fb478617193d70e9622639d4e829d3f3f4e68f8",
+      "候选SHA256": "02528fd32cb5754efef92eb23b69a87626392e45f37bca357d1033b3cc0e1290"
+    },
+    {
+      "文件": "web/src/layouts/user-layout.tsx",
+      "原始SHA256": "642e7c9201a9da51935a4202d994185e8aff586dbbcd34cf72a8d96cd01154a3",
+      "候选SHA256": "4c7918509becddaa1efe0eadf43d7c34e07d6f5d53b0b1f0b3c54ae4c6a91414"
+    },
+    {
+      "文件": "web/src/components/layout/app-top-nav.tsx",
+      "原始SHA256": "f15f55803e8111e1f5fe3882d2dafc19841b68eca18875c446da7a7d04501e4c",
+      "候选SHA256": "003480a36e86107781b4618504240acc02e5be2e7e6f0be6ba4e52d3c93a0b68"
+    },
+    {
+      "文件": "web/src/components/canvas/canvas-top-bar.tsx",
+      "原始SHA256": "19cae209f46102d636eae0f2c7dea2c6e525047046ff2b1bd887aa20397f9a1e",
+      "候选SHA256": "7dda95c8f65ecc62f136c966255bc4ab6f413e33b08d46c0d0af526cf8c5a475"
+    },
+    {
+      "文件": "web/src/stores/use-agent-store.ts",
+      "原始SHA256": "25f3c0eb8adc454c90e2814f08ec389e0061d39fe597deacf65df2fbb5d438f7",
+      "候选SHA256": "b2a6b2c29981311489e688b102ed6394f14412e37e68c7cf3ade7ae9814805ac"
+    },
+    {
+      "文件": "web/src/pages/canvas/hooks/use-agent-bridge.ts",
+      "原始SHA256": "4f0133a3eb9934ad6517c0ff8d2c614ee90b9b519421b0ee88d08d0bcaab4aa4",
+      "候选SHA256": "d24673d0f203e1d76ec7e94d7f5010142dde715a3ae26e32ad7688fca9f7a2e3"
+    },
+    {
+      "文件": "web/src/services/api/canvas-agent.ts",
+      "原始SHA256": "28b90150f7e797f899216f46d391aec9d4e99b613685b11def0ed214ce9603ba",
+      "候选SHA256": "c72107b5f69b8fefdff205db9d411613d674eaadf67c0a84347560191a1d989f"
+    },
+    {
+      "文件": "web/src/components/layout/app-config-modal.tsx",
+      "原始SHA256": "0378a605ba953805eb0d4e968290e1bb401b671f8ae8c8efd4abff8919bd59d3",
+      "候选SHA256": "c0a61eaf4d9f7d47700c6144555cf89b037d8edaf9fccfc5c766887515d246c8"
+    },
+    {
+      "文件": "web/src/services/app-sync.ts",
+      "原始SHA256": "6c7f1712b7b9996c9b20b00439a94fc5cf661772b87674353544ca73c4117e2d",
+      "候选SHA256": "99ab180af2ca041da97e1a222af1b1c335c7ebab1e31fce1b56173b684db38fb"
+    },
+    {
+      "文件": "web/src/services/webdav-sync.ts",
+      "原始SHA256": "4facffcfbfe8406ccea59b0d66912f943413e4c4a7c2c0e9d8710e0be11634af",
+      "候选SHA256": "a6a17f1b2d19efb9d10a2a0ba751478a6c3308f08b96b223fa66de9d379b0606"
+    },
+    {
+      "文件": "web/src/guan/功能开关.ts",
+      "原始SHA256": null,
+      "候选SHA256": "3d0fccd970d5ce0035f17e58cb28ef4025c25544114a70da5f15ecfff2766dad"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -287,6 +287,7 @@
+     const [dropTargetGroupId, setDropTargetGroupId] = useState<string | null>(null);
+     const [referencePickerNodeId, setReferencePickerNodeId] = useState<string | null>(null);
+ 
++    const revealCreatedNodeRef = useRef<string | null>(null);
+     const connectionsRef = useRef(connections);
+     const selectedNodeIdsRef = useRef(selectedNodeIds);
+     const viewportRef = useRef(viewport);
+@@ -861,6 +862,8 @@
+                 height: (size.height - 190) / currentViewport.k,
+             });
+ 
++            revealCreatedNodeRef.current = newNode.id;
++
+             setNodes((prev) => [...prev, newNode]);
+             setSelectedNodeIds(new Set([newNode.id]));
+             setSelectedConnectionId(null);
+@@ -880,6 +883,21 @@
+         [effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, getCanvasCenter, size.width, size.height, setNodes],
+     );
+ 
++    useLayoutEffect(() => {
++        const id = revealCreatedNodeRef.current;
++        if (!id) return;
++        const node = nodes.find((candidate) => candidate.id === id);
++        if (!node) return;
++        revealCreatedNodeRef.current = null;
++        const view = viewportRef.current;
++        const left = node.position.x * view.k + view.x;
++        const top = node.position.y * view.k + view.y;
++        if (left < 24 || top < 64 || left + node.width * view.k > size.width - 32 || top + node.height * view.k > size.height - 100) {
++            // Only explicit user creation reveals the card. Background tasks never pan.
++            setViewport({ ...view, x: size.width / 2 - (node.position.x + node.width / 2) * view.k, y: size.height / 2 - (node.position.y + node.height / 2) * view.k });
++        }
++    }, [nodes, size.width, size.height]);
++
+     const deleteNodes = useCallback(
+         (ids: Set<string>) => {
+             if (!ids.size) return;

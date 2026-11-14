@@ -1,0 +1,27 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index efe3a8c..b89a2c8 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -16,6 +16,8 @@ import { useEffect, useRef, useState } from "react";
+ import { useTranslation } from "react-i18next";
+ 
+ import { ModelPicker } from "@/components/model-picker";
++import { reasoningEffortLabel } from "@/components/text-settings-panel";
++import { modelTextReasoningEfforts, normalizeTextReasoningEffort, TEXT_REASONING_EFFORTS } from "@/扩展功能/画布生成/文本推理强度";
+ import { videoResolutionOptions } from "@/components/video-settings-panel";
+ import { ChannelEditorDrawer } from "@/components/layout/channel-editor-drawer";
+ import { ConfigLocalProxy } from "@/components/layout/config-local-proxy";
+@@ -249,6 +251,13 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+                                         </Form.Item>
+                                     ))}
+                                 </div>
++                                <Form.Item label="默认文本推理强度" extra="AI写提示词、优化和翻译使用此默认值；文本卡的独立设置仅影响本卡。" className="mb-4">
++                                    <Select aria-label="默认文本推理强度" className="w-full max-w-64"
++                                        value={normalizeTextReasoningEffort(config.reasoningEffort)}
++                                        options={TEXT_REASONING_EFFORTS.map(value => ({ value, label: reasoningEffortLabel(value),
++                                            disabled: !modelTextReasoningEfforts(config, config.textModel).includes(value) }))}
++                                        onChange={value => updateConfig("reasoningEffort", value)} />
++                                </Form.Item>
+                                 <div className="mb-2 text-sm font-semibold">{t("config.preferences.generation")}</div>
+                                 <div className="grid gap-4 md:grid-cols-4">
+                                     <Form.Item label={t("config.preferences.canvasImageCount")} extra={t("config.preferences.canvasImageCountDescription")} className="mb-4">

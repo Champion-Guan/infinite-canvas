@@ -1,0 +1,43 @@
+{
+  "name": "阶段7连线重设计",
+  "status": "待用户批准",
+  "upstreamRepository": "infinite-canvas-upstream",
+  "upstreamCommit": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "patchFile": "阶段7连线重设计.patch",
+  "patchSha256": "e43b33250cc9e17ab43233b7fee0954d2d0229952d9afefdc79c39ca75be1267",
+  "files": [
+    "web/src/components/canvas/canvas-connections.tsx",
+    "web/src/lib/canvas/canvas-connection-routing.ts",
+    "web/src/pages/canvas/project.tsx",
+    "web/tests/canvas-connection-routing.test.ts"
+  ],
+  "behavior": [
+    "静态连线改为圆角正交路径，多个同源或同目标连接按连接ID稳定扇出/扇入",
+    "反向布局从卡片上方绕行后进入目标左侧锚点",
+    "磁吸预览复用同一路由函数，只改变预览路径和目标高亮，不写入节点位置",
+    "连接数据、选择、删除、撤销恢复、刷新和SQLite持久化语义不变",
+    "不添加持续流光或粒子动画，避免大画布持续渲染开销"
+  ],
+  "verification": {
+    "automated": [
+      "稳定扇出/扇入索引",
+      "前向圆角正交路由",
+      "反向绕行路由",
+      "磁吸预览不修改节点位置"
+    ],
+    "blocked": [
+      "当前环境没有可用的 Bun 运行时，自动测试尚未执行",
+      "尚未接入隔离运行副本，浏览器视觉回归尚未执行"
+    ]
+  },
+  "integration": {
+    "allowedOnlyAfterApproval": true,
+    "target": "全新隔离运行副本",
+    "notAllowed": [
+      "修改 infinite-canvas-upstream 工作树",
+      "重启或切换 3100 服务",
+      "迁移真实用户数据",
+      "提交、推送或发布 GitHub"
+    ]
+  }
+}

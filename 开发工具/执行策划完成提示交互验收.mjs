@@ -31,13 +31,14 @@ try {
     let active = true, projectId = 'original-product';
     function Page() {
         useProductPlanningSuccessNotice({ projectId, active, hasNode: () => true,
-            assertActive() { assert.ok(active); }, generateAllConfigNodes: async () => { calls.push(projectId); } });
+            assertActive() { assert.ok(active); }, generateConfigNodes: async ids => { calls.push({ projectId, ids: [...ids] }); } });
         return el('main', null, '现有画布');
     }
     const root = createRoot(document.getElementById('root'));
     const render = () => React.act(async () => root.render(el(antd.App, { message: { top: 92 } }, el(Page))));
     const button = label => [...document.querySelectorAll('button')].find(node => node.textContent === label || node.getAttribute('aria-label') === label);
-    const notify = async completed => React.act(async () => notice.notifyProductPlanning(projectId, 'parameter', completed));
+    const expected = [{ projectId: 'original-product', ids: ['plan-config-1', 'plan-config-2'] }];
+    const notify = async completed => React.act(async () => notice.notifyProductPlanning(projectId, 'parameter', completed, ['plan-config-1', 'plan-config-2']));
     try {
         await render();
         await notify(false);
@@ -54,19 +55,19 @@ try {
         assert.equal(actions[0], start);
         assert.equal(actions[1].getAttribute('aria-label'), '关闭策划完成提示');
         await React.act(async () => { start.click(); start.click(); });
-        assert.deepEqual(calls, ['original-product']);
+        assert.deepEqual(calls, expected);
         await notify(true);
         const closing = button('关闭策划完成提示');
         await React.act(async () => closing.click());
-        assert.deepEqual(calls, ['original-product']);
+        assert.deepEqual(calls, expected);
         await notify(true);
         const stale = button('一键生图');
         active = false; await render();
         await React.act(async () => stale.click());
-        assert.deepEqual(calls, ['original-product']);
+        assert.deepEqual(calls, expected);
         active = true; projectId = 'other-product'; await render();
         assert.equal(button('一键生图'), undefined);
         console.log(JSON.stringify({ realReactAndAntdMessage: true, top: 92, successOnly: true, countdown: 60,
-            rightSideAction: true, singleBatchCall: true, close: true, productSwitchBlocked: true, paidRequests: 0 }));
+            rightSideAction: true, singleBatchCall: true, planningConfigScope: true, close: true, productSwitchBlocked: true, paidRequests: 0 }));
     } finally { await React.act(() => root.unmount()); dom.window.close(); }
 } finally { rmSync(directory, { recursive: true, force: true }); }

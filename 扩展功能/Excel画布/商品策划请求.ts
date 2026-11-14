@@ -2,7 +2,6 @@ import type { CanvasNodeContext } from "@/types/canvas-plugin";
 import type { AiTextMessage } from "@/services/api/image";
 import { useConfigStore } from "@/stores/use-config-store";
 import { buildGenerationConfig } from "@/lib/canvas/canvas-generation-helpers";
-import { imageToDataUrl } from "@/services/image-storage";
 import { saveProductCanvas } from "../产品/产品操作";
 import { confirmSavedCanvasText, queryCanvasTextTask, retireMissingCanvasText, requestCanvasText } from "../画布生成/原画布文本调用";
 import { productMainImages } from "./产品主图规则";
@@ -22,6 +21,8 @@ import { productCanvasResidency } from "../产品/画布驻留保护";
 import type { TextTaskPhase } from "../主题/任务阶段反馈";
 import { confirmationDefinition, confirmationFields, factTokens, type ConfirmationMetadata } from "./商品待确认规则";
 import { confirmationPlanInputs, confirmationPlanningImages, validateConfirmationImages } from "./商品待确认提示词";
+import { inheritedProductPlanningPatch } from "./商品策划副本规则";
+import { readPlanningReference } from "./策划参考图读取";
 import { PRODUCT_PLAN_REPAIR_ROLE, ProductPlanProtocolError, normalizeProductPlanReferences, productPlanImageIdentity,
     productPlanProtocolIssues, productPlanningCandidate, productPlanningCandidatePatch, productPlanningRequestKey,
     productPlanningCommit, productPlanningCommitPatch, productPlanningTaskSource, productPlanningTaskSourcePatch,
@@ -29,7 +30,7 @@ import { PRODUCT_PLAN_REPAIR_ROLE, ProductPlanProtocolError, normalizeProductPla
 
 async function saved(productId: string) {
     const result = await saveProductCanvas(productId);
-    if (!result.persisted) throw Error("画布保存尚未确认，请稍后重试保存。");
+    if (!result.persisted) throw Object.assign(Error("画布保存尚未确认，请稍后重试保存。"), { code: "generation_canvas_unsaved" });
     return result;
 }
 
@@ -79,13 +80,14 @@ async function request({ ctx, productId, signal, slotId, messages, assertCurrent
     }
     read();
     onPhase?.("requesting");
-    return requestCanvasText({
+    try { return await requestCanvasText({
         config, messages, signal, retry: !recoverOnly, recoverOnly, scope: { productId, nodeId: ctx.node.id, slotId },
         previous: read().metadata?.gatewayGenerationTasks?.find(task => task.slotId === slotId),
         recordTask: async task => {
             const node = read();
             onPhase?.("saving-task");
             ctx.updateMetadata({ gatewayGenerationTasks: [...(node.metadata?.gatewayGenerationTasks || []).filter(item => item.slotId !== slotId), task],
+                ...{ productPlanningTaskOwner: { productId, nodeId: ctx.node.id, taskId: task.taskId } } as ProductPromptMetadata,
                 ...(sourceKey ? productPlanningTaskSourcePatch(node, slotId, sourceKey) : {}) });
             await saved(productId);
             if (!signal.aborted) onPhase?.("requesting");
@@ -103,17 +105,43 @@ async function request({ ctx, productId, signal, slotId, messages, assertCurrent
             onPhase?.("saving-result");
             return saved(productId);
         },
-    });
+    }); } catch (error) {
+        if (["invalid_generation_request", "generation_body_too_large"].includes((error as { code?: string }).code || "")) {
+            const task = read().metadata?.gatewayGenerationTasks?.find(task => task.slotId === slotId);
+            if (task) {
+                // 服务明确拒绝且本机没有任务时才收口；不把未知网络失败当成未提交。
+                await retireMissingCanvasText({ productId, nodeId: ctx.node.id }, task, signal);
+                ctx.updateMetadata(productPlanningResolutionPatch({ taskId: task.taskId, status: "failed" }));
+                await saved(productId);
+            }
+        }
+        throw error;
+    }
 }
 
 export async function planProductImages(ctx: CanvasNodeContext, productId: string, signal: AbortSignal, onPhase?: (phase: TextTaskPhase) => void,
     options: { recoverOnly?: boolean; repairOnly?: boolean } = {}) {
+    const node = ctx.getNode(ctx.node.id);
+    const inherited = node && inheritedProductPlanningPatch(node, productId);
+    if (inherited) {
+        ctx.updateMetadata(inherited);
+        await saved(productId);
+        if (options.recoverOnly || options.repairOnly) throw Error("副本已恢复为独立参数卡，请点击“AI写提示词”按当前资料重新策划；原卡任务保留。");
+    }
     const recovery = productPlanningRecovery(ctx.getNode(ctx.node.id));
     try {
         return await runProductPlanningTask(ctx, signal, async () => {
             if (options.recoverOnly && recovery?.kind === "query") {
                 onPhase?.("checking");
-                const result = await queryCanvasTextTask({ productId, nodeId: ctx.node.id }, recovery, signal);
+                let result;
+                try { result = await queryCanvasTextTask({ productId, nodeId: ctx.node.id }, recovery, signal); }
+                catch (error) {
+                    if ((error as { code?: string }).code !== "generation_not_found") throw error;
+                    await retireMissingCanvasText({ productId, nodeId: ctx.node.id }, recovery, signal);
+                    ctx.updateMetadata(productPlanningResolutionPatch({ taskId: recovery.taskId, status: "failed" }));
+                    await saved(productId);
+                    throw Error("已确认原策划未提交，旧任务已收口。请点击“AI写提示词”重新策划；本次查询未调用模型。");
+                }
                 if (result.state === "failed" || result.state === "cancelled")
                     throw Object.assign(Error("原任务已失败或取消，可以明确选择重新策划。"), { code: "generation_failed" });
                 if (result.state === "succeeded" && result.applied) {
@@ -124,7 +152,7 @@ export async function planProductImages(ctx: CanvasNodeContext, productId: strin
                 }
             }
             return executeProductImagePlan(ctx, productId, signal, onPhase, options.recoverOnly === true, options.repairOnly === true);
-        });
+        }, productId);
     } catch (error) {
         if (options.recoverOnly && recovery && (error as { code?: string }).code === "generation_failed") {
             const current = productPlanningRecovery(ctx.getNode(ctx.node.id));
@@ -170,7 +198,7 @@ async function executeProductImagePlan(ctx: CanvasNodeContext, productId: string
         await clearCommit();
         signal.throwIfAborted();
         const hasImages = Boolean((ctx.getNode(ctx.node.id)?.metadata as ProductPromptMetadata)?.productImagePlan?.imageCount);
-        if (hasImages) { notifyProductPlanning(productId, ctx.node.id, true); onPhase?.("ready"); }
+        if (hasImages) { notifyProductPlanning(productId, ctx.node.id, true, pendingCommit.configNodeIds); onPhase?.("ready"); }
         else onPhase?.("needs-input");
         return;
     }
@@ -203,6 +231,7 @@ async function executeProductImagePlan(ctx: CanvasNodeContext, productId: string
         if (recoverOnly) throw Error("原方案已取回，尚需修正结构；请使用“继续修正”，不会重新执行整套策划。");
     }
     let hasImages = false;
+    let configNodeIds: string[] = [];
     let activeSlot = "product-image-plan";
     const validate = (text: string) => {
         const plan = parseProductImagePlan(text, facts.variants.map(variant => variant.id), { requireDesign: true });
@@ -225,9 +254,12 @@ async function executeProductImagePlan(ctx: CanvasNodeContext, productId: string
         const model = config.imageModel || config.model;
         const task = ctx.getNode(parameter.id)?.metadata?.gatewayGenerationTasks?.find(task => task.slotId === activeSlot);
         if (!task) throw Error("策划任务身份已变化，未更新原卡片。");
-        ctx.applyOps([...productPlanOps(ctx.getNode(parameter.id)!, plan, ctx.getNodes(), ctx.getConnections(), fingerprint, model),
+        const ops = productPlanOps(ctx.getNode(parameter.id)!, plan, ctx.getNodes(), ctx.getConnections(), fingerprint, model);
+        const promptIds = new Set(ops.flatMap(op => op.type === "select_nodes" ? op.ids : []));
+        configNodeIds = [...new Set(ops.flatMap(op => op.type === "connect_nodes" && promptIds.has(op.fromNodeId) ? [op.toNodeId] : []))];
+        ctx.applyOps([...ops,
             { type: "update_node", id: parameter.id, metadata: { ...productPlanningCandidatePatch(),
-                ...productPlanningCommitPatch({ slotId: activeSlot, taskId: task.taskId }) } }]);
+                ...productPlanningCommitPatch({ slotId: activeSlot, taskId: task.taskId, configNodeIds }) } }]);
         hasImages = plan.images.length > 0;
     };
     const receive = (text: string, repairing = false) => {
@@ -259,9 +291,10 @@ async function executeProductImagePlan(ctx: CanvasNodeContext, productId: string
     }) }];
     const usedIds = new Set(facts.images.map(image => image.id));
     const confirmationImages = confirmationPlanningImages(metadata);
-    for (const image of [...new Map([...productMainImages(metadata).filter(image => usedIds.has(image.id)), ...confirmationImages].map(image => [image.id, image])).values()]) {
+    const planningImages = [...new Map([...productMainImages(metadata).filter(image => usedIds.has(image.id)), ...confirmationImages].map(image => [image.id, image])).values()];
+    for (const image of planningImages) {
         signal.throwIfAborted(); assertCurrent();
-        const url = await imageToDataUrl({ storageKey: image.storageKey, url: image.url }, { signal });
+        const url = await readPlanningReference(image, planningImages.length, signal);
         if (!url) throw Error(`无法读取“${image.name}”，未提交策划。`);
         content.push({ type: "text", text: `Reference ID: ${image.id}; filename: ${image.name}` },
             { type: "image_url", image_url: { url } });
@@ -291,7 +324,7 @@ async function executeProductImagePlan(ctx: CanvasNodeContext, productId: string
     }
     await clearCommit();
     signal.throwIfAborted();
-    if (hasImages) { notifyProductPlanning(productId, parameter.id, true); onPhase?.("ready"); }
+    if (hasImages) { notifyProductPlanning(productId, parameter.id, true, configNodeIds); onPhase?.("ready"); }
     else onPhase?.("needs-input");
     } finally { release(); }
 }
@@ -331,7 +364,7 @@ export async function updateProductConfirmationImages(ctx: CanvasNodeContext, pr
         }) }];
         for (const image of images) {
             signal.throwIfAborted(); assertCurrent();
-            const url = await imageToDataUrl({ storageKey: image.storageKey, url: image.url }, { signal });
+            const url = await readPlanningReference(image, images.length, signal);
             if (!url) throw Error(`无法读取“${image.name}”，原提示词保留。`);
             content.push({ type: "text", text: `Reference ID: ${image.id}; filename: ${image.name}` }, { type: "image_url", image_url: { url } });
         }

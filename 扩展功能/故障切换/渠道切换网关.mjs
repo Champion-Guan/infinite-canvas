@@ -3,6 +3,7 @@ import { requireValue } from '../本机存储/协议.mjs';
 import { bindingLike, exactKeys, jobLike, validateSubmission, MAX_REQUEST_BYTES } from '../生成网关/生成协议.mjs';
 import { createFallbackStore, hashJSON } from './SQLite切换配置.mjs';
 import { enabledEntries } from './原版策略.mjs';
+import { runSingleImageRetry } from '../生成任务/图片自动重试规则.mjs';
 
 const planFormat = 'guan-routed-image-plan.v1', requestFormat = 'guan-routed-image-request.v1';
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -10,9 +11,10 @@ const safeString = (value, size = 200) => typeof value === 'string' && value.len
 const placeholder = '00000000-0000-4000-8000-000000000001';
 export const canAdvanceFallback = status => [401, 403, 404, 429].includes(status);
 
-// 候选列表及各协议请求摘要在发送前固定；POST超时/5xx/取消/格式异常一律停止。
+// 候选列表及各协议请求摘要在发送前固定；Fallback的超时/5xx/取消/格式异常一律停止。
+// 指定渠道仅在完整的临时失败响应后有限重试，始终复用同一任务与请求快照。
 // 无正文、提示词或密钥进入计划/尝试日志。既有任务账本负责冷启动不重发。
-export function createRoutedImageGateway({ workspace, base, proxied, networkProxy, runTrustedWrite }) {
+export function createRoutedImageGateway({ workspace, base, proxied, networkProxy, runTrustedWrite, retryWait, now = Date.now }) {
   const config = createFallbackStore({ workspace, runTrustedWrite });
   async function saveDocument(id, value, revision) {
     return runTrustedWrite(() => {
@@ -67,6 +69,13 @@ export function createRoutedImageGateway({ workspace, base, proxied, networkProx
   }
   return Object.freeze({ bind: base.bind, resolveSaved: value => base.resolveSaved(value), previewCredential: id => base.previewCredential(id), downloadVideo: (id, source) => base.downloadVideo(id, source), describe(id) { const plan = readPlan(id); return plan ? { binding: id, kind: 'routed-image', endpoint: '' } : base.describe(id); },
     fallbackLoad: config.read, fallbackSave: config.save,
+    imageRetryProgress(taskId) {
+      const doc = workspace.readDocument('extension', 'guan-fallback-attempt:' + taskId);
+      if (!doc?.value?.imageRetry) return null;
+      requireValue(doc.workspaceId === workspace.workspaceId && doc.hash === hashJSON(doc.value) && doc.value.taskId === taskId,
+        'image_retry_progress_invalid', '自动重试进度不匹配。', 409);
+      return structuredClone(doc.value.imageRetry);
+    },
     async createPlan(value) {
       requireValue(exactKeys(value, ['mode', 'capability', 'revision', 'candidates']) && ['single', 'fallback'].includes(value.mode) && value.capability === 'image' && Number.isSafeInteger(value.revision) && value.revision >= 0 &&
         Array.isArray(value.candidates) && value.candidates.length > 0 && value.candidates.length <= 32 && (value.mode !== 'single' || value.candidates.length === 1), 'fallback_plan_invalid', '切换计划参数无效。');
@@ -101,6 +110,30 @@ export function createRoutedImageGateway({ workspace, base, proxied, networkProx
       try {
       let revision = 0;
       const trace = { format: 'guan-fallback-attempt.v1', taskId, binding: id, phase: 'dispatching', attempts: [], routing: null };
+      if (plan.mode === 'single') {
+        const entry = plan.candidates[0], selected = plan.transport === 'proxy' ? proxied : base;
+        requireValue(selected, 'proxy_not_running', '受管代理未接入，没有改用直连。', 409);
+        const result = await runSingleImageRetry({
+          signal, wait: retryWait, now,
+          execute: () => selected.execute(entry.binding, requests[0], { signal, route }),
+          record: async (progress, failed) => {
+            trace.imageRetry = progress;
+            if (failed) trace.attempts.at(-1).status = failed.status;
+            else trace.attempts.push({ index: 0, binding: entry.binding, status: null });
+            trace.phase = progress.phase === 'waiting' ? 'retry_waiting' : 'dispatching';
+            await saveDocument(traceId, trace, revision++);
+          },
+        });
+        requireValue(Buffer.isBuffer(result.bytes) && result.bytes.length > 0, 'fallback_response_invalid', '上游没有可确认响应，不再重试。', 502);
+        trace.attempts.at(-1).status = result.status;
+        trace.imageRetry = { ...trace.imageRetry, phase: 'complete', nextRetryAt: null };
+        trace.phase = 'complete';
+        trace.routing = { index: 0, modelOption: entry.profileId + '::' + entry.modelName, profileId: entry.profileId,
+          modelName: entry.modelName, channelName: entry.channelName, kind: entry.kind, endpoint: entry.endpoint,
+          transport: plan.transport, quality: entry.quality, size: entry.size, responseHash: digest(result.bytes) };
+        await saveDocument(traceId, trace, revision++);
+        return result;
+      }
       for (let index = 0; index < plan.candidates.length; index++) {
         signal?.throwIfAborted();
         const entry = plan.candidates[index]; trace.phase = 'dispatching'; trace.attempts.push({ index, binding: entry.binding, status: null });

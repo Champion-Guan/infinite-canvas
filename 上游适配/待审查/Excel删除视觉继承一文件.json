@@ -1,0 +1,35 @@
+{
+  "日期": "2026-10-19",
+  "状态": "待具体批准；仅内存候选，未接入运行包",
+  "上游提交": "3a6b64b602ad062b29fac66902ed18a7ef5fd9dc",
+  "前置记录": "/Users/guanchengbin/Desktop/AI-Workbench/Guan二次开发/.运行/Excel工作簿删除-hoIPDn/Excel工作簿删除接入记录.json",
+  "前置差异SHA256": "12125e114dac0c06f922052ff2e7ea222b2f8365ce8db1f4b7d324b10c7597be",
+  "差异SHA256": "9d143e96b439a9425035ca347644e8b6ed11c4b019a3963dfd9da45eb1d1d0f9",
+  "文件数": 1,
+  "完整虚拟类型检查通过": true,
+  "已接入": false,
+  "已接管3100": false,
+  "自有来源": [
+    {
+      "文件": "扩展功能/Excel删除视觉/工作簿删除弹窗.tsx",
+      "SHA256": "59c446a95f3e8d7391b0fea8b88e82d03b3894be395b53b993b485d1b7963722"
+    }
+  ],
+  "工具来源": [
+    {
+      "文件": "开发工具/预审Excel删除视觉继承.mjs",
+      "SHA256": "b2cca1cae94ff7ccf0a11cf4a29e3f2c097ffe848cbd67a2980299f029ddb039"
+    },
+    {
+      "文件": "开发工具/Excel删除视觉继承.test.mjs",
+      "SHA256": "5c34649a0b3765310dd9df2a091c0349811e434d02f5e421d9db41be30f8bbbb"
+    }
+  ],
+  "文件": [
+    {
+      "文件": "web/src/guan/工作簿删除弹窗.tsx",
+      "原始SHA256": "175f109a8eeb52885e04abf78af7baedbcf9635d4693c3c132ec3cac53e3956a",
+      "候选SHA256": "59c446a95f3e8d7391b0fea8b88e82d03b3894be395b53b993b485d1b7963722"
+    }
+  ]
+}

@@ -15,11 +15,14 @@ export function 检查转发目标(value) {
 }
 export function 创建本地转发({ proxy, direct = requestProviderBytes, proxied = requestThroughManagedProxy }) {
   return async function relay(value, { signal } = {}) {
+    await proxy.waitUntilReady?.({ signal });
+    signal?.throwIfAborted();
     requireValue(proxy.status().relayEnabled, 'relay_disabled', '本地代理已关闭。', 409);
     requireValue(value && Object.keys(value).sort().join(',') === 'body,headers,method,url' && methods.includes(value.method) && typeof value.body === 'string' &&
       value.body.length <= Math.ceil(MAX_REQUEST_BYTES / 3) * 4 && value.body.length % 4 === 0 && value.headers && Object.getPrototypeOf(value.headers) === Object.prototype,
       'relay_request_invalid', '本地转发请求格式无效。');
-    const url = 检查转发目标(value.url), headers = { 'accept-encoding': 'identity' }, secrets = [];
+    let url = 检查转发目标(value.url);
+    const headers = { 'accept-encoding': 'identity' }, secrets = [];
     for (const [name, content] of Object.entries(value.headers)) {
       requireValue(headerNames.has(name) && typeof content === 'string' && content.length <= 16384 && !/[\r\n\0]/.test(content), 'relay_header_invalid', '转发请求头无效。');
       if (name === 'destination') requireValue(检查转发目标(content).origin === url.origin, 'relay_target_invalid', 'WebDAV移动和复制须在同一服务内。');
@@ -30,7 +33,15 @@ export function 创建本地转发({ proxy, direct = requestProviderBytes, proxi
     requireValue(bytes.length <= MAX_REQUEST_BYTES && bytes.toString('base64') === value.body && (!['GET', 'HEAD'].includes(value.method) || !bytes.length), 'relay_request_invalid', '转发正文超限或方法无效。');
     const state = proxy.status(), lease = proxy.acquireRoute(state.enabled ? 'proxy' : 'direct');
     try {
-      const result = await (state.enabled ? proxied : direct)({ url, method: value.method, headers, bytes, route: lease, signal, includeHeaders: true });
+      const allowImageRedirect = value.method === 'GET' && !bytes.length && headers.accept === 'image/*'
+        && Object.keys(headers).every(name => ['accept', 'accept-encoding'].includes(name));
+      let result;
+      for (let hop = 0; hop <= 3; hop++) {
+        result = await (state.enabled ? proxied : direct)({ url, method: value.method, headers, bytes, route: lease, signal, includeHeaders: true, allowImageRedirect });
+        if (!result.redirectLocation) break;
+        requireValue(allowImageRedirect && hop < 3, 'provider_redirect_denied', '图片跳转次数超过限制。', 502);
+        url = 检查转发目标(new URL(result.redirectLocation, url).href);
+      }
       // 请求携带的认证不回显到页面日志或错误内容。
       if (/(?:json|text|xml|event-stream)/i.test(result.contentType) && secrets.length) {
         let text = new TextDecoder('utf-8', { fatal: true }).decode(result.bytes);

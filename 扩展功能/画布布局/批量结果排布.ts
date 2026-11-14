@@ -3,7 +3,7 @@ import { NODE_PLACEMENT_GAP, nodesOverlap } from "./卡片自动避让";
 import type { ProductVariantExecution } from "../画布生成/产品变体生成";
 
 export type BatchResultSlot = { source: CanvasNodeData; width: number; height: number };
-export type BatchResultPlacement = { batchId: string; columnX: number; centerY: number; productVariant?: ProductVariantExecution };
+export type BatchResultPlacement = { batchId: string; columnX: number; centerY: number; productVariant?: ProductVariantExecution; onSubmitted?: () => void };
 
 function validBox(node: Pick<CanvasNodeData, "position" | "width" | "height">) {
     return Boolean(node.position && Number.isFinite(node.position.x) && Number.isFinite(node.position.y)

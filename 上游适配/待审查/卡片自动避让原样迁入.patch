@@ -1,0 +1,389 @@
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -20,6 +20,7 @@
+ import { useThemeStore } from "@/stores/use-theme-store";
+ import { cropDataUrl, splitDataUrl, upscaleDataUrl } from "@/lib/canvas/canvas-image-data";
+ import { fitNodeSize, nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
++import { arrangeOverlappingCanvasNodes, nextGenerationResultPosition, placeCanvasNode, placeNewCanvasNodes } from "@/guan/卡片自动避让";
+ import { captureVideoFrame, type VideoFramePosition } from "@/lib/canvas/canvas-video-frame";
+ import { App, Button, Modal } from "antd";
+ import { NODE_DEFAULT_SIZE, getNodeSpec } from "@/constant/canvas";
+@@ -51,7 +52,7 @@
+ import { buildNodeMentionReferences, getGroupResourceNodes, isCanvasReferenceNode, type CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
+ import { exportCanvasProjects } from "@/lib/canvas/canvas-export";
+ import { applyNodeConfigPatch, audioMetadata, buildAudioGenerationMetadata, buildImageGenerationMetadata, createCanvasNode, imageMetadata, videoMetadata } from "@/lib/canvas/canvas-node-factory";
+-import { applyGroupSelection, applyUngroupSelection, canGroupSelectedNodes, canUngroupSelectedNodes, collectGroupMemberNodes, findContainingGroupId, findGroupDropTarget, focusViewportForNode, getConnectionTargetAnchor, getGroupWrapRect, normalizeConnection, snapNodesIntoGroup } from "@/lib/canvas/canvas-node-geometry";
++import { applyGroupSelection, applyUngroupSelection, canGroupSelectedNodes, canUngroupSelectedNodes, collectGroupMemberNodes, findContainingGroupId, findGroupDropTarget, focusViewportForNode, getConnectionTargetAnchor, getGroupWrapRect, normalizeConnection, nodeBounds, snapNodesIntoGroup } from "@/lib/canvas/canvas-node-geometry";
+ import {
+     audioExtension,
+     buildAngleLabel,
+@@ -227,7 +228,20 @@
+     const deleteProjects = useCanvasStore((state) => state.deleteProjects);
+     const currentProject = useCanvasStore((state) => state.projects.find((project) => project.id === projectId));
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+-    const [nodes, setNodes] = useState<CanvasNodeData[]>([]);
++    const [nodes, setNodeState] = useState<CanvasNodeData[]>([]);
++    const nodesRef = useRef(nodes);
++    const nodeTransactionRef = useRef(nodes);
++    const setRawNodes = useCallback((next: CanvasNodeData[]) => {
++        nodeTransactionRef.current = next;
++        nodesRef.current = next;
++        setNodeState(next);
++    }, []);
++    // All creation paths (including plugins and async generation) pass through
++    // the same pure transaction. Existing cards and user drag positions stay untouched.
++    const setNodes = useCallback((update: CanvasNodeData[] | ((previous: CanvasNodeData[]) => CanvasNodeData[])) => {
++        const previous = nodeTransactionRef.current;
++        setRawNodes(placeNewCanvasNodes(previous, typeof update === "function" ? update(previous) : update));
++    }, [setRawNodes]);
+     const [connections, setConnections] = useState<CanvasConnection[]>([]);
+     const [chatSessions, setChatSessions] = useState<CanvasAssistantSession[]>([]);
+     const [activeChatId, setActiveChatId] = useState<string | null>(null);
+@@ -273,7 +287,6 @@
+     const [dropTargetGroupId, setDropTargetGroupId] = useState<string | null>(null);
+     const [referencePickerNodeId, setReferencePickerNodeId] = useState<string | null>(null);
+ 
+-    const nodesRef = useRef(nodes);
+     const connectionsRef = useRef(connections);
+     const selectedNodeIdsRef = useRef(selectedNodeIds);
+     const viewportRef = useRef(viewport);
+@@ -450,7 +463,7 @@
+         const restore = async () => {
+             const restoredNodes = await hydrateCanvasImages(resetInterruptedGeneration(project.nodes));
+             const restoredSessions = await hydrateAssistantImages(project.chatSessions || []);
+-            setNodes(restoredNodes);
++            setRawNodes(restoredNodes);
+             setConnections(project.connections);
+             setChatSessions(restoredSessions);
+             setActiveChatId(project.activeChatId || null);
+@@ -474,7 +487,7 @@
+             setProjectLoaded(true);
+         };
+         void restore();
+-    }, [hydrated, navigate, openProject, projectId]);
++    }, [hydrated, navigate, openProject, projectId, setRawNodes]);
+ 
+     useEffect(() => {
+         if (!projectLoaded) return;
+@@ -544,7 +557,7 @@
+     }, [projectId, projectLoaded, updateProject, viewport]);
+ 
+     useLayoutEffect(() => {
+-        nodesRef.current = nodes;
++        if (nodes === nodeTransactionRef.current) nodesRef.current = nodes;
+         connectionsRef.current = connections;
+         selectedNodeIdsRef.current = selectedNodeIds;
+         viewportRef.current = viewport;
+@@ -840,7 +853,13 @@
+                           count: getGenerationCount(effectiveConfig.canvasImageCount || effectiveConfig.count),
+                       }
+                     : undefined;
+-            const newNode = createCanvasNode(type, targetPosition, configMetadata);
++            const currentViewport = viewportRef.current;
++            const newNode = placeCanvasNode(createCanvasNode(type, targetPosition, configMetadata), nodesRef.current, position ? undefined : {
++                x: (24 - currentViewport.x) / currentViewport.k,
++                y: (80 - currentViewport.y) / currentViewport.k,
++                width: (size.width - 48) / currentViewport.k,
++                height: (size.height - 190) / currentViewport.k,
++            });
+ 
+             setNodes((prev) => [...prev, newNode]);
+             setSelectedNodeIds(new Set([newNode.id]));
+@@ -858,7 +877,7 @@
+                     : isBuiltinType(type) && type !== CanvasNodeType.Text && type !== CanvasNodeType.Audio && type !== CanvasNodeType.Group;
+             if (wantsPanel) setDialogNodeId(newNode.id);
+         },
+-        [effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, getCanvasCenter],
++        [effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, getCanvasCenter, size.width, size.height, setNodes],
+     );
+ 
+     const deleteNodes = useCallback(
+@@ -1153,7 +1172,7 @@
+             historyCommitTimerRef.current = null;
+         }
+         applyingHistoryRef.current = true;
+-        setNodes(entry.nodes);
++        setRawNodes(entry.nodes);
+         setConnections(entry.connections);
+         setChatSessions(entry.chatSessions);
+         setActiveChatId(entry.activeChatId);
+@@ -1167,7 +1186,7 @@
+             applyingHistoryRef.current = false;
+             setHistoryState({ canUndo: historyRef.current.past.length > 0, canRedo: historyRef.current.future.length > 0 });
+         });
+-    }, []);
++    }, [setRawNodes]);
+ 
+     const undoCanvas = useCallback(() => {
+         const previous = historyRef.current.past.pop();
+@@ -1185,6 +1204,28 @@
+         applyHistory(next);
+     }, [applyHistory]);
+ 
++    const organizeOverlappingNodes = useCallback(() => {
++        const before = createHistoryEntry();
++        const arranged = arrangeOverlappingCanvasNodes(before.nodes);
++        if (arranged === before.nodes) {
++            message.info("没有需要整理的重叠卡片");
++            return;
++        }
++        const moved = arranged.filter((node, index) => node.type !== CanvasNodeType.Group && node.position !== before.nodes[index].position).length;
++        historyRef.current.past = [...historyRef.current.past.slice(-49), before];
++        historyRef.current.future = [];
++        applyHistory({ ...before, nodes: arranged });
++        const visibleNodes = arranged.filter((node) => node.type !== CanvasNodeType.Group && Number.isFinite(node.position.x) && Number.isFinite(node.position.y) && Number.isFinite(node.width) && Number.isFinite(node.height));
++        if (visibleNodes.length) {
++            const bounds = nodeBounds(visibleNodes);
++            const availableWidth = Math.max(100, size.width - 64);
++            const availableHeight = Math.max(100, size.height - 180);
++            const k = Math.max(0.05, Math.min(1, availableWidth / Math.max(1, bounds.right - bounds.left), availableHeight / Math.max(1, bounds.bottom - bounds.top)));
++            setViewport({ x: 32 + availableWidth / 2 - (bounds.left + bounds.right) / 2 * k, y: 64 + availableHeight / 2 - (bounds.top + bounds.bottom) / 2 * k, k });
++        }
++        message.success(`已整理 ${moved} 张重叠卡片，可点击撤销恢复`);
++    }, [applyHistory, createHistoryEntry, message, size.width, size.height]);
++
+     const createAndOpenProject = useCallback(() => {
+         const id = createProject(t("canvas.defaultTitle", { count: useCanvasStore.getState().projects.length + 1 }));
+         navigate(`/canvas/${id}`);
+@@ -1380,12 +1421,7 @@
+                         return initial ? { ...node, position: { x: initial.x + dx, y: initial.y + dy } } : node;
+                     });
+                     setDropTargetGroupId(findGroupDropTarget(movedIds, previewNodes)?.id || null);
+-                    setNodes((prev) =>
+-                        prev.map((node) => {
+-                            const initial = initialPositions.get(node.id);
+-                            return initial ? { ...node, position: { x: initial.x + dx, y: initial.y + dy } } : node;
+-                        }),
+-                    );
++                    setRawNodes(previewNodes);
+                     rafRef.current = null;
+                 });
+                 return;
+@@ -2387,7 +2423,8 @@
+                 return;
+             }
+             let pendingChildIds: string[] = [];
+-            if (markSourceStatus) setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, ...(node.type === CanvasNodeType.Config ? {} : { prompt }), status: NODE_STATUS_LOADING, errorDetails: undefined } } : node)));
++            const generationStartedAt = Date.now();
++            if (markSourceStatus) setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, ...(node.type === CanvasNodeType.Config ? {} : { prompt }), generationStartedAt, status: NODE_STATUS_LOADING, errorDetails: undefined } } : node)));
+ 
+             try {
+                 if (mode === "image") {
+@@ -2406,6 +2443,8 @@
+                     const parentConfig = NODE_DEFAULT_SIZE[isConfigNode ? CanvasNodeType.Config : isImageNode ? CanvasNodeType.Image : CanvasNodeType.Text];
+                     const imageConfig = NODE_DEFAULT_SIZE[CanvasNodeType.Image];
+                     const parentPosition = sourceNode?.position || { x: 0, y: 0 };
++                    const resultIndex = connectionsRef.current.filter((connection) => connection.fromNodeId === nodeId
++                        && nodesRef.current.some((candidate) => candidate.id === connection.toNodeId && candidate.type === CanvasNodeType.Image)).length;
+                     const rootId = reuseImageNode ? nodeId : nanoid();
+                     const imageIds = Array.from({ length: count }, () => nanoid());
+                     pendingChildIds = [rootId];
+@@ -2413,10 +2452,13 @@
+                         id: rootId,
+                         type: CanvasNodeType.Image,
+                         title: effectivePrompt.slice(0, 32) || "Generated Image",
+-                        position: {
+-                            x: reuseImageNode ? parentPosition.x : parentPosition.x + parentConfig.width + 96,
+-                            y: parentPosition.y + parentConfig.height / 2 - imageConfig.height / 2,
+-                        },
++                        position: reuseImageNode ? parentPosition : nextGenerationResultPosition(
++                            { position: parentPosition, width: parentConfig.width, height: parentConfig.height },
++                            imageConfig,
++                            resultIndex,
++                            48,
++                            32,
++                        ),
+                         width: reuseImageNode ? sourceNode?.width || imageConfig.width : imageConfig.width,
+                         height: reuseImageNode ? sourceNode?.height || imageConfig.height : imageConfig.height,
+                         metadata: {
+@@ -2425,6 +2467,7 @@
+                             images: imageIds.map((id) => ({ id, status: NODE_STATUS_LOADING, content: "", naturalWidth: 0, naturalHeight: 0, bytes: 0, mimeType: "" })),
+                             primaryImageId: undefined,
+                             ...generationMetadata,
++                            generationStartedAt,
+                         },
+                     };
+ 
+@@ -2554,6 +2597,7 @@
+                             prompt: effectivePrompt,
+                             status: NODE_STATUS_LOADING,
+                             model: generationConfig.model,
++                            generationStartedAt,
+                             size: generationConfig.size,
+                             seconds: generationConfig.videoSeconds,
+                             vquality: generationConfig.vquality,
+@@ -2809,7 +2853,7 @@
+             const retryImages = retryReferenceImages || [];
+ 
+             setRunningNodeId(node.id);
+-            setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_LOADING, errorDetails: undefined, images: item.metadata?.images?.map((image) => (image.id === imageId ? { ...image, status: NODE_STATUS_LOADING, errorDetails: undefined } : image)) } } : item)));
++            setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, generationStartedAt: Date.now(), status: NODE_STATUS_LOADING, errorDetails: undefined, images: item.metadata?.images?.map((image) => (image.id === imageId ? { ...image, status: NODE_STATUS_LOADING, errorDetails: undefined } : image)) } } : item)));
+             const controller = startGenerationRequest(node.id, sourceNode.id, node.id);
+ 
+             try {
+@@ -3173,6 +3217,7 @@
+                     onCreateProject={createAndOpenProject}
+                     onDeleteProject={deleteCurrentProject}
+                     onExportProject={exportCurrentProject}
++                    onOrganizeOverlaps={organizeOverlappingNodes}
+                     onImportImage={() => handleUploadRequest()}
+                     onOpenPlugins={() => setPluginManagerOpen(true)}
+                     onUndo={undoCanvas}
+--- a/web/src/components/canvas/canvas-top-bar.tsx
++++ b/web/src/components/canvas/canvas-top-bar.tsx
+@@ -1,6 +1,6 @@
+ import { isCanvasMenuEnabled, productFeatures } from "@/guan/功能开关";
+ import { useEffect, useRef, useState } from "react";
+-import { BookOpen, Bot, Download, Home, Images, Menu, PanelLeftClose, PanelLeftOpen, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
++import { BookOpen, Bot, Download, Grid2x2, Home, Images, Menu, PanelLeftClose, PanelLeftOpen, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
+ import { Button, Dropdown, Modal, Tooltip, type MenuProps } from "antd";
+ import { useTranslation } from "react-i18next";
+ 
+@@ -25,6 +25,7 @@
+     onCreateProject,
+     onDeleteProject,
+     onExportProject,
++    onOrganizeOverlaps,
+     onImportImage,
+     onOpenPlugins,
+     onUndo,
+@@ -47,6 +48,7 @@
+     onCreateProject: () => void;
+     onDeleteProject: () => void;
+     onExportProject: () => void;
++    onOrganizeOverlaps: () => void;
+     onImportImage: () => void;
+     onOpenPlugins: () => void;
+     onUndo: () => void;
+@@ -101,6 +103,7 @@
+                                 { key: "import", icon: <Upload className="size-4" />, label: t("canvas.importAsset"), onClick: onImportImage },
+                                 { key: "export", icon: <Download className="size-4" />, label: t("canvas.exportCurrent"), onClick: onExportProject },
+                                 { type: "divider" },
++                                { key: "organize", icon: <Grid2x2 className="size-4" />, label: "整理重叠卡片（可撤销）", onClick: onOrganizeOverlaps },
+                                 { key: "undo", disabled: !canUndo, icon: <Undo2 className="size-4" />, label: <MenuLabel text={t("canvas.undo")} shortcut="⌘ Z" />, onClick: onUndo },
+                                 { key: "redo", disabled: !canRedo, icon: <Redo2 className="size-4" />, label: <MenuLabel text={t("canvas.redo")} shortcut="⌘ ⇧ Z / ⌘ Y" />, onClick: onRedo },
+                             ] satisfies NonNullable<MenuProps["items"]>).filter((item) => !("key" in item) || isCanvasMenuEnabled(String(item.key))).filter((item, index, all) => item.type !== "divider" || (index > 0 && index < all.length - 1 && all[index - 1].type !== "divider")),
+--- a/web/src/types/canvas.ts
++++ b/web/src/types/canvas.ts
+@@ -50,6 +50,7 @@
+     prompt?: string;
+     status?: CanvasNodeStatus;
+     errorDetails?: string;
++    generationStartedAt?: number;
+     fontSize?: number;
+     generationMode?: CanvasGenerationMode;
+     generationType?: CanvasImageGenerationType;
+--- /dev/null
++++ b/web/src/guan/卡片自动避让.ts
+@@ -0,0 +1,111 @@
++import type { CanvasNodeData, Position } from "@/types/canvas";
++
++export const NODE_PLACEMENT_GAP = 48;
++export type PlacementBounds = { x: number; y: number; width: number; height: number };
++
++export function nextGenerationResultPosition(source: Pick<CanvasNodeData, "position" | "width" | "height">,
++    result: Pick<CanvasNodeData, "width" | "height">, existingOutputCount: number, gap = NODE_PLACEMENT_GAP, sourceGap = 96): Position {
++    const index = Number.isSafeInteger(existingOutputCount) && existingOutputCount > 0 ? existingOutputCount : 0;
++    return { x: source.position.x + source.width + sourceGap + index * (result.width + gap),
++        y: source.position.y + (source.height - result.height) / 2 };
++}
++
++function valid(node: CanvasNodeData) {
++    return Number.isFinite(node.position.x) && Number.isFinite(node.position.y) && Number.isFinite(node.width) && Number.isFinite(node.height) && node.width > 0 && node.height > 0;
++}
++
++export function nodesOverlap(a: CanvasNodeData, b: CanvasNodeData, gap = 0) {
++    return valid(a) && valid(b) && a.position.x < b.position.x + b.width + gap && a.position.x + a.width + gap > b.position.x && a.position.y < b.position.y + b.height + gap && a.position.y + a.height + gap > b.position.y;
++}
++
++/** Positions here are top-left canvas coordinates, independent of browser zoom. */
++export function placeCanvasNode(node: CanvasNodeData, occupied: CanvasNodeData[], bounds?: PlacementBounds): CanvasNodeData {
++    if (node.type === "group" || !valid(node)) return node;
++    // Group backgrounds are containers, not cards. Their children remain obstacles.
++    const obstacles = occupied.filter((other) => other.id !== node.id && other.type !== "group" && valid(other));
++    const free = (position: Position) => !obstacles.some((other) => nodesOverlap({ ...node, position }, other, NODE_PLACEMENT_GAP));
++    const inside = (position: Position) => !bounds || (position.x >= bounds.x && position.y >= bounds.y && position.x + node.width <= bounds.x + bounds.width && position.y + node.height <= bounds.y + bounds.height);
++    if (free(node.position) && inside(node.position)) return node;
++    if (bounds) {
++        // Try the closest visible grid slots first. Bound the search even on huge canvases.
++        const candidates: Position[] = [];
++        const stepX = node.width + NODE_PLACEMENT_GAP;
++        const stepY = node.height + NODE_PLACEMENT_GAP;
++        for (let row = -8; row <= 8; row++) for (let col = -8; col <= 8; col++) {
++            candidates.push({ x: node.position.x + col * stepX, y: node.position.y + row * stepY });
++        }
++        candidates.push({ x: bounds.x, y: bounds.y });
++        for (const other of obstacles) {
++            candidates.push({ x: other.position.x + other.width + NODE_PLACEMENT_GAP, y: node.position.y });
++            candidates.push({ x: node.position.x, y: other.position.y + other.height + NODE_PLACEMENT_GAP });
++        }
++        candidates.sort((a, b) => Math.hypot(a.x - node.position.x, a.y - node.position.y) - Math.hypot(b.x - node.position.x, b.y - node.position.y));
++        const position = candidates.find((candidate) => inside(candidate) && free(candidate));
++        if (position) return { ...node, position };
++    }
++    // Automatic results retain their source column and flow downward around occupied rows.
++    let position = { ...node.position };
++    for (let attempt = 0; attempt <= obstacles.length; attempt++) {
++        const hits = obstacles.filter((other) => nodesOverlap({ ...node, position }, other, NODE_PLACEMENT_GAP));
++        if (!hits.length) return position.x === node.position.x && position.y === node.position.y ? node : { ...node, position };
++        position = { x: position.x, y: Math.max(...hits.map((other) => other.position.y + other.height + NODE_PLACEMENT_GAP)) };
++    }
++    return { ...node, position };
++}
++
++function expandChangedGroups(nodes: CanvasNodeData[], moved: Set<string>) {
++    const groups = new Set(nodes.filter((node) => moved.has(node.id)).map((node) => node.metadata?.groupId).filter(Boolean));
++    return nodes.map((group) => {
++        if (group.type !== "group" || !groups.has(group.id)) return group;
++        const children = nodes.filter((node) => node.metadata?.groupId === group.id && valid(node));
++        if (!children.length) return group;
++        const x = Math.min(group.position.x, ...children.map((node) => node.position.x - 24));
++        const y = Math.min(group.position.y, ...children.map((node) => node.position.y - 48));
++        const right = Math.max(group.position.x + group.width, ...children.map((node) => node.position.x + node.width + 24));
++        const bottom = Math.max(group.position.y + group.height, ...children.map((node) => node.position.y + node.height + 24));
++        return x === group.position.x && y === group.position.y && right === group.position.x + group.width && bottom === group.position.y + group.height ? group : { ...group, position: { x, y }, width: right - x, height: bottom - y };
++    });
++}
++
++/** One state transaction reserves every new card, including concurrent/batch additions. */
++export function placeNewCanvasNodes(previous: CanvasNodeData[], next: CanvasNodeData[]) {
++    const previousById = new Map(previous.map((node) => [node.id, node]));
++    const needsPlacement = (node: CanvasNodeData) => {
++        const old = previousById.get(node.id);
++        if (!old) return true;
++        // Generated media can grow when the real dimensions arrive. Do not
++        // treat manual resize/drag/config edits as an automatic layout request.
++        return Boolean(node.metadata?.generationStartedAt && (node.width !== old.width || node.height !== old.height) && (node.metadata?.content !== old.metadata?.content || node.metadata?.status !== old.metadata?.status));
++    };
++    const candidates = new Set(next.filter(needsPlacement).map((node) => node.id));
++    if (!candidates.size) return next;
++    const occupied = next.filter((node) => !candidates.has(node.id));
++    const moved = new Set<string>();
++    const result = next.map((node) => {
++        if (!candidates.has(node.id)) return node;
++        const placed = placeCanvasNode(node, occupied);
++        occupied.push(placed);
++        if (placed !== node) moved.add(node.id);
++        return placed;
++    });
++    return moved.size ? expandChangedGroups(result, moved) : next;
++}
++
++/** Keep non-overlapping cards fixed; only later cards in overlapping pairs move. */
++export function arrangeOverlappingCanvasNodes(nodes: CanvasNodeData[]) {
++    const kept: CanvasNodeData[] = [];
++    const victims = new Set<string>();
++    for (const node of nodes) {
++        if (node.type === "group") continue;
++        if (kept.some((other) => nodesOverlap(node, other))) victims.add(node.id);
++        else kept.push(node);
++    }
++    if (!victims.size) return nodes;
++    const result = nodes.map((node) => {
++        if (!victims.has(node.id)) return node;
++        const placed = placeCanvasNode(node, kept);
++        kept.push(placed);
++        return placed;
++    });
++    return expandChangedGroups(result, victims);
++}

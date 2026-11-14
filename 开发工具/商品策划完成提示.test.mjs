@@ -33,11 +33,11 @@ function fixture() {
     const notice = loader.load('Excel画布/商品策划完成通知.ts');
     const { useProductPlanningSuccessNotice } = loader.load('Excel画布/商品策划完成提示.tsx');
     const port = { projectId: 'product-a', active: true, hasNode: () => true, assertActive() {},
-        generateAllConfigNodes: async () => { calls.push('old'); } };
+        generateConfigNodes: async ids => { calls.push(['old', ...ids]); } };
     const render = () => runtime.render(() => useProductPlanningSuccessNotice(port));
     render();
     return { ...runtime, opened, destroyed, errors, calls, port, notice, render,
-        success: () => notice.notifyProductPlanning(port.projectId, 'parameter', true),
+        success: (ids = ['plan-config-a', 'plan-config-b']) => notice.notifyProductPlanning(port.projectId, 'parameter', true, ids),
         content: () => opened.at(-1).content.props };
 }
 
@@ -62,21 +62,23 @@ test('策划成功才打开60秒提示；到期仅关闭，陈旧按钮不能启
     } finally { api.unmount(); }
 });
 
-test('一键生图只执行一次并使用当前配置入口，关闭旧提示不影响新提示', async t => {
+test('一键生图只执行一次，使用当前入口但只传本次策划ID，旧提示不能执行新一批', async t => {
     t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 1000 });
     const api = fixture();
     try {
-        api.success(); const old = api.content();
+        api.success(['old-config']); const old = api.content();
         t.mock.timers.tick(10_000);
-        api.success(); const current = api.content(), key = api.opened.at(-1).key;
+        const ids = ['current-config-a', 'current-config-b', 'current-config-a'];
+        api.success(ids); const current = api.content(), key = api.opened.at(-1).key;
+        ids.push('later-unrelated-config');
         assert.notEqual(key, api.opened[0].key);
         old.generate(); old.close();
         assert.deepEqual(api.calls, []);
-        api.port.generateAllConfigNodes = async () => { api.calls.push('current-all-configs'); };
+        api.port.generateConfigNodes = async ids => { api.calls.push([...ids]); };
         api.render();
         current.generate(); current.generate();
         await Promise.resolve();
-        assert.deepEqual(api.calls, ['current-all-configs']);
+        assert.deepEqual(api.calls, [['current-config-a', 'current-config-b']]);
         assert.equal(api.destroyed.filter(item => item === key).length, 1);
         t.mock.timers.tick(60_000);
         assert.equal(api.destroyed.filter(item => item === key).length, 1);
@@ -115,10 +117,22 @@ test('切换产品后的旧回调及后台过期回调拒绝执行，参数卡�
         expired.generate();
         assert.deepEqual(api.calls, []);
         api.success();
-        api.port.generateAllConfigNodes = async () => { throw Error('批量预检查失败'); };
+        api.port.generateConfigNodes = async () => { throw Error('批量预检查失败'); };
         api.render(); api.content().generate();
         await Promise.resolve();
         assert.equal(api.errors.at(-1), '批量预检查失败');
+    } finally { api.unmount(); }
+});
+
+test('旧通知缺少本次配置清单时不显示一键生图，也不退回执行全部配置', t => {
+    t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 1000 });
+    const api = fixture();
+    try {
+        api.notice.notifyProductPlanning(api.port.projectId, 'parameter', true);
+        assert.equal(api.content().canGenerate, false);
+        api.content().generate();
+        assert.deepEqual(api.calls, []);
+        assert.match(api.errors.at(-1), /本次策划/);
     } finally { api.unmount(); }
 });
 

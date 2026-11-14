@@ -54,16 +54,20 @@ export function generationProductParameters(nodeId: string, nodes: CanvasNodeDat
     return [...parameters.values()];
 }
 
-export function productVariantExecutions(nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[]): ProductVariantExecution[] {
+export function productVariantExecutions(nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[], onlyVariantId?: string): ProductVariantExecution[] {
     const parameters = generationProductParameters(nodeId, nodes, connections);
     const variantParameters = parameters.filter(node => productVariants(node.metadata).length);
     if (!variantParameters.length) return [];
     if (parameters.length !== 1) throw Error("一个生成配置只能使用一张产品参数卡，请先分开不同产品的连线。");
     const parameter = variantParameters[0], metadata = parameter.metadata as ProductVariantMetadata;
     const boundId = generationPromptVariantId(nodeId, nodes, connections);
+    if (onlyVariantId && boundId && onlyVariantId !== boundId) throw Error("当前配置不属于所选变体，请重新选择。");
+    if (onlyVariantId && !productVariants(metadata).some(variant => variant.id === onlyVariantId))
+        throw Error("当前变体已移除，请重新策划。");
     if (boundId && !productVariants(metadata).some(variant => variant.id === boundId))
         throw Error("提示词对应的变体已移除，请重新策划。");
-    const selected = productVariants(metadata).filter(variant => variant.enabled && (!boundId || variant.id === boundId));
+    const selected = productVariants(metadata).filter(variant => onlyVariantId ? variant.id === onlyVariantId
+        : variant.enabled && (!boundId || variant.id === boundId));
     if (!selected.length) throw Error("请在产品参数卡中至少勾选一个变体。");
     const pool = new Map(productMainImages(metadata).map(image => [image.id, image]));
     const names = new Set<string>(), ids = new Set<string>();
@@ -137,6 +141,8 @@ export function planProductGenerationJobs(sources: CanvasNodeData[], nodes: Canv
         let executions: ProductVariantExecution[] = [];
         if (mode === "image") {
             const parameters = generationProductParameters(source.id, nodes, connections);
+            if (parameters.some(parameter => productVariants(parameter.metadata).length > 0
+                && !productVariants(parameter.metadata).some(variant => variant.enabled))) continue;
             const boundId = generationPromptVariantId(source.id, nodes, connections);
             if (boundId && parameters.some(parameter => productVariants(parameter.metadata).some(variant => variant.id === boundId && !variant.enabled))) continue;
             const key = `${parameters.map(node => node.id).sort().join("|")}:${boundId || "*"}`;
