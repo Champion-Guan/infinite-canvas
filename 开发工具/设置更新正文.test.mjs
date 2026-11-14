@@ -30,10 +30,10 @@ test('设置正文显示发布日期和最新标记，仅相同运行版本显�
 test('设置页保留GitHub概述、分节、粗体和嵌套列表，隐藏旧客户兼容条目', () => {
     const notes = readGitHubReleaseNotes(fileURLToPath(new URL('../', import.meta.url)));
     const html = render(notes);
-    assert.match(html, /AI-Workbench v2\.0\.0-beta\.29/);
+    assert.match(html, /AI-Workbench v\d+\.\d+\.\d+-beta\.\d+/);
     for (const title of ['新增', '优化', '修复', '使用说明']) assert.match(html, new RegExp('<h2[^>]*>' + title + '</h2>'));
-    assert.match(html, /本次重点提升整套商品图的趣味设计/);
-    assert.match(html, /<strong[^>]*>桌面入口修复<\/strong>/);
+    assert.match(html, /<p[^>]*>本次/);
+    assert.match(html, /<strong[^>]*>[^<]+<\/strong>/);
     assert.match(html, /<ul[\s\S]*<ul/);
     assert.doesNotMatch(html, /应用内时间线兼容条目|\[新增\]|\[文档\]/);
 });

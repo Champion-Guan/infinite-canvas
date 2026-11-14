@@ -21,13 +21,15 @@ test('卡片编辑整体共用220ms进退场，坐标不参与动画，退出不
     const previous = globalThis.document; globalThis.document = { body: {} };
     try {
         const f = fixture(), props = { node: { id: 'card', position: { x: 10, y: 20 }, width: 340, height: 240 }, target: {}, children: '原编辑内容' };
-        const panel = f.component(props).element;
+        const shell = f.component(props).element;
+        const panel = shell.props.children;
+        assert.equal(shell.type, 'div');
         assert.equal(panel.type, 'MotionDiv');
         assert.deepEqual(panel.props.initial, { opacity: 0, scale: .98 });
         assert.deepEqual(panel.props.animate, { opacity: 1, scale: 1 });
         assert.deepEqual(panel.props.exit, { opacity: 0, scale: .98 });
         assert.equal(panel.props.transition.duration, .22);
-        assert.equal(panel.props.style.left, 612); assert.equal(panel.props.style.top, 300);
+        assert.equal(shell.props.style.left, 612); assert.equal(shell.props.style.top, 300);
         assert.equal(panel.props.children, '原编辑内容');
         f.present(false);
         const closing = f.component(props).element;
@@ -35,7 +37,7 @@ test('卡片编辑整体共用220ms进退场，坐标不参与动画，退出不
         assert.equal(closing.props.style.pointerEvents, 'none');
         assert.equal(f.effect(), undefined, '退出立即解除定位观察，不因旧卡片变化移动');
         f.present(true); f.reduced(true);
-        const direct = f.component(props).element;
+        const direct = f.component(props).element.props.children;
         assert.equal(direct.props.transition.duration, 0); assert.equal(direct.props.initial.scale, 1);
         f.active(false); assert.equal(f.component(props), null);
     } finally { if (previous === undefined) delete globalThis.document; else globalThis.document = previous; }
