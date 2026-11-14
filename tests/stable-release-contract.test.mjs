@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 test('ordinary CI does not publish, uses read-only permissions and includes required quality gates', async () => {
   const ci = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
@@ -44,7 +45,7 @@ test('independent scanner exclusions are exact immutable fingerprints with verif
   const review = JSON.parse(await readFile(new URL('../config/security/gitleaks-reviewed.json', import.meta.url), 'utf8'));
   const ignored = (await readFile(new URL('../.gitleaksignore', import.meta.url), 'utf8')).split('\n').filter(line => line && !line.startsWith('#'));
   assert.equal(review.scanner, 'gitleaks 8.24.3'); assert.equal(review.entries.length, 24);
-  assert.deepEqual(ignored, review.entries.map(e => e.fingerprint));
+  assert.deepEqual(ignored, [...review.entries, ...review.additionalHistoricalEntries].map(e => e.fingerprint));
   for (const e of review.entries) {
     assert.equal(e.file, 'playground-settings/dist/assets/index.js');
     assert.equal(e.fingerprint, `${e.commit}:${e.file}:generic-api-key:${e.line}`);
@@ -66,5 +67,30 @@ test('independent scanner exclusions are exact immutable fingerprints with verif
     const source = execFileSync('git', ['show', spec], { maxBuffer: 32 * 1024 * 1024 }).toString();
     const line = Buffer.from(source.split('\n')[e.line - 1]);
     assert.match(line.subarray(e.byteOffset, e.byteOffset + 64).toString(), /^useNewApiKey:[A-Za-z_$]\.useNewApiKey===void 0\?/);
+  }
+});
+test('additional historical scanner exclusions preserve exact bytes and noncredential semantics', async () => {
+  const review = JSON.parse(await readFile(new URL('../config/security/gitleaks-reviewed.json', import.meta.url), 'utf8'));
+  assert.equal(review.additionalHistoricalEntries.length, 4);
+  for (const entry of review.additionalHistoricalEntries) {
+    assert.equal(entry.fingerprint, `${entry.commit}:${entry.file}:generic-api-key:${entry.line}`);
+    const spec = `${entry.commit}:${entry.file}`;
+    assert.equal(execFileSync('git', ['rev-parse', spec], { encoding: 'utf8' }).trim(), entry.blob);
+    const source = execFileSync('git', ['show', spec], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+    const line = source.split('\n')[entry.line - 1];
+    assert.equal(createHash('sha256').update(line).digest('hex'), entry.lineSha256);
+    if (entry.kind === 'source-sha256') {
+      assert.ok(source.includes('export const 网关旧来源指纹 = Object.freeze({'));
+      assert.match(line, /^\s+'src\/(?:server|canvas)\/[^']+': '[0-9a-f]{64}',$/);
+    } else if (entry.kind === 'redaction-test') {
+      assert.ok(entry.file.endsWith('.test.ts'));
+      assert.match(line, /assert\.equal\(redactAgentLog\("key=sk-[a-z]+[0-9]+"\), "key=\[REDACTED\]"\);/);
+    } else {
+      assert.equal(entry.kind, 'idempotency-example');
+      const example = JSON.parse(line);
+      assert.equal(example.method, 'account/rateLimitResetCredit/consume');
+      assert.deepEqual(Object.keys(example.params).sort(), ['creditId', 'idempotencyKey']);
+      assert.match(example.params.idempotencyKey, /^[0-9a-f-]{36}$/);
+    }
   }
 });

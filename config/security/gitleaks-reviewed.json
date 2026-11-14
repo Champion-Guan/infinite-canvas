@@ -1,6 +1,48 @@
 {
   "version": 1,
   "scanner": "gitleaks 8.24.3",
+  "additionalHistoricalEntries": [
+    {
+      "fingerprint": "db6bc5bed06d8b6a9ffd702dd8a9135b127b6e0a:开发工具/预审凭据网关任务端口.mjs:generic-api-key:13",
+      "commit": "db6bc5bed06d8b6a9ffd702dd8a9135b127b6e0a",
+      "file": "开发工具/预审凭据网关任务端口.mjs",
+      "line": 13,
+      "blob": "68a9d41756136b59715fb938df56958ad08c4b2a",
+      "lineSha256": "700a37ef9767ab6a3d8e8ac406d7c7978c80ef52a24a183e4f032d4d92f94df1",
+      "kind": "source-sha256",
+      "reason": "Immutable SHA-256 source fingerprint in the gateway baseline map, not a credential. Only this historical commit, path, rule and line are excluded."
+    },
+    {
+      "fingerprint": "db6bc5bed06d8b6a9ffd702dd8a9135b127b6e0a:开发工具/预审凭据网关任务端口.mjs:generic-api-key:14",
+      "commit": "db6bc5bed06d8b6a9ffd702dd8a9135b127b6e0a",
+      "file": "开发工具/预审凭据网关任务端口.mjs",
+      "line": 14,
+      "blob": "68a9d41756136b59715fb938df56958ad08c4b2a",
+      "lineSha256": "d3022e0c3c2467c48348c35c05144e4332aedab0d4ef3a977ab551f1b47d03c0",
+      "kind": "source-sha256",
+      "reason": "Immutable SHA-256 source fingerprint in the gateway baseline map, not a credential. Only this historical commit, path, rule and line are excluded."
+    },
+    {
+      "fingerprint": "65b9cd5f3b359b2802124b3f9d36443b311f5ff5:canvas-agent/src/utils/agent-runtime.test.ts:generic-api-key:12",
+      "commit": "65b9cd5f3b359b2802124b3f9d36443b311f5ff5",
+      "file": "canvas-agent/src/utils/agent-runtime.test.ts",
+      "line": 12,
+      "blob": "9ccd2754bf292b3ea17d1d8c6b8169ef6eccab88",
+      "lineSha256": "129a1ee873bedd5f4f22aaba69baf2bf57d90fda0a1443b4bfada68749f0014d",
+      "kind": "redaction-test",
+      "reason": "Synthetic alphabet/digit API-key fixture asserted to become REDACTED by redactAgentLog. Only this immutable test line is excluded."
+    },
+    {
+      "fingerprint": "40c47dd7ffd3972e88b4503f8b070f1f2becd788:canvas-agent/codex-server.md:generic-api-key:2140",
+      "commit": "40c47dd7ffd3972e88b4503f8b070f1f2becd788",
+      "file": "canvas-agent/codex-server.md",
+      "line": 2140,
+      "blob": "caba0ee97272e7525edd38c4ecc9f4142814e9c4",
+      "lineSha256": "cfb01f088c55183a688505d786c95f1ef0ab696bf7df3601eee173fa0fb83bf7",
+      "kind": "idempotency-example",
+      "reason": "JSON documentation example for account/rateLimitResetCredit/consume: idempotencyKey and creditId identify a request and credit, not an authentication credential. Only this immutable documentation line is excluded."
+    }
+  ],
   "entries": [
     {
       "fingerprint": "69da97791e6ffdc84d6eb6b6254fd29614de92ec:playground-settings/dist/assets/index.js:generic-api-key:195",

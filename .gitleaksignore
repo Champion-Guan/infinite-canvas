@@ -1,4 +1,4 @@
-# Only 24 reviewed immutable historical undefined comparisons; no path/rule bypass.
+# Reviewed immutable historical findings only; no path/rule bypass.
 # See config/security/gitleaks-reviewed.json. Re-review when changing scanner version.
 69da97791e6ffdc84d6eb6b6254fd29614de92ec:playground-settings/dist/assets/index.js:generic-api-key:195
 e1a031cdcccaf67692347fb3345c368a30c089f1:playground-settings/dist/assets/index.js:generic-api-key:195
@@ -24,3 +24,8 @@ c0fba919c8893fcb29b0804d740cd4afea17efc1:playground-settings/dist/assets/index.j
 cdb6dc5cbf6871d8973ad593876873330e3b1039:playground-settings/dist/assets/index.js:generic-api-key:192
 d183fcf6312f5c2f71546147ce1ad159cf4daa95:playground-settings/dist/assets/index.js:generic-api-key:192
 a635f5c3c269b93a3015bf89d36b8eadc0395757:playground-settings/dist/assets/index.js:generic-api-key:192
+# Four reviewed historical hashes/test/documentation literals; byte proofs in config/security/gitleaks-reviewed.json.
+db6bc5bed06d8b6a9ffd702dd8a9135b127b6e0a:开发工具/预审凭据网关任务端口.mjs:generic-api-key:13
+db6bc5bed06d8b6a9ffd702dd8a9135b127b6e0a:开发工具/预审凭据网关任务端口.mjs:generic-api-key:14
+65b9cd5f3b359b2802124b3f9d36443b311f5ff5:canvas-agent/src/utils/agent-runtime.test.ts:generic-api-key:12
+40c47dd7ffd3972e88b4503f8b070f1f2becd788:canvas-agent/codex-server.md:generic-api-key:2140
