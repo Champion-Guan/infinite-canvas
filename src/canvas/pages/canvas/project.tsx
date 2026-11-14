@@ -3289,10 +3289,12 @@ function InfiniteCanvasPage() {
                     if (asset) {
                         const position = screenToCanvas(event.clientX, event.clientY);
                         const nodeType = asset.kind === "text" ? CanvasNodeType.Text : asset.kind === "video" ? CanvasNodeType.Video : CanvasNodeType.Image;
-                        const media = asset.kind === "video"
-                            ? { content: asset.data.url, status: NODE_STATUS_SUCCESS, mimeType: asset.data.mimeType, storageKey: asset.data.storageKey }
-                            : { content: asset.data.dataUrl, status: NODE_STATUS_SUCCESS, mimeType: asset.data.mimeType, storageKey: asset.data.storageKey };
-                        const node = createCanvasNode(nodeType, position, asset.kind === "text" ? { content: asset.data.content, status: NODE_STATUS_SUCCESS } : media);
+                        const metadata = asset.kind === "text"
+                            ? { content: asset.data.content, status: NODE_STATUS_SUCCESS }
+                            : asset.kind === "video"
+                                ? { content: asset.data.url, status: NODE_STATUS_SUCCESS, mimeType: asset.data.mimeType, storageKey: asset.data.storageKey }
+                                : { content: asset.data.dataUrl, status: NODE_STATUS_SUCCESS, mimeType: asset.data.mimeType, storageKey: asset.data.storageKey };
+                        const node = createCanvasNode(nodeType, position, metadata);
                         setNodes((prev) => [...prev, node]);
                         setSelectedNodeIds(new Set([node.id]));
                         setSelectedConnectionId(null);
