@@ -32,7 +32,7 @@
       "目标": "画布副本/web/src/扩展功能/Excel画布/参数图片预览.tsx",
       "原位置": "新增参数卡原图放大预览",
       "类型": "前端",
-      "SHA256": "17d059419a44904c720daff59abba68a2b5a477297658dba4df6dacd98bdb7c2"
+      "SHA256": "40d02c4112bb0cb4d9cdbcb39245639a805a64f04d0e1b082c5981ff5f10b935"
     },
     {
       "来源": "扩展功能/画布交互/节点工具栏定位.ts",
@@ -95,7 +95,7 @@
       "目标": "画布副本/web/src/扩展功能/媒体交付/媒体缩略图.tsx",
       "原位置": "新增按可见性加载",
       "类型": "前端",
-      "SHA256": "2aa8727e4341f59cb05201a100ce440a386fccb0d591de63aedc1ba7b9f6c5d0"
+      "SHA256": "124af56e4ae721926c34d47f03d84b5ad28d3cf4d5d5f79a0b93761289292c6f"
     },
     {
       "来源": "扩展功能/软件更新/智能升级协调.mjs",
@@ -144,7 +144,7 @@
       "目标": "画布副本/web/src/扩展功能/生成历史/历史总览面板.tsx",
       "原位置": "新增功能模块",
       "类型": "前端",
-      "SHA256": "0f30c0a024c4f1143f0adc6dc6be34642472da95939e70d74400690667f1b651"
+      "SHA256": "e5612e9afb4e5459b98fc001756f0a19fdcb2bc914f1be2c678750c723ee35f7"
     },
     {
       "来源": "扩展功能/生成历史/历史总览面板.module.css",
@@ -342,7 +342,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/generation/原版图片协议.ts",
       "原SHA256": "ee632349971edae2ab5730e0d2b1d18035f38fbd975d11b1ef32746190acdd5c",
       "类型": "前端",
-      "SHA256": "d0fe7b107d5c27458fb7f361a3bfa54f71f7ef68d837c3778f0a5a869bb73737"
+      "SHA256": "624646fca5571d03ccdbe6b9782d7e8e3ab5c4cd7a9466718e8d05aca2c16a48"
     },
     {
       "来源": "扩展功能/画布生成/原画布图片调用.ts",
@@ -374,7 +374,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/generation/图片任务确认状态.tsx",
       "原SHA256": "a8e624704597c33f380a62b1bd6b65650d5280ddf2677d18901561fa4aef7842",
       "类型": "前端",
-      "SHA256": "31ec7f492cd60428aeed36fc7fd0c40adfe59211b6484a20a0fb589a5d05ba55"
+      "SHA256": "6173e7f3747a92acebe986ab2120820c079c65e1377a329cfb385c632c6ac724"
     },
     {
       "来源": "扩展功能/画布生成/图片任务衔接.mjs",
@@ -596,7 +596,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/sqlite/应用值编码.mjs",
       "原SHA256": "ef0ab5cde710b405755cb4cf63688f91c9a965e321d63a9d655411a3756a863f",
       "类型": "前端",
-      "SHA256": "47a34b8eed506c10a909634267a21adc542ce99e97dc8979ad7bbcd0e1227b4a"
+      "SHA256": "95912a82cf6cde45c494c31267f06c1b5a119215e7a9fd9773e8220f7512d1b5"
     },
     {
       "来源": "扩展功能/本机存储/应用存储适配.mjs",
@@ -676,7 +676,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/产品保存检查点.ts",
       "原SHA256": "998b2c2690c601858aef7878a736e118f09c624bbcda0657ab915fa07275c244",
       "类型": "前端",
-      "SHA256": "ede6f526b55086097398509b9a57e0fc92cc95564bc20ad3e9caf4c8b3f6e763"
+      "SHA256": "7da5c97822ebdbab7980928c44ea0bcf2d11ddda8eca503fdf9f47cc4208dc89"
     },
     {
       "来源": "扩展功能/产品/产品回收规则.ts",
@@ -700,7 +700,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/产品工作区.tsx",
       "原SHA256": "d58edceb72287b87ff962d0a064c9eb1681ff699dada52611788b92494aa57bf",
       "类型": "前端",
-      "SHA256": "9ed6a5dc3f7e18515e0ae0ade0100ea2ca3fa373165ec82deef4dc2d6c16965f"
+      "SHA256": "980893f30fe89a8f8729474ce0678c10cf55d463e5ab253708f2efa95a7d6885"
     },
     {
       "来源": "扩展功能/产品/产品恢复挂载门禁.ts",
@@ -716,7 +716,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/产品操作.ts",
       "原SHA256": "3bd9720038a9f993e7aca60ca55be4c14dcd423e7bd3ef326cad181ee4db196e",
       "类型": "前端",
-      "SHA256": "b1a18cfacdd52c5e75135b5816cae3dfa0752455916d4a1c9f2f02686c3cf305"
+      "SHA256": "6b998c3f340556b98eb62f25e119c47400ca0af636f11dbbeaefb427bc0a5d42"
     },
     {
       "来源": "扩展功能/产品/产品界面边界.tsx",
@@ -732,7 +732,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/产品胶囊.module.css",
       "原SHA256": "81ab42f8966323d183c85f358a32325ca8002a9d6d3bd05729e1b1be44c30195",
       "类型": "前端",
-      "SHA256": "ff2b3cbf7a9373ab0711d9f5b7a7c541ff43527738662da12c9f235a594c0089"
+      "SHA256": "2942c0e336c55ca3d6e6b0f6b72d55975588898854071c83c0c7b435d627b3cf"
     },
     {
       "来源": "扩展功能/产品/产品规则.ts",
@@ -1009,7 +1009,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/顶部产品胶囊.tsx",
       "原SHA256": "7971ea463063cd198d9b7e91befbb99b935b43bdde3556383dbe32e50422e648",
       "类型": "前端",
-      "SHA256": "950f62e57f5188f689fdf473d54fefe0058f137021542d4be85b83aa0d9845d3"
+      "SHA256": "7da83202cda13f677c6be0846be0b8297d63a3b94d9b97a79b2bddb73f2b1caa"
     },
     {
       "来源": "扩展功能/首页/首页.module.css",
@@ -1056,7 +1056,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/lib/canvas/画布平移调度.ts",
       "原SHA256": "c57526ab77d9e60980b124f3439f34c8c01c187a5d43339570ff2b65cfcb8f3a",
       "类型": "前端",
-      "SHA256": "c57526ab77d9e60980b124f3439f34c8c01c187a5d43339570ff2b65cfcb8f3a"
+      "SHA256": "071c657de769f7f96316de892cbbd089dc4bf0ef6359d0d5ed00ca990b37a344"
     },
     {
       "来源": "扩展功能/画布回收/画布节点回收.ts",
@@ -1072,7 +1072,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/lib/canvas/画布内容导入.ts",
       "原SHA256": "09b310b314047c43bcfc0575cf7eecf717becbc0fa205389e133ca0b38849b1e",
       "类型": "前端",
-      "SHA256": "d8fb5c53743b88953050c372decb90193709863d0654e8dbd9f26ff961e7dffa"
+      "SHA256": "b07e86bed411a056b24c8379f40541cf0c4c40a7582a5803f571ad222e9c6989"
     },
     {
       "来源": "扩展功能/画布导入/画布导入.ts",
@@ -1080,7 +1080,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/lib/canvas/canvas-import.ts",
       "原SHA256": "b356d75490015b984bc5036f95cdeb294568a0d41094ee6bb71808c6ec810560",
       "类型": "前端",
-      "SHA256": "0d25cb1b86f1dae522d634c3fcf0e658f835cfa686f1ac1328b1da8b1c1fa789"
+      "SHA256": "77d18506e1061474a02b58aa51b0dd31b903910a95ddb5f7968976b07fc9cead"
     },
     {
       "来源": "扩展功能/画布导入/画布导入数据.ts",
@@ -1088,7 +1088,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/lib/canvas/canvas-import-data.ts",
       "原SHA256": "8be916c590fab84b16b8187d3422ac2fc089cf43eb6b8eea7f26f9a9e0437f00",
       "类型": "前端",
-      "SHA256": "f72dca999bbda9b08c0ab6ef1fe4481db1cd7d41e1817748c03ec26f236dfbd8"
+      "SHA256": "a503665f978f1a2d761b34990ec8e881b6048dd7b138db2abb603a49a8dfc2f0"
     },
     {
       "来源": "扩展功能/画布导入/便携媒体引用.ts",
@@ -1111,7 +1111,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/services/media-download.ts",
       "原SHA256": "a4e5c60338a84b14d45e964bf26041002a591450278eab027fa193fb90e7f196",
       "类型": "前端",
-      "SHA256": "a10f19e73aef90b3367427781e335f90016244f0f4e68a855447bb96d9dbe030"
+      "SHA256": "db98c81d588d38002672e147621c939e265e63a6345a1e38a348d05a567a1af8"
     },
     {
       "来源": "扩展功能/软件更新/软件更新客户端.ts",
@@ -2149,14 +2149,14 @@
       "目标": "画布副本/web/src/扩展功能/提示词/变量使用规则.ts",
       "原位置": "新增功能模块",
       "类型": "前端",
-      "SHA256": "6a1bdbf456082dfd0a378aaa4a9dc14ee3a8ad217724ea65e554a4ef30af4478"
+      "SHA256": "2a81a879c1503130da8c5fe1dc236cb746e51b08dd064e8cfba1d1e37f04f52e"
     },
     {
       "来源": "扩展功能/提示词/生成文本读取.ts",
       "目标": "画布副本/web/src/扩展功能/提示词/生成文本读取.ts",
       "原位置": "新增功能模块",
       "类型": "前端",
-      "SHA256": "5a0c94188d9620d74861a44d4d20ea541f1c2f92290346e1ef4f32af2e31ef75"
+      "SHA256": "143009bb799d635d640e3cbf7ba5ca9d4601b3a8a146bfb4c3000483a12a1729"
     },
     {
       "来源": "扩展功能/图片设置/图片尺寸规则.ts",
@@ -2289,7 +2289,7 @@
       "目标": "画布副本/web/src/扩展功能/Excel画布/产品选项下拉.tsx",
       "原位置": "新增功能模块",
       "类型": "前端",
-      "SHA256": "e43f6bdf0446371d3b656eb641ab9fce56e3a6de6774af34b4571aa1d756e0e1"
+      "SHA256": "daf25969493873119746fa8d326e9bd101e33689f19855b12bba6fd6fe57b7c3"
     },
     {
       "来源": "扩展功能/Excel画布/产品主图规则.ts",
@@ -3070,7 +3070,7 @@
       "目标": "画布副本/web/src/扩展功能/画布连线/连线渲染层.tsx",
       "原位置": "源项目连线系统迁移",
       "类型": "前端",
-      "SHA256": "1f73fa868cfd16674a1cb6077bb2f554d88e4747d1c1ffc75f3dcbb1dd25b27f"
+      "SHA256": "f3a29e0c36d0a6d944f9e5e1efbeb187323000d959fd3bf4c8064740d1a7c034"
     },
     {
       "来源": "扩展功能/画布连线/连线端口吸附.ts",
@@ -3534,7 +3534,7 @@
       "目标": "画布副本/web/src/扩展功能/Excel画布/产品变体编辑.tsx",
       "原位置": "新增功能模块",
       "类型": "前端",
-      "SHA256": "150692d2ca87690a6fb92dd493cb6e678a9c878fa87799c8b19583838d1edd01"
+      "SHA256": "b6d02aecbd5fe13df6af24d9007396fbd536ad6b161c0067bd3a0c0c5b8cb8c3"
     },
     {
       "来源": "扩展功能/画布生成/产品变体生成.ts",
@@ -3702,7 +3702,7 @@
       "目标": "画布副本/web/src/扩展功能/提示词/提示词优化规则.ts",
       "原位置": "新增AI优化提示词功能",
       "类型": "前端",
-      "SHA256": "c4c8a23da179b778bdf7a73ce3d85961623759bd54daea682fc29cebcff5f3d7"
+      "SHA256": "f9e3ada9ad43fa77f2b6b723ce49910b6ccf5e6c1ebb7fe31e4a81e58a5fcc8c"
     },
     {
       "来源": "扩展功能/提示词/提示词优化请求.ts",
@@ -3758,7 +3758,7 @@
       "目标": "画布副本/web/src/扩展功能/存储界面/模型配置提示.tsx",
       "原位置": "统一模型配置门禁",
       "类型": "前端",
-      "SHA256": "36f7f50fe99158265006e88909c37848c264b297f3329db3ec60586f630157e2"
+      "SHA256": "d730c0c9e4947a297b044441e43b8600d4de8cfce3d0a41cd209c2e308d636ba"
     },
     {
       "来源": "扩展功能/Excel画布/商品策划完成通知.ts",
@@ -3835,7 +3835,7 @@
       "目标": "画布副本/web/src/扩展功能/画布交互/视区弹簧动效.ts",
       "原位置": "新增可打断视区弹簧与可见性清理",
       "类型": "前端",
-      "SHA256": "ffa83cd0e92aadcc66b5eb9f710f62a5998499b08f8f9757bcbb0a137cb8fc4e"
+      "SHA256": "a52c6653b56d75704affaad798dbce85f57968ee08f723ae36691e7146195ed2"
     },
     {
       "来源": "扩展功能/产品/画布缓存规则.ts",
@@ -3996,7 +3996,7 @@
       "目标": "画布副本/web/src/扩展功能/主题/原生可关闭浮层.tsx",
       "原位置": ".运行/3100源/画布副本/web/src/扩展功能/主题/原生可关闭浮层.tsx",
       "类型": "前端",
-      "SHA256": "a365059d4c339b06c4a7082aecaf0b1a00452ac97f25d8673238973be668c9d5"
+      "SHA256": "bc1bf5eb2943e77f280dd42f64b0b4efec19b9336309efce5faeaa17d3e62bd9"
     },
     {
       "来源": "扩展功能/系统提示词/分类提示词规则.ts",
@@ -4280,7 +4280,7 @@
       "原位置": "新增文本模型二级推理菜单",
       "类型": "前端",
       "职责": "模型项悬停六档推理强度选择与能力门禁",
-      "SHA256": "2d56efc44533f9aad33ccb7cdaf35c7eed74f6c0048ec9f4af0c0ea3c90c9f06"
+      "SHA256": "811cc154d4e9e49398f1df016bbd1a83bdb06a0030b01a8f7d41a1e37b4277e9"
     },
     {
       "来源": "扩展功能/画布交互/浮层可见区域.ts",
@@ -4353,7 +4353,7 @@
       "原位置": "设置浮层单一定位入口",
       "类型": "前端",
       "职责": "设置浮层稳定定位",
-      "SHA256": "9eeb09ddcaa116d2ae69518fa0bed06035f6334a1fd48cf7660e13ff9d7db902"
+      "SHA256": "16c09430615d55a503b99a9d2d3a905947f65af814b13812d6890484dd03ef3d"
     },
     {
       "来源": "扩展功能/Excel画布/提示词变体选择.tsx",
@@ -4375,7 +4375,7 @@
       "原位置": "原生浮层单一定位边界",
       "类型": "前端",
       "职责": "原生浮层稳定边界",
-      "SHA256": "d2420b2ab5cc10bc7c8d39579e27d8f1d7a6352870824117af4c5098d262115b"
+      "SHA256": "78b74ade2017c01582c9b47ec26f55a0de09b0a84c081bd15f12e0e0b2d0692b"
     },
     {
       "来源": "扩展功能/画布交互/浮层布局矩形.ts",
@@ -4390,14 +4390,14 @@
       "目标": "画布副本/web/src/扩展功能/本机存储/画布媒体延迟恢复.mjs",
       "原位置": "首次进入当前画布按需恢复媒体",
       "类型": "前端",
-      "SHA256": "80d6a3aa5caeb3b0abe37432c5e41cfad1c8f1277ef9debe0de9f1f4431f25e5"
+      "SHA256": "1b6fd8f2cdb7c486e09ac21f17d268c3b8208ed6604bb6cb558899cbc0d4b156"
     },
     {
       "来源": "扩展功能/媒体交付/可见画布媒体.tsx",
       "目标": "画布副本/web/src/扩展功能/媒体交付/可见画布媒体.tsx",
       "原位置": "可见媒体恢复与初始化对象复用",
       "类型": "前端",
-      "SHA256": "3f1fbed24fc60f14309608a76ff8f851394d624df3ae5bcbf1b860a5b10c004b"
+      "SHA256": "c844a90ec9efa31295821dfa0cb0573fab30eb2a8e95895c4c2f8362f5b9a9bf"
     },
     {
       "来源": "扩展功能/Excel画布/变体正文快照.ts",
@@ -4549,7 +4549,7 @@
       "目标": "画布副本/web/src/扩展功能/主题/苹果下拉菜单.module.css",
       "类型": "前端",
       "原位置": "下拉与二级菜单连续圆角",
-      "SHA256": "845dcdb5958bfb544979a47113803fe757aa6c39f8980f780501052e93af4b14"
+      "SHA256": "7d5b73abfd2c98bcfac99d23801c599547b027296f80e14230450a39ed36aa9b"
     },
     {
       "来源": "扩展功能/主题/苹果弹窗布局.module.css",
@@ -4571,6 +4571,118 @@
       "类型": "前端",
       "原位置": "交互修复与提示词面板",
       "SHA256": "f9c7793a564cc5a92c79162ebf3c57fa6fba33e446eb0c52543b4cd394c922da"
+    },
+    {
+      "来源": "扩展功能/主题/下拉菜单动效.module.css",
+      "目标": "画布副本/web/src/扩展功能/主题/下拉菜单动效.module.css",
+      "类型": "前端",
+      "原位置": "统一下拉菜单原生进退场",
+      "SHA256": "25acc71cfd2769107bf11b82c9749565b6b9c12f28cd5a555549e889c98a2d69"
+    },
+    {
+      "来源": "扩展功能/画布导入/导入任务快照.ts",
+      "目标": "画布副本/web/src/扩展功能/画布导入/导入任务快照.ts",
+      "类型": "前端",
+      "原位置": "产品导入与视区恢复",
+      "SHA256": "3bb2e6de5b2fb539b47a613224f59e380585ab280de98588fc1fbdbb2af5f790"
+    },
+    {
+      "来源": "扩展功能/画布导入/产品导入进度.ts",
+      "目标": "画布副本/web/src/扩展功能/画布导入/产品导入进度.ts",
+      "类型": "前端",
+      "原位置": "产品导入与视区恢复",
+      "SHA256": "22952c0bedf3e1a779ca2bae91699a673574c07cd50fb2af556b83a744640c37"
+    },
+    {
+      "来源": "扩展功能/画布导入/产品导入进度面板.tsx",
+      "目标": "画布副本/web/src/扩展功能/画布导入/产品导入进度面板.tsx",
+      "类型": "前端",
+      "原位置": "产品导入与视区恢复",
+      "SHA256": "1631c8cbc25863b7ce0ac603f7d35d2f8892f72f466b8d4950eb627a96523ec3"
+    },
+    {
+      "来源": "扩展功能/画布交互/缩放手势调度.ts",
+      "目标": "画布副本/web/src/扩展功能/画布交互/缩放手势调度.ts",
+      "类型": "前端",
+      "原位置": "产品导入与视区恢复",
+      "SHA256": "2c7906da59154f24c349ff6aa023562ff8ca76d91b8f4aeb199831a9b3d0c817"
+    },
+    {
+      "来源": "扩展功能/画布交互/有效视区.ts",
+      "目标": "画布副本/web/src/扩展功能/画布交互/有效视区.ts",
+      "类型": "前端",
+      "原位置": "产品导入与视区恢复",
+      "SHA256": "2f98a35052ccc4311294319c380bdf57a075b88219acefa35d98286f87bd1993"
+    },
+    {
+      "来源": "扩展功能/画布交互/缩放性能记录.ts",
+      "目标": "画布副本/web/src/扩展功能/画布交互/缩放性能记录.ts",
+      "原位置": "新增显式本机缩放帧诊断",
+      "类型": "前端",
+      "SHA256": "0993594408815ccf1ba02209fa6e431f4ad95df726cbe61479816285bf853ce7"
+    },
+    {
+      "来源": "扩展功能/媒体交付/缩略图读取队列.ts",
+      "目标": "画布副本/web/src/扩展功能/媒体交付/缩略图读取队列.ts",
+      "原位置": "新增缩放可见内容分帧调度",
+      "类型": "前端",
+      "SHA256": "085ecb16fc591530dfef0ed227665e90a7abc5e4c869f930cc50f275b8f00e09"
+    },
+    {
+      "来源": "扩展功能/画布布局/可见卡片渐进挂载.ts",
+      "目标": "画布副本/web/src/扩展功能/画布布局/可见卡片渐进挂载.ts",
+      "原位置": "新增缩放可见内容分帧调度",
+      "类型": "前端",
+      "SHA256": "1c8de97778e915d08160840b50dc1fda74055d924c88e2d0da9c67d00858ebf2"
+    },
+    {
+      "来源": "扩展功能/画布交互/网格缩放步长.ts",
+      "目标": "画布副本/web/src/扩展功能/画布交互/网格缩放步长.ts",
+      "原位置": "新增缩放绘制与后台图像线程",
+      "类型": "前端",
+      "SHA256": "b86abe95c073ebc0b44926fa14e55e5f5a2f68a69b9db2fc1bf4be204df75fbe"
+    },
+    {
+      "来源": "扩展功能/媒体交付/缩略图后台生成.ts",
+      "目标": "画布副本/web/src/扩展功能/媒体交付/缩略图后台生成.ts",
+      "原位置": "新增缩放绘制与后台图像线程",
+      "类型": "前端",
+      "SHA256": "4c25526cfb375f4cd8af9c841a69557fb7cf534d1d1dfce695ac80fe33be7db5"
+    },
+    {
+      "来源": "扩展功能/媒体交付/缩略图生成工作线程.ts",
+      "目标": "画布副本/web/src/扩展功能/媒体交付/缩略图生成工作线程.ts",
+      "原位置": "新增缩放绘制与后台图像线程",
+      "类型": "前端",
+      "SHA256": "b37369be82cce5db38025df2ce2035dabe1e7bbf6983d713bea82ba2c0a8080e"
+    },
+    {
+      "来源": "扩展功能/画布交互/视区即时反馈.ts",
+      "目标": "画布副本/web/src/扩展功能/画布交互/视区即时反馈.ts",
+      "原位置": "缩放读数逐帧独立订阅",
+      "类型": "前端",
+      "SHA256": "984b3797025eac79346d0e98224b6589773451c0d63d5ca841e21e2e03ae1c3f"
+    },
+    {
+      "来源": "扩展功能/媒体交付/图片解码交接.ts",
+      "目标": "画布副本/web/src/扩展功能/媒体交付/图片解码交接.ts",
+      "类型": "前端",
+      "原位置": "缩放结束图片连续显示",
+      "SHA256": "b74b1ac0e9980908ca6213c9bdeab6af2c705feeb93e5f344fa427baffd4d36c"
+    },
+    {
+      "来源": "扩展功能/媒体交付/画布图片连续显示.ts",
+      "目标": "画布副本/web/src/扩展功能/媒体交付/画布图片连续显示.ts",
+      "类型": "前端",
+      "原位置": "缩放结束图片连续显示",
+      "SHA256": "a4822d042274f50022c8a8302e3d95b2e31dbb01d02ae153a859f88980030100"
+    },
+    {
+      "来源": "扩展功能/媒体交付/画布内嵌图片预览.ts",
+      "目标": "画布副本/web/src/扩展功能/媒体交付/画布内嵌图片预览.ts",
+      "类型": "前端",
+      "原位置": "旧产品内嵌图片连续预览",
+      "SHA256": "f77765d8a7200b508711448ca42f90bf91db8497a7607986503a2b961d62179f"
     }
   ],
   "接入差异": [
@@ -5228,6 +5340,11 @@
       "目标": "web/src/components/prompts/use-prompt-list.ts",
       "基线SHA256": "dd29a9404d006bc2b06b37b908992ee187e79fc044db80c38b3c088e037b7f67",
       "原SHA256": "dd29a9404d006bc2b06b37b908992ee187e79fc044db80c38b3c088e037b7f67"
+    },
+    {
+      "目标": "web/src/lib/zip.ts",
+      "基线SHA256": "8ed892dc82adc60d37bd82dd86a71b59e9ac9dea08ffe6aceb600bfd61156595",
+      "原SHA256": "8ed892dc82adc60d37bd82dd86a71b59e9ac9dea08ffe6aceb600bfd61156595"
     }
   ],
   "接入补丁": [
@@ -10046,6 +10163,438 @@
       "SHA256": "6e6808286d504f4f537ba737444f81a4ca397ff3a255e898c8148392a8f124de",
       "前态SHA256": "e5458423108e1cece37c9f6e5ef17591c4f0245c0c6c6b378c7aafae079f2544",
       "后态SHA256": "779569e53253c9a25e76dd0d31d0327ecd35c9fcb9422dde96e6464ba321c9c5"
+    },
+    {
+      "文件": "上游适配/模型下拉模态层级与缺失配置引导修复.patch",
+      "目标": "web/src/components/model-picker.tsx",
+      "职责": "模型下拉模态层级与缺失配置引导修复",
+      "SHA256": "6e3c5784cc53e0caeaf0d152a40804c7230bd25d43fcb7006faf032759397b15",
+      "前态SHA256": "d4d166c5c5e3976f58341bcacac1721faa0720d9841d6130ff7a1e70554912d8",
+      "后态SHA256": "7d4fdd24b452f3b1dbbcf210beec20c38b7de5fa13ffb8378b63e477b4f7b9f6"
+    },
+    {
+      "文件": "上游适配/设置重新打开同步目标页签.patch",
+      "目标": "web/src/components/layout/app-config-modal.tsx",
+      "职责": "设置重新打开同步目标页签",
+      "SHA256": "fb7c0da8cb9b42ee0e2bfe61c3050312ba0f2c1a10ea9b18b5f5a0e03b21faf1",
+      "前态SHA256": "d96c520cd7cdcfa256398ea7d52cb1bf44d366de792316849b3160cf60ba5b9e",
+      "后态SHA256": "9db5242bc47a378396b3efe00cc2b39a612b0cdc2e4eaa76d96eb09f6391538b"
+    },
+    {
+      "文件": "上游适配/提示词卡片先预览详情再应用.patch",
+      "目标": "web/src/components/prompts/prompt-select-dialog.tsx",
+      "职责": "提示词卡片先预览详情再应用",
+      "SHA256": "e910e25341c6b70a30082cdc2876b0fa58ca147e1ae3c90cca43eb296cc98222",
+      "前态SHA256": "2af26aa7b235c7848e6dfbbeac47a3d33c553f893cfe6bf89661a14e0d82bb31",
+      "后态SHA256": "a34f0f517b9b441fd5d64ca0d9369edea3a35a7133d3d3af868dc593a1fc477c"
+    },
+    {
+      "文件": "上游适配/提示词详情显式应用入口.patch",
+      "目标": "web/src/pages/prompts/components/prompt-detail-dialog.tsx",
+      "职责": "提示词详情显式应用入口",
+      "SHA256": "744ce340957908fe736b34c95672c5fa92e7d3d11b2f3159e1461b84e2f219a2",
+      "前态SHA256": "bd1c18ba6b267f737a8ef2b5c947cbea40321f487bc8877bd69b165c0cc7f4bd",
+      "后态SHA256": "734a3d1df96f5df85d758e9ae7b22d9bd958d4be6d36ed87b58932b3d1e7b3d4"
+    },
+    {
+      "文件": "上游适配/模型菜单Esc仅关闭当前选项.patch",
+      "目标": "web/src/components/model-picker.tsx",
+      "职责": "模型菜单Esc仅关闭当前选项",
+      "SHA256": "14eec536e29891554b91b4cfba67fd243eb08ee86e4409dae5cdd0453f6677ab",
+      "前态SHA256": "7d4fdd24b452f3b1dbbcf210beec20c38b7de5fa13ffb8378b63e477b4f7b9f6",
+      "后态SHA256": "3acc86dea235c48aa2906a9a99b4f61ce318e1a94495bcba082f2d38760eac24"
+    },
+    {
+      "文件": "上游适配/提示词详情与列表独立关闭生命周期.patch",
+      "目标": "web/src/components/prompts/prompt-select-dialog.tsx",
+      "职责": "提示词详情与列表独立关闭生命周期",
+      "SHA256": "f476654ddf2a1bd0cee5a45fd4d18a02ee97216beb81d4924459b50087c3b0e5",
+      "前态SHA256": "a34f0f517b9b441fd5d64ca0d9369edea3a35a7133d3d3af868dc593a1fc477c",
+      "后态SHA256": "44777a9a31bef473183093859d5387f242d66e96541e1aea5081876deca26a58"
+    },
+    {
+      "文件": "上游适配/提示词详情显式层级接线.patch",
+      "目标": "web/src/pages/prompts/components/prompt-detail-dialog.tsx",
+      "职责": "提示词详情显式层级接线",
+      "SHA256": "f2dc2a5fcb1ed7ea297b7f96f0aa7c605c79a4e2bb950d3f129f3084d9ef2792",
+      "前态SHA256": "734a3d1df96f5df85d758e9ae7b22d9bd958d4be6d36ed87b58932b3d1e7b3d4",
+      "后态SHA256": "d2e33dc9179c1649dd406c3777c3ade51100a220336cdd3438e8dbf48bd631bf"
+    },
+    {
+      "文件": "上游适配/原生选择器统一下拉进退场动效.patch",
+      "目标": "web/src/components/ui/select.tsx",
+      "职责": "原生选择器统一下拉进退场动效",
+      "SHA256": "8944d7fc4544054bd151f99415e4c88180d8261fea1509bbc1296b5f7463b5cc",
+      "前态SHA256": "d248b73a28e0d8e8d24208805f964d0b3847a39c84cec7603a37831e91264b29",
+      "后态SHA256": "7fda018596ae3b1a36c5b7d792ae3c15874de4133dc61a5898368b9be28d813c"
+    },
+    {
+      "文件": "上游适配/原生选择器固定向下与内部滚动.patch",
+      "目标": "web/src/components/ui/select.tsx",
+      "职责": "原生选择器固定向下与内部滚动",
+      "SHA256": "f20ed2030845389ea856620d0185d7c9644abbef145954e3553a4ae927ec7657",
+      "前态SHA256": "7fda018596ae3b1a36c5b7d792ae3c15874de4133dc61a5898368b9be28d813c",
+      "后态SHA256": "0050593b83fb2253a6c888d8ac9817e2758d5cfd7ed50137ebac70304272c0cc"
+    },
+    {
+      "文件": "上游适配/大产品包异步解压避免阻塞界面.patch",
+      "目标": "web/src/lib/zip.ts",
+      "职责": "大产品包异步解压避免阻塞界面",
+      "SHA256": "fc4305d81eb70e1f7fb1903efacd03e6fbd1bcccd300a025c3c59548453767ef",
+      "前态SHA256": "8ed892dc82adc60d37bd82dd86a71b59e9ac9dea08ffe6aceb600bfd61156595",
+      "后态SHA256": "2af5ebe3d11a8b03add190fc8456921cd76b15c69b4a271e54bd5b72a2dd2300"
+    },
+    {
+      "文件": "上游适配/缩放滑杆复用视区帧调度.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "缩放滑杆复用视区帧调度",
+      "SHA256": "be68f71c381d0713276ae98f8eb1013287a02a4063c8f0c0edc83011ef750186",
+      "前态SHA256": "6f92b3c63fbe418abe71d911a2799b59f561d3b26a535bc568fb069fbab3851f",
+      "后态SHA256": "ea8f102836375a7e6424c049b9a360aa69b390dad0ea92883c2703c9dac5cc02"
+    },
+    {
+      "文件": "上游适配/配置卡设置定位锚点.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "配置卡设置定位锚点",
+      "SHA256": "8e19a0587c4a21ecc03ee4de83c465bdb6095227aa255fe416ca6da1b0433243",
+      "前态SHA256": "269152cd1dc88bf756b0c02a0d23e97c27263e7dafa98a19621dbb972dbb15e4",
+      "后态SHA256": "78a2263dbc51ac263487fbae0d66e872e9b3d59de94499585b8b18ef7b873152"
+    },
+    {
+      "文件": "上游适配/无效画布视区恢复与缩放边界.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "无效画布视区恢复与缩放边界",
+      "SHA256": "067cb452f330f138f42749c8715fefc10ec45db0b83db7135e1616e2372d9e46",
+      "前态SHA256": "ea8f102836375a7e6424c049b9a360aa69b390dad0ea92883c2703c9dac5cc02",
+      "后态SHA256": "5ba0d28ee0b4cb16cb0a467be74f2762b60b6d8050f10b9cd6b97b6537d6b000"
+    },
+    {
+      "文件": "上游适配/异步解压二进制类型兼容.patch",
+      "目标": "web/src/lib/zip.ts",
+      "职责": "异步解压二进制类型兼容",
+      "SHA256": "7e70dd566c87e111ee7167e81a3122efd4173abf1b1598b6383c8d58ceac3ef2",
+      "前态SHA256": "2af5ebe3d11a8b03add190fc8456921cd76b15c69b4a271e54bd5b72a2dd2300",
+      "后态SHA256": "e13e6389f81a41d0c5183bf9de42a05262b0c5f362d7537e13392438a073cd0d"
+    },
+    {
+      "文件": "上游适配/缩放读数独立即时反馈.patch",
+      "目标": "web/src/components/canvas/canvas-zoom-controls.tsx",
+      "职责": "缩放读数独立即时反馈",
+      "SHA256": "25549e7cc5b46804b062d5168fb77ae3adaaa3a393bb59c48e33c57cda29fbac",
+      "前态SHA256": "76d3e6fb2974697bfffd3ea5439dde45a8ccd61ba65ae28738cadd64329a6e06",
+      "后态SHA256": "db2ae575f6a3445bbea640f7e57430bc7396d6e7187f947cad3f106d2ae4769a"
+    },
+    {
+      "文件": "上游适配/画布缩放本机帧耗时记录.patch",
+      "目标": "web/src/components/canvas/infinite-canvas.tsx",
+      "职责": "画布缩放本机帧耗时记录",
+      "SHA256": "42f5fbda7ed6953534b1a33ee6503c7b9e8fe1cb8b1e1f5dd29204b5d2505e07",
+      "前态SHA256": "2e548dbe83c2755aaa85d7f2cb78a09f0e1a4b2ca711a3a310f2942ce42ba039",
+      "后态SHA256": "bbe6cffc5746a5278ea771594353a1c02ce5a29fa54461b80f8d471e9720a5d3"
+    },
+    {
+      "文件": "上游适配/缩放图片按键通知与内置内容稳定.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "缩放图片按键通知与内置内容稳定",
+      "SHA256": "eef8b89fdbdf25e8e64b423425bfbbe7acc5a4421add46f76962b785ca834e28",
+      "前态SHA256": "78a2263dbc51ac263487fbae0d66e872e9b3d59de94499585b8b18ef7b873152",
+      "后态SHA256": "75db46d07d610b136bd1b7cbfa826c37c2ac0cb4290686262c1c39403e931e25"
+    },
+    {
+      "文件": "上游适配/可见缩略图读取并发与定向通知.patch",
+      "目标": "web/src/services/image-storage.ts",
+      "职责": "可见缩略图读取并发与定向通知",
+      "SHA256": "2a93e2fc4944c88354094afa8b25aa90d53a8ad084c72b26140aa87cd848dbd6",
+      "前态SHA256": "9d719187845711ce111286f2487edd3a7e0eca4eff49d45a95f095089388e8d3",
+      "后态SHA256": "3c2c933a97d1920807dba4c67a89efbe3153496db45348f97140460e2e8a382d"
+    },
+    {
+      "文件": "上游适配/缩放后可见卡片分帧接入.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "缩放后可见卡片分帧接入",
+      "SHA256": "22366bf3e370a38b097a36d1ade022dc953d33a49fad42c87aa23c21f6ee85d0",
+      "前态SHA256": "5ba0d28ee0b4cb16cb0a467be74f2762b60b6d8050f10b9cd6b97b6537d6b000",
+      "后态SHA256": "ec7d0ef09040ef3ec5e844d3ae2d5d9ae33adef6c2e1fdc934e339a3870915a5"
+    },
+    {
+      "文件": "上游适配/画布已加载卡片随五分钟缓存驻留.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "画布已加载卡片随五分钟缓存驻留",
+      "SHA256": "0399444cd491993cf02a5caab03dab2bb566636a101be5b2f2edb1a7fd5f424c",
+      "前态SHA256": "ec7d0ef09040ef3ec5e844d3ae2d5d9ae33adef6c2e1fdc934e339a3870915a5",
+      "后态SHA256": "d4570fb0d5c201526118fab9c5851d208bc2a1afdd205a08090c039aa7c9f7af"
+    },
+    {
+      "文件": "上游适配/活动画布合成层稳定驻留.patch",
+      "目标": "web/src/components/canvas/infinite-canvas.tsx",
+      "职责": "活动画布合成层稳定驻留",
+      "SHA256": "a5b30a3312b8ee31982ce902633f7274cd6b84c9e1e3693f4d326d4df889ac04",
+      "前态SHA256": "bbe6cffc5746a5278ea771594353a1c02ce5a29fa54461b80f8d471e9720a5d3",
+      "后态SHA256": "71756905460c21558483562c43c52e12ddc960c445b5267139522c36f20e82b8"
+    },
+    {
+      "文件": "上游适配/屏外卡片保留状态并跳过绘制.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "屏外卡片保留状态并跳过绘制",
+      "SHA256": "8f395f4fad1e3c445fcde201010aa83f0207e7f988cfd808647ba15a7e3f2f34",
+      "前态SHA256": "75db46d07d610b136bd1b7cbfa826c37c2ac0cb4290686262c1c39403e931e25",
+      "后态SHA256": "46032987d5abd66eed1fe19a9629604ecbb3ad47815be97edf53fdbd6ef19472"
+    },
+    {
+      "文件": "上游适配/非活动画布暂停新增可见卡片加载.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "非活动画布暂停新增可见卡片加载",
+      "SHA256": "7675ecbff3aa6b0ebf2a208cc18cd75a8387a687d60778677bd64aa4bac8d54d",
+      "前态SHA256": "d4570fb0d5c201526118fab9c5851d208bc2a1afdd205a08090c039aa7c9f7af",
+      "后态SHA256": "6cb3daa4a266383f9bb50fba2d7b474d8b6ae5c4429cb35df9453993d474c438"
+    },
+    {
+      "文件": "上游适配/缩小画布网格逐级绘制.patch",
+      "目标": "web/src/components/canvas/infinite-canvas.tsx",
+      "职责": "缩小画布网格逐级绘制",
+      "SHA256": "23f5877320074c2789efd5599eef02c91e2736b6d4ec2bff40b4b691ff999403",
+      "前态SHA256": "71756905460c21558483562c43c52e12ddc960c445b5267139522c36f20e82b8",
+      "后态SHA256": "36837fa51d79cdddf03d67d7468349bf35ee1ff5b72747806ab164d2a4b5a0e8"
+    },
+    {
+      "文件": "上游适配/缩略图后台线程并行生成接入.patch",
+      "目标": "web/src/services/image-storage.ts",
+      "职责": "缩略图后台线程并行生成接入",
+      "SHA256": "c83de7fb14e272026d901e27426177903c5c034a405925f8641aba2adf68eedf",
+      "前态SHA256": "3c2c933a97d1920807dba4c67a89efbe3153496db45348f97140460e2e8a382d",
+      "后态SHA256": "9021ff95251ad40d7e74765d966e9c9cac04cc83c4de38ada0eeee731f6e8121"
+    },
+    {
+      "文件": "上游适配/连线SVG使用屏幕视区绘制与同步变换.patch",
+      "目标": "web/src/components/canvas/infinite-canvas.tsx",
+      "职责": "连线SVG使用屏幕视区绘制与同步变换",
+      "SHA256": "6622a7d6199daaa6bfade1f9e0de1cd0624e5eb96b089cb110b734143fb0caec",
+      "前态SHA256": "36837fa51d79cdddf03d67d7468349bf35ee1ff5b72747806ab164d2a4b5a0e8",
+      "后态SHA256": "86f52e0eb5cf7cf74296003d2bad31371dc4238e6882e0ef3d62425ea2e1725f"
+    },
+    {
+      "文件": "上游适配/移除画布万像素连线合成面.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "移除画布万像素连线合成面",
+      "SHA256": "87d388cd41f1fbdc5f8dc726a8c1f595ff61e6f1168cf1b6094dfc03802f58d2",
+      "前态SHA256": "6cb3daa4a266383f9bb50fba2d7b474d8b6ae5c4429cb35df9453993d474c438",
+      "后态SHA256": "e05f8e2253815da169b85ec5f8b591535ab78f13d8b1a45dbd95dd61d2895116"
+    },
+    {
+      "文件": "上游适配/本机固定轨迹缩放验收接入.patch",
+      "目标": "web/src/components/canvas/infinite-canvas.tsx",
+      "职责": "本机固定轨迹缩放验收接入",
+      "SHA256": "d416ac89c1365b0f82c5f60ae96ecc3696647666bb3145439d68ad0669d96e3d",
+      "前态SHA256": "86f52e0eb5cf7cf74296003d2bad31371dc4238e6882e0ef3d62425ea2e1725f",
+      "后态SHA256": "8e6c7010930af40fc431c2115199e44aa536df7878644e61409cb57ea89dba06"
+    },
+    {
+      "文件": "上游适配/驻留卡片保留缓存仅绘制屏幕范围.patch",
+      "目标": "web/src/components/canvas/infinite-canvas.tsx",
+      "职责": "驻留卡片保留缓存仅绘制屏幕范围",
+      "SHA256": "57029a8e73afa7cc55b0b47edf6b74726ed1d505da13daea290344c0dfa79969",
+      "前态SHA256": "8e6c7010930af40fc431c2115199e44aa536df7878644e61409cb57ea89dba06",
+      "后态SHA256": "f577b9c8e51c5476803d001913338d48c52f8d03f18a7e289b70ca59ade29ff2"
+    },
+    {
+      "文件": "上游适配/参数主图按存储键预览延后原图恢复.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "参数主图按存储键预览延后原图恢复",
+      "SHA256": "3d35794552f2e6e238e9a960983bfdc76e87e69223df15476b7728913be07dc3",
+      "前态SHA256": "e05f8e2253815da169b85ec5f8b591535ab78f13d8b1a45dbd95dd61d2895116",
+      "后态SHA256": "1f8ec30e616bf15431179d1a5d6de18ae3c457fef108426976730a5aa9b0b8d4"
+    },
+    {
+      "文件": "上游适配/缩放热路径精简与本机诊断稳定.patch",
+      "目标": "web/src/components/canvas/infinite-canvas.tsx",
+      "职责": "缩放热路径精简与本机诊断稳定",
+      "SHA256": "23d6cad0298b0cd00401c272331109ae31dada009d825fcc2ca649e44d6c9fe6",
+      "前态SHA256": "f577b9c8e51c5476803d001913338d48c52f8d03f18a7e289b70ca59ade29ff2",
+      "后态SHA256": "6e2cc2fb32270a35dfa6a193d3f9ad59d7780370c8d1224a22d09f053f3c319d"
+    },
+    {
+      "文件": "上游适配/画布总览分级预览与屏外清晰度驻留.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "画布总览分级预览与屏外清晰度驻留",
+      "SHA256": "92f78d990ac14d233d2d2914ba6d0ea77ba3a55ad9cfb2ec005991c376c9ee53",
+      "前态SHA256": "46032987d5abd66eed1fe19a9629604ecbb3ad47815be97edf53fdbd6ef19472",
+      "后态SHA256": "51aebd5383704e47bc88942af21025b5b485c3522c91818d7e2fd368715ab67b"
+    },
+    {
+      "文件": "上游适配/小尺寸总览预览独立缓存.patch",
+      "目标": "web/src/services/image-storage.ts",
+      "职责": "小尺寸总览预览独立缓存",
+      "SHA256": "2b792763ca74abb74a059f30001e304e490444d901b545257275db5ba70dc9c1",
+      "前态SHA256": "9021ff95251ad40d7e74765d966e9c9cac04cc83c4de38ada0eeee731f6e8121",
+      "后态SHA256": "89bc96fbddeda34fa87d950b03bc50a5203231f76cfaacae88fc5daf9e72eb38"
+    },
+    {
+      "文件": "上游适配/屏外驻留卡片不触发预览升级.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "屏外驻留卡片不触发预览升级",
+      "SHA256": "760b70d32a0daff1d59e3818aa541e04d2f35a889546f3ce6b7ff12326cab71e",
+      "前态SHA256": "1f8ec30e616bf15431179d1a5d6de18ae3c457fef108426976730a5aa9b0b8d4",
+      "后态SHA256": "ebd94b7e28dec0dac9ae73dc0750480972cb329de3646ec138cc6b30c46d394b"
+    },
+    {
+      "文件": "上游适配/再次缩放复用已加载两档预览.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "再次缩放复用已加载两档预览",
+      "SHA256": "dfd097ee13b0dc43e87adeddcf7e088cdd8f22693d3ae1d03214137721c5c3c7",
+      "前态SHA256": "51aebd5383704e47bc88942af21025b5b485c3522c91818d7e2fd368715ab67b",
+      "后态SHA256": "6cc77df97c338ea3fc12f04a0530b8de272fa1012e467dfddb841d6d9907c8b1"
+    },
+    {
+      "文件": "上游适配/中小原图按总览尺寸生成预览.patch",
+      "目标": "web/src/services/image-storage.ts",
+      "职责": "中小原图按总览尺寸生成预览",
+      "SHA256": "2245a53f620eae18ba33293be8461fc12b1b79a9ad89c20e6f0e218c169cafa2",
+      "前态SHA256": "89bc96fbddeda34fa87d950b03bc50a5203231f76cfaacae88fc5daf9e72eb38",
+      "后态SHA256": "1f37a33f0f0580aeef52dc240f6c805e7023bdd695e80d564ab18a05de165193"
+    },
+    {
+      "文件": "上游适配/屏外驻留控件暂停交互并保留状态.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "屏外驻留控件暂停交互并保留状态",
+      "SHA256": "5961b603276a0e530389b047baf408b8803e776082392af8ac4075e6955e69ea",
+      "前态SHA256": "6cc77df97c338ea3fc12f04a0530b8de272fa1012e467dfddb841d6d9907c8b1",
+      "后态SHA256": "c0161ad5aa2efafa6d3676df5dd5883f54139acaab37dd88b204305ce15d333b"
+    },
+    {
+      "文件": "上游适配/驻留卡片键盘聚焦保持可见.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "驻留卡片键盘聚焦保持可见",
+      "SHA256": "59d1fb70fc561247f3bafcc6195075f53f57c4f120e9f76a8cf005ab8b6ca3df",
+      "前态SHA256": "c0161ad5aa2efafa6d3676df5dd5883f54139acaab37dd88b204305ce15d333b",
+      "后态SHA256": "cd1826f6577bd025f5f146b69a4767d9fe7365e36d15519136f3755ab3747f4f"
+    },
+    {
+      "文件": "上游适配/驻留控件焦点复用既有画布定位.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "驻留控件焦点复用既有画布定位",
+      "SHA256": "4fae304e722a4ec6645cc986710e52c2faafb7f84020e3fc4fc535706467eb6d",
+      "前态SHA256": "ebd94b7e28dec0dac9ae73dc0750480972cb329de3646ec138cc6b30c46d394b",
+      "后态SHA256": "39141066ffd8fa7e58940bf0361c6328203e730cd1436da5cb5ea7fd17e5aa94"
+    },
+    {
+      "文件": "上游适配/驻留内容沿用浏览器原生裁剪.patch",
+      "目标": "web/src/components/canvas/infinite-canvas.tsx",
+      "职责": "驻留内容沿用浏览器原生裁剪",
+      "SHA256": "e3f6523e041782cdc0dc32d4c3d55a98780fd1c4b67638bbbcf1de698a548f3d",
+      "前态SHA256": "6e2cc2fb32270a35dfa6a193d3f9ad59d7780370c8d1224a22d09f053f3c319d",
+      "后态SHA256": "e964f5e018bf0201830745ca4f9afe1d4480455f250415b1445605bf68cb591b"
+    },
+    {
+      "文件": "上游适配/焦点连线空壳不创建大尺寸绘制面.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "焦点连线空壳不创建大尺寸绘制面",
+      "SHA256": "6f00a918d0cfcd132cb22aa923a7c3870da06606bd5f685a93174b7d927d1781",
+      "前态SHA256": "39141066ffd8fa7e58940bf0361c6328203e730cd1436da5cb5ea7fd17e5aa94",
+      "后态SHA256": "09cda4b9eaa621706073684b93b2eaaac4e9de4579909ff8260a5d809896a4c1"
+    },
+    {
+      "文件": "上游适配/缩放滑杆与百分比订阅逐帧视区.patch",
+      "目标": "web/src/components/canvas/canvas-zoom-controls.tsx",
+      "职责": "缩放滑杆与百分比订阅逐帧视区",
+      "SHA256": "ccefc7cf17596584648b07cb18328a4a343d1591bd7ec66bb67bade8192989cf",
+      "前态SHA256": "db2ae575f6a3445bbea640f7e57430bc7396d6e7187f947cad3f106d2ae4769a",
+      "后态SHA256": "164bc10e6cac6caaa451e90249ba3815593e4b3b81df7f9c41b18846812458d2"
+    },
+    {
+      "文件": "上游适配/缩放实时读数与交互悬停隔离.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "缩放实时读数与交互悬停隔离",
+      "SHA256": "1765cd1e32faffe048e2cd3159de16f79396123496ef1016b820e41407aa39da",
+      "前态SHA256": "09cda4b9eaa621706073684b93b2eaaac4e9de4579909ff8260a5d809896a4c1",
+      "后态SHA256": "ad8e7dcb650491313f0bf79b4af24dfdd8f981cfaf64a2f60ca15b6c06e62da4"
+    },
+    {
+      "文件": "上游适配/缩放期间复用节点正文并暂停悬停.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "缩放期间复用节点正文并暂停悬停",
+      "SHA256": "5968b8fbcb98b42ae6eb85eef461c243292855ea25b0187f014f49f3100085c2",
+      "前态SHA256": "cd1826f6577bd025f5f146b69a4767d9fe7365e36d15519136f3755ab3747f4f",
+      "后态SHA256": "bab90cb7a27af852b7ad2a6b48d1dc2fea28fe74a47485bc91624ddce9696890"
+    },
+    {
+      "文件": "上游适配/结果图驻留显示与解码交接.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "结果图驻留显示与解码交接",
+      "SHA256": "3f47841f216c1b5dd5eca80a61be88082c5726a0b0fb9c85ab1ce412ccf00b2e",
+      "前态SHA256": "bab90cb7a27af852b7ad2a6b48d1dc2fea28fe74a47485bc91624ddce9696890",
+      "后态SHA256": "38412e7c39a4c7b5a29c4647f481b2f387601bcf38302ea9a699edcf7a9c28ec"
+    },
+    {
+      "文件": "上游适配/缩放复用完整连线网络.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "缩放复用完整连线网络",
+      "SHA256": "efa787706c7fb092b6d4ed6ab78e6469b89733e6df5c8744c9f513ce4e66cd14",
+      "前态SHA256": "ad8e7dcb650491313f0bf79b4af24dfdd8f981cfaf64a2f60ca15b6c06e62da4",
+      "后态SHA256": "50c558cd2f3c09d877997044ab2267eb82f30214bc69a5ceb5d7fea4cf07a1f0"
+    },
+    {
+      "文件": "上游适配/批量图片操作保留原图状态判断.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "批量图片操作保留原图状态判断",
+      "SHA256": "8532beef1730df50a2e7a36aede0e4207616751906574a143a6253dbbcd9fd06",
+      "前态SHA256": "38412e7c39a4c7b5a29c4647f481b2f387601bcf38302ea9a699edcf7a9c28ec",
+      "后态SHA256": "579b4cb45a6ad3737fce66a4990b6cc865fcedddd1c7c063a5128ce590b97f45"
+    },
+    {
+      "文件": "上游适配/明确使用原图时恢复内嵌媒体.patch",
+      "目标": "web/src/services/image-storage.ts",
+      "职责": "明确使用原图时恢复内嵌媒体",
+      "SHA256": "99d6b1ff7f375dcea4be5f153f2ee4e595890f2d149a50f1fa947c2ae242dde9",
+      "前态SHA256": "1f37a33f0f0580aeef52dc240f6c805e7023bdd695e80d564ab18a05de165193",
+      "后态SHA256": "6bc28580c6975ad94dcd29c35b1ed0b15f0b2d404cf9036eac856c22afeba309"
+    },
+    {
+      "文件": "上游适配/画布不强制常驻无界合成层.patch",
+      "目标": "web/src/components/canvas/infinite-canvas.tsx",
+      "职责": "画布不强制常驻无界合成层",
+      "SHA256": "9dba130109b4f3c5bd0c0f84706fb926906d110e88481980fb4b066f6fcc255d",
+      "前态SHA256": "e964f5e018bf0201830745ca4f9afe1d4480455f250415b1445605bf68cb591b",
+      "后态SHA256": "3fdc5525d20d8b4badccb0005ff31fe070ca68e692369b7584e333f157287eb6"
+    },
+    {
+      "文件": "上游适配/缩放裁剪复用已测视区尺寸.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "缩放裁剪复用已测视区尺寸",
+      "SHA256": "d307bf268679bf01438fdb2a94b3a2866b20c0275f596259756c8dfa70aab264",
+      "前态SHA256": "50c558cd2f3c09d877997044ab2267eb82f30214bc69a5ceb5d7fea4cf07a1f0",
+      "后态SHA256": "fba27d9698f16b33fb377d283774733e57b62df59170b703d3f426a847248ce2"
+    },
+    {
+      "文件": "上游适配/驻留正文不随缩放重复恢复布局.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "驻留正文不随缩放重复恢复布局",
+      "SHA256": "b515e93fc760d21f76dd4950c9a8e6d621eda60396a2b947528263497618a424",
+      "前态SHA256": "579b4cb45a6ad3737fce66a4990b6cc865fcedddd1c7c063a5128ce590b97f45",
+      "后态SHA256": "c1922686c2c5f4753cafe12147033d855c1469f02370664038c5204d20717054"
+    },
+    {
+      "文件": "上游适配/卡片独立绘制与图片就绪标记.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "卡片独立绘制与图片就绪标记",
+      "SHA256": "e84bef73f97b0c59e1e74c3c72f05f04b83fe0ce5b9d055a78b74fb3e2b2c04b",
+      "前态SHA256": "c1922686c2c5f4753cafe12147033d855c1469f02370664038c5204d20717054",
+      "后态SHA256": "09dbe238c0b481ea906f480f538ed6d55f7477a1d096a63cf7b91cbb5a76b4cf"
+    },
+    {
+      "文件": "上游适配/取消未验证的卡片常驻合成提示.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "取消未验证的卡片常驻合成提示",
+      "SHA256": "e395088918d94ff7a8c6d9785a1233bc2f30752d756173067c87650aa06fcf2b",
+      "前态SHA256": "09dbe238c0b481ea906f480f538ed6d55f7477a1d096a63cf7b91cbb5a76b4cf",
+      "后态SHA256": "1a9d69540930d8e7d2cdb0d943739c1f1b1bccfff09684f9b511dc823cca5932"
+    },
+    {
+      "文件": "上游适配/旧生成编辑不再显示自动变量约束.patch",
+      "目标": "web/src/components/canvas/canvas-node-prompt-panel.tsx",
+      "职责": "旧生成编辑不再显示自动变量约束",
+      "SHA256": "644dcff330ed2b6c725c628475d65b0d7474da8769e258ff68eddad8ab6d6e1f",
+      "前态SHA256": "7e2176dbabaee59b6c35128b413f4af872e6936f7b3fd0dd4e9ad4891723c044",
+      "后态SHA256": "1ef6b27aca6ef46fef210edd9fd96f3287eb221e60579fc0ffab64b792ed289e"
     }
   ]
 }

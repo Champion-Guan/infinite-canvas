@@ -1,0 +1,40 @@
+diff --git a/web/src/components/canvas/infinite-canvas.tsx b/web/src/components/canvas/infinite-canvas.tsx
+index 0543fb7..b6e70c9 100644
+--- a/web/src/components/canvas/infinite-canvas.tsx
++++ b/web/src/components/canvas/infinite-canvas.tsx
+@@ -63,7 +63,6 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+     if (!schedulerRef.current) schedulerRef.current = createCanvasPanScheduler({
+         probe: createCanvasGestureProbe(() => containerRef.current, () => viewportControllerRef?.current, () => liveViewportRef.current),
+         paint: next => {
+-            const scaleChanged = scaleRef.current !== next.k;
+             liveViewportRef.current = next;
+             scaleRef.current = next.k;
+             if (layerRef.current) {
+@@ -76,9 +75,6 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+                 gridRef.current.style.backgroundPosition = `${next.x % step}px ${next.y % step}px`;
+                 gridRef.current.style.backgroundSize = `${step}px ${step}px`;
+             }
+-            if (scaleChanged) layerRef.current?.querySelectorAll<HTMLElement>("[data-node-panel]").forEach(panel => {
+-                panel.style.transform = `translateX(-50%) scale(${1 / next.k})`;
+-            });
+             callbacksRef.current.onViewportPreview?.(next);
+             window.dispatchEvent(new Event(CANVAS_FLOATING_CHANGE));
+         },
+@@ -165,6 +161,7 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+         };
+ 
+         const handleBlur = () => {
++            if (containerRef.current?.dataset?.canvasBenchmarkState === "running") return;
+             callbacksRef.current.onManualViewportStart?.();
+             spacePressedRef.current = false;
+             pointerActionRef.current = null;
+@@ -331,9 +328,6 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+             const step = canvasGridStep(live.k);
+             if (gridRef.current) gridRef.current.style.backgroundPosition = `${live.x % step}px ${live.y % step}px`;
+             if (gridRef.current) gridRef.current.style.backgroundSize = `${step}px ${step}px`;
+-            layerRef.current.querySelectorAll<HTMLElement>("[data-node-panel]").forEach(panel => {
+-                panel.style.transform = `translateX(-50%) scale(${1 / live.k})`;
+-            });
+         }
+         liveViewportRef.current = live || viewport;
+         const view = live || viewport;

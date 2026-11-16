@@ -1,0 +1,13 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 1808ac6..ed103ae 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -906,7 +906,7 @@ function InfiniteCanvasPage() {
+     const displayNodesRef = useRef(displayNodes); displayNodesRef.current = displayNodes;
+     const queryVisibleNodes = useMemo(() => createVisibilityIndex(displayNodes, node => batchExpansionBox(node, expandedBatchNodeIds.has(node.id))), [displayNodes, expandedBatchNodeIds]);
+     const visibleNodes = useMemo(() => queryVisibleNodes(viewBounds), [queryVisibleNodes, viewBounds]);
+-    const mountedVisibleNodes = useProgressiveCanvasNodes(visibleNodes, isCanvasPanning);
++    const mountedVisibleNodes = useProgressiveCanvasNodes(visibleNodes, isCanvasPanning || !productActive);
+     const residentCanvasNodes = useMemo(() => {
+         const visible = new Set(visibleNodes.map(node => node.id));
+         return displayNodes.filter(node => mountedVisibleNodes.has(node.id) || visible.has(node.id));

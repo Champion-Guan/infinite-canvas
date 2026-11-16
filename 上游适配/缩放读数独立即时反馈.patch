@@ -1,0 +1,45 @@
+diff --git a/web/src/components/canvas/canvas-zoom-controls.tsx b/web/src/components/canvas/canvas-zoom-controls.tsx
+index 96eb513..3fc1e0e 100644
+--- a/web/src/components/canvas/canvas-zoom-controls.tsx
++++ b/web/src/components/canvas/canvas-zoom-controls.tsx
+@@ -1,7 +1,7 @@
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import type { ReactNode } from "react";
+ import { Compass, Focus, HelpCircle } from "lucide-react";
+-import { useState } from "react";
++import { useEffect, useState } from "react";
+ import { Button } from "antd";
+ import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+ import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+@@ -21,6 +21,8 @@ type CanvasZoomControlsProps = {
+ export function CanvasZoomControls({ scale, onScaleChange, onReset, isMiniMapOpen, onToggleMiniMap }: CanvasZoomControlsProps) {
+     const productActive = useProductActive();
+     const [shortcutsOpen, setShortcutsOpen] = useState(false);
++    const [displayScale, setDisplayScale] = useState(scale);
++    useEffect(() => setDisplayScale(scale), [scale]);
+     const { t } = useTranslation();
+     const colorTheme = useThemeStore((state) => state.theme);
+     const theme = canvasThemes[colorTheme];
+@@ -49,15 +51,19 @@ export function CanvasZoomControls({ scale, onScaleChange, onReset, isMiniMapOpe
+                         min="5"
+                         max="500"
+                         step="1"
+-                        value={Math.round(scale * 100)}
++                        value={Math.round(displayScale * 100)}
+                         className="w-24"
+                         style={{ accentColor: theme.node.activeStroke }}
+-                        onChange={(event) => onScaleChange(Number(event.target.value) / 100)}
++                        onChange={(event) => {
++                            const next = Number(event.target.value) / 100;
++                            setDisplayScale(next);
++                            onScaleChange(next);
++                        }}
+                         aria-label={t("canvas.zoom")}
+                     />
+                 </Tooltip>
+                 <span className="w-10 text-right text-xs tabular-nums" style={{ color: theme.node.muted }}>
+-                    {Math.round(scale * 100)}%
++                    {Math.round(displayScale * 100)}%
+                 </span>
+                 <Tooltip title={t("canvas.shortcuts")}>
+                     <Button type="text" className="!h-8 !w-8 !min-w-8 !p-0" style={shortcutsOpen ? activeStyle : { color: theme.toolbar.item }} icon={<HelpCircle className="size-4" />} onClick={() => setShortcutsOpen(true)} aria-label={t("canvas.shortcuts")} />

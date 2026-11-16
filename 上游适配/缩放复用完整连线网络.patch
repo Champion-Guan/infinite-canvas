@@ -1,0 +1,21 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 62d0d7f..57304b1 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -928,6 +928,7 @@ function InfiniteCanvasPage() {
+     const { connectionGeometry, connectionFocus, obscuredResultIds, connectionPreviewNodeIds, setConnectionPreviewNodeIds, cardEndpointTarget, setCardEndpointTarget, cardPanelTarget, setCardPanelTarget, connectionFocusTarget, setConnectionFocusTarget, setDisplayConnectionIds, keepFocusBehindCards, portAlignmentGuide, setPortAlignmentGuide } = useCanvasConnectionSystem(connections, displayNodeById, selectedNodeIds, selectedConnectionId, hoveredNodeId);
+     const queryVisibleConnections = useMemo(() => createVisibilityIndex(connectionGeometry, item => item.bounds), [connectionGeometry]);
+     const visibleConnections = useMemo(() => queryVisibleConnections(viewBounds), [queryVisibleConnections, viewBounds]);
++    const visibleConnectionIds = useMemo(() => new Set(visibleConnections.map(item => item.connection.id)), [visibleConnections]);
+     const selectConnection = useCallback((id: string) => {
+         setSelectedConnectionId(id); setSelectedNodeIds(new Set()); setContextMenu(null);
+     }, []);
+@@ -3287,7 +3288,7 @@ function InfiniteCanvasPage() {
+                     onDrop={handleDrop}
+                     connectionLayer={<>
+                         {portAlignmentGuide ? <line data-port-alignment-guide="true" x1={Math.min(portAlignmentGuide.x1, portAlignmentGuide.x2) - 24 / viewport.k} x2={Math.max(portAlignmentGuide.x1, portAlignmentGuide.x2) + 24 / viewport.k} y1={portAlignmentGuide.y} y2={portAlignmentGuide.y} stroke="var(--primary, #3b82f6)" strokeWidth={1 / viewport.k} strokeDasharray={`${4 / viewport.k} ${4 / viewport.k}`} opacity={0.65} /> : null}
+-                        <CachedConnectionLayer focusTarget={connectionFocusTarget} keepFocusBehindCards={keepFocusBehindCards} onFocusConnections={setDisplayConnectionIds} geometry={visibleConnections} flowGeometry={connectionGeometry} focusedIds={connectionFocus.connectionIds} scale={viewport.k} dragging={isNodeDragging || isCanvasPanning} onSelect={selectConnection} onContextMenu={openConnectionMenu} onPreviewNodes={setConnectionPreviewNodeIds} />
++                        <CachedConnectionLayer focusTarget={connectionFocusTarget} keepFocusBehindCards={keepFocusBehindCards} onFocusConnections={setDisplayConnectionIds} geometry={connectionGeometry} visibleIds={visibleConnectionIds} flowGeometry={connectionGeometry} focusedIds={connectionFocus.connectionIds} scale={1} dragging={isNodeDragging || isCanvasPanning} onSelect={selectConnection} onContextMenu={openConnectionMenu} onPreviewNodes={setConnectionPreviewNodeIds} />
+                         {connectingParams ? <ActiveConnectionPath node={nodeById.get(connectingParams.nodeId)} handle={connectingParams} mouseWorld={mouseWorld} target={connectionTargetNodeId ? nodeById.get(connectionTargetNodeId) : undefined} /> : null}
+                     </>}
+                 >

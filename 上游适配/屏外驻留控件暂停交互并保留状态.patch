@@ -1,0 +1,12 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 0db1344..74ebf9d 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -333,6 +333,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+     return (
+         <div
+             data-node-id={data.id}
++            inert={!isInViewport && !isSelected && !showPanel}
+             data-config-settings-anchor={data.type === CanvasNodeType.Config ? "true" : undefined}
+             data-inline-result-obscured={isConnectionObscured ? "true" : undefined}
+             className={`node-element group/node absolute flex select-none flex-col transition-shadow duration-200 ${isGroup ? "z-[5]" : isSelected ? "z-50" : "z-10"} ${referenceSelectionState === "available" ? "cursor-pointer" : referenceSelectionState ? "cursor-not-allowed" : ""}`}

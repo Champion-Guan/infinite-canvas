@@ -13,6 +13,7 @@ async function load(name, dependencies = {}, extra = '') {
   });
   const module = { exports: {} };
   new Function('require', 'module', 'exports', 'window', code)(id => {
+    if (id === '../画布导入/产品导入进度') return { publishImportProgress() {} };
     assert.ok(Object.hasOwn(dependencies, id), `未注入依赖：${id}`);
     return dependencies[id];
   }, module, module.exports, { matchMedia: () => ({ matches: false }) });

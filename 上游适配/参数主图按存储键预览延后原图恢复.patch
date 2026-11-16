@@ -1,0 +1,20 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index cd41bf7..f029be0 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -572,13 +572,13 @@ function InfiniteCanvasPage() {
+         const sourceProject = openProject(projectId);
+         if (!sourceProject) throw Error("原产品已移除，未恢复过期画布。");
+         markWorkbenchStartup("canvas-media-start");
+-        let project = await restoreCanvasMedia(sourceProject, { deferImageNodes: true });
++        let project = await restoreCanvasMedia(sourceProject, { deferImageNodes: true, deferKeyedImageUrls: true });
+         if (cancelled) return;
+         // 恢复期间的后台更新不能被先前读取的快照覆盖。
+         while (openProject(projectId) !== sourceProject && openProject(projectId) !== project) {
+             const latest = openProject(projectId);
+             if (!latest) throw Error("原产品已移除，未恢复过期画布。");
+-            project = await restoreCanvasMedia(latest, { deferImageNodes: true });
++            project = await restoreCanvasMedia(latest, { deferImageNodes: true, deferKeyedImageUrls: true });
+             if (cancelled) return;
+             if (openProject(projectId) === latest) break;
+         }

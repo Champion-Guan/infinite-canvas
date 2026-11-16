@@ -1,0 +1,39 @@
+diff --git a/web/src/components/model-picker.tsx b/web/src/components/model-picker.tsx
+index b8cff86..540e7ee 100644
+--- a/web/src/components/model-picker.tsx
++++ b/web/src/components/model-picker.tsx
+@@ -30,6 +30,7 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
+     const pickerId = useId();
+     const [open, setOpen] = useState(false);
+     const trigger = useRef<HTMLButtonElement | null>(null);
++    const popupLayer = useRef(1300);
+     const pointerInteraction = useRef(false);
+     const suppressClick = useRef(false);
+     useFallbackRevision();
+@@ -48,8 +49,17 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
+ 
+     const changeOpen = (nextOpen: boolean) => {
+         if (nextOpen && !active) return;
++        if (nextOpen) {
++            const modal = trigger.current?.closest<HTMLElement>(".ant-modal-wrap");
++            popupLayer.current = modal ? Math.max(1300, Number(getComputedStyle(modal).zIndex) + 10) : 1300;
++        }
+         if (nextOpen) window.dispatchEvent(new CustomEvent("model-picker-open", { detail: pickerId }));
+-        if (nextOpen && !options.length) { setOpen(false); if (onMissingConfig) onMissingConfig(); else showMissingModelConfiguration(capability || "image"); return; }
++        if (nextOpen && !options.length) {
++            setOpen(false);
++            onMissingConfig?.();
++            showMissingModelConfiguration(capability || "image");
++            return;
++        }
+         setOpen(nextOpen);
+     };
+     if (capability === "text" && onReasoningEffortChange) return <TextModelReasoningMenu config={config} options={options}
+@@ -99,6 +109,7 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
+                     : <span className="block truncate">{current ? modelOptionLabel(config, current) : pickerPlaceholder}</span>}</span>
+             </SelectTrigger>
+             <SelectContent
++                style={{ zIndex: popupLayer.current }}
+                 data-canvas-no-zoom
+                 className="z-[1200] w-80 max-w-[calc(100vw-24px)]"
+                 position="popper"

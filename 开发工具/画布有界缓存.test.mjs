@@ -26,6 +26,22 @@ const { ProductCommitCheckpoint } = load('产品保存检查点.ts');
 const settle = () => new Promise(resolve => setImmediate(resolve));
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 
+test('有稳定存储键的主图预览不提前恢复原图，明确请求原图时仍可完整恢复', async () => {
+    let reads = 0;
+    const url = deferredMedia.deferCanvasMediaUrl(async () => { reads++; return 'blob:original-full'; });
+    const source = { metadata: { productMainImages: [{ storageKey: 'image:original', url }] } };
+    try {
+        assert.equal(deferredMedia.hasDeferredCanvasMedia(source), true);
+        assert.equal(deferredMedia.hasDeferredCanvasMedia(source, { ignoreKeyedImageUrls: true }), false);
+        assert.equal(await deferredMedia.restoreCanvasMedia(source, { deferKeyedImageUrls: true }), source);
+        assert.equal(reads, 0);
+        const original = await deferredMedia.restoreCanvasMedia(source);
+        assert.equal(original.metadata.productMainImages[0].url, 'blob:original-full');
+        assert.equal(reads, 1);
+        assert.equal(source.metadata.productMainImages[0].url, url);
+    } finally { deferredMedia.releaseDeferredCanvasMedia(url); }
+});
+
 function cacheFixture(initial = ['A', 'B', 'C']) {
     let residents = initial, active = initial.at(-1), prepare = async () => () => true;
     const busy = new Set(), scheduled = new Map(), releases = [], preparations = [], delayed = [];

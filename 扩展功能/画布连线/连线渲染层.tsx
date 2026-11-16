@@ -18,6 +18,7 @@ import type { CanvasNodeData, ConnectionHandle, Position } from "@/types/canvas"
 
 type SharedConnectionLayerProps = {
     geometry: readonly ConnectionGeometry[];
+    visibleIds?: ReadonlySet<string>;
     flowGeometry?: readonly ConnectionGeometry[];
     focusedIds: ReadonlySet<string>;
     focusTarget?: SVGGElement | null;
@@ -30,7 +31,7 @@ type SharedConnectionLayerProps = {
     onContextMenu?: (event: ReactMouseEvent<SVGPathElement>, id: string) => void;
 };
 
-export const SharedConnectionLayer = memo(function SharedConnectionLayer({ geometry, flowGeometry, focusedIds, scale, dragging, onSelect, onContextMenu, onPreviewNodes, focusTarget, onFocusConnections, keepFocusBehindCards = false }: SharedConnectionLayerProps) {
+export const SharedConnectionLayer = memo(function SharedConnectionLayer({ geometry, visibleIds, flowGeometry, focusedIds, scale, dragging, onSelect, onContextMenu, onPreviewNodes, focusTarget, onFocusConnections, keepFocusBehindCards = false }: SharedConnectionLayerProps) {
     const pageVisible = usePageVisible(), reducedMotion = useReducedMotion(), productActive = useProductActive();
     const animateFlow = productActive && pageVisible && !reducedMotion && !dragging;
     const themeName = useThemeStore(state => state.theme);
@@ -50,6 +51,7 @@ export const SharedConnectionLayer = memo(function SharedConnectionLayer({ geome
     const [request, setRequest] = useState<{ ids: string[]; x: number; y: number; event?: ReactMouseEvent<SVGPathElement> } | null>(null);
     const [previewId, setPreviewId] = useState<string | null>(null);
     const [hoverIds, setHoverIds] = useState<readonly string[] | null>(null);
+    useEffect(() => { if (dragging) setHoverIds(null); }, [dragging]);
     const choices = useMemo(() => sharedConnectionChoices(request?.ids ?? [], geometry), [request, geometry]);
     const displayIds = useMemo(() => previewId ? new Set([previewId]) : request ? new Set(request.ids) : hoverIds ? new Set(hoverIds) : focusedIds, [previewId, request, hoverIds, focusedIds]);
     const hoveringConnection = Boolean(hoverIds && !request && !previewId);
@@ -131,6 +133,7 @@ export const SharedConnectionLayer = memo(function SharedConnectionLayer({ geome
             {junctionDots.map(point => <circle key={point.key} data-junction-dot="true" cx={point.x} cy={point.y} r={3.5} fill={palette.line} pointerEvents="none" />)}
             </g>
             {network.map(segment => {
+                const visible = !visibleIds || segment.connectionIds.some(id => visibleIds.has(id));
                 const single = segment.connectionIds.length === 1 ? byId.get(segment.connectionIds[0]) : undefined;
                 const label = single ? `${single.from.title || "来源卡片"} → ${single.to.title || "目标卡片"}` : `共享主干 · ${segment.connectionIds.length}条关系`;
                 return <path
@@ -142,10 +145,11 @@ export const SharedConnectionLayer = memo(function SharedConnectionLayer({ geome
                     strokeWidth={metrics.hit}
                     fill="none"
 
-                    style={{ cursor: "pointer", pointerEvents: "stroke", outline: "none" }}
+                    style={{ cursor: "pointer", pointerEvents: dragging ? "none" : "stroke", outline: "none" }}
                     role="button"
                     aria-label={label}
-                    tabIndex={0}
+                    tabIndex={visible ? 0 : -1}
+                    aria-hidden={visible ? undefined : true}
                     aria-haspopup={single ? undefined : "dialog"}
                     aria-expanded={single ? undefined : Boolean(request && request.ids.length === segment.connectionIds.length && request.ids.every(id => segment.connectionIds.includes(id)))}
                     onMouseEnter={() => setHoverIds(segment.connectionIds)}

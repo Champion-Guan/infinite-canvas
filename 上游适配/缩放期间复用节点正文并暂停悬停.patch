@@ -1,0 +1,160 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 9f06541..3623b60 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -56,6 +56,7 @@ type CanvasNodeProps = {
+     isGroupDropTarget?: boolean;
+     batchExpanded?: boolean;
+     isInViewport?: boolean;
++    isViewInteracting?: boolean;
+     onMouseDown: (event: React.MouseEvent, nodeId: string) => void;
+     onSelectCapture?: (event: React.MouseEvent, nodeId: string) => void;
+     onHoverStart: (nodeId: string) => void;
+@@ -114,6 +115,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+     isConnectionObscured = false,
+     scale,
+     isInViewport = true,
++    isViewInteracting = false,
+     isSelected,
+     isRelated,
+     isFocusRelated,
+@@ -158,6 +160,8 @@ export const CanvasNode = React.memo(function CanvasNode({
+     if (isInViewport) displayScale.current = scale;
+     const { t } = useTranslation();
+     const [hovered, setHovered] = useState(false);
++    const hoverVisible = hovered && !isViewInteracting;
++    useEffect(() => { if (isViewInteracting) setHovered(false); }, [isViewInteracting]);
+     const definition = getNodeDefinition(data.type);
+     const pluginContext = useMemo<CanvasNodeContext | null>(() => (pluginHost ? buildNodeContext(pluginHost, data, theme, scale, isSelected) : null), [pluginHost, data, theme, scale, isSelected]);
+     // 这两个内置表单不读取scale；保留真实交互上下文，单独稳定其内容上下文。
+@@ -332,6 +336,24 @@ export const CanvasNode = React.memo(function CanvasNode({
+         };
+     }, [handleResizeMove, handleResizeUp]);
+ 
++    const contentScaleValue = displayScale.current;
++    const renderedContent = useMemo(() => <NodeContent
++        node={data} promptHighlightSource={promptHighlightSource} promptHighlightParameters={promptHighlightParameters}
++        theme={theme} isEditingContent={isEditingContent} textareaRef={textareaRef}
++        isBatchRoot={isBatchRoot} batchCount={batchCount} batchExpanded={batchExpanded} scale={contentScaleValue}
++        renderNodeContent={renderNodeContent} pluginContext={pluginContentContext} mentionReferences={mentionReferences}
++        onContentChange={onContentChange} onStopEditing={() => setIsEditingContent(false)} onRetry={onRetry}
++        onToggleBatch={() => onToggleBatch?.(data.id)} onSetBatchPrimary={itemId => onSetBatchPrimary?.(data.id, itemId)}
++        onDuplicateBatchImage={imageId => onDuplicateBatchImage?.(data, imageId)}
++        onDownloadBatchImage={imageId => onDownloadBatchImage?.(data, imageId)}
++        onRetryBatchImage={imageId => onRetryBatchImage?.(data, imageId)}
++        onDeleteBatchImage={imageId => onDeleteBatchImage?.(data.id, imageId)}
++        onViewBatchImage={imageId => onViewImage?.(data, imageId)} groupChildCount={groupChildCount}
++    />, [data, promptHighlightSource, promptHighlightParameters, theme, isEditingContent, isBatchRoot, batchCount,
++        batchExpanded, contentScaleValue, renderNodeContent, pluginContentContext, mentionReferences, onContentChange,
++        onRetry, onToggleBatch, onSetBatchPrimary, onDuplicateBatchImage, onDownloadBatchImage, onRetryBatchImage,
++        onDeleteBatchImage, onViewImage, groupChildCount, textareaRef]);
++
+     return (
+         <div
+             data-node-id={data.id}
+@@ -344,7 +366,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+             }}
+             data-config-settings-anchor={data.type === CanvasNodeType.Config ? "true" : undefined}
+             data-inline-result-obscured={isConnectionObscured ? "true" : undefined}
+-            className={`node-element group/node absolute flex select-none flex-col transition-shadow duration-200 ${isGroup ? "z-[5]" : isSelected ? "z-50" : "z-10"} ${referenceSelectionState === "available" ? "cursor-pointer" : referenceSelectionState ? "cursor-not-allowed" : ""}`}
++            className={`node-element ${isViewInteracting ? "" : "group/node"} absolute flex select-none flex-col transition-shadow duration-200 ${isGroup ? "z-[5]" : isSelected ? "z-50" : "z-10"} ${referenceSelectionState === "available" ? "cursor-pointer" : referenceSelectionState ? "cursor-not-allowed" : ""}`}
+             style={{
+                 transform: `translate(${data.position.x}px, ${data.position.y}px)`,
+                 width: data.width,
+@@ -354,9 +376,13 @@ export const CanvasNode = React.memo(function CanvasNode({
+                 contentVisibility: !batchExpanded && !showPanel && !isSelected ? "auto" : undefined,
+             }}
+             onMouseEnter={() => {
++                if (isViewInteracting) return;
+                 setHovered(true);
+                 onHoverStart(data.id);
+             }}
++            onMouseMove={() => {
++                if (!isViewInteracting && !hovered) { setHovered(true); onHoverStart(data.id); }
++            }}
+             onMouseLeave={() => {
+                 setHovered(false);
+                 onHoverEnd(data.id);
+@@ -370,7 +396,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+                 else onContextMenu(event, data.id);
+             }}
+         >
+-            {!referenceSelectionState && (isSelected || hovered || isEditingTitle) && (
++            {!referenceSelectionState && (isSelected || hoverVisible || isEditingTitle) && (
+                 <div className="absolute left-3 top-[-28px] z-[65] max-w-[calc(100%-24px)]" onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
+                     {isEditingTitle ? (
+                         <input
+@@ -449,43 +475,18 @@ export const CanvasNode = React.memo(function CanvasNode({
+                     style={
+                         {
+                             background: isGroup ? "transparent" : hasImageContent || hasVideoContent || transparentBg ? "transparent" : theme.node.fill,
+-                            pointerEvents: contentInteractive ? undefined : "none",
++                            pointerEvents: isViewInteracting ? "none" : contentInteractive ? undefined : "none",
+                         } as React.CSSProperties
+                     }
+                 >
+-                    <NodeContent
+-                        node={data}
+-                        promptHighlightSource={promptHighlightSource}
+-                        promptHighlightParameters={promptHighlightParameters}
+-                        theme={theme}
+-                        isEditingContent={isEditingContent}
+-                        textareaRef={textareaRef}
+-                        isBatchRoot={isBatchRoot}
+-                        batchCount={batchCount}
+-                        batchExpanded={batchExpanded}
+-                        scale={displayScale.current}
+-                        renderNodeContent={renderNodeContent}
+-                        pluginContext={pluginContentContext}
+-                        mentionReferences={mentionReferences}
+-                        onContentChange={onContentChange}
+-                        onStopEditing={() => setIsEditingContent(false)}
+-                        onRetry={onRetry}
+-                        onToggleBatch={() => onToggleBatch?.(data.id)}
+-                        onSetBatchPrimary={(itemId) => onSetBatchPrimary?.(data.id, itemId)}
+-                        onDuplicateBatchImage={(imageId) => onDuplicateBatchImage?.(data, imageId)}
+-                        onDownloadBatchImage={(imageId) => onDownloadBatchImage?.(data, imageId)}
+-                        onRetryBatchImage={(imageId) => onRetryBatchImage?.(data, imageId)}
+-                        onDeleteBatchImage={(imageId) => onDeleteBatchImage?.(data.id, imageId)}
+-                        onViewBatchImage={(imageId) => onViewImage?.(data, imageId)}
+-                        groupChildCount={groupChildCount}
+-                    />
++                    {renderedContent}
+                 </div>
+ 
+                 {showImageInfo && hasImageContent ? <ImageInfoBar node={data} /> : null}
+ 
+                 {!isGroup && !hasImageContent && !hasVideoContent && !hasAudioContent ? <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12" style={{ background: `linear-gradient(to top, ${theme.canvas.background}66, transparent)` }} /> : null}
+ 
+-                {referenceSelectionState && (referenceSelectionState !== "available" || hovered) ? (
++                {referenceSelectionState && (referenceSelectionState !== "available" || hoverVisible) ? (
+                     <div className="pointer-events-none absolute inset-0 z-[60] grid place-items-center rounded-[inherit]" style={{ background: `color-mix(in srgb, ${theme.canvas.background} ${referenceSelectionState === "target" ? 78 : referenceSelectionState === "disabled" ? 60 : 34}%, transparent)`, boxShadow: referenceSelectionState === "available" ? `inset 0 0 0 2px ${selectionBlue}` : undefined }}>
+                         {referenceSelectionState !== "disabled" ? <span className="rounded-lg px-3 py-2 text-sm font-medium shadow-sm" style={{ background: theme.toolbar.panel, color: theme.node.text }}>{t(referenceSelectionState === "target" ? "canvas.references.selecting" : "canvas.references.choose")}</span> : null}
+                     </div>
+@@ -498,8 +499,8 @@ export const CanvasNode = React.memo(function CanvasNode({
+             </div>
+ 
+             <CardEndpointLayer node={data} target={endpointTarget}>
+-            {!referenceSelectionState && !isGroup ? <ConnectionHandleDot side="left" visible={hovered || isSelected || isConnecting} onMouseDown={(event) => onConnectStart(event, data.id, "target")} /> : null}
+-            {!referenceSelectionState && (definition?.hasSourceHandle ?? true) && data.type !== CanvasNodeType.Config ? <ConnectionHandleDot side="right" visible={hovered || isSelected || isConnecting} onMouseDown={(event) => onConnectStart(event, data.id, "source")} /> : null}
++            {!referenceSelectionState && !isGroup ? <ConnectionHandleDot side="left" visible={hoverVisible || isSelected || isConnecting} onMouseDown={(event) => onConnectStart(event, data.id, "target")} /> : null}
++            {!referenceSelectionState && (definition?.hasSourceHandle ?? true) && data.type !== CanvasNodeType.Config ? <ConnectionHandleDot side="right" visible={hoverVisible || isSelected || isConnecting} onMouseDown={(event) => onConnectStart(event, data.id, "source")} /> : null}
+ 
+             </CardEndpointLayer>
+ 
+@@ -530,13 +531,13 @@ function NodeContent(props: NodeContentRendererProps) {
+     // Render plugin nodes with their registered renderer, or show the missing-plugin placeholder.
+     const definition = getNodeDefinition(props.node.type);
+     if (definition?.Content && props.pluginContext) {
+-        return <PluginNodeBody Content={definition.Content} ctx={props.pluginContext} />;
++        return <PluginNodeBody Content={definition.Content} ctx={props.pluginContext} revision={props.renderNodeContent} />;
+     }
+     return <MissingPluginContent theme={props.theme} type={props.node.type} />;
+ }
+ 
+ const PluginNodeBody = React.memo(function PluginNodeBody({ Content, ctx }: {
+-    Content: NonNullable<ReturnType<typeof getNodeDefinition>>["Content"]; ctx: CanvasNodeContext;
++    Content: NonNullable<ReturnType<typeof getNodeDefinition>>["Content"]; ctx: CanvasNodeContext; revision?: unknown;
+ }) {
+     return Content ? <Content ctx={ctx} /> : null;
+ });

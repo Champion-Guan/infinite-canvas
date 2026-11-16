@@ -1,0 +1,45 @@
+diff --git a/web/src/components/canvas/infinite-canvas.tsx b/web/src/components/canvas/infinite-canvas.tsx
+index 80f194a..26ed20a 100644
+--- a/web/src/components/canvas/infinite-canvas.tsx
++++ b/web/src/components/canvas/infinite-canvas.tsx
+@@ -4,6 +4,7 @@ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+ import { createCanvasPanScheduler } from "@/扩展功能/画布布局/画布平移调度";
+ import { createCanvasGestureProbe } from "@/扩展功能/画布交互/缩放性能记录";
++import { canvasGridStep } from "@/扩展功能/画布交互/网格缩放步长";
+ 
+ import { canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
+ import { useThemeStore } from "@/stores/use-theme-store";
+@@ -63,8 +64,9 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+             scaleRef.current = next.k;
+             if (layerRef.current) layerRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.k})`;
+             if (gridRef.current) {
+-                gridRef.current.style.backgroundPosition = `${next.x % (48 * next.k)}px ${next.y % (48 * next.k)}px`;
+-                gridRef.current.style.backgroundSize = `${48 * next.k}px ${48 * next.k}px`;
++                const step = canvasGridStep(next.k);
++                gridRef.current.style.backgroundPosition = `${next.x % step}px ${next.y % step}px`;
++                gridRef.current.style.backgroundSize = `${step}px ${step}px`;
+             }
+             if (scaleChanged) layerRef.current?.querySelectorAll<HTMLElement>("[data-node-panel]").forEach(panel => {
+                 panel.style.transform = `translateX(-50%) scale(${1 / next.k})`;
+@@ -304,8 +306,9 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+         const live = panState.current.isPanning || zoomingRef.current || controlledRef.current ? schedulerRef.current?.latest : null;
+         if (live && layerRef.current) {
+             layerRef.current.style.transform = `translate(${live.x}px, ${live.y}px) scale(${live.k})`;
+-            if (gridRef.current) gridRef.current.style.backgroundPosition = `${live.x % (48 * live.k)}px ${live.y % (48 * live.k)}px`;
+-            if (gridRef.current) gridRef.current.style.backgroundSize = `${48 * live.k}px ${48 * live.k}px`;
++            const step = canvasGridStep(live.k);
++            if (gridRef.current) gridRef.current.style.backgroundPosition = `${live.x % step}px ${live.y % step}px`;
++            if (gridRef.current) gridRef.current.style.backgroundSize = `${step}px ${step}px`;
+             layerRef.current.querySelectorAll<HTMLElement>("[data-node-panel]").forEach(panel => {
+                 panel.style.transform = `translateX(-50%) scale(${1 / live.k})`;
+             });
+@@ -390,7 +393,7 @@ function CanvasGrid({ viewport, mode, gridRef }: { viewport: ViewportTransform;
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+     if (mode === "blank") return null;
+ 
+-    const gridSize = 48 * viewport.k;
++    const gridSize = canvasGridStep(viewport.k);
+     const x = viewport.x % gridSize;
+     const y = viewport.y % gridSize;
+     const dotSize = viewport.k < 0.12 ? 0.8 : 1.15;

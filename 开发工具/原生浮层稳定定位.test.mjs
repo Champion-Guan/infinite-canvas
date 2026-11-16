@@ -27,11 +27,14 @@ test('原生浮层只读锚点和边界，同一原生对齐通知不反复改�
         for (let n = 0; n < 20; n++) { assert.equal(getContainer(anchor),root); listeners.get('scroll')(); flush(); }
         assert.equal(roots.length,1); assert.equal(notifications,1,'原生对齐和内部滚动不形成通知循环');
         assert.ok(reads > 0); assert.equal(root.style.translate,undefined);
+        const submenuAnchor = { ...anchor, closest: selector => selector === '[data-canvas-native-popup-boundary]' ? root : null };
+        assert.equal(getContainer(submenuAnchor), root);
+        assert.equal(root.style.left, '260px', '二级菜单不以菜单项为新锚点重写父层边界');
         safe.bottom = 600; listeners.get('resize')(); flush(); flush();
         assert.equal(root.style.height,'440px'); assert.equal(notifications,2);
         listeners.get('resize')(); cleanup(); assert.equal(frames.size,0); assert.equal(listeners.size,0); assert.equal(disconnect,1);
         const dock = {};
-        const toolbarAnchor = { ...anchor, closest: selector => selector === '[data-product-id]' ? scope : selector === '.ant-modal-wrap' ? null : dock };
+        const toolbarAnchor = { ...anchor, closest: selector => selector === '[data-product-id]' ? scope : selector.includes('[data-canvas-bottom-toolbar]') ? dock : null };
         const toolbarContainer = entry.useNativePopupBoundary(true)(toolbarAnchor);
         assert.notEqual(toolbarContainer,root,'工具栏与卡片各自保留边界，悬浮提示不能改变已打开菜单的裁切区');
         assert.equal(toolbarContainer.style.height,'628px','底部工具栏的浮层包含锚点区域，不裁掉提示和最后一项');
@@ -47,7 +50,7 @@ test('菜单、悬浮预览、工具提示与选择器使用同一原生边界�
     assert.equal((source.match(/useNativePopupBoundary\(/g)||[]).length,4);
     assert.equal((source.match(/getPopupContainer=\{popupContainer\}/g)||[]).length,4);
     assert.match(source,/getPopupContainer: popupContainer/);
-    assert.match(source,/popupStyle: \{ \.\.\.item.popupStyle, \.\.\.NATIVE_POPUP_LIMIT \}/);
+    assert.match(source,/popupStyle: \{ \.\.\.NATIVE_POPUP_LIMIT, \.\.\.item.popupStyle \}/);
     assert.doesNotMatch(source,/useFloatingBoundary|CanvasFloatingBoundary/);
 });
 

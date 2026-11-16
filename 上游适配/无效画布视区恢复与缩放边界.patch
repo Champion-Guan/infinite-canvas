@@ -1,0 +1,21 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 1a30321..5445f8d 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,6 +1,7 @@
+ import { ensureModelConfigured } from "@/扩展功能/产品配置/模型配置门禁";
+ import { paintNodeToolbar } from "@/扩展功能/画布交互/节点工具栏定位";
+ import { useCanvasScaleGesture } from "@/扩展功能/画布交互/缩放手势调度";
++import { restoreValidViewport } from "@/扩展功能/画布交互/有效视区";
+ import { useImageSuperGeneration } from "@/扩展功能/画布生成/一键超人操作";
+ import { OutsidePanelBoundary } from "@/扩展功能/主题/原生可关闭浮层";
+ import { ASSET_DRAG_TYPE, readAssetDrag } from "@/扩展功能/素材/上传资产规则";
+@@ -595,7 +596,7 @@ function InfiniteCanvasPage() {
+             setActiveChatId(project.activeChatId || null);
+             setBackgroundMode(project.backgroundMode);
+             setShowImageInfo(project.showImageInfo ?? true);
+-            setViewport(project.viewport);
++            setViewport(restoreValidViewport(project.viewport));
+             historyRef.current = dormant?.history || { past: [], future: [] };
+             if (historyCommitTimerRef.current) {
+                 clearTimeout(historyCommitTimerRef.current);

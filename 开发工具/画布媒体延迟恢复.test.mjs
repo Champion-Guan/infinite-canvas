@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createValueCodec } from '../扩展功能/本机存储/应用值编码.mjs';
-import { restoreCanvasMedia, sameDeferredCanvasMedia, retainCanvasMedia, hasDeferredCanvasMedia } from '../扩展功能/本机存储/画布媒体延迟恢复.mjs';
+import { restoreCanvasMedia, sameDeferredCanvasMedia, retainCanvasMedia, hasDeferredCanvasMedia, deferredCanvasMediaPreview } from '../扩展功能/本机存储/画布媒体延迟恢复.mjs';
 import { createApplicationStorage } from '../扩展功能/本机存储/应用存储适配.mjs';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -52,6 +52,31 @@ test('失败的媒体恢复可重读，同步校验仍拒绝坏描述；无媒�
     assert.equal(await restoreCanvasMedia(noMedia), noMedia);
     await assert.rejects(codec.decode(['blob-url', { mime: 'image/png', size: 1, id: 'bad' }], { deferMediaUrls: true }), e => e.code === 'invalid_value');
   } finally { codec.close(); }
+});
+
+test('实际编码器向预览直接交付Blob，同一原件身份跨恢复稳定，不创建原图URL或改变保存树', async () => {
+  const blob = new Blob(['original'], { type: 'image/png' });
+  const id = createHash('sha256').update('original').digest('hex');
+  const tree = ['object', [['content', ['blob-url', { mime: blob.type, size: blob.size, id }]]]];
+  let reads = 0, urls = 0;
+  const options = { client: { readMedia: async () => { reads++; return blob; } },
+    createObjectURL: () => { urls++; return 'blob:original'; }, revokeObjectURL: () => {} };
+  const first = createValueCodec(options), reopened = createValueCodec(options);
+  try {
+    const a = await first.decode(tree, { deferMediaUrls: true }), b = await reopened.decode(tree, { deferMediaUrls: true });
+    const preview = deferredCanvasMediaPreview(a.content), other = deferredCanvasMediaPreview(b.content);
+    assert.equal(preview.identity, other.identity);
+    assert.notEqual(a.content, b.content);
+    const release = retainCanvasMedia(a);
+    assert.equal(await preview.readBlob(), blob); assert.equal(await preview.readBlob(), blob);
+    assert.deepEqual([reads, urls], [1, 0]);
+    assert.deepEqual((await first.encode(a)).tree, tree);
+    release(); await Promise.resolve();
+    const nextOwner = retainCanvasMedia(a);
+    assert.equal(await preview.readBlob(), blob);
+    assert.deepEqual([reads, urls], [2, 0], '真实卸载才释放原件缓存，重新打开仍可读取');
+    nextOwner(); await Promise.resolve();
+  } finally { first.close(); reopened.close(); }
 });
 
 test('真实SQLite按需恢复后等值保存不增加版本；修改一处再冷读仍保留未打开产品图片', async () => {

@@ -55,7 +55,7 @@ export function ParameterImageThumbnail({ image, name, className, style, number,
             onClick={event => event.stopPropagation()}>
             {hoverPreview ? <ImageReferenceHoverPreview content={<div data-image-reference-preview data-image-width={image.width} data-image-height={image.height}>
                 <p data-reference-preview-caption className="line-clamp-2 break-words text-xs leading-4" style={{ margin: "0 0 4px", lineHeight: "16px", textAlign: "left", textIndent: 0 }} title={name}>{name}</p>
-                <div style={{ width: "var(--reference-preview-width)", height: "var(--reference-preview-height)" }}><MediaThumbnail storageKey={image.storageKey} fallback={image.url} alt={name}
+                <div style={{ width: "var(--reference-preview-width)", height: "var(--reference-preview-height)" }}><MediaThumbnail maxEdge={768} storageKey={image.storageKey} fallback={image.url} alt={name}
                     className="h-full min-h-0 w-full min-w-0 object-contain"
                     style={{ display: "grid", gridTemplateRows: "minmax(0, 1fr)", gridTemplateColumns: "minmax(0, 1fr)" }} /></div>
             </div>}>{button}</ImageReferenceHoverPreview> : button}

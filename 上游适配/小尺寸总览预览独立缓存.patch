@@ -1,0 +1,51 @@
+diff --git a/web/src/services/image-storage.ts b/web/src/services/image-storage.ts
+index 586d33d..a8d5761 100644
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -47,6 +47,7 @@ const imageLogStore = localforage.createInstance({ name: "infinite-canvas", stor
+ const videoLogStore = localforage.createInstance({ name: "infinite-canvas", storeName: "video_generation_logs" });
+ const objectUrls = createMediaUrlCache();
+ const previewUrls = createThumbnailCache();
++const overviewUrls = createThumbnailCache({ maxEntries: 512, maxBytes: 8 * 1024 * 1024 });
+ const previewListeners = new Map<() => void, string | undefined>();
+ const previewRevisions = new Map<string, number>();
+ const readPreview = createPreviewReadQueue(Math.max(3, imagePreviewParallelism()));
+@@ -254,8 +255,8 @@ export async function resolveOriginalImageUrl(originalStorageKey?: string, fallb
+ }
+ 
+ // 派生 WebP 只保存在本机，内存预览有独立预算，不写进节点或导出数据。
+-export function previewUrlFor(storageKey?: string) {
+-    return storageKey ? previewUrls.get(storageKey) : undefined;
++export function previewUrlFor(storageKey?: string, maxEdge = 768) {
++    return storageKey ? (maxEdge === 192 ? overviewUrls : previewUrls).get(storageKey) : undefined;
+ }
+ 
+ // 缩略图在后台补，生成完成后再让用到它的界面重渲染一次。
+@@ -286,9 +287,18 @@ export async function ensureImagePreview(storageKey?: string) {
+     return read;
+ }
+ 
+-export async function resolveCanvasImageSource(storageKey?: string) {
++export async function resolveCanvasImageSource(storageKey?: string, maxEdge = 768) {
+     if (!storageKey) return undefined;
++    const cached = maxEdge === 192 ? overviewUrls.get(storageKey) : undefined;
++    if (cached) return cached;
+     const preview = await ensureImagePreview(storageKey);
++    if (preview && maxEdge === 192) {
++        const source = await overviewUrls.resolve(storageKey, () => readPreview(async () => {
++            const blob = decodeInlineImage(preview);
++            return await createImageThumbnailInBackground(blob, () => createImageThumbnail(blob, 192), 192) || blob;
++        }));
++        return source || preview;
++    }
+     return preview || resolveImageUrl(storageKey);
+ }
+ 
+@@ -335,6 +345,7 @@ async function deleteImagePreview(storageKey: string) {
+     previewReads.delete(storageKey);
+     previewJobs.delete(storageKey);
+     previewUrls.delete(storageKey);
++    overviewUrls.delete(storageKey);
+     await previewStore.removeItem(storageKey).catch(() => undefined);
+ }
+ 

@@ -152,7 +152,7 @@ export function ProductVariantEditor({ ctx, onChange, tokens }: {
                     <div className="flex items-center justify-between gap-3 border-t pt-3 text-sm"><span>已选 {selectedIds.length} 张</span><Button type="primary" onClick={() => setPicking(null)}>完成</Button></div>
                 </div>
             </Modal>
-            <Modal title="删除这个变体？" open={Boolean(removing)} onCancel={() => setRemoving(null)} okText="删除变体" cancelText="取消" okButtonProps={{ danger: true }}
+            <Modal title="删除这个变体？" centered open={Boolean(removing)} onCancel={() => setRemoving(null)} okText="删除变体" cancelText="取消" okButtonProps={{ danger: true }}
                 onOk={() => { change(items => items.filter(item => item.id !== removing)); setRemoving(null); }}>
                 <p>产品主图与已经生成的结果会保留。</p>
             </Modal>

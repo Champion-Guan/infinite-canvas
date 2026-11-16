@@ -7,6 +7,7 @@ import { serializeProductResult } from "./图片任务衔接.mjs";
 import { createImageConfirmationRecovery, imageConfirmationTargets, imageConfirmationErrorKey } from "./图片任务确认恢复.mjs";
 import { waitForBatchCanvasSave } from "./批量保存协调";
 import { productCanvasResidency } from "../产品/画布驻留保护";
+import { useProductActive } from "../产品/产品界面边界";
 
 export type ConfirmedImageTarget = { id: string; productId: string; nodeId: string; responseHash: string };
 
@@ -32,6 +33,7 @@ function confirmationProgressText(phase: string, current: number, total: number)
 
 // 与图片重试按钮分开：这里始终只确认已有收据，不能走生成或媒体交付入口。
 export function ImageTaskConfirmation({ productId, nodes, ready, afterConfirmed }: { productId: string; nodes: CanvasNodeData[]; ready: boolean; afterConfirmed: (target: ConfirmedImageTarget) => Promise<void> }) {
+  const productActive = useProductActive();
   const targetsKey = useMemo(() => {
     try { return JSON.stringify(imageConfirmationTargets(productId, nodes)); }
     catch { return null; }
@@ -74,7 +76,7 @@ export function ImageTaskConfirmation({ productId, nodes, ready, afterConfirmed 
   }, [productId, ready, targetsKey, errorsKey, afterConfirmed]);
   const invalid = ready && targetsKey === null;
   const pending = status.key === targetsKey ? status.pending : 0;
-  if (!invalid && !pending) return null;
+  if (!productActive || !invalid && !pending) return null;
   return <LocalStatusNotice order={1}><aside aria-label="生成任务确认" className="w-full rounded-xl border bg-background px-4 py-3 text-sm text-foreground shadow-lg">
     <p role="status" aria-live="polite">{invalid ? "原卡片任务收据异常，请保留画布。" : `${pending} 个生成任务的完成确认尚未结束，图片和原任务已保留。`}</p>
     {status.busy && status.progress ? <p className="mt-1 text-xs text-muted-foreground" role="status" aria-live="polite">{status.progress}</p> : null}

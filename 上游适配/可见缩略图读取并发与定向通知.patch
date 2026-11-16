@@ -1,0 +1,62 @@
+diff --git a/web/src/services/image-storage.ts b/web/src/services/image-storage.ts
+index 196f9da..c161039 100644
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -1,6 +1,7 @@
+ import { captureUserUpload } from "@/扩展功能/素材/上传资产规则";
+ import { createMediaUrlCache } from "@/扩展功能/媒体交付/媒体地址缓存";
+ import { createThumbnailCache } from "@/扩展功能/媒体交付/缩略图缓存";
++import { createPreviewReadQueue } from "@/扩展功能/媒体交付/缩略图读取队列";
+ import { 本地转发请求 as fetch } from "@/扩展功能/网络代理/本地转发请求";
+ import { sqliteForage as localforage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ 
+@@ -45,7 +46,9 @@ const imageLogStore = localforage.createInstance({ name: "infinite-canvas", stor
+ const videoLogStore = localforage.createInstance({ name: "infinite-canvas", storeName: "video_generation_logs" });
+ const objectUrls = createMediaUrlCache();
+ const previewUrls = createThumbnailCache();
+-const previewListeners = new Set<() => void>();
++const previewListeners = new Map<() => void, string | undefined>();
++const previewRevisions = new Map<string, number>();
++const readPreview = createPreviewReadQueue();
+ let previewRevision = 0;
+ let previewQueue: Promise<unknown> = Promise.resolve();
+ const previewJobs = new Map<string, Promise<string | undefined>>();
+@@ -255,15 +258,15 @@ export function previewUrlFor(storageKey?: string) {
+ }
+ 
+ // 缩略图在后台补，生成完成后再让用到它的界面重渲染一次。
+-export function subscribeImagePreviews(listener: () => void) {
+-    previewListeners.add(listener);
++export function subscribeImagePreviews(listener: () => void, storageKey?: string) {
++    previewListeners.set(listener, storageKey);
+     return () => {
+         previewListeners.delete(listener);
+     };
+ }
+ 
+-export function getImagePreviewRevision() {
+-    return previewRevision;
++export function getImagePreviewRevision(storageKey?: string) {
++    return storageKey ? previewRevisions.get(storageKey) || 0 : previewRevision;
+ }
+ 
+ export async function ensureImagePreview(storageKey?: string) {
+@@ -272,7 +275,7 @@ export async function ensureImagePreview(storageKey?: string) {
+     if (cached) return cached;
+     const pending = previewReads.get(storageKey);
+     if (pending) return pending;
+-    const read: Promise<string | undefined> = Promise.resolve().then(async () => {
++    const read: Promise<string | undefined> = readPreview(async () => {
+         const stored = await previewStore.getItem<StoredImagePreview>(storageKey).catch(() => null);
+         if (previewReads.get(storageKey) !== read) return undefined;
+         if (stored?.version === IMAGE_PREVIEW_VERSION) return stored.blob ? cacheImagePreview(storageKey, stored.blob) : undefined;
+@@ -322,7 +325,8 @@ async function cacheImagePreview(storageKey: string, preview: Blob) {
+     const url = await previewUrls.resolve(storageKey, async () => preview);
+     if (url && url !== before) {
+         previewRevision += 1;
+-        previewListeners.forEach((listener) => listener());
++        previewRevisions.set(storageKey, (previewRevisions.get(storageKey) || 0) + 1);
++        previewListeners.forEach((key, listener) => { if (!key || key === storageKey) listener(); });
+     }
+     return url;
+ }

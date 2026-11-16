@@ -1,0 +1,104 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 7c15627..6d1c3bc 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -55,6 +55,7 @@ type CanvasNodeProps = {
+     groupChildCount?: number;
+     isGroupDropTarget?: boolean;
+     batchExpanded?: boolean;
++    isInViewport?: boolean;
+     onMouseDown: (event: React.MouseEvent, nodeId: string) => void;
+     onSelectCapture?: (event: React.MouseEvent, nodeId: string) => void;
+     onHoverStart: (nodeId: string) => void;
+@@ -111,6 +112,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+     panelTarget,
+     isConnectionObscured = false,
+     scale,
++    isInViewport = true,
+     isSelected,
+     isRelated,
+     isFocusRelated,
+@@ -150,6 +152,8 @@ export const CanvasNode = React.memo(function CanvasNode({
+     onContextMenu,
+ }: CanvasNodeProps) {
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
++    const displayScale = useRef(scale);
++    if (isInViewport) displayScale.current = scale;
+     const { t } = useTranslation();
+     const [hovered, setHovered] = useState(false);
+     const definition = getNodeDefinition(data.type);
+@@ -450,7 +454,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+                         isBatchRoot={isBatchRoot}
+                         batchCount={batchCount}
+                         batchExpanded={batchExpanded}
+-                        scale={scale}
++                        scale={displayScale.current}
+                         renderNodeContent={renderNodeContent}
+                         pluginContext={pluginContentContext}
+                         mentionReferences={mentionReferences}
+@@ -886,7 +890,8 @@ function ImageContent({
+     const primaryStorageKey = primaryImage?.storageKey || node.metadata?.storageKey;
+     useSyncExternalStore(useCallback((listener: () => void) => subscribeImagePreviews(listener, primaryStorageKey), [primaryStorageKey]),
+         useCallback(() => getImagePreviewRevision(primaryStorageKey), [primaryStorageKey]));
+-    const primaryPreviewUrl = previewUrlFor(primaryStorageKey);
++    const previewEdge = Math.max(node.width, node.height) * scale * (globalThis.devicePixelRatio || 1) <= 192 ? 192 : 768;
++    const primaryPreviewUrl = previewUrlFor(primaryStorageKey, previewEdge);
+     const displayStorageKeys = [...new Set([
+         primaryStorageKey,
+         ...(batchExpanded ? images.map(image => image.storageKey) : []),
+@@ -896,14 +901,16 @@ function ImageContent({
+     useEffect(() => {
+         let active = true;
+         displayStorageKeys.forEach((key) => {
+-            void resolveCanvasImageSource(key).then((url) => {
+-                if (active && url) setResolvedSources((current) => current[key] === url ? current : { ...current, [key]: url });
++            const sourceKey = `${key}:${previewEdge}`;
++            void resolveCanvasImageSource(key, previewEdge).then((url) => {
++                if (active && url) setResolvedSources((current) => current[sourceKey] === url ? current : { ...current, [sourceKey]: url });
+             });
+         });
+         return () => { active = false; };
+-    }, [displayStorageKeySignature]);
++    }, [displayStorageKeySignature, previewEdge]);
+     const hasOriginalContent = Boolean(primaryContent && !primaryContent.startsWith("[image omitted]"));
+-    const readySource = resolvedSources[primaryStorageKey || ""] || primaryPreviewUrl;
++    const readySource = resolvedSources[`${primaryStorageKey}:${previewEdge}`] || primaryPreviewUrl
++        || resolvedSources[`${primaryStorageKey}:${previewEdge === 192 ? 768 : 192}`] || previewUrlFor(primaryStorageKey);
+     const primarySource = hasOriginalContent && (!primaryStorageKey || readySource)
+         ? pickImageSource({
+               previewUrl: readySource,
+@@ -913,6 +920,7 @@ function ImageContent({
+               renderedWidth: node.width,
+               renderedHeight: node.height,
+               scale,
++              previewMaxEdge: previewEdge,
+           })
+         : readySource;
+ 
+@@ -921,7 +929,7 @@ function ImageContent({
+             {batchExpanded
+                 ? images
+                       .filter((image) => image.id !== primaryImageId)
+-                      .map((image, index) => <ExpandedImageCard key={image.id} node={node} image={image} sourceUrl={image.storageKey ? resolvedSources[image.storageKey] : undefined} index={index} scale={scale} onView={() => onViewBatchImage?.(image.id)} onSetPrimary={() => onSetBatchPrimary?.(image.id)} onDuplicate={() => onDuplicateBatchImage?.(image.id)} onDownload={() => onDownloadBatchImage?.(image.id)} onRetry={() => onRetryBatchImage?.(image.id)} onDelete={() => onDeleteBatchImage?.(image.id)} />)
++                      .map((image, index) => <ExpandedImageCard key={image.id} node={node} image={image} sourceUrl={image.storageKey ? resolvedSources[`${image.storageKey}:${previewEdge}`] : undefined} index={index} scale={scale} onView={() => onViewBatchImage?.(image.id)} onSetPrimary={() => onSetBatchPrimary?.(image.id)} onDuplicate={() => onDuplicateBatchImage?.(image.id)} onDownload={() => onDownloadBatchImage?.(image.id)} onRetry={() => onRetryBatchImage?.(image.id)} onDelete={() => onDeleteBatchImage?.(image.id)} />)
+                 : null}
+             <div className="h-full w-full overflow-hidden rounded-3xl" style={{ background: theme.node.fill }}>
+                 {primarySource ? (
+@@ -981,7 +989,8 @@ function ExpandedImageCard({ node, image, sourceUrl, index, scale, onView, onSet
+     const row = Math.floor(slot / columns);
+     const x = column * (node.width + 18);
+     const y = (row - rows + 1) * (node.height + 18);
+-    const imagePreviewUrl = sourceUrl || previewUrlFor(image.storageKey);
++    const previewEdge = Math.max(node.width, node.height) * scale * (globalThis.devicePixelRatio || 1) <= 192 ? 192 : 768;
++    const imagePreviewUrl = sourceUrl || previewUrlFor(image.storageKey, previewEdge) || previewUrlFor(image.storageKey);
+     const hasOriginalContent = Boolean(image.content && !image.content.startsWith("[image omitted]"));
+     const source = hasOriginalContent && (!image.storageKey || imagePreviewUrl)
+         ? pickImageSource({
+@@ -992,6 +1001,7 @@ function ExpandedImageCard({ node, image, sourceUrl, index, scale, onView, onSet
+               renderedWidth: node.width,
+               renderedHeight: node.height,
+               scale,
++              previewMaxEdge: previewEdge,
+           })
+         : imagePreviewUrl;
+ 

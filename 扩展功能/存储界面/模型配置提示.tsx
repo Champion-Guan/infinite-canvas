@@ -9,7 +9,7 @@ export function MissingModelConfigurationNotice() {
     useEffect(() => {
         if (!notice || shown.current === notice.sequence) return;
         shown.current = notice.sequence;
-        void message.warning({ key: "missing-model-configuration", content: notice.message, duration: 4 });
+        void message.warning({ key: `missing-model-configuration:${notice.message}`, content: notice.message, duration: 4 });
     }, [message, notice]);
     return null;
 }

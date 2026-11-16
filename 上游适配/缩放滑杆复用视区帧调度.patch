@@ -1,0 +1,32 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 5564baa..1a30321 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,5 +1,6 @@
+ import { ensureModelConfigured } from "@/扩展功能/产品配置/模型配置门禁";
+ import { paintNodeToolbar } from "@/扩展功能/画布交互/节点工具栏定位";
++import { useCanvasScaleGesture } from "@/扩展功能/画布交互/缩放手势调度";
+ import { useImageSuperGeneration } from "@/扩展功能/画布生成/一键超人操作";
+ import { OutsidePanelBoundary } from "@/扩展功能/主题/原生可关闭浮层";
+ import { ASSET_DRAG_TYPE, readAssetDrag } from "@/扩展功能/素材/上传资产规则";
+@@ -1244,19 +1245,7 @@ function InfiniteCanvasPage() {
+     }, [finishViewportInteraction]);
+     const moveMinimapViewport = useCallback((next: ViewportTransform) => viewportControllerRef.current?.move(next), []);
+ 
+-    const setZoomScale = useCallback(
+-        (scale: number) => {
+-            finishViewportInteraction();
+-            const nextScale = Math.min(Math.max(scale, 0.05), 5);
+-            setViewport((prev) => ({
+-                x: size.width / 2 - ((size.width / 2 - prev.x) / prev.k) * nextScale,
+-                y: size.height / 2 - ((size.height / 2 - prev.y) / prev.k) * nextScale,
+-                k: nextScale,
+-            }));
+-            setContextMenu(null);
+-        },
+-        [size.height, size.width, finishViewportInteraction],
+-    );
++    const setZoomScale = useCanvasScaleGesture(viewportRef, viewportControllerRef, size, stopFocusMotion);
+ 
+     const applyHistory = useCallback((entry: CanvasHistoryEntry) => {
+         stopFocusMotion();

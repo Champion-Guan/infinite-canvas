@@ -1,0 +1,64 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index f40bd38..62d0d7f 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1,6 +1,7 @@
+ import { ensureModelConfigured } from "@/扩展功能/产品配置/模型配置门禁";
+ import { paintNodeToolbar } from "@/扩展功能/画布交互/节点工具栏定位";
+ import { useCanvasScaleGesture } from "@/扩展功能/画布交互/缩放手势调度";
++import { createCanvasScaleFeedback } from "@/扩展功能/画布交互/视区即时反馈";
+ import { restoreValidViewport } from "@/扩展功能/画布交互/有效视区";
+ import { useImageSuperGeneration } from "@/扩展功能/画布生成/一键超人操作";
+ import { OutsidePanelBoundary } from "@/扩展功能/主题/原生可关闭浮层";
+@@ -309,6 +310,8 @@ function InfiniteCanvasPage() {
+     const [chatSessions, setChatSessions] = useState<CanvasAssistantSession[]>([]);
+     const [activeChatId, setActiveChatId] = useState<string | null>(null);
+     const [viewport, setViewport] = useState<ViewportTransform>({ x: 0, y: 0, k: 1 });
++    const [scaleFeedback] = useState(createCanvasScaleFeedback);
++    useEffect(() => scaleFeedback.publish(viewport.k), [scaleFeedback, viewport.k]);
+     const [canvasTool, setCanvasTool] = useState<"select" | "pan">("pan");
+     const [size, setSize] = useState({ width: 1200, height: 720 });
+     const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
+@@ -373,13 +376,15 @@ function InfiniteCanvasPage() {
+     renderedViewportRef.current = viewport;
+     const previewCanvasViewport = useCallback((next: ViewportTransform) => {
+         viewportRef.current = next;
++        scaleFeedback.publish(next.k);
+         const rendered = renderedViewportRef.current;
+         const ratio = next.k / rendered.k;
+         if (panOverlayRef.current) panOverlayRef.current.style.transform = `translate(${next.x - rendered.x * ratio}px, ${next.y - rendered.y * ratio}px) scale(${ratio})`;
+         paintNodeToolbar(nodeToolbarLayerRef.current, next);
+-    }, []);
++    }, [scaleFeedback]);
+     const changeCanvasPanning = useCallback((panning: boolean) => {
+         canvasPanningRef.current = panning;
++        if (panning) setHoveredNodeId(null);
+         setIsCanvasPanning(panning);
+     }, []);
+     const changeCanvasViewport = useCallback((next: ViewportTransform) => {
+@@ -3103,7 +3108,7 @@ function InfiniteCanvasPage() {
+     // during click, hover, or viewport changes, which is especially expensive for Markdown. These useCallback values
+     // and their memoized map/handler dependencies remain stable during interaction, so unchanged nodes do not rerender.
+     const handleNodeHoverStart = useCallback((nodeId: string) => {
+-        if (nodeDraggingRef.current) return;
++        if (nodeDraggingRef.current || canvasPanningRef.current) return;
+         setHoveredNodeId(nodeId);
+     }, []);
+     const handleNodeHoverEnd = useCallback((nodeId: string) => {
+@@ -3302,6 +3307,7 @@ function InfiniteCanvasPage() {
+                             isConnectionObscured={obscuredResultIds.has(node.id)}
+                             scale={viewport.k}
+                             isInViewport={visibleNodeIds.has(node.id)}
++                            isViewInteracting={isCanvasPanning}
+                             isSelected={selectedNodeIds.has(node.id)}
+                             isRelated={relatedHighlight.nodeIds.has(node.id) || connectionFocus.nodeIds.has(node.id) || connectionPreviewNodeIds.has(node.id)}
+                             isFocusRelated={activeNodeId === node.id}
+@@ -3491,7 +3497,7 @@ function InfiniteCanvasPage() {
+ 
+                 {isMiniMapOpen ? <Minimap nodes={nodes} viewport={viewport} viewportSize={size} onViewportChange={moveMinimapViewport} onViewportStart={beginMinimapInteraction} onViewportEnd={finishViewportInteraction} /> : null}
+ 
+-                <CanvasZoomControls scale={viewport.k} onScaleChange={setZoomScale} onReset={resetViewport} isMiniMapOpen={isMiniMapOpen} onToggleMiniMap={() => setIsMiniMapOpen((value) => !value)} />
++                <CanvasZoomControls scale={viewport.k} scaleFeedback={scaleFeedback} onScaleChange={setZoomScale} onReset={resetViewport} isMiniMapOpen={isMiniMapOpen} onToggleMiniMap={() => setIsMiniMapOpen((value) => !value)} />
+ 
+                 {contextMenu ? (
+                     <CanvasNodeContextMenu

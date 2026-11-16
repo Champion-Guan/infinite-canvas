@@ -1,20 +1,20 @@
 import type { CanvasNodeData } from "@/types/canvas";
-import { resolvePromptVariables, PRODUCT_PROMPT_SUPPLEMENT_SEPARATOR } from "./变量使用规则";
+import { resolvePromptVariables, stripLegacyPromptConstraints, PRODUCT_PROMPT_SUPPLEMENT_SEPARATOR } from "./变量使用规则";
 import { productParameterSupplement } from "../Excel画布/旧版参数规则";
 import { isPromptReady, promptDocument, promptPair } from "../Excel画布/商品提示词规则";
 import { optimizedFinalPrompt } from "./提示词优化规则";
 
-// 在原画布资源读取处使用当前源卡与参数，避免旧预览/旧resolved缓存绕过约束。
+// 使用当前源卡与参数；旧版自动约束不再传入生成请求。
 // undefined 让图片、视频、音频及其他插件继续走作者原读取逻辑。
 export function readProtectedGenerationText(node: CanvasNodeData, nodes: CanvasNodeData[]): string | undefined {
     const document = promptDocument(node);
     if (document) {
         const pair = promptPair(document);
-        return isPromptReady(pair) ? pair!.english : "";
+        return isPromptReady(pair) ? stripLegacyPromptConstraints(pair!.english) : "";
     }
     if (node.type !== "text") return undefined;
     const optimized = optimizedFinalPrompt(node, nodes);
-    if (optimized !== undefined) return optimized;
+    if (optimized !== undefined) return stripLegacyPromptConstraints(optimized);
     const metadata = node.metadata || {};
     const source = metadata.promptVariablePreviewOf && metadata.promptVariableSourceNodeId
         ? nodes.find(item => item.id === metadata.promptVariableSourceNodeId) : node;
@@ -29,6 +29,9 @@ export function readProtectedGenerationText(node: CanvasNodeData, nodes: CanvasN
 // 未决任务响应恢复仍由原任务协议处理，不在这里修改已提交的请求。
 export function readProtectedRetryPrompt(saved: string | undefined, current: string, preserveSnapshot = false) {
     if (preserveSnapshot) return saved || current;
-    if (current.includes("\n\n【变量与画面约束】") || current && (current.includes(PRODUCT_PROMPT_SUPPLEMENT_SEPARATOR) || saved?.includes(PRODUCT_PROMPT_SUPPLEMENT_SEPARATOR))) return current;
+    if (current && (stripLegacyPromptConstraints(saved || "") !== (saved || "") ||
+        stripLegacyPromptConstraints(current) !== current ||
+        current.includes(PRODUCT_PROMPT_SUPPLEMENT_SEPARATOR) || saved?.includes(PRODUCT_PROMPT_SUPPLEMENT_SEPARATOR)))
+        return resolvePromptVariables(current);
     return resolvePromptVariables(saved || current);
 }

@@ -1,0 +1,21 @@
+diff --git a/web/src/services/image-storage.ts b/web/src/services/image-storage.ts
+index a8d5761..bd0a451 100644
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -292,12 +292,13 @@ export async function resolveCanvasImageSource(storageKey?: string, maxEdge = 76
+     const cached = maxEdge === 192 ? overviewUrls.get(storageKey) : undefined;
+     if (cached) return cached;
+     const preview = await ensureImagePreview(storageKey);
+-    if (preview && maxEdge === 192) {
++    if (maxEdge === 192) {
+         const source = await overviewUrls.resolve(storageKey, () => readPreview(async () => {
+-            const blob = decodeInlineImage(preview);
++            const blob = preview ? decodeInlineImage(preview) : await getImageBlob(storageKey);
++            if (!blob) return undefined;
+             return await createImageThumbnailInBackground(blob, () => createImageThumbnail(blob, 192), 192) || blob;
+         }));
+-        return source || preview;
++        return source || preview || resolveImageUrl(storageKey);
+     }
+     return preview || resolveImageUrl(storageKey);
+ }

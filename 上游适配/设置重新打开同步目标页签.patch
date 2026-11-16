@@ -1,0 +1,15 @@
+diff --git a/web/src/components/layout/app-config-modal.tsx b/web/src/components/layout/app-config-modal.tsx
+index a28fb5e..be3ccde 100644
+--- a/web/src/components/layout/app-config-modal.tsx
++++ b/web/src/components/layout/app-config-modal.tsx
+@@ -84,7 +84,9 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
+     const editingChannel = config.channels.find((channel) => channel.id === editingChannelId) || null;
+     const locale = i18n.resolvedLanguage as AppLocale;
+     const imageResolutionOptions = mediaScaleOptions.map((value) => ({ value, label: value === "auto" ? t("settingsPanels.common.auto") : value.toUpperCase() }));
+-    useEffect(() => setActiveTab(resolveBusinessConfigTab(resolveConfigTab(initialTab))), [initialTab]);
++    useEffect(() => {
++        if (active) setActiveTab(resolveBusinessConfigTab(resolveConfigTab(initialTab)));
++    }, [active, initialTab]);
+     useEffect(() => { if (!active) setEditingChannelId(""); }, [active]);
+ 
+     const saveConfig = (nextConfig: AiConfig) => {

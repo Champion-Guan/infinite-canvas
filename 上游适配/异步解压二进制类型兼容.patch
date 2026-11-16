@@ -1,0 +1,11 @@
+diff --git a/web/src/lib/zip.ts b/web/src/lib/zip.ts
+index 60bafc5..5a1af89 100644
+--- a/web/src/lib/zip.ts
++++ b/web/src/lib/zip.ts
+@@ -19,5 +19,5 @@ export async function readZip(file: Blob) {
+     const bytes = new Uint8Array(await file.arrayBuffer());
+     const entries = await new Promise<Record<string, Uint8Array>>((resolve, reject) =>
+         unzip(bytes, (error, result) => error ? reject(error) : resolve(result)));
+-    return new Map(Object.entries(entries).map(([name, data]) => [name, new Blob([data])]));
++    return new Map(Object.entries(entries).map(([name, data]) => [name, new Blob([data as Uint8Array<ArrayBuffer>])]));
+ }

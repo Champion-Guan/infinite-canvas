@@ -1,0 +1,45 @@
+diff --git a/web/src/components/canvas/infinite-canvas.tsx b/web/src/components/canvas/infinite-canvas.tsx
+index b6e70c9..ea6c0ce 100644
+--- a/web/src/components/canvas/infinite-canvas.tsx
++++ b/web/src/components/canvas/infinite-canvas.tsx
+@@ -5,7 +5,6 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+ import { createCanvasPanScheduler } from "@/扩展功能/画布布局/画布平移调度";
+ import { createCanvasGestureProbe } from "@/扩展功能/画布交互/缩放性能记录";
+ import { canvasGridStep } from "@/扩展功能/画布交互/网格缩放步长";
+-import { residentCanvasClip } from "@/扩展功能/画布交互/驻留画布绘制裁剪";
+ 
+ import { canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
+ import { useThemeStore } from "@/stores/use-theme-store";
+@@ -67,7 +66,6 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+             scaleRef.current = next.k;
+             if (layerRef.current) {
+                 layerRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.k})`;
+-                layerRef.current.style.clipPath = residentCanvasClip(next, sizeRef.current.width, sizeRef.current.height) || "";
+             }
+             connectionRef.current?.setAttribute("transform", `translate(${next.x}, ${next.y}) scale(${next.k})`);
+             if (gridRef.current) {
+@@ -92,8 +90,6 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+         if (!root) return;
+         const update = () => {
+             sizeRef.current = { width: root.clientWidth, height: root.clientHeight };
+-            if (layerRef.current) layerRef.current.style.clipPath =
+-                residentCanvasClip(liveViewportRef.current, sizeRef.current.width, sizeRef.current.height) || "";
+         };
+         update();
+         const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+@@ -324,7 +320,6 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+         const live = panState.current.isPanning || zoomingRef.current || controlledRef.current ? schedulerRef.current?.latest : null;
+         if (live && layerRef.current) {
+             layerRef.current.style.transform = `translate(${live.x}px, ${live.y}px) scale(${live.k})`;
+-            layerRef.current.style.clipPath = residentCanvasClip(live, sizeRef.current.width, sizeRef.current.height) || "";
+             const step = canvasGridStep(live.k);
+             if (gridRef.current) gridRef.current.style.backgroundPosition = `${live.x % step}px ${live.y % step}px`;
+             if (gridRef.current) gridRef.current.style.backgroundSize = `${step}px ${step}px`;
+@@ -400,7 +395,6 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+                     transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.k})`,
+                     willChange: productActive ? "transform" : undefined,
+                     zIndex: 1,
+-                    clipPath: residentCanvasClip(viewport, sizeRef.current.width, sizeRef.current.height),
+                 }}
+             >
+                 {children}

@@ -1,0 +1,29 @@
+diff --git a/web/src/components/canvas/infinite-canvas.tsx b/web/src/components/canvas/infinite-canvas.tsx
+index 0a77cbe..f8fcdc9 100644
+--- a/web/src/components/canvas/infinite-canvas.tsx
++++ b/web/src/components/canvas/infinite-canvas.tsx
+@@ -3,6 +3,7 @@ import { CANVAS_FLOATING_CHANGE, CANVAS_PANEL_REVEAL, revealCanvasPanel } from "
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+ import { createCanvasPanScheduler } from "@/扩展功能/画布布局/画布平移调度";
++import { createCanvasGestureProbe } from "@/扩展功能/画布交互/缩放性能记录";
+ 
+ import { canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
+ import { useThemeStore } from "@/stores/use-theme-store";
+@@ -55,6 +56,7 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+     callbacksRef.current = { onManualViewportStart, onViewportChange, onViewportPreview, onPanningChange, onCanvasDeselect };
+     const schedulerRef = useRef<ReturnType<typeof createCanvasPanScheduler> | null>(null);
+     if (!schedulerRef.current) schedulerRef.current = createCanvasPanScheduler({
++        probe: createCanvasGestureProbe(() => containerRef.current),
+         paint: next => {
+             const scaleChanged = scaleRef.current !== next.k;
+             liveViewportRef.current = next;
+@@ -311,7 +313,7 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+         liveViewportRef.current = live || viewport;
+         scaleRef.current = (live || viewport).k;
+         // Keep idle gesture state in sync with zoom controls and restored views.
+-        if (!live) schedulerRef.current?.begin(viewport);
++        if (!live) schedulerRef.current?.begin(viewport, false);
+         callbacksRef.current.onViewportPreview?.(live || viewport);
+     }, [viewport]);
+ 

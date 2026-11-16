@@ -27,6 +27,7 @@ async function loadFile(file, dependencies) {
   const module = { exports: {} };
   new Function("require", "module", "exports", code)(
     id => {
+      if (id === "../画布导入/产品导入进度") return { publishImportProgress() {} };
       if (id === "../软件更新/升级页面状态.mjs") return upgradePage;
       if (id === "./画布驻留保护") return { productCanvasResidency: { changed() {}, register() { return () => {}; } } };
       assert.ok(Object.hasOwn(dependencies, id), `未注入依赖：${id}`);

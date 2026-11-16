@@ -1,0 +1,126 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 2136f48..720add8 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -154,6 +154,11 @@ export const CanvasNode = React.memo(function CanvasNode({
+     const [hovered, setHovered] = useState(false);
+     const definition = getNodeDefinition(data.type);
+     const pluginContext = useMemo<CanvasNodeContext | null>(() => (pluginHost ? buildNodeContext(pluginHost, data, theme, scale, isSelected) : null), [pluginHost, data, theme, scale, isSelected]);
++    // 这两个内置表单不读取scale；保留真实交互上下文，单独稳定其内容上下文。
++    const contentScale = data.type === "guan:prompt-variables" || data.type === "guan:product-prompt" ? 1 : scale;
++    const pluginContentContext = useMemo<CanvasNodeContext | null>(() => pluginHost
++        ? buildNodeContext(pluginHost, data, theme, contentScale, isSelected) : null,
++    [pluginHost, data, theme, contentScale, isSelected]);
+     const [isEditingContent, setIsEditingContent] = useState(false);
+     const [isEditingTitle, setIsEditingTitle] = useState(false);
+     const [titleDraft, setTitleDraft] = useState(data.title || "");
+@@ -446,7 +451,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+                         batchExpanded={batchExpanded}
+                         scale={scale}
+                         renderNodeContent={renderNodeContent}
+-                        pluginContext={pluginContext}
++                        pluginContext={pluginContentContext}
+                         mentionReferences={mentionReferences}
+                         onContentChange={onContentChange}
+                         onStopEditing={() => setIsEditingContent(false)}
+@@ -511,12 +516,17 @@ function NodeContent(props: NodeContentRendererProps) {
+     // Render plugin nodes with their registered renderer, or show the missing-plugin placeholder.
+     const definition = getNodeDefinition(props.node.type);
+     if (definition?.Content && props.pluginContext) {
+-        const PluginContent = definition.Content;
+-        return <PluginContent ctx={props.pluginContext} />;
++        return <PluginNodeBody Content={definition.Content} ctx={props.pluginContext} />;
+     }
+     return <MissingPluginContent theme={props.theme} type={props.node.type} />;
+ }
+ 
++const PluginNodeBody = React.memo(function PluginNodeBody({ Content, ctx }: {
++    Content: NonNullable<ReturnType<typeof getNodeDefinition>>["Content"]; ctx: CanvasNodeContext;
++}) {
++    return Content ? <Content ctx={ctx} /> : null;
++});
++
+ const nodeContentRenderers = {
+     [CanvasNodeType.Text]: TextContent,
+     [CanvasNodeType.Image]: ImageNodeContent,
+@@ -866,7 +876,6 @@ function ImageContent({
+ }) {
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+     const { t } = useTranslation();
+-    useSyncExternalStore(subscribeImagePreviews, getImagePreviewRevision);
+     const images = node.metadata?.images || [];
+     const batchCount = images.length;
+     const isBatchRoot = batchCount > 1;
+@@ -874,10 +883,12 @@ function ImageContent({
+     const primaryImage = images.find((image) => image.id === primaryImageId);
+     const primaryContent = primaryImage?.content || node.metadata?.content;
+     const primaryStorageKey = primaryImage?.storageKey || node.metadata?.storageKey;
++    useSyncExternalStore(useCallback((listener: () => void) => subscribeImagePreviews(listener, primaryStorageKey), [primaryStorageKey]),
++        useCallback(() => getImagePreviewRevision(primaryStorageKey), [primaryStorageKey]));
+     const primaryPreviewUrl = previewUrlFor(primaryStorageKey);
+     const displayStorageKeys = [...new Set([
+-        ...(!primaryContent || primaryContent.startsWith("[image omitted]") ? [primaryStorageKey] : []),
+-        ...images.filter((image) => image.storageKey && (!image.content || image.content.startsWith("[image omitted]"))).map((image) => image.storageKey),
++        primaryStorageKey,
++        ...(batchExpanded ? images.map(image => image.storageKey) : []),
+     ].filter((key): key is string => Boolean(key)))];
+     const displayStorageKeySignature = displayStorageKeys.join("\u0000");
+     const [resolvedSources, setResolvedSources] = useState<Record<string, string>>({});
+@@ -891,9 +902,10 @@ function ImageContent({
+         return () => { active = false; };
+     }, [displayStorageKeySignature]);
+     const hasOriginalContent = Boolean(primaryContent && !primaryContent.startsWith("[image omitted]"));
+-    const primarySource = hasOriginalContent
++    const readySource = resolvedSources[primaryStorageKey || ""] || primaryPreviewUrl;
++    const primarySource = hasOriginalContent && (!primaryStorageKey || readySource)
+         ? pickImageSource({
+-              previewUrl: primaryPreviewUrl,
++              previewUrl: readySource,
+               originalUrl: primaryContent!,
+               naturalWidth: primaryImage?.naturalWidth || node.metadata?.naturalWidth,
+               naturalHeight: primaryImage?.naturalHeight || node.metadata?.naturalHeight,
+@@ -901,7 +913,7 @@ function ImageContent({
+               renderedHeight: node.height,
+               scale,
+           })
+-        : resolvedSources[primaryStorageKey || ""] || primaryPreviewUrl;
++        : readySource;
+ 
+     return (
+         <BatchFrame batchCount={batchCount} batchExpanded={batchExpanded}>
+@@ -916,6 +928,7 @@ function ImageContent({
+                         src={primarySource}
+                         alt={node.title}
+                         draggable={false}
++                        decoding="async"
+                         onDragStart={(event) => event.preventDefault()}
+                         className={`pointer-events-none block h-full w-full select-none ${node.metadata?.freeResize ? "object-fill" : "object-contain"}`}
+                     />
+@@ -956,7 +969,8 @@ function ImageContent({
+ function ExpandedImageCard({ node, image, sourceUrl, index, scale, onView, onSetPrimary, onDuplicate, onDownload, onRetry, onDelete }: { node: CanvasNodeData; image: CanvasNodeImage; sourceUrl?: string; index: number; scale: number; onView: () => void; onSetPrimary: () => void; onDuplicate: () => void; onDownload: () => void; onRetry: () => void; onDelete: () => void }) {
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+     const { t } = useTranslation();
+-    useSyncExternalStore(subscribeImagePreviews, getImagePreviewRevision);
++    useSyncExternalStore(useCallback((listener: () => void) => subscribeImagePreviews(listener, image.storageKey), [image.storageKey]),
++        useCallback(() => getImagePreviewRevision(image.storageKey), [image.storageKey]));
+     const count = node.metadata?.images?.length || 0;
+     const columns = Math.min(count, 4);
+     const rows = Math.ceil(count / columns);
+@@ -968,7 +982,7 @@ function ExpandedImageCard({ node, image, sourceUrl, index, scale, onView, onSet
+     const y = (row - rows + 1) * (node.height + 18);
+     const imagePreviewUrl = sourceUrl || previewUrlFor(image.storageKey);
+     const hasOriginalContent = Boolean(image.content && !image.content.startsWith("[image omitted]"));
+-    const source = hasOriginalContent
++    const source = hasOriginalContent && (!image.storageKey || imagePreviewUrl)
+         ? pickImageSource({
+               previewUrl: imagePreviewUrl,
+               originalUrl: image.content!,
+@@ -1005,7 +1019,7 @@ function ExpandedImageCard({ node, image, sourceUrl, index, scale, onView, onSet
+                 onView();
+             }}
+         >
+-            {source ? <img src={source} alt={node.title} draggable={false} className="pointer-events-none h-full w-full select-none object-contain" /> : <ImageSlotStatus node={node} image={image} />}
++            {source ? <img src={source} alt={node.title} decoding="async" draggable={false} className="pointer-events-none h-full w-full select-none object-contain" /> : <ImageSlotStatus node={node} image={image} />}
+             {image.storageKey || hasOriginalContent ? (
+                 <div className="pointer-events-none absolute inset-x-2 top-2 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/node:pointer-events-auto group-hover/node:opacity-100">
+                     <button type="button" className="flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg border px-1.5 text-[10px] font-medium shadow-[0_6px_18px_rgba(15,23,42,.16)] backdrop-blur-md transition hover:scale-[1.02]" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.activeText }} title={t("common.download")} onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => (event.stopPropagation(), onDownload())}>

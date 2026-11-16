@@ -12,6 +12,8 @@ function load(file, dependencies = {}, extra = '') {
     const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
     const module = { exports: {} };
     new Function('require', 'module', 'exports', 'window', code)(id => {
+        if (id === '../画布导入/产品导入进度') return { publishImportProgress() {} };
+        if (id === '../画布导入/产品导入进度面板') return { ProductImportProgressPanel: () => null };
         if (id === '../本机存储/启动画面交接.mjs') return { finishStartupScreen() {} };
         assert.ok(Object.hasOwn(dependencies, id), id); return dependencies[id];
     }, module, module.exports, { matchMedia: () => ({ matches: false }) });
@@ -80,7 +82,8 @@ function harness(projects = order(), initiallyActive = 'B', initiallyVisited = [
     });
     const render = () => {
         const tree = workspace.ProductWorkspace(), children = tree.props.children;
-        return { ids: children[0].map(child => child.props.id), surfaces: children[0], fallback: children[1]?.type };
+        const surfaces = children.find(Array.isArray);
+        return { ids: surfaces.map(child => child.props.id), surfaces, fallback: children.at(-1)?.type };
     };
     const entry = load('产品配置/画布入口.tsx', {
         react,

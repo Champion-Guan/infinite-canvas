@@ -13,6 +13,7 @@ import { usePreferredModelSynchronization } from "../画布生成/偏好模型�
 import { createProductCanvasCache, retainedProductCanvases, PRODUCT_CANVAS_IDLE_TIMEOUT_MS } from "./画布缓存规则";
 import { productCanvasResidency } from "./画布驻留保护";
 import { finishStartupScreen } from "../本机存储/启动画面交接.mjs";
+import { ProductImportProgressPanel } from "../画布导入/产品导入进度面板";
 
 // 最近访问的画布保留热实例；非当前画布连续安全空闲五分钟后才休眠释放。
 // 后台工作实例由驻留保护临时保留，不用卸载/Activity暂停来取消用户任务。
@@ -107,6 +108,7 @@ export function ProductWorkspace() {
   return (
     <div data-product-cache-idle-timeout={PRODUCT_CANVAS_IDLE_TIMEOUT_MS} data-product-cache-residents={visibleIds.length}
       style={{ position: "relative", height: "100%", minHeight: 0 }}>
+      <ProductImportProgressPanel />
       {visibleIds.filter((id) => !blockedRestores.includes(id)).map((id) => (
         <ProductCanvas key={id} id={id} active={id === activeId} retiringProject={id === activeId ? retiringProject : null}
           fadingOut={id === handoff.outgoingId} animateEntry={handoff.revision > 0} onFadeOut={finishFadeOut} />

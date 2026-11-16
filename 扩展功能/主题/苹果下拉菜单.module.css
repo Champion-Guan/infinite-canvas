@@ -69,6 +69,27 @@
     background: transparent;
 }
 
+.submenuFrame {
+    max-height: inherit;
+    overflow: hidden;
+    border: 1px solid #c9c9c9;
+    border-radius: 16px;
+    background: rgb(255 255 255 / 96%);
+}
+
+.submenu .submenuFrame > :global(.ant-dropdown-menu) {
+    max-height: inherit;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 0;
+    border-radius: 0;
+}
+
+:global(.dark) .submenuFrame {
+    border-color: rgb(255 255 255 / 14%);
+    background: rgb(38 38 38 / 96%);
+}
+
 :global(.dark) .dropdown :global(.ant-dropdown-menu),
 :global(.dark) .submenu :global(.ant-dropdown-menu) {
     border-color: rgb(255 255 255 / 14%);

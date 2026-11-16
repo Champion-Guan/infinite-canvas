@@ -189,7 +189,7 @@ export function ProductCapsules() {
             aria-hidden="true"
             hidden={!current}
             data-product-indicator={current ? activeId : undefined}
-            data-status={currentStatus}
+            data-capsule-status={currentStatus}
             className={styles.indicator}
             style={{ borderRadius: 999 }}
           />
@@ -245,7 +245,7 @@ export function ProductCapsules() {
         const direction = side === "left" ? "左" : "右";
         return <div key={side} className={`${styles.edgeHint} ${styles[side]}`}
           data-capsule-location={side} data-visible={shown} aria-hidden={!shown} inert={!shown}>
-          <AppleActionButton className={styles.edgeButton} data-status={currentStatus}
+          <AppleActionButton className={styles.edgeButton} data-capsule-status={currentStatus}
             disabled={!shown} tabIndex={shown ? 0 : -1}
             aria-label={`当前产品在${direction}侧：${current?.title ?? ""}，点击定位`}
             title={`定位当前产品：${current?.title ?? ""}`} onClick={revealSelected}>

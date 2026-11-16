@@ -1,0 +1,28 @@
+diff --git a/web/src/components/canvas/canvas-node-prompt-panel.tsx b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+index faa5260..a48478c 100644
+--- a/web/src/components/canvas/canvas-node-prompt-panel.tsx
++++ b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+@@ -1,4 +1,5 @@
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
++import { stripLegacyPromptConstraints } from "@/扩展功能/提示词/变量使用规则";
+ import { normalizeTextReasoningEffort } from "@/扩展功能/画布生成/文本推理强度";
+ import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
+ import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+@@ -55,7 +56,7 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+     const hasTextContent = node.type === CanvasNodeType.Text && Boolean(node.metadata?.content?.trim());
+     const hasImageContent = node.type === CanvasNodeType.Image && Boolean(node.metadata?.content);
+     const isEditingExistingContent = hasTextContent || hasImageContent;
+-    const [prompt, setPrompt] = useState(node.metadata?.composerContent ?? node.metadata?.prompt ?? "");
++    const [prompt, setPrompt] = useState(() => stripLegacyPromptConstraints(node.metadata?.composerContent ?? node.metadata?.prompt ?? ""));
+     const productActive = useProductActive();
+     const expandTriggerId = useId();
+     const [localExpanded, setLocalExpanded] = useState(false);
+@@ -64,7 +65,7 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+ 
+     // Restore prompts only when switching nodes; preserve the current input after generation on the same node.
+     useEffect(() => {
+-        setPrompt(node.metadata?.composerContent ?? node.metadata?.prompt ?? "");
++        setPrompt(stripLegacyPromptConstraints(node.metadata?.composerContent ?? node.metadata?.prompt ?? ""));
+         // eslint-disable-next-line react-hooks/exhaustive-deps
+     }, [node.id]);
+ 

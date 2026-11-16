@@ -99,7 +99,7 @@ test('批量插入沿用真实事务：默认跳过视频、同步绑定预览�
     assert.equal(api.selected.size, 2); assert.equal(api.selectedConnection, null);
     assert.ok(api.port.nodesRef.current.some(n => n.metadata?.promptVariablePreviewOf && n.metadata.content.includes('真实产品')));
     const detail = api.port.nodesRef.current.find(n => n.metadata?.promptVariablePreviewOf && n.metadata.content.includes('[LENGTH]'));
-    assert.ok(detail.metadata.content.includes('[QUANTITY]')); assert.match(detail.metadata.content, /未填写变量：\[LENGTH\]、\[QUANTITY\]/);
+    assert.ok(detail.metadata.content.includes('[QUANTITY]')); assert.doesNotMatch(detail.metadata.content, /【变量与画面约束】/);
     api.insertExcelCards({ productId: 'a' });
     assert.equal(api.port.nodesRef.current.length, 5); assert.equal(api.port.connectionsRef.current.length, 4);
     api.insertExcelCards({ productId: 'a', includeVideo: true });
@@ -135,7 +135,9 @@ test('确认Excel来源更新后同步最终预览，节点ID和位置保留', a
     api.answer = true; api.render(); api.effects[0]();
     assert.equal(api.confirmations, 1);
     for (const n of before) assert.deepEqual(api.port.nodesRef.current.find(x => x.id === n.id).position, n.position);
-    assert.match(api.port.nodesRef.current.find(n => n.metadata?.promptVariablePreviewOf).metadata.content, /^新Excel \[PRODUCT NAME\][\s\S]*未填写变量/);
+    const text = api.port.nodesRef.current.find(n => n.metadata?.promptVariablePreviewOf).metadata.content;
+    assert.match(text, /^新Excel \[PRODUCT NAME\]/);
+    assert.doesNotMatch(text, /【变量与画面约束】/);
 });
 test('画布恢复身份不符时来源同步不触碰旧节点', async () => {
     const api = await canvas({ restoredProjectIdRef: { current: 'b' } }, [node('source', 'text', { content: '旧', excelPromptRaw: '旧', excelPromptKey: 'Main Prompt', excelPromptTemplateId: 't' })]);
@@ -154,7 +156,8 @@ test('参数连接保留现有卡片位置；冲突不提交，解绑只移除�
     const keep = node('keep', 'image'); api.port.nodesRef.current = [p, source, keep];
     assert.equal(api.bindParameterConnection(p.id, source.id), true);
     const preview = api.port.nodesRef.current.find(n => n.metadata?.promptVariablePreviewOf);
-    assert.match(preview.metadata.content, /未填写变量：\[LENGTH\]、\[QUANTITY\]/);
+    assert.match(preview.metadata.content, /\[LENGTH\]/); assert.match(preview.metadata.content, /\[QUANTITY\]/);
+    assert.doesNotMatch(preview.metadata.content, /【变量与画面约束】/);
     assert.deepEqual(api.port.nodesRef.current.find(n => n.id === source.id).position, source.position);
     const count = api.commits.length, other = api.createParameterNode({ x: -1000, y: 0 });
     assert.throws(() => api.bindParameterConnection(other.id, source.id, [...api.port.nodesRef.current, other]), /已连接另一张参数卡/);

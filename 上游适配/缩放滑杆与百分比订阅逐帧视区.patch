@@ -1,0 +1,46 @@
+diff --git a/web/src/components/canvas/canvas-zoom-controls.tsx b/web/src/components/canvas/canvas-zoom-controls.tsx
+index 3fc1e0e..f216c10 100644
+--- a/web/src/components/canvas/canvas-zoom-controls.tsx
++++ b/web/src/components/canvas/canvas-zoom-controls.tsx
+@@ -1,7 +1,8 @@
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import type { ReactNode } from "react";
+ import { Compass, Focus, HelpCircle } from "lucide-react";
+-import { useEffect, useState } from "react";
++import { useEffect, useState, useSyncExternalStore } from "react";
++import type { CanvasScaleFeedback } from "@/扩展功能/画布交互/视区即时反馈";
+ import { Button } from "antd";
+ import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+ import { AppleModal as Modal } from "@/扩展功能/主题/苹果弹窗";
+@@ -12,16 +13,21 @@ import { useThemeStore } from "@/stores/use-theme-store";
+ 
+ type CanvasZoomControlsProps = {
+     scale: number;
++    scaleFeedback?: CanvasScaleFeedback;
+     onScaleChange: (scale: number) => void;
+     onReset: () => void;
+     isMiniMapOpen: boolean;
+     onToggleMiniMap: () => void;
+ };
+ 
+-export function CanvasZoomControls({ scale, onScaleChange, onReset, isMiniMapOpen, onToggleMiniMap }: CanvasZoomControlsProps) {
++const noScaleSubscription = () => () => {};
++export function CanvasZoomControls({ scale, scaleFeedback, onScaleChange, onReset, isMiniMapOpen, onToggleMiniMap }: CanvasZoomControlsProps) {
+     const productActive = useProductActive();
+     const [shortcutsOpen, setShortcutsOpen] = useState(false);
+-    const [displayScale, setDisplayScale] = useState(scale);
++    const [localScale, setDisplayScale] = useState(scale);
++    const liveScale = useSyncExternalStore(scaleFeedback?.subscribe ?? noScaleSubscription,
++        scaleFeedback?.getSnapshot ?? (() => scale), scaleFeedback?.getSnapshot ?? (() => scale));
++    const displayScale = scaleFeedback ? liveScale : localScale;
+     useEffect(() => setDisplayScale(scale), [scale]);
+     const { t } = useTranslation();
+     const colorTheme = useThemeStore((state) => state.theme);
+@@ -57,6 +63,7 @@ export function CanvasZoomControls({ scale, onScaleChange, onReset, isMiniMapOpe
+                         onChange={(event) => {
+                             const next = Number(event.target.value) / 100;
+                             setDisplayScale(next);
++                            scaleFeedback?.publish(next);
+                             onScaleChange(next);
+                         }}
+                         aria-label={t("canvas.zoom")}

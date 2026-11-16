@@ -2,28 +2,40 @@
 const entries = new Map();
 const aliases = new Map();
 
-export function deferCanvasMediaUrl(read, release = () => {}) {
+export function deferCanvasMediaUrl(read, release = () => {}, preview) {
   const url = `blob:guan-deferred:${crypto.randomUUID()}`;
-  entries.set(url, { read, release, flight: null, owners: 0, epoch: 0 });
+  const entry = { read, release, preview: undefined, flight: null, owners: 0, epoch: 0 };
+  if (preview) entry.preview = { ...preview, async readBlob() {
+    const epoch = entry.epoch;
+    const blob = await preview.readBlob();
+    if (epoch !== entry.epoch) { preview.release?.(); throw Error('画布已休眠，媒体读取已释放。'); }
+    return blob;
+  } };
+  entries.set(url, entry);
   return url;
 }
 
 export function releaseDeferredCanvasMedia(url) {
   const entry = entries.get(url);
   if (entry?.resolved) entry.release(entry.resolved);
+  entry?.preview?.release?.();
   entry && entry.epoch++;
   entries.delete(url);
   for (const [source, value] of aliases) if (value === entry) aliases.delete(source);
 }
 const entryFor = value => entries.get(value) ?? aliases.get(value);
-export function hasDeferredCanvasMedia(value) {
+export const deferredCanvasMediaPreview = value => typeof value === 'string' ? entryFor(value)?.preview : undefined;
+export function hasDeferredCanvasMedia(value, { ignoreKeyedImageUrls = false, deferImageNodes = false } = {}) {
   if (typeof value === 'string') {
     const entry = entryFor(value);
     return Boolean(entry && (entries.has(value) || entry.resolved !== value));
   }
   if (!value || typeof value !== 'object') return false;
   if (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) return false;
-  return Object.values(value).some(hasDeferredCanvasMedia);
+  if (deferImageNodes && value.type === 'image' && value.metadata?.storageKey) return false;
+  return Object.entries(value).some(([key, child]) =>
+    !(ignoreKeyedImageUrls && key === 'url' && value.storageKey?.startsWith?.('image:'))
+    && hasDeferredCanvasMedia(child, { ignoreKeyedImageUrls, deferImageNodes }));
 }
 
 export function retainCanvasMedia(value) {
@@ -46,6 +58,7 @@ export function retainCanvasMedia(value) {
       for (const entry of retained) if (!entry.owners) {
         entry.epoch++;
         if (entry.resolved) entry.release(entry.resolved);
+        entry.preview?.release?.();
         entry.resolved = undefined;
         entry.flight = null;
       }
@@ -64,7 +77,7 @@ export function sameDeferredCanvasMedia(a, b) {
  * @param {T} value
  * @returns {Promise<T>}
  */
-export async function restoreCanvasMedia(value, { deferImageNodes = false } = {}) {
+export async function restoreCanvasMedia(value, { deferImageNodes = false, deferKeyedImageUrls = false } = {}) {
   const pending = new Set(), visited = new WeakSet();
   const collect = item => {
     if (typeof item === 'string') {
@@ -76,7 +89,10 @@ export async function restoreCanvasMedia(value, { deferImageNodes = false } = {}
     if (!Array.isArray(item) && Object.getPrototypeOf(item) !== Object.prototype && Object.getPrototypeOf(item) !== null) return;
     if (deferImageNodes && item.type === 'image' && item.metadata?.storageKey) return;
     visited.add(item);
-    for (const child of Object.values(item)) collect(child);
+    for (const [key, child] of Object.entries(item)) {
+      if (deferKeyedImageUrls && key === 'url' && item.storageKey?.startsWith?.('image:')) continue;
+      collect(child);
+    }
   };
   collect(value);
   if (!pending.size) return value;

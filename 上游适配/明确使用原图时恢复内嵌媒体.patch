@@ -1,0 +1,16 @@
+diff --git a/web/src/services/image-storage.ts b/web/src/services/image-storage.ts
+index bd0a451..59efa2a 100644
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -232,8 +232,9 @@ function throwIfAborted(signal?: AbortSignal) {
+ }
+ 
+ export async function resolveImageUrl(storageKey?: string, fallback = "") {
+-    if (!storageKey) return fallback;
+-    return objectUrls.resolve(storageKey, () => store.getItem<Blob>(storageKey), fallback);
++    const source = storageKey ? await objectUrls.resolve(storageKey, () => store.getItem<Blob>(storageKey), fallback) : fallback;
++    return source?.startsWith("blob:guan-deferred:")
++        ? (await import("@/扩展功能/本机存储/画布媒体延迟恢复.mjs")).restoreCanvasMedia(source) : source;
+ }
+ 
+ export async function getImageBlob(storageKey: string) {

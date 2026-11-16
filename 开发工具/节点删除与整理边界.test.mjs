@@ -9,6 +9,7 @@ import ts from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
 import typescript from '../.运行/3100源/画布副本/web/node_modules/typescript/lib/typescript.js';
+import { variantModules } from './产品变体生成夹具.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 async function load(name, dependencies = {}) {
@@ -17,6 +18,7 @@ async function load(name, dependencies = {}) {
     const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file, { loader: 'ts', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
     const module = { exports: {} };
     new Function('require', 'module', 'exports', code)(id => {
+        if (id === '@/扩展功能/媒体交付/缩略图读取队列') return variantModules().load('媒体交付/缩略图读取队列.ts');
         assert.ok(Object.hasOwn(dependencies, id), '未声明依赖：' + id);
         return dependencies[id];
     }, module, module.exports);
@@ -111,6 +113,7 @@ test('再次删除已恢复的节点只更新对应批次，其他回收节点�
 
 const serviceRoot = resolve(root, '.运行/3100源/画布副本/web/src');
 const servicePorts = {
+    '@/扩展功能/媒体交付/缩略图后台生成': { imagePreviewParallelism: () => 3, createImageThumbnailInBackground: (_blob, fallback) => fallback() },
     '@/扩展功能/素材/上传资产规则': await load('素材/上传资产规则.ts'),
     '@/扩展功能/媒体交付/生成图片尺寸交付.mjs': {}, '@/扩展功能/媒体交付/图片上传预检.mjs': {},
     '@/扩展功能/媒体交付/上传前存储检查.mjs': {},

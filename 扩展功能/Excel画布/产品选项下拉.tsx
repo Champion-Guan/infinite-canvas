@@ -2,6 +2,7 @@ import { DropdownMenu } from "radix-ui";
 import { Check, ChevronDown } from "lucide-react";
 import type { ProductOption } from "./旧版参数规则";
 import menuStyles from "../主题/苹果下拉菜单.module.css";
+import motionStyles from "../主题/下拉菜单动效.module.css";
 
 type ProductOptionSelectProps = {
     value: string;
@@ -30,10 +31,12 @@ export function ProductOptionSelect({ value, options, onChange, borderColor, tex
                     data-card-panel-anchor
                     aria-label={label}
                     align="start"
+                    side="bottom"
+                    avoidCollisions={false}
                     sideOffset={6}
                     collisionPadding={8}
                     loop
-                    className={`${menuStyles.panel} guan-scroll-region thin-scrollbar z-[80] max-h-[min(var(--radix-dropdown-menu-content-available-height),18rem)] min-w-[var(--radix-dropdown-menu-trigger-width)] origin-[var(--radix-dropdown-menu-content-transform-origin)] overflow-y-auto overscroll-contain outline-none duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:data-[side=bottom]:slide-in-from-top-1 data-[state=open]:data-[side=top]:slide-in-from-bottom-1 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:pointer-events-none motion-reduce:animate-none`}
+                    className={`${menuStyles.panel} ${motionStyles.radix} guan-scroll-region thin-scrollbar z-[80] max-h-[min(var(--radix-dropdown-menu-content-available-height),18rem)] min-w-[var(--radix-dropdown-menu-trigger-width)] origin-[var(--radix-dropdown-menu-content-transform-origin)] overflow-y-auto overscroll-contain outline-none`}
                     style={{ borderColor, color: textColor }}
                     onMouseDown={event => event.stopPropagation()}
                     onWheel={event => event.stopPropagation()}

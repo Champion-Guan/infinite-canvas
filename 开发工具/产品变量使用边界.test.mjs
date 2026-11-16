@@ -29,58 +29,36 @@ const titles = await load('扩展功能/Excel画布/旧版最终提示词标题.
 const parameterLinks = await load('扩展功能/Excel画布/产品参数联动.ts', { '../提示词/变量使用规则': variables, './旧版最终提示词标题': titles, './旧版参数规则': rules });
 const transactions = await load('扩展功能/Excel画布/Excel卡片事务.ts', { './旧版参数规则': rules, './产品参数联动': parameterLinks, './旧版最终提示词标题': titles, './Excel卡片上下文': contexts });
 const sync = await load('扩展功能/Excel画布/旧版提示词同步.ts', { './旧版参数规则': rules });
-const beforeRules = text => text.split('\n\n【变量与画面约束】')[0];
+const beforeRules = text => { assert.doesNotMatch(text, /【变量与画面约束】/); return text; };
 const box = (id, metadata = {}, type = 'text') => ({ id, title: id, type, position: { x: 0, y: 0 }, width: 340, height: 240, metadata });
 const parameter = values => box('parameter', { promptVariableValues: values }, 'guan:prompt-variables');
 
-test('尺寸主题空长度、数量、材质均保留未提供，不能从主题编造', () => {
-    const result = resolvePrompt('Theme: dimensions display\nLength: [LENGTH]; Count: [QUANTITY]; Material: [MATERIAL]', { '[LENGTH]': ' ', '[QUANTITY]': '', '[MATERIAL]': '' });
-    assert.match(beforeRules(result), /\[LENGTH\].*\[QUANTITY\].*\[MATERIAL\]/);
-    assert.match(result, /未填写变量：\[LENGTH\]、\[QUANTITY\]、\[MATERIAL\]/);
-    assert.match(result, /省略该尺寸标注/); assert.match(result, /不得根据主题、常识、示例或参考图猜测/);
+test('普通手动提示词与尺寸要求保持原文，不再自动追加任何变量或画面约束', () => {
+    for (const prompt of ['更改一下图片的尺寸', '把尺寸改为3.2 cm和6 cm', 'Theme: dimensions display', '普通文字', '', '@[node:abc] [1] [0-5秒] [PRODUCT PHOTO/CAD]'])
+        assert.equal(resolvePrompt(prompt), prompt);
 });
-test('0是已填写真实值，别名大小写和分隔符可替换，未用共享参数不追加', () => {
-    const result = resolvePrompt('Theme: dimensions display\n[product_length] [QUANTITY] [NAME]', { '[PRODUCT LENGTH]': '0 cm', '[QUANTITY]': '0', '[NAME]': '样品', '[WIDTH]': '878 cm' });
-    assert.match(beforeRules(result), /0 cm 0 样品/); assert.doesNotMatch(result, /878/);
-    assert.doesNotMatch(result, /未填写变量/);
-});
-test('显式清空不会退回旧别名，待填写等占位值不算确认数据', () => {
-    const result = resolvePrompt('Theme: dimension display\n[LENGTH] [COUNT] [MATERIAL]', { '[LENGTH]': '', '[length]': '88 cm', '[COUNT]': '待填写', '[MATERIAL]': '[MATERIAL]' });
-    assert.doesNotMatch(result, /88 cm/); assert.match(result, /未填写变量：\[LENGTH\]、\[COUNT\]、\[MATERIAL\]/);
-});
-for (const theme of ['lifestyle scene', '材质结构', 'core selling points', '规格参数介绍', 'scale of business', 'without dimension annotations', '非尺寸展示主题', '尺寸以外的使用场景，不显示尺寸']) {
-    test('非尺寸主题不带入共享尺寸值：' + theme, () => {
-        const result = resolvePrompt(`Theme: ${theme}\nPRODUCT DATA: [LENGTH] [WIDTH] [DIMENSIONS]\nOutput: 1152 x 1536 px 3:4`, { '[LENGTH]': '73.6 cm', '[WIDTH]': '48.3 cm', '[DIMENSIONS]': '73.6 x 48.3 cm' });
-        assert.doesNotMatch(result, /73\.6|48\.3/); assert.match(result, /不是产品尺寸展示主题/);
-        assert.match(result, /1152 x 1536 px 3:4/);
-    });
-}
-for (const theme of ['dimension display', 'product size chart', 'size chart', '长度展示', '尺寸规格', 'measurement diagram']) {
-    test('明确尺寸主题允许已有的真实尺寸：' + theme, () => {
-        const result = resolvePrompt(`主题：${theme}\n[LENGTH] [WIDTH]`, { '[LENGTH]': '73.6 cm' });
-        assert.match(beforeRules(result), /73\.6 cm \[WIDTH\]/); assert.match(result, /本卡为产品尺寸展示主题/);
-        assert.match(result, /未填写变量：\[WIDTH\]/);
-    });
-}
-test('Theme优先于COMPOSITION LOCK，公共数据和通用说明不参与主题识别', () => {
-    for (const prompt of ['COMPOSITION LOCK: dimension chart\nTheme: lifestyle\n[LENGTH]', 'Theme: lifestyle\nCOMPOSITION LOCK: dimensions\n[LENGTH]', 'PRODUCT DATA: dimensions: [LENGTH]\nSAFETY RULES: show size chart']) {
-        const result = resolvePrompt(prompt, { '[LENGTH]': '73.6 cm' });
-        assert.doesNotMatch(result, /73\.6/); assert.match(result, /不是产品尺寸展示主题/);
+test('旧模板只替换已填写值，不推断主题或抑制已填写尺寸，未填写内容保持原文', () => {
+    for (const theme of ['lifestyle scene', '材质结构', 'dimensions display']) {
+        const prompt = `Theme: ${theme}\n[LENGTH] [COUNT] [MATERIAL]\nOutput: 1152 x 1536 px 3:4`;
+        assert.equal(resolvePrompt(prompt, { '[length]': '73.6 cm', '[COUNT]': '0' }),
+            `Theme: ${theme}\n73.6 cm 0 [MATERIAL]\nOutput: 1152 x 1536 px 3:4`);
     }
 });
-test('主题变量有真实值时可识别，但输出像素宽高不当产品尺寸', () => {
-    const result = resolvePrompt('Theme: [FOCUS]\n[LENGTH]\n[IMAGE WIDTH] x [OUTPUT HEIGHT] px', { '[FOCUS]': 'dimensions', '[LENGTH]': '73.6 cm', '[IMAGE WIDTH]': '1152', '[OUTPUT HEIGHT]': '1536' });
-    assert.match(beforeRules(result), /73\.6 cm\n1152 x 1536 px/);
-    assert.match(resolvePrompt('Theme: image width and height\n[LENGTH]', { '[LENGTH]': '73.6 cm' }), /不是产品尺寸展示主题/);
+test('显式清空不退回旧别名，待填写等占位值不生成默认值或约束文字', () => {
+    const prompt = '[LENGTH] [COUNT] [MATERIAL]';
+    assert.equal(resolvePrompt(prompt, { '[LENGTH]': '', '[length]': '88 cm', '[COUNT]': '待填写', '[MATERIAL]': '[MATERIAL]' }), prompt);
 });
-test('只处理变量，不把节点引用、分镜时间和普通文字当产品数据', () => {
-    const plain = '@[node:abc] [1] [0-5秒] [PRODUCT PHOTO/CAD]';
-    assert.equal(resolvePrompt(plain, { '[1]': 'wrong' }), plain); assert.equal(resolvePrompt(''), ''); assert.equal(resolvePrompt('普通文字'), '普通文字');
-    const once = resolvePrompt('Theme: lifestyle\n[LENGTH] [NAME]', { '[LENGTH]': '73.6 cm' });
-    assert.equal(resolvePrompt(once), once);
-});
-test('没有任何尺寸数据的尺寸展示卡仍明确禁止猜测', () => {
-    assert.match(resolvePrompt('Theme: dimensions display'), /省略该尺寸标注/);
+const legacyRules = '【变量与画面约束】\n仅使用用户明确填写的真实产品数据。未填写的变量（包括尺寸、数量、材质等）不得根据主题、常识、示例或参考图猜测、补齐或编造；省略对应的文字标注和依赖该数据的展示，不把占位符画到图片中。\n本卡为产品尺寸展示主题，也只能标注本提示词中已填写的尺寸；缺少长度等参数时省略该尺寸标注，不用其他尺寸代替。\n未填写变量：[LENGTH]。保持未提供，不填默认值。';
+test('旧自动后缀在单卡与多卡组装中移除，保留正文、后续引用卡和产品补充原文', () => {
+    const clean = variables.stripLegacyPromptConstraints;
+    const original = '原文\n精确尺寸3.2 cm';
+    assert.equal(clean(original + '\n\n' + legacyRules), original);
+    const extra = variables.PRODUCT_PROMPT_SUPPLEMENT_SEPARATOR + '我的补充\n[原文]  ';
+    assert.equal(clean(original + '\n\n' + legacyRules + extra), original + extra);
+    assert.equal(clean(original + '\n\n' + legacyRules + '\n\n【第二张卡】\n第二张原文\n\n' + legacyRules), original + '\n\n【第二张卡】\n第二张原文');
+    assert.equal(clean(legacyRules), '');
+    assert.equal(clean('自定义正文\n\n【变量与画面约束】\n用户自己写的内容'), '自定义正文\n\n【变量与画面约束】\n用户自己写的内容');
+    assert.equal(resolvePrompt(original + '\n\n' + legacyRules + extra), original + extra);
 });
 test('绑定和表单初始化保留别名值，用户显式清空保持空白，型号NA保留', () => {
     const values = { '[productLength]': '73.6 cm', '[MODEL]': 'NA' };
@@ -104,18 +82,18 @@ test('未识别Excel且无变量时连接普通提示词不自动创建最终提
         assert.ok(!bound.nodes.some(node => node.metadata?.promptVariablePreviewOf));
     }
 });
-test('首次绑定、修改原文、Excel来源更新均同步同一套约束', () => {
+test('旧绑定、原文修改与Excel同步均只组装内容，不再生成画面约束', () => {
     const params = parameter({ '[LENGTH]': '73.6 cm', '[COUNT]': '' });
     const source = box('source', { content: 'Theme: lifestyle\n[LENGTH] [COUNT]', excelPromptTemplateId: 't', excelPromptKey: 'detail' });
     let sequence = 0;
     const factory = { create: (type, position, metadata) => ({ ...box('preview-' + ++sequence, metadata, type), position }), place: node => node, edgeId: () => 'edge-' + ++sequence };
     const bound = transactions.bindExcelParameters([params, source], [], params.id, source.id, factory);
-    assert.doesNotMatch(bound.nodes.at(-1).metadata.content, /73\.6/);
+    assert.match(bound.nodes.at(-1).metadata.content, /73\.6 cm/); assert.doesNotMatch(bound.nodes.at(-1).metadata.content, /【变量与画面约束】/);
     const edited = bound.nodes.map(n => n.id === 'source' ? { ...n, metadata: { ...n.metadata, content: 'Theme: dimension display\n[LENGTH] [COUNT]' } } : n);
     const reconciled = transactions.reconcileExcelPreviews(bound.nodes, edited);
-    assert.match(reconciled.at(-1).metadata.content, /73\.6 cm/); assert.match(reconciled.at(-1).metadata.content, /未填写变量：\[COUNT\]/);
+    assert.match(reconciled.at(-1).metadata.content, /73\.6 cm/); assert.match(reconciled.at(-1).metadata.content, /\[COUNT\]/); assert.doesNotMatch(reconciled.at(-1).metadata.content, /【变量与画面约束】/);
     const updated = sync.syncExcelPromptNodes(reconciled, { templates: [{ id: 't', prompts: { detail: 'Theme: material\n[LENGTH] [COUNT]' } }] }, () => true);
-    assert.doesNotMatch(updated.at(-1).metadata.content, /73\.6/); assert.match(updated.at(-1).metadata.content, /不是产品尺寸展示主题/);
+    assert.match(updated.at(-1).metadata.content, /73\.6 cm/); assert.doesNotMatch(updated.at(-1).metadata.content, /【变量与画面约束】/);
 });
 test('当前生成读取重算源卡和旧缓存，清空参数后不带旧值，不串用其他参数卡', () => {
     const source = box('source', { content: 'Theme: dimension display\n[LENGTH] [COUNT]', excelPromptBindingNodeId: 'parameter', excelPromptResolved: '过期 999 cm' });
@@ -123,7 +101,7 @@ test('当前生成读取重算源卡和旧缓存，清空参数后不带旧值�
     const other = box('other', { promptVariableValues: { '[LENGTH]': '888 cm' } }, 'guan:prompt-variables');
     for (const values of [{ '[LENGTH]': '73.6 cm' }, { '[LENGTH]': '' }]) {
         const nodes = [source, preview, parameter(values), other], result = protectedText.readProtectedGenerationText(preview, nodes);
-        assert.doesNotMatch(result, /999|888/); assert.match(result, /未填写变量/);
+        assert.doesNotMatch(result, /999|888|【变量与画面约束】/); assert.match(result, /\[COUNT\]/);
         assert.equal(beforeRules(result).includes('73.6'), Boolean(values['[LENGTH]']));
         assert.equal(protectedText.readProtectedGenerationText(source, nodes), result);
     }
@@ -148,22 +126,36 @@ const protocol = await load('扩展功能/画布生成/原版图片协议.ts', {
     './参考图数量限制': await load('扩展功能/画布生成/参考图数量限制.ts'),
     '../媒体交付/生成图片尺寸交付.mjs': delivery,
 });
-test('直接输入和无资源composer同样保护缺值，重试使用当前可追溯变量而非旧快照', async () => {
+test('OpenAI和Gemini最终请求体均剔除历史自动约束，保留用户正文和产品补充；不提交网络请求', async () => {
+    const original = '更改一下图片的尺寸，保留3.2 cm和6 cm。';
+    const extra = variables.PRODUCT_PROMPT_SUPPLEMENT_SEPARATOR + '用户补充 [原文]';
+    for (const apiFormat of ['openai', 'gemini']) {
+        const request = await protocol.prepareOriginalImageRequest({
+            baseUrl: 'https://example.invalid', model: 'gpt-image-1', count: 1, quality: 'auto',
+            size: '1152x1536', systemPrompt: '', apiFormat,
+        }, original + '\n\n' + legacyRules + extra);
+        const body = JSON.parse(Buffer.from(request.body, 'base64').toString('utf8'));
+        const prompt = apiFormat === 'gemini' ? body.contents[0].parts[0].text : body.prompt;
+        assert.equal(prompt, original + extra);
+    }
+});
+test('直接输入和composer原文不被追加，旧重试移除自动后缀，未决任务快照保持原样', async () => {
     for (const composer of [false, true]) {
         const prompt = 'Theme: dimensions\n[LENGTH] [QUANTITY]';
         const config = box('direct', composer ? { composerContent: prompt } : {}, 'config');
         const context = generation.buildNodeGenerationContext(config.id, [config], [], prompt);
-        assert.match(context.prompt, /未填写变量：\[LENGTH\]、\[QUANTITY\]/);
-        const retry = protectedText.readProtectedRetryPrompt('过期 999 cm', context.prompt);
+        assert.equal(context.prompt, prompt);
+        const retry = protectedText.readProtectedRetryPrompt('过期 999 cm\n\n' + legacyRules, context.prompt);
         assert.equal(retry, context.prompt); assert.doesNotMatch(retry, /999/);
     }
     assert.equal(protectedText.readProtectedRetryPrompt('历史普通文字', '当前普通文字'), '历史普通文字');
-    assert.match(protectedText.readProtectedRetryPrompt('Theme: dimensions\n[LENGTH]', ''), /省略该尺寸标注/);
+    assert.equal(protectedText.readProtectedRetryPrompt('Theme: dimensions\n[LENGTH]\n\n' + legacyRules, ''), 'Theme: dimensions\n[LENGTH]');
+    assert.equal(protectedText.readProtectedRetryPrompt('旧请求\n\n' + legacyRules, '当前原文', true), '旧请求\n\n' + legacyRules);
     // 最后编码端口保护独立调用和孤立旧重试，不触发网络。
     const request = await protocol.prepareOriginalImageRequest({ model: 'gpt-image-1', count: 1, quality: 'auto', size: '1152x1536', systemPrompt: '', apiFormat: 'openai' }, 'Theme: lifestyle\n[LENGTH] [COUNT]');
-    assert.match(JSON.parse(Buffer.from(request.body, 'base64').toString('utf8')).prompt, /不是产品尺寸展示主题/);
+    assert.equal(JSON.parse(Buffer.from(request.body, 'base64').toString('utf8')).prompt, 'Theme: lifestyle\n[LENGTH] [COUNT]');
 });
-test('真实资源图、分组和composer两路组装后，实际图片请求体不含非主题尺寸或旧缓存', async () => {
+test('真实引用、分组和composer组装保留实际尺寸及原文，不追加约束或使用旧缓存', async () => {
     const params = parameter({ '[LENGTH]': '73.6 cm', '[QUANTITY]': '' });
     const source = box('source', { content: 'Theme: lifestyle\n[LENGTH] [QUANTITY]', excelPromptBindingNodeId: params.id });
     const preview = box('preview', { content: '过期 999 cm', promptVariableSourceNodeId: source.id, promptVariablePreviewOf: params.id, groupId: 'group' });
@@ -174,21 +166,21 @@ test('真实资源图、分组和composer两路组装后，实际图片请求体
         const prompt = composer ? `使用 @[node:${upstream.id}]` : '';
         const config = box('config', composer ? { composerContent: prompt } : {}, 'config');
         const context = generation.buildNodeGenerationContext(config.id, [params, source, preview, group, config], [{ fromNodeId: upstream.id, toNodeId: config.id }], prompt);
-        assert.match(context.prompt, /未填写变量：\[QUANTITY\]/); assert.doesNotMatch(context.prompt, /73\.6|999/); assert.equal(context.textCount, 1);
+        assert.match(context.prompt, /\[QUANTITY\]/); assert.match(context.prompt, /73\.6 cm/); assert.doesNotMatch(context.prompt, /999|【变量与画面约束】/); assert.equal(context.textCount, 1);
         const request = await protocol.prepareOriginalImageRequest({ model: 'gpt-image-1', count: 1, quality: 'auto', size: '1152x1536', systemPrompt: '', apiFormat: 'openai' }, context.prompt);
         const body = JSON.parse(Buffer.from(request.body, 'base64').toString('utf8'));
-        assert.equal(body.prompt, context.prompt); assert.equal(body.size, '1152x1536'); assert.doesNotMatch(body.prompt, /73\.6|999/);
+        assert.equal(body.prompt, context.prompt); assert.equal(body.size, '1152x1536'); assert.doesNotMatch(body.prompt, /999|【变量与画面约束】/);
         results.push({ composer, grouped, prompt: body.prompt, size: body.size });
     }
     mkdirSync('.运行/output/产品变量使用验收', { recursive: true });
     writeFileSync('.运行/output/产品变量使用验收/真实生成请求体.json', JSON.stringify(results, null, 2));
 });
 
-test('自由补充保留中文、多行和方括号原文，位于变量约束后且协议复核不重复追加', () => {
+test('自由补充保留中文、多行和方括号原文，协议复核不重复追加', () => {
     const extra = '保持真实外观。\n不要把 [用户备注] 替换为产品变量。\n  末行保留空格  ';
     const result = variables.resolvePromptVariables('Theme: lifestyle\n[NAME] [LENGTH] [COUNT]', { '[NAME]': '样品', '[LENGTH]': '73 cm' }, extra);
     assert.ok(result.endsWith(extra)); assert.equal(result.split(variables.PRODUCT_PROMPT_SUPPLEMENT_SEPARATOR).length, 2);
-    assert.doesNotMatch(result, /73 cm/); assert.match(result, /未填写变量：\[COUNT\]/);
+    assert.match(result, /73 cm/); assert.match(result, /\[COUNT\]/); assert.doesNotMatch(result, /【变量与画面约束】/);
     assert.equal(variables.resolvePromptVariables(result), result);
     assert.equal(variables.resolvePromptVariables('普通原文', {}, ''), '普通原文');
     assert.equal(variables.resolvePromptVariables('普通原文', {}, ' \n '), '普通原文');
@@ -235,7 +227,7 @@ test('补充修改、清空与参数恢复经过原节点协调重算，保留�
         const changed = nodes.map(n => n.id === p.id ? { ...n, metadata: { ...n.metadata, promptVariableSupplement: extra } } : n);
         nodes = transactions.reconcileExcelPreviews(nodes, changed);
         for (const text of [nodes[1].metadata.excelPromptResolved, nodes[2].metadata.content]) {
-            assert.doesNotMatch(text, /旧补充/); assert.match(text, /未填写变量：\[COUNT\]/);
+            assert.doesNotMatch(text, /旧补充|【变量与画面约束】/); assert.match(text, /\[COUNT\]/);
             if (extra) assert.ok(text.endsWith(extra)); else assert.doesNotMatch(text, /【产品补充】|新补充/);
         }
         assert.equal(nodes[1].metadata.content, '产品 [COUNT]');

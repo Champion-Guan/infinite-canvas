@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/infinite-canvas.tsx b/web/src/components/canvas/infinite-canvas.tsx
+index 5d5419c..1d13da5 100644
+--- a/web/src/components/canvas/infinite-canvas.tsx
++++ b/web/src/components/canvas/infinite-canvas.tsx
+@@ -59,7 +59,7 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+     callbacksRef.current = { onManualViewportStart, onViewportChange, onViewportPreview, onPanningChange, onCanvasDeselect };
+     const schedulerRef = useRef<ReturnType<typeof createCanvasPanScheduler> | null>(null);
+     if (!schedulerRef.current) schedulerRef.current = createCanvasPanScheduler({
+-        probe: createCanvasGestureProbe(() => containerRef.current),
++        probe: createCanvasGestureProbe(() => containerRef.current, () => viewportControllerRef?.current, () => liveViewportRef.current),
+         paint: next => {
+             const scaleChanged = scaleRef.current !== next.k;
+             liveViewportRef.current = next;

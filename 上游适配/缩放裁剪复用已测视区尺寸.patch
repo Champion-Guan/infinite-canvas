@@ -1,0 +1,21 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 57304b1..79c5e98 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -897,14 +897,11 @@ function InfiniteCanvasPage() {
+ 
+     const viewBounds = useMemo(() => {
+         const padding = 280;
+-        const rect = containerRef.current?.getBoundingClientRect();
+-        const width = rect?.width || size.width;
+-        const height = rect?.height || size.height;
++        const { width, height } = size;
+         const left = -viewport.x / viewport.k - padding;
+         const top = -viewport.y / viewport.k - padding;
+         return { left, top, right: left + width / viewport.k + padding * 2, bottom: top + height / viewport.k + padding * 2 };
+-        // `nodes` keeps the container rect re-read on node changes, matching the previous behaviour when the container resizes without a size update.
+-    }, [nodes, size.height, size.width, viewport.k, viewport.x, viewport.y]);
++    }, [size.height, size.width, viewport.k, viewport.x, viewport.y]);
+ 
+     const displayNodes = useBatchExpansionDisplay(nodes, expandedBatchNodeIds, productActive, containerRef, viewportRef, moveFocusViewport);
+     const displayNodeById = useMemo(() => new Map(displayNodes.map(node => [node.id, node])), [displayNodes]);

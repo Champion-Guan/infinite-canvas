@@ -1,0 +1,12 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index a44026d..95bc44b 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -3338,6 +3338,7 @@ function InfiniteCanvasPage() {
+                             onMouseDown={handleNodeMouseDown}
+                             onSelectCapture={handleNodeSelectCapture}
+                             onHoverStart={handleNodeHoverStart}
++                            onRequestFocus={focusNode}
+                             onHoverEnd={handleNodeHoverEnd}
+                             onConnectStart={handleConnectStart}
+                             onResizeStart={handleNodeResizeStart}

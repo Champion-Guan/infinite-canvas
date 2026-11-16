@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/infinite-canvas.tsx b/web/src/components/canvas/infinite-canvas.tsx
+index f8fcdc9..80f194a 100644
+--- a/web/src/components/canvas/infinite-canvas.tsx
++++ b/web/src/components/canvas/infinite-canvas.tsx
+@@ -377,7 +377,7 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+                 className="absolute origin-top-left"
+                 style={{
+                     transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.k})`,
+-                    willChange: isPanning ? "transform" : undefined,
++                    willChange: productActive ? "transform" : undefined,
+                 }}
+             >
+                 {children}

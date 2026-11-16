@@ -338,6 +338,9 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
         if (tag === 'blob-url' && deferMediaUrls) {
           validateBinary(value);
           const descriptor = structuredClone(value);
+          const blobIdentity = Object.hasOwn(descriptor, 'id')
+            ? JSON.stringify([descriptor.mime, descriptor.size, descriptor.id])
+            : JSON.stringify([descriptor.mime, descriptor.size, descriptor.parts]);
           const url = deferCanvasMediaUrl(async () => {
             const blob = await binary(descriptor);
             const source = createObjectURL(blob); urls.add(source);
@@ -349,7 +352,7 @@ export function createValueCodec({ client, secretPort, readBlobUrl, createObject
             const identity = direct ? JSON.stringify([descriptor.mime, descriptor.size, descriptor.id])
               : JSON.stringify([descriptor.mime, descriptor.size, descriptor.parts]);
             decodedMedia.delete(identity);
-          });
+          }, { identity, readBlob: () => binary(descriptor), release: () => decodedMedia.delete(blobIdentity) });
           deferredUrls.add(url);
           savedUrls.set(url, descriptor);
           decodedUrls.set(identity, url);

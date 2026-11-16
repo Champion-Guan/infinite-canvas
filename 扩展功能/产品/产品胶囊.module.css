@@ -69,12 +69,13 @@
   opacity: 1;
 }
 :global(.dark) .indicator { background: #f4f4f5; }
-.indicator[data-status="loading"] { background: #facc15; }
-.indicator[data-status="success"] { background: #16a34a; }
-.indicator[data-status="error"] { background: #dc2626; }
-:global(.dark) .indicator[data-status="loading"] { background: #facc15; }
-:global(.dark) .indicator[data-status="success"] { background: #16a34a; }
-:global(.dark) .indicator[data-status="error"] { background: #dc2626; }
+/* 装饰层使用局部状态，避免全局状态动画覆盖滑动位置与隐藏状态。 */
+.indicator[data-capsule-status="loading"] { background: #facc15; }
+.indicator[data-capsule-status="success"] { background: #16a34a; }
+.indicator[data-capsule-status="error"] { background: #dc2626; }
+:global(.dark) .indicator[data-capsule-status="loading"] { background: #facc15; }
+:global(.dark) .indicator[data-capsule-status="success"] { background: #16a34a; }
+:global(.dark) .indicator[data-capsule-status="error"] { background: #dc2626; }
 .edgeHint {
   position: absolute;
   z-index: 3;
@@ -117,9 +118,9 @@
 .edgePrefix { flex-shrink: 0; opacity: .7; font-size: 11px; }
 .edgeName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 :global(.dark) .edgeButton { background: #f4f4f5; color: #17181a; }
-.edgeButton[data-status="loading"] { background: #facc15; color: #111214; }
-.edgeButton[data-status="success"] { background: #16a34a; color: #fff; }
-.edgeButton[data-status="error"] { background: #dc2626; color: #fff; }
+.edgeButton[data-capsule-status="loading"] { background: #facc15; color: #111214; }
+.edgeButton[data-capsule-status="success"] { background: #16a34a; color: #fff; }
+.edgeButton[data-capsule-status="error"] { background: #dc2626; color: #fff; }
 .root :global(.guan-dc-product-nav *) {
   view-transition-name: none;
 }

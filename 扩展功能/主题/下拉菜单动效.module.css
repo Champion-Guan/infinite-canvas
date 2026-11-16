@@ -1,0 +1,35 @@
+.radix[data-state="open"],
+:global(.guan-option-enter-active),
+:global(.guan-option-appear-active) {
+    animation: reveal 220ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.radix[data-state="closed"],
+:global(.guan-option-leave-active) {
+    animation: dismiss 220ms cubic-bezier(.22, 1, .36, 1) both;
+    pointer-events: none;
+}
+
+:global(.guan-option-enter),
+:global(.guan-option-appear) {
+    opacity: 0;
+}
+
+@keyframes reveal {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes dismiss {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .radix[data-state],
+    :global(.guan-option-enter-active),
+    :global(.guan-option-appear-active),
+    :global(.guan-option-leave-active) {
+        animation-duration: 1ms;
+    }
+}

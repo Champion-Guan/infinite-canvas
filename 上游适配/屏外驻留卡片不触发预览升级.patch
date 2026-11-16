@@ -1,0 +1,20 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index f029be0..a44026d 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -906,6 +906,7 @@ function InfiniteCanvasPage() {
+     const displayNodesRef = useRef(displayNodes); displayNodesRef.current = displayNodes;
+     const queryVisibleNodes = useMemo(() => createVisibilityIndex(displayNodes, node => batchExpansionBox(node, expandedBatchNodeIds.has(node.id))), [displayNodes, expandedBatchNodeIds]);
+     const visibleNodes = useMemo(() => queryVisibleNodes(viewBounds), [queryVisibleNodes, viewBounds]);
++    const visibleNodeIds = useMemo(() => new Set(visibleNodes.map(node => node.id)), [visibleNodes]);
+     const mountedVisibleNodes = useProgressiveCanvasNodes(visibleNodes, isCanvasPanning || !productActive);
+     const residentCanvasNodes = useMemo(() => {
+         const visible = new Set(visibleNodes.map(node => node.id));
+@@ -3299,6 +3300,7 @@ function InfiniteCanvasPage() {
+                             panelTarget={cardPanelTarget}
+                             isConnectionObscured={obscuredResultIds.has(node.id)}
+                             scale={viewport.k}
++                            isInViewport={visibleNodeIds.has(node.id)}
+                             isSelected={selectedNodeIds.has(node.id)}
+                             isRelated={relatedHighlight.nodeIds.has(node.id) || connectionFocus.nodeIds.has(node.id) || connectionPreviewNodeIds.has(node.id)}
+                             isFocusRelated={activeNodeId === node.id}

@@ -9,12 +9,16 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const require = createRequire(resolve(root, '.运行/3100源/画布副本/web/package.json'));
 const ts = require('typescript');
 function load(file, dependencies, globals = {}) {
+    if (file.endsWith('/视区弹簧动效.ts'))
+        dependencies = { './有效视区': load('扩展功能/画布交互/有效视区.ts', {}), ...dependencies };
     const source = readFileSync(resolve(root, file), 'utf8');
     const code = ts.transpileModule(source, { compilerOptions: {
         module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX,
     } }).outputText;
     const module = { exports: {} };
     new Function('require', 'module', 'exports', ...Object.keys(globals), code)(id => {
+        if (id === '@/扩展功能/画布交互/缩放性能记录') return { createCanvasGestureProbe: () => undefined };
+        if (id === '@/扩展功能/画布交互/网格缩放步长') return load('扩展功能/画布交互/网格缩放步长.ts', {});
         assert.ok(Object.hasOwn(dependencies, id), `未注入依赖：${id}`);
         return dependencies[id];
     }, module, module.exports, ...Object.values(globals));
@@ -53,6 +57,14 @@ test('视区弹簧第一帧即有位移，平移与缩放自然到达目标，�
     f.settle();
     assert.deepEqual(f.current(), target); assert.equal(f.ref.current, null);
     assert.equal(f.events.filter(([kind]) => kind === 'finish').length, 1);
+});
+test('旧视区含空缩放时从合法视区开始聚焦，帧与最终结果不再产生NaN', () => {
+    const f = springFixture(), target = { x: 10, y: 20, k: .5 };
+    f.replace({ x: 0, y: 0, k: null });
+    f.moveTo(target); f.settle();
+    assert.deepEqual(f.current(), target);
+    assert.ok(f.events.filter(([kind]) => kind === 'move').every(([, view]) =>
+        [view.x, view.y, view.k].every(Number.isFinite)));
 });
 test('快速反向定位从当前显示值继续并携带速度，不跳回旧起点或被迟到帧覆盖', () => {
     const f = springFixture();

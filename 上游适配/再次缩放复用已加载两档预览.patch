@@ -1,0 +1,23 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 6d1c3bc..0db1344 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -898,12 +898,17 @@ function ImageContent({
+     ].filter((key): key is string => Boolean(key)))];
+     const displayStorageKeySignature = displayStorageKeys.join("\u0000");
+     const [resolvedSources, setResolvedSources] = useState<Record<string, string>>({});
++    const loadedSources = useRef<Record<string, string>>({});
+     useEffect(() => {
+         let active = true;
+         displayStorageKeys.forEach((key) => {
+             const sourceKey = `${key}:${previewEdge}`;
++            if (loadedSources.current[sourceKey]) return;
+             void resolveCanvasImageSource(key, previewEdge).then((url) => {
+-                if (active && url) setResolvedSources((current) => current[sourceKey] === url ? current : { ...current, [sourceKey]: url });
++                if (active && url) {
++                    loadedSources.current[sourceKey] = url;
++                    setResolvedSources((current) => current[sourceKey] === url ? current : { ...current, [sourceKey]: url });
++                }
+             });
+         });
+         return () => { active = false; };

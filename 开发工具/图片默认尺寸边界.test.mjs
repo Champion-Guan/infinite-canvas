@@ -44,6 +44,55 @@ const protocol = await load('扩展功能/画布生成/原版图片协议.ts', {
 const config = { model: 'gpt-image-1', baseUrl: 'https://example.invalid', count: 1, quality: 'auto', systemPrompt: '', apiFormat: 'openai' };
 const bodyFor = async overrides => JSON.parse(Buffer.from((await protocol.prepareOriginalImageRequest({ ...config, ...overrides }, '产品照片')).body, 'base64').toString('utf8'));
 
+test('不吃坤肉4k竖向3:4统一请求2448×3264，保留自定义交付且修正旧预设交付', async () => {
+    for (const model of ['gpt-image-2.6-sunburst-4k', 'gpt-image-2.6-4k', 'gpt-image-2.5-flare-4k']) {
+        for (const size of ['1800x2400', '2480x3312', '2448x3264', '3:4']) {
+            const value = { ...config, model, baseUrl: 'https://api.kunrouai.com/v1', size };
+            const before = structuredClone(value);
+            assert.equal((await bodyFor(value)).size, '2448x3264');
+            const request = await protocol.prepareOriginalImageRequest(value, '保留商品', [{ id: 'reference' }]);
+            const form = await new Response(Buffer.from(request.body, 'base64'), { headers: { 'Content-Type': request.contentType } }).formData();
+            assert.equal(form.get('size'), '2448x3264');
+            assert.doesNotMatch(form.get('prompt'), /transport padding/);
+            const image = protocol.parseOriginalImageResponse(value, Buffer.from(JSON.stringify({ data: [{ b64_json: 'c3ludGhldGlj' }] })).toString('base64'))[0];
+            assert.equal(image.upstreamSize, '2448x3264');
+            assert.equal(image.deliverySize, size === '1800x2400' ? size : '2448x3264');
+            assert.equal(image.padding, undefined);
+            assert.deepEqual(value, before);
+        }
+    }
+});
+
+test('不吃坤肉1k竖向3:4请求1086×1448，文生图及编辑保留目标交付尺寸', async () => {
+    for (const model of ['gpt-image-2.6-1k', 'gpt-image-2.6-flare-1k', 'gpt-image-2.6-sunburst-1k', 'gpt-image-2.5-1k']) {
+        for (const size of ['1800x2400', '1152x1536', '3:4']) {
+            const value = { ...config, model, baseUrl: 'https://api.kunrouai.com', size };
+            assert.equal((await bodyFor(value)).size, '1086x1448');
+            const request = await protocol.prepareOriginalImageRequest(value, '保留商品', [{ id: 'reference' }]);
+            const form = await new Response(Buffer.from(request.body, 'base64'), { headers: { 'Content-Type': request.contentType } }).formData();
+            assert.equal(form.get('size'), '1086x1448');
+            const image = protocol.parseOriginalImageResponse(value, Buffer.from(JSON.stringify({ data: [{ b64_json: 'c3ludGhldGlj' }] })).toString('base64'))[0];
+            assert.equal(image.upstreamSize, '1086x1448');
+            assert.equal(image.deliverySize, size === '3:4' ? '1086x1448' : size);
+            assert.equal(image.padding, undefined);
+        }
+    }
+});
+
+test('渠道适配不影响其他域名、无后缀型号、横图、自动或任意非3:4尺寸', async () => {
+    for (const [baseUrl, model, size, expected] of [
+        ['https://api-cn.hi-code.cc', 'gpt-image-2.6-sunburst-4k', '2480x3312', '2480x3312'],
+        ['https://api.kunrouai.com.evil.invalid', 'gpt-image-2.6-sunburst-4k', '1800x2400', '1824x2432'],
+        ['https://api.kunrouai.com', 'gpt-image-2.6-sunburst', '1800x2400', '1824x2432'],
+        ['https://api.kunrouai.com', 'gpt-image-2.6-sunburst-4k', '2048x1536', '2048x1536'],
+        ['https://api.kunrouai.com', 'gpt-image-2.6-sunburst-4k', '1000x1333', '1008x1344'],
+        ['https://api.kunrouai.com', 'gpt-image-2.6-sunburst-4k', '800x500', '1024x640'],
+        ['https://api.kunrouai.com', 'gpt-image-2.6-sunburst-1k', '800x500', '1024x640'],
+        ['https://api.kunrouai.com', 'gpt-image-2.6-sunburst-4k', 'auto', undefined],
+    ]) assert.equal((await bodyFor({ baseUrl, model, size })).size, expected);
+    assert.equal(delivery.deliveryAction(2448, 3264, { width: 1800, height: 2400 }), 'resize');
+});
+
 test('图片自动和1k比例使用新默认，像素再识别不跳分辨率', () => {
     for (const [ratio, width, height] of [['3:4', 1152, 1536], ['8:5', 1584, 992]]) {
         const pixels = `${width}x${height}`;

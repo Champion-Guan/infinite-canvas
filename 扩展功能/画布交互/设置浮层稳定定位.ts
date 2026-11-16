@@ -12,7 +12,17 @@ export function positionSettingsPanel(panel: HTMLElement, content: HTMLElement, 
         if (disposed) return;
         const bounds = readCanvasFloatingBounds(anchor);
         const heightBeforeResize = content.offsetHeight;
-        const source = anchor.getBoundingClientRect();
+        const card = anchor.closest<HTMLElement>('[data-node-id][data-config-settings-anchor]');
+        const source = (card ?? anchor).getBoundingClientRect();
+        if (card) {
+            const width = Math.min(356, bounds.right - bounds.left);
+            const left = source.right + 12, top = Math.max(bounds.top, source.top);
+            write("width", `${width}px`);
+            write("left", `${left}px`); write("top", `${top}px`);
+            write("maxHeight", `${Math.max(48, bounds.bottom - top)}px`);
+            write("visibility", "visible");
+            return;
+        }
         const next = settingsPopoverPosition({ left: source.left - bounds.left, right: source.right - bounds.left,
             top: source.top - bounds.top, bottom: source.bottom - bounds.top, width: source.width }, placement,
             { width: bounds.right - bounds.left, height: bounds.bottom - bounds.top });

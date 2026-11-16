@@ -5,6 +5,7 @@ import type { ViewportTransform } from "@/types/canvas";
 import type { CanvasViewportController } from "@/components/canvas/infinite-canvas";
 import { APPLE_CONTROL_SPRING } from "../主题/苹果动效";
 import { usePageVisible } from "../主题/可见页面轮询";
+import { restoreValidViewport } from "./有效视区";
 
 type FrameRef = { current: number | null };
 type MotionPort = {
@@ -40,7 +41,7 @@ export function createViewportSpring(port: MotionPort) {
         const token = ++generation;
         cancelFrame();
         if (running) port.finish();
-        const start = { ...port.read() };
+        const start = restoreValidViewport(port.read());
         if (axes.every(axis => start[axis] === target[axis]) && axes.every(axis => Math.abs(velocity[axis]) < .001)) {
             running = false; velocity = zeroVelocity(); return;
         }

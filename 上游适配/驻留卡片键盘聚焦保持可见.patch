@@ -1,0 +1,35 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 74ebf9d..9f06541 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -59,6 +59,7 @@ type CanvasNodeProps = {
+     onMouseDown: (event: React.MouseEvent, nodeId: string) => void;
+     onSelectCapture?: (event: React.MouseEvent, nodeId: string) => void;
+     onHoverStart: (nodeId: string) => void;
++    onRequestFocus?: (nodeId: string) => void;
+     onHoverEnd: (nodeId: string) => void;
+     onConnectStart: (event: React.MouseEvent, nodeId: string, handleType: "source" | "target") => void;
+     onResizeStart: (nodeId: string) => void;
+@@ -133,6 +134,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+     onMouseDown,
+     onSelectCapture,
+     onHoverStart,
++    onRequestFocus,
+     onHoverEnd,
+     onConnectStart,
+     onResizeStart,
+@@ -333,7 +335,13 @@ export const CanvasNode = React.memo(function CanvasNode({
+     return (
+         <div
+             data-node-id={data.id}
+-            inert={!isInViewport && !isSelected && !showPanel}
++            onFocusCapture={(event) => {
++                if (isInViewport || showPanel || !onRequestFocus) return;
++                const rect = event.currentTarget.getBoundingClientRect();
++                const view = event.currentTarget.closest(".guan-canvas-viewport")?.getBoundingClientRect();
++                if (view && (rect.right < view.left || rect.left > view.right || rect.bottom < view.top || rect.top > view.bottom))
++                    onRequestFocus(data.id);
++            }}
+             data-config-settings-anchor={data.type === CanvasNodeType.Config ? "true" : undefined}
+             data-inline-result-obscured={isConnectionObscured ? "true" : undefined}
+             className={`node-element group/node absolute flex select-none flex-col transition-shadow duration-200 ${isGroup ? "z-[5]" : isSelected ? "z-50" : "z-10"} ${referenceSelectionState === "available" ? "cursor-pointer" : referenceSelectionState ? "cursor-not-allowed" : ""}`}

@@ -15,7 +15,7 @@ export class ProductCommitCheckpoint<T> {
   private flushFlight: Promise<void> | null = null;
   private pending = new Map<
     number,
-    { resolve: (commit: Commit<T>) => void; reject: (error: Error) => void }
+    { resolve: (commit: Commit<T>) => void; reject: (error: Error) => void; defer: () => void }
   >();
   constructor(private requestRender: (ticket: number) => void, private isSnapshotCurrent: () => boolean = () => true) {}
   mount() {
@@ -50,17 +50,14 @@ export class ProductCommitCheckpoint<T> {
     }
     for (const [id, pending] of this.pending) {
       if (id > ticket) continue;
+      // 手势或恢复中的快照尚不能落盘；保留票据，下一次可提交帧自动继续。
+      if (!ready) { pending.defer(); continue; }
       this.pending.delete(id);
-      if (!ready)
-        pending.reject(
-          new Error("当前画布正在编辑或移动，请完成操作后再切换。"),
-        );
-      else
-        pending.resolve({
-          snapshot,
-          revision: this.revision,
-          generation: this.generation,
-        });
+      pending.resolve({
+        snapshot,
+        revision: this.revision,
+        generation: this.generation,
+      });
     }
   }
   flush(persist: (snapshot: T) => Promise<PersistResult>, options: { deferSQLiteFlush?: boolean; forceBatch?: boolean } = {}) {
@@ -85,16 +82,31 @@ export class ProductCommitCheckpoint<T> {
         return;
       const ticket = ++this.ticket;
       let timer: ReturnType<typeof setTimeout> | undefined;
+      let awaitingReady = false;
       const committed = await new Promise<Commit<T>>((resolve, reject) => {
         const clear = () => { if (timer) clearTimeout(timer); };
         this.pending.set(ticket, {
           resolve: value => { clear(); resolve(value); },
           reject: error => { clear(); reject(error); },
+          defer: () => { awaitingReady = true; clear(); timer = setTimeout(check, 250); },
         });
-        timer = setTimeout(() => {
+        const check = () => {
+          if (!this.pending.has(ticket)) return;
+          // 持续交互不属于保存失败。同步ref可能先于React清除，低频申请新帧核实。
+          if (awaitingReady && !this.ready) {
+            timer = setTimeout(check, 250);
+            try { this.requestRender(++this.ticket); }
+            catch {
+              this.pending.get(ticket)?.reject(new Error("产品保存提交不可用。"));
+              this.pending.delete(ticket);
+              return;
+            }
+            return;
+          }
           this.pending.delete(ticket);
           reject(new Error("产品页面未确认提交，保留当前画布，请重试。"));
-        }, 10000);
+        };
+        timer = setTimeout(check, 10000);
         try { this.requestRender(ticket); }
         catch {
           this.pending.get(ticket)?.reject(new Error("产品保存提交不可用。"));

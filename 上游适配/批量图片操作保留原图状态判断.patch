@@ -1,0 +1,12 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 4c00617..2ed6dee 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -956,6 +956,7 @@ function ImageContent({
+ function ExpandedImageCard({ node, image, index, scale, onView, onSetPrimary, onDuplicate, onDownload, onRetry, onDelete }: { node: CanvasNodeData; image: CanvasNodeImage; index: number; scale: number; onView: () => void; onSetPrimary: () => void; onDuplicate: () => void; onDownload: () => void; onRetry: () => void; onDelete: () => void }) {
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+     const { t } = useTranslation();
++    const hasOriginalContent = Boolean(image.content && !image.content.startsWith("[image omitted]"));
+     const count = node.metadata?.images?.length || 0;
+     const columns = Math.min(count, 4);
+     const rows = Math.ceil(count / columns);

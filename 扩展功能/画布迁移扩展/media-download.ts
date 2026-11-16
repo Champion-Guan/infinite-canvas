@@ -2,6 +2,7 @@ import { 本地转发请求 as fetch } from "@/扩展功能/网络代理/本地�
 import { getImageBlob, setImageBlob } from "@/services/image-storage";
 import { getMediaBlob, setMediaBlob } from "@/services/file-storage";
 import { withLocalProxy } from "@/stores/use-config-store";
+import { restoreCanvasMedia } from "../本机存储/画布媒体延迟恢复.mjs";
 
 type DownloadMedia = { kind: "image" | "video" | "audio"; storageKey?: string; url?: string };
 const pendingDownloads = new Map<string, Promise<Blob>>();
@@ -15,7 +16,8 @@ export async function readDownloadBlob(media: DownloadMedia): Promise<Blob> {
     if (pending) return pending;
     const download = (async () => {
         if (!media.url) throw new Error("本地缓存不存在，且没有可用的原文件地址");
-        const response = await fetch(withLocalProxy(media.url), { signal: AbortSignal.timeout(10 * 60_000) });
+        const source = await restoreCanvasMedia(media.url);
+        const response = await fetch(withLocalProxy(source), { signal: AbortSignal.timeout(10 * 60_000) });
         if (!response.ok) throw new Error(`读取原文件失败（HTTP ${response.status}）`);
         const blob = await response.blob();
         if (!blob.size || /(?:text\/html|application\/json)/i.test(blob.type)) throw new Error("返回内容不是有效的媒体文件");

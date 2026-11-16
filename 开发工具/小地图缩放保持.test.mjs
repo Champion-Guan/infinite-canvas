@@ -7,13 +7,21 @@ import { createRequire } from 'node:module';
 const require = createRequire(new URL('../.运行/3100源/画布副本/web/package.json', import.meta.url));
 const ts = require('typescript');
 function load(file, dependencies = {}, globals = {}) {
-    dependencies = { '@/扩展功能/画布交互/浮层可见区域': variantModules().load('画布交互/浮层可见区域.ts'), ...dependencies };
+    dependencies = {
+        '@/扩展功能/画布交互/浮层可见区域': variantModules().load('画布交互/浮层可见区域.ts'),
+        '../画布交互/有效视区': variantModules().load('画布交互/有效视区.ts'),
+        ...dependencies,
+    };
     const code = ts.transpileModule(readFileSync(file, 'utf8'), { compilerOptions: {
         module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX,
     } }).outputText;
     const module = { exports: {} };
     new Function('require', 'module', 'exports', ...Object.keys(globals), code)(
-        name => { assert.ok(Object.hasOwn(dependencies, name), name); return dependencies[name]; },
+        name => {
+            if (name === '@/扩展功能/画布交互/缩放性能记录') return { createCanvasGestureProbe: () => undefined };
+            if (name === '@/扩展功能/画布交互/网格缩放步长') return variantModules().load('画布交互/网格缩放步长.ts');
+            assert.ok(Object.hasOwn(dependencies, name), name); return dependencies[name];
+        },
         module, module.exports, ...Object.values(globals));
     return module.exports;
 }

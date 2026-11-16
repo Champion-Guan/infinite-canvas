@@ -12,7 +12,7 @@ export const NATIVE_POPUP_LIMIT: CSSProperties = {
 };
 
 // 只提供原生定位器的可见区域，不再改写原生浮层的translate或测量动画中的尺寸。
-export function useNativePopupBoundary(open: boolean) {
+export function useNativePopupBoundary(open: boolean, downward = false) {
     const source = useRef<HTMLElement | null>(null), container = useRef<HTMLDivElement | null>(null);
     const expanded = useRef(open); expanded.current = open;
     const signature = useRef("");
@@ -27,6 +27,7 @@ export function useNativePopupBoundary(open: boolean) {
         }
         bounds.left = Math.min(bounds.left, rect.left - 12);
         bounds.top = Math.min(bounds.top, rect.top - 12);
+        if (downward) bounds.top = Math.min(bounds.bottom - 1, rect.bottom + 4);
         const geometry = [bounds.left, bounds.top, bounds.right, bounds.bottom, rect.left, rect.top, rect.right, rect.bottom].join(":");
         if (signature.current === geometry) return;
         signature.current = geometry;
@@ -35,13 +36,16 @@ export function useNativePopupBoundary(open: boolean) {
         const modal = anchor.closest<HTMLElement>(".ant-modal-wrap");
         root.style.zIndex = modal ? String(Math.max(1300, Number(getComputedStyle(modal).zIndex) + 10)) : "1300";
         root.dispatchEvent(new Event("scroll"));
-    }, []);
+    }, [downward]);
     const getPopupContainer = useCallback((anchor: HTMLElement) => {
+        // 二级菜单属于原触发器的同一边界，不能用Portal中的菜单项重新裁剪父菜单。
+        const inherited = anchor.closest<HTMLDivElement>("[data-canvas-native-popup-boundary]");
+        if (inherited) return inherited;
         if (!expanded.current && container.current?.isConnected) return container.current;
         const previous = source.current;
         source.current = anchor;
         const scope = anchor.closest<HTMLElement>('[data-product-id]') ?? anchor.ownerDocument.body;
-        const owner = anchor.closest<HTMLElement>("[data-canvas-bottom-toolbar],.guan-canvas-zoom-dock") ?? scope;
+        const owner = downward ? anchor : anchor.closest<HTMLElement>(".ant-modal-wrap,[data-canvas-bottom-toolbar],.guan-canvas-zoom-dock") ?? scope;
         let root = containers.get(owner);
         if (!root?.isConnected) {
             root = anchor.ownerDocument.createElement("div");
@@ -52,7 +56,7 @@ export function useNativePopupBoundary(open: boolean) {
         if (container.current !== root || previous !== anchor) signature.current = "";
         container.current = root; update();
         return root;
-    }, [update]);
+    }, [downward, update]);
     useLayoutEffect(() => {
         if (!open) return;
         let frame = 0;

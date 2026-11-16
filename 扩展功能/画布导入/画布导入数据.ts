@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import type { CanvasExportFile } from "@/types/canvas-export";
 import { remapCanvasMedia } from "./便携媒体引用";
+import { portableTaskSnapshot } from "./导入任务快照";
 
 // Validate the entire package before writing files. Imported media always gets new keys.
 export function prepareCanvasExport(data: unknown, zip: Map<string, Blob>, missingMedia: ReadonlyMap<string, string> = new Map()) {
@@ -34,7 +35,7 @@ export function prepareCanvasExport(data: unknown, zip: Map<string, Blob>, missi
             media.push({ key: storageKey, blob: blob.slice(0, blob.size, file.mimeType) });
             return { ...file, storageKey };
         });
-        return { project: { ...remapCanvasMedia(project, keys, missingMedia), ...dates }, files };
+        return { project: { ...portableTaskSnapshot(remapCanvasMedia(project, keys, missingMedia)), ...dates }, files };
     });
     return { projects, media };
 }

@@ -13,7 +13,11 @@ function load(file, dependencies, globals) {
     } }).outputText;
     const module = { exports: {} };
     new Function('require', 'module', 'exports', ...Object.keys(globals), code)(
-        name => { assert.ok(Object.hasOwn(dependencies, name), name); return dependencies[name]; },
+        name => {
+            if (name === '@/扩展功能/画布交互/缩放性能记录') return { createCanvasGestureProbe: () => undefined };
+            if (name === '@/扩展功能/画布交互/网格缩放步长') return variantModules().load('画布交互/网格缩放步长.ts');
+            assert.ok(Object.hasOwn(dependencies, name), name); return dependencies[name];
+        },
         module, module.exports, ...Object.values(globals));
     return module.exports;
 }

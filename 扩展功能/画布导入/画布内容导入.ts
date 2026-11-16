@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import type { CanvasNodeData, CanvasConnection } from "@/types/canvas";
 import { remapCanvasMedia } from "./便携媒体引用";
+import { portableTaskSnapshot } from "./导入任务快照";
 
 const nodeReferences = new Set(["groupId", "generationParamsSourceNodeId", "promptVariablePreviewNodeId", "promptVariableSourceNodeId", "promptVariablePreviewOf", "promptVariableEnglishPreviewOf", "promptVariableTranslationOf", "excelPromptBindingNodeId"]);
 
@@ -34,7 +35,7 @@ export function prepareCanvasContentImport(data: unknown, zip: Map<string, Blob>
         const top = item.project.nodes.reduce((min, node) => Math.min(min, node.position.y), Infinity);
         const imported = remapCanvasMedia(item.project.nodes, keys).map((portable, index) => {
             const node = item.project.nodes[index];
-            const next = remap(portable) as CanvasNodeData;
+            const next = portableTaskSnapshot(remap(portable)) as CanvasNodeData;
             next.id = ids.get(node.id)!;
             next.position = { x: node.position.x - left + right, y: node.position.y - top };
             if (next.metadata) {

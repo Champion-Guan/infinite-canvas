@@ -8,6 +8,7 @@ import {
 import { useMatch, useNavigate } from "react-router-dom";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { readCanvasExport } from "../画布导入/画布导入";
+import { publishImportProgress } from "../画布导入/产品导入进度";
 import { flushSQLiteStorage, sqlitePreferences, retrySQLiteStorage, storageStatus } from "../本机存储/上游浏览器存储桥";
 import { ProductOperationGate, ProductSaveRegistry } from "./产品规则";
 import { ProductCommitCheckpoint } from "./产品保存检查点";
@@ -260,19 +261,30 @@ export function useProductNavigation() {
   const importProduct = useCallback(
     (file: File) =>
       operations.run(async () => {
+        const progress = (phase: string, percent: number, status: "running" | "success" | "error" = "running", error?: string) =>
+          publishImportProgress({ name: file.name, phase, completed: 0, total: 0, percent, status, error });
+        progress("正在保存当前画布…", 0);
+        try {
         await commitCurrent();
         const items = await readCanvasExport(file);
+        progress("正在创建独立产品与画布…", 88);
         const current = navigationSelection(useCanvasStore.getState(), activeId);
         useCanvasStore.setState({ guanWorkbooks: current.guanWorkbooks });
         const ids = items.map(({ project }) => {
-          const id = useCanvasStore.getState().importProject(project);
+          const id = useCanvasStore.getState().importProject({ ...project, createdAt: new Date().toISOString() });
           productRestoreMountGate.block(id);
           return id;
         });
+        progress("正在确认导入保存…", 94);
         await flushSQLiteStorage();
         await enter(ids[0]);
         for (const id of ids) productRestoreMountGate.release(id);
+        progress("产品已导入并保存", 100, "success");
         return ids;
+        } catch (error) {
+          progress("导入未完成", 0, "error", error instanceof Error ? error.message : String(error));
+          throw error;
+        }
       }),
     [activeId, commitCurrent, enter],
   );

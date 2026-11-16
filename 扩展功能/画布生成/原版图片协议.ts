@@ -138,6 +138,30 @@ function resolveRequestSize(_quality: string | undefined, size: string) {
     throw new Error(apiText("invalidImageSizeFormat"));
 }
 
+function resolveChannelImageSize(config: AiConfig, requestConfig: AiConfig) {
+    let hostname = "";
+    try { hostname = new URL(requestConfig.baseUrl).hostname; } catch { /* 常规配置校验仍由请求端口处理。 */ }
+    const dimensions = parseImageDimensions(config.size);
+    const legacyPreset = config.size === imageSizePresets["4k"]["3:4"];
+    const modelScale = requestConfig.model.trim().match(/(?:^|[-/])gpt-image-[\w.-]+-(1k|4k)$/i)?.[1].toLowerCase();
+    const portrait = config.size === "3:4" || legacyPreset
+        || Boolean(dimensions && dimensions.width * 4 === dimensions.height * 3);
+    const adapted = requestConfig.apiFormat === "openai" && hostname === "api.kunrouai.com"
+        && modelScale && portrait;
+    const adaptedSize = modelScale === "1k" ? "1086x1448" : "2448x3264";
+    if (adapted) return {
+        requestSize: adaptedSize,
+        deliverySize: legacyPreset || config.size === "3:4" ? adaptedSize : config.size,
+        padding: undefined,
+    };
+    return {
+        requestSize: resolveRequestSize(normalizeQuality(config.quality, requestConfig.model), config.size),
+        deliverySize: config.size,
+        padding: requestConfig.apiFormat !== "gemini" && dimensions
+            ? imageRequestSizePlan(dimensions.width, dimensions.height).padding : undefined,
+    };
+}
+
 function resolveGeminiImageConfig(config: AiConfig) {
     const value = resolveRequestSize(normalizeQuality(config.quality, config.model), config.size) || "";
     const dimensions = parseImageDimensions(value);
@@ -239,13 +263,11 @@ function toGeminiImagePart(url: string): GeminiPart {
 
 function attachRequestMetadata<T extends { id: string; dataUrl: string }>(images: T[], config: AiConfig, requestConfig: AiConfig, transport?: "direct" | "proxy"): GeneratedImage[] {
     const channel = resolveModelChannel(config, config.model || config.imageModel);
-    const dimensions = parseImageDimensions(config.size);
-    const padding = requestConfig.apiFormat !== "gemini" && dimensions
-        ? imageRequestSizePlan(dimensions.width, dimensions.height).padding : undefined;
+    const { requestSize, deliverySize, padding } = resolveChannelImageSize(config, requestConfig);
     return images.map((image) => ({
         ...image,
-        deliverySize: config.size,
-        upstreamSize: resolveRequestSize(normalizeQuality(config.quality, requestConfig.model), config.size),
+        deliverySize,
+        upstreamSize: requestSize,
         ...(padding ? { padding } : {}),
         channel: channel.name,
         channelId: channel.id,
@@ -278,9 +300,7 @@ export async function prepareOriginalImageRequest(config: AiConfig, prompt: stri
         return encodeImageRequest(version + "/models/" + model + ":generateContent", body);
     }
     const quality = normalizeQuality(config.quality, requestConfig.model);
-    const requestSize = resolveRequestSize(quality, config.size);
-    const dimensions = parseImageDimensions(config.size);
-    const padding = dimensions ? imageRequestSizePlan(dimensions.width, dimensions.height).padding : undefined;
+    const { requestSize, padding } = resolveChannelImageSize(config, requestConfig);
     if (padding) requestPrompt += imagePaddingPrompt(padding);
     const background = normalizeBackground(config.background);
     if (!references.length) {

@@ -8,7 +8,11 @@ async function load(file, dependencies = {}) {
     dependencies = { '@/扩展功能/画布交互/浮层可见区域': variantModules().load('画布交互/浮层可见区域.ts'), ...dependencies };
     const { code } = await transformWithEsbuild(readFileSync(file, 'utf8'), file, { loader: file.endsWith('tsx') ? 'tsx' : 'ts', jsx: 'automatic', format: 'cjs', target: 'es2022', tsconfigRaw: '{}' });
     const module = { exports: {} };
-    new Function('require', 'module', 'exports', code)(id => { assert.ok(Object.hasOwn(dependencies, id), id); return dependencies[id]; }, module, module.exports);
+    new Function('require', 'module', 'exports', code)(id => {
+        if (id === '@/扩展功能/画布交互/缩放性能记录') return { createCanvasGestureProbe: () => undefined };
+        if (id === '@/扩展功能/画布交互/网格缩放步长') return variantModules().load('画布交互/网格缩放步长.ts');
+        assert.ok(Object.hasOwn(dependencies, id), id); return dependencies[id];
+    }, module, module.exports);
     return module.exports;
 }
 const { createVisibilityIndex } = await load('扩展功能/画布布局/空间可见索引.ts');
@@ -17,6 +21,35 @@ const { imageInfoDefaults, withCanvasAppearanceDefaults } = await load('扩展�
 const box = (id, x, y, width = 300, height = 240) => ({ id, type: 'image', position: { x, y }, width, height, metadata: { content: id } });
 const bounds = node => ({ left: node.position.x, top: node.position.y, right: node.position.x + node.width, bottom: node.position.y + node.height });
 const intersects = (a, b) => a.right > b.left && a.left < b.right && a.bottom > b.top && a.top < b.bottom;
+
+test('连线SVG固定在屏幕视区，平移缩放直接更新内部g，避免万像素独立合成面', async () => {
+    let options;
+    const jsx = (type, props) => ({ type, props });
+    const { InfiniteCanvas } = await load('.运行/3100源/画布副本/web/src/components/canvas/infinite-canvas.tsx', {
+        react: { useRef: current => ({ current }), useState: value => [value, () => {}], useEffect() {}, useLayoutEffect() {} },
+        'react/jsx-runtime': { jsx, jsxs: jsx },
+        '@/扩展功能/画布交互/快捷键边界': {},
+        '@/扩展功能/产品/产品界面边界': { useProductActive: () => true },
+        '@/扩展功能/画布布局/画布平移调度': { createCanvasPanScheduler: value => { options = value; return {}; } },
+        '@/lib/canvas-theme': { canvasThemes: { light: { canvas: {} } } },
+        '@/stores/use-theme-store': { useThemeStore: select => select({ theme: 'light' }) },
+    });
+    const oldWindow = globalThis.window;
+    globalThis.window = { dispatchEvent() {} };
+    try {
+        const tree = InfiniteCanvas({ viewport: { x: 0, y: 0, k: 1 }, containerRef: { current: null }, connectionLayer: 'paths', children: 'cards' });
+        const svg = tree.props.children[2], group = svg.props.children;
+        assert.equal(svg.props['data-visible-connection-layer'], 'true');
+        assert.match(svg.props.className, /h-full w-full/);
+        assert.equal(svg.props.style.overflow, 'hidden');
+        let transform;
+        group.props.ref.current = { setAttribute: (key, value) => { assert.equal(key, 'transform'); transform = value; } };
+        options.paint({ x: 120, y: -70, k: .05 });
+        assert.equal(transform, 'translate(120, -70) scale(0.05)');
+        const main = readFileSync('.运行/3100源/画布副本/web/src/pages/canvas/project.tsx', 'utf8');
+        assert.doesNotMatch(main, /h-\[10000px\]|w-\[10000px\]/);
+    } finally { globalThis.window = oldWindow; }
+});
 
 test('空间查询与原全量筛选一致，包含负坐标、超大卡、长连线和极端缩放', () => {
     let seed = 17;

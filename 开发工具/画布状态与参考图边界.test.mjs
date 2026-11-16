@@ -73,8 +73,7 @@ test('节点事务仍调用真实Excel预览规则，源文更新后空变量保
     api.setNodes(previous => previous.map(item => item.id === 'source' ? { ...item, metadata: { ...item.metadata, content: '长度：[LENGTH]' } } : item));
     const resolved = api.getCurrentNode('preview').metadata.content;
     assert.ok(resolved.startsWith('长度：[LENGTH]'));
-    assert.match(resolved, /未填写变量：\[LENGTH\]。保持未提供，不填默认值/);
-    assert.match(resolved, /不得.*猜测、补齐或编造/);
+    assert.equal(resolved, '长度：[LENGTH]');
     assert.equal(api.getCurrentNode('source').metadata.excelPromptResolved, resolved);
     assert.equal(source.metadata.content, '[LENGTH]');
 });

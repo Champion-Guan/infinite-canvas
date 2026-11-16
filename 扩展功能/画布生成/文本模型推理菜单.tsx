@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { OutsideDropdown } from "../主题/原生可关闭浮层";
 import { modelTextReasoningEfforts, modelTextReasoningEffortOptions, normalizeTextReasoningEffort, type TextReasoningEffort } from "./文本推理强度";
@@ -11,13 +11,28 @@ export function TextModelReasoningMenu({ config, options, value, open, onOpenCha
     onSelect(model: string, effort: TextReasoningEffort): void; renderModel(model: string, compact?: boolean): ReactNode;
     className?: string; placeholder: string;
 }) {
+    const rows = useRef(new Map<string, HTMLLIElement>());
+    const [heights, setHeights] = useState<Record<string, number>>({});
+    const fitSubmenu = (key: string) => {
+        const row = rows.current.get(key);
+        if (!row) return;
+        const boundary = row.closest("[data-canvas-native-popup-boundary]")?.getBoundingClientRect();
+        const height = Math.max(48, (boundary?.bottom ?? window.innerHeight - 12) - row.getBoundingClientRect().top);
+        setHeights(previous => previous[key] === height ? previous : { ...previous, [key]: height });
+    };
     const choices = new Map<string, { model: string; effort: TextReasoningEffort }>();
     const items = options.map((model, index) => {
         const supported = modelTextReasoningEfforts(config, model);
         return {
             key: `model-${index}`,
-            popupOffset: [12, -7],
-            popupStyle: { zIndex: 1201 },
+            ref: (row: HTMLLIElement | null) => {
+                if (row) { rows.current.set(`model-${index}`, row); fitSubmenu(`model-${index}`); }
+                else rows.current.delete(`model-${index}`);
+            },
+            onTitleMouseEnter: () => fitSubmenu(`model-${index}`),
+            popupOffset: [12, 0],
+            popupStyle: { zIndex: 1201, maxHeight: heights[`model-${index}`], overflowY: "visible" as const },
+            popupRender: (menu: React.ReactElement) => <div className={menuStyles.submenuFrame}>{menu}</div>,
             popupClassName: menuStyles.submenu,
             label: <span className="flex w-full min-w-0 items-center gap-2">
                 <span className="min-w-0 flex-1">{renderModel(model)}</span>
@@ -48,6 +63,8 @@ export function TextModelReasoningMenu({ config, options, value, open, onOpenCha
                 if (event.key === "Escape") onOpenChange(false);
             }}>{menu}</div>}
         menu={{ items, style: { maxHeight: "calc(100vh - 24px)", overflowY: "auto" },
+            onOpenChange: keys => { for (const key of keys) fitSubmenu(key); },
+            builtinPlacements: { rightTop: { points: ["tl", "tr"], overflow: { adjustX: 1, adjustY: 0 } } },
             triggerSubMenuAction: "hover", subMenuOpenDelay: 0.12, subMenuCloseDelay: 0.15,
             onClick: ({ key }) => {
                 const choice = choices.get(key);

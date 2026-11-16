@@ -199,16 +199,30 @@ test('任务状态改变和边缘定位提示使用同一状态，不重新进�
     const f = fixture(); f.select('C'); f.render(); f.effects();
     for (const status of ['loading', 'success', 'error', 'idle', 'success']) {
         f.status(status); f.render();
-        assert.equal(f.indicator().props['data-status'], status);
+        assert.equal(f.indicator().props['data-capsule-status'], status);
         assert.match(f.tab('C').props.className, new RegExp(`capsule-${status} `));
         assert.equal(f.container.dataset.capsuleSliding, 'false');
         assert.equal(f.frames.size, 0);
         f.scroll(0); f.render();
-        assert.equal(all(f.hint('right')).find(item => item.type === 'ActionButton').props['data-status'], status);
+        assert.equal(all(f.hint('right')).find(item => item.type === 'ActionButton').props['data-capsule-status'], status);
         all(f.hint('right')).find(item => item.type === 'ActionButton').props.onClick(); f.render();
         assert.equal(f.container.dataset.capsuleSliding, 'false');
     }
     assert.deepEqual(f.calls, []);
+});
+
+test('胶囊装饰层不匹配全局data-status动画，成功失败及加载均不能把底色移回第一个产品', () => {
+    const f = fixture(); f.select('C'); f.render(); f.effects();
+    for (const status of ['loading', 'success', 'error']) {
+        f.status(status); f.render();
+        const decorations = [f.indicator(), ...f.elements().filter(item => item.type === 'ActionButton')];
+        for (const item of decorations) {
+            assert.equal(item.props['data-status'], undefined, '全局状态动画会覆盖装饰层的opacity和transform');
+            assert.equal(item.props['data-capsule-status'], status);
+        }
+        assert.equal(f.position(), 266);
+        assert.equal(f.container.dataset.capsuleSliding, 'false');
+    }
 });
 
 test('按距离调整实际Motion弹簧速度与阻尼：远距离更快，回弹更少且能收敛', () => {

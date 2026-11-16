@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { transformWithEsbuild } from "../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js";
+import { variantModules } from "./产品变体生成夹具.mjs";
 
 async function loadImageStorage(createImageThumbnail) {
     const file = ".运行/3100源/画布副本/web/src/services/image-storage.ts";
@@ -59,6 +60,10 @@ async function loadImageStorage(createImageThumbnail) {
     const cacheCode = await transformWithEsbuild(readFileSync(cacheFile, "utf8"), cacheFile, { loader: "ts", format: "cjs", target: "es2022", tsconfigRaw: "{}" });
     new Function("module", "exports", "FileReader", cacheCode.code)(cacheModule, cacheModule.exports, Reader);
     const dependencies = {
+        "@/扩展功能/媒体交付/缩略图后台生成": {
+            createImageThumbnailInBackground: (_blob, fallback) => fallback(), imagePreviewParallelism: () => 3,
+        },
+        "@/扩展功能/媒体交付/缩略图读取队列": variantModules().load("媒体交付/缩略图读取队列.ts"),
         "@/扩展功能/素材/上传资产规则": { captureUserUpload: () => null },
         "@/扩展功能/媒体交付/媒体地址缓存": { createMediaUrlCache: () => mediaCache },
         "@/扩展功能/媒体交付/缩略图缓存": cacheModule.exports,
@@ -112,6 +117,47 @@ test("已有缩略图的40次并发恢复只读取一次、创建一个预览地
     assert.equal(fixture.createdUrls.length, 0);
     for (let index = 0; index < 30; index++) assert.equal(await fixture.image.ensureImagePreview("image:stored"), sources[0]);
     assert.equal(fixture.reads.get("image_previews:image:stored"), 1);
+});
+
+test("缩略图完成只通知对应图片，其他卡片不被逐张刷新", async () => {
+    const fixture = await loadImageStorage(async () => undefined);
+    fixture.stores.get("image_previews").set("image:a", { version: 2, blob: new Blob(["a"], { type: "image/webp" }) });
+    let first = 0, second = 0, all = 0;
+    const off = [
+        fixture.image.subscribeImagePreviews(() => first++, "image:a"),
+        fixture.image.subscribeImagePreviews(() => second++, "image:b"),
+        fixture.image.subscribeImagePreviews(() => all++),
+    ];
+    await fixture.image.ensureImagePreview("image:a");
+    assert.deepEqual([first, second, all], [1, 0, 1]);
+    assert.equal(fixture.image.getImagePreviewRevision("image:b"), 0);
+    off.forEach(stop => stop());
+});
+
+test("192总览预览与768清晰预览独立缓存，不重复生成、不读取原图、不覆盖清晰预览", async () => {
+    let smallDecodes = 0;
+    const fixture = await loadImageStorage(async (_blob, edge) => {
+        assert.equal(edge, 192); smallDecodes++; return new Blob(["small"], { type: "image/webp" });
+    });
+    fixture.stores.get("image_previews").set("image:overview", { version: 2, blob: new Blob(["large"], { type: "image/webp" }) });
+    const large = await fixture.image.resolveCanvasImageSource("image:overview");
+    const small = await Promise.all(Array.from({ length: 40 }, () => fixture.image.resolveCanvasImageSource("image:overview", 192)));
+    assert.equal(smallDecodes, 1); assert.ok(small.every(value => value === small[0]));
+    assert.equal(fixture.image.previewUrlFor("image:overview"), large);
+    assert.equal(fixture.image.previewUrlFor("image:overview", 192), small[0]);
+    assert.equal(fixture.reads.get("image_files:image:overview"), undefined);
+    await fixture.image.resolveCanvasImageSource("image:overview", 192);
+    assert.equal(smallDecodes, 1);
+});
+
+test("原图无需768预览时，总览仍按192生成，不提前创建完整原图对象地址", async () => {
+    const fixture = await loadImageStorage(async (_blob, edge) => edge === 192
+        ? new Blob(["overview"], { type: "image/webp" }) : undefined);
+    fixture.stores.get("image_files").set("image:medium", new Blob(["600px-original"], { type: "image/png" }));
+    const source = await fixture.image.resolveCanvasImageSource("image:medium", 192);
+    assert.match(source, /^data:image\/webp/);
+    assert.equal(fixture.createdUrls.length, 0);
+    assert.ok(fixture.stores.get("image_files").has("image:medium"));
 });
 
 test("删除图片时，尚未完成的缩略图解码不复活缓存或重写预览记录", async () => {

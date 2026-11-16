@@ -1,0 +1,76 @@
+diff --git a/web/src/components/canvas/infinite-canvas.tsx b/web/src/components/canvas/infinite-canvas.tsx
+index 1d13da5..0543fb7 100644
+--- a/web/src/components/canvas/infinite-canvas.tsx
++++ b/web/src/components/canvas/infinite-canvas.tsx
+@@ -5,6 +5,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+ import { createCanvasPanScheduler } from "@/扩展功能/画布布局/画布平移调度";
+ import { createCanvasGestureProbe } from "@/扩展功能/画布交互/缩放性能记录";
+ import { canvasGridStep } from "@/扩展功能/画布交互/网格缩放步长";
++import { residentCanvasClip } from "@/扩展功能/画布交互/驻留画布绘制裁剪";
+ 
+ import { canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
+ import { useThemeStore } from "@/stores/use-theme-store";
+@@ -55,6 +56,7 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+     const layerRef = useRef<HTMLDivElement>(null);
+     const gridRef = useRef<HTMLDivElement>(null);
+     const connectionRef = useRef<SVGGElement>(null);
++    const sizeRef = useRef({ width: 0, height: 0 });
+     const callbacksRef = useRef({ onManualViewportStart, onViewportChange, onViewportPreview, onPanningChange, onCanvasDeselect });
+     callbacksRef.current = { onManualViewportStart, onViewportChange, onViewportPreview, onPanningChange, onCanvasDeselect };
+     const schedulerRef = useRef<ReturnType<typeof createCanvasPanScheduler> | null>(null);
+@@ -64,7 +66,10 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+             const scaleChanged = scaleRef.current !== next.k;
+             liveViewportRef.current = next;
+             scaleRef.current = next.k;
+-            if (layerRef.current) layerRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.k})`;
++            if (layerRef.current) {
++                layerRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.k})`;
++                layerRef.current.style.clipPath = residentCanvasClip(next, sizeRef.current.width, sizeRef.current.height) || "";
++            }
+             connectionRef.current?.setAttribute("transform", `translate(${next.x}, ${next.y}) scale(${next.k})`);
+             if (gridRef.current) {
+                 const step = canvasGridStep(next.k);
+@@ -79,13 +84,26 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+         },
+         commit: next => callbacksRef.current.onViewportChange(next),
+         frame: callback => requestAnimationFrame(callback), cancel: id => cancelAnimationFrame(id), now: () => performance.now(),
+-        extent: () => ({ width: containerRef.current?.clientWidth || 0, height: containerRef.current?.clientHeight || 0 }),
++        extent: () => sizeRef.current,
+     });
+     const [isSpacePressed, setIsSpacePressed] = useState(false);
+     const spacePressedRef = useRef(false);
+     const pointerActionRef = useRef<Element | null>(null);
+     const [isControlPressed, setIsControlPressed] = useState(false);
+     const [isPanning, setIsPanning] = useState(false);
++    useLayoutEffect(() => {
++        const root = containerRef.current;
++        if (!root) return;
++        const update = () => {
++            sizeRef.current = { width: root.clientWidth, height: root.clientHeight };
++            if (layerRef.current) layerRef.current.style.clipPath =
++                residentCanvasClip(liveViewportRef.current, sizeRef.current.width, sizeRef.current.height) || "";
++        };
++        update();
++        const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
++        observer?.observe(root);
++        return () => observer?.disconnect();
++    }, [containerRef]);
+ 
+     useLayoutEffect(() => {
+         if (!viewportControllerRef) return;
+@@ -309,6 +327,7 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+         const live = panState.current.isPanning || zoomingRef.current || controlledRef.current ? schedulerRef.current?.latest : null;
+         if (live && layerRef.current) {
+             layerRef.current.style.transform = `translate(${live.x}px, ${live.y}px) scale(${live.k})`;
++            layerRef.current.style.clipPath = residentCanvasClip(live, sizeRef.current.width, sizeRef.current.height) || "";
+             const step = canvasGridStep(live.k);
+             if (gridRef.current) gridRef.current.style.backgroundPosition = `${live.x % step}px ${live.y % step}px`;
+             if (gridRef.current) gridRef.current.style.backgroundSize = `${step}px ${step}px`;
+@@ -387,6 +406,7 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+                     transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.k})`,
+                     willChange: productActive ? "transform" : undefined,
+                     zIndex: 1,
++                    clipPath: residentCanvasClip(viewport, sizeRef.current.width, sizeRef.current.height),
+                 }}
+             >
+                 {children}

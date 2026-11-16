@@ -1,0 +1,20 @@
+diff --git a/web/src/lib/zip.ts b/web/src/lib/zip.ts
+index 2633e3d..60bafc5 100644
+--- a/web/src/lib/zip.ts
++++ b/web/src/lib/zip.ts
+@@ -1,4 +1,4 @@
+-import { unzipSync, zipSync } from "fflate";
++import { unzip, zipSync } from "fflate";
+ 
+ type ZipFile = {
+     name: string;
+@@ -16,6 +16,8 @@ export async function createZip(files: ZipFile[]) {
+ }
+ 
+ export async function readZip(file: Blob) {
+-    const entries = unzipSync(new Uint8Array(await file.arrayBuffer()));
++    const bytes = new Uint8Array(await file.arrayBuffer());
++    const entries = await new Promise<Record<string, Uint8Array>>((resolve, reject) =>
++        unzip(bytes, (error, result) => error ? reject(error) : resolve(result)));
+     return new Map(Object.entries(entries).map(([name, data]) => [name, new Blob([data])]));
+ }

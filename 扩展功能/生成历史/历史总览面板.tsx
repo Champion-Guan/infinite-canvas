@@ -124,7 +124,7 @@ export function HistoryOverviewPanel({ history, files, selectedFiles, selectedId
                             {file ? <div className={styles.file}>
                                 <Checkbox aria-label={`勾选图片 ${file.name}`} disabled={downloading} checked={selectedIds.has(file.id)} onChange={event => onSelect([file.id], event.target.checked)} />
                                 <button type="button" className={styles.thumbnail} onClick={() => setPreviewFile(file)} aria-label={`预览 ${file.name}`}>
-                                    {node.type === CanvasNodeType.Image ? <MediaThumbnail storageKey={file.storageKey} fallback={file.content} className="size-full object-cover" /> : <Video size={20} />}
+                                    {node.type === CanvasNodeType.Image ? <MediaThumbnail maxEdge={768} storageKey={file.storageKey} fallback={file.content} className="size-full object-cover" /> : <Video size={20} />}
                                 </button>
                                 <button type="button" className={styles.fileName} disabled={downloading} onClick={() => onSelect([file.id])}>{file.name}</button>
                                 {singleFile ? <small className={styles.fileStatus}>{status}</small> : null}

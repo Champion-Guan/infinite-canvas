@@ -234,6 +234,7 @@ test('文本卡和生成配置卡独立设置都保留无推理，实际浮层�
 test('模型二级菜单按悬停展开，六档按对应模型禁用，选择同时提交模型与强度', () => {
     const labels = { none: '无推理', low: '轻度', medium: '中', high: '高', xhigh: '极高', max: 'Max' };
     const loader = variantModules({
+        react: { useRef: current => ({ current }), useState: value => [value, () => {}] },
         'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': { Check: 'Check', ChevronDown: 'ChevronDown' },
         '../主题/原生可关闭浮层': { OutsideDropdown: 'Dropdown' },
         '../主题/苹果下拉菜单.module.css': { default: { dropdown: 'dropdown', submenu: 'submenu' } },
@@ -246,7 +247,8 @@ test('模型二级菜单按悬停展开，六档按对应模型禁用，选择�
     const menu = tree.props.menu;
     assert.equal(menu.triggerSubMenuAction, 'hover');
     assert.deepEqual(menu.items[0].children.map(item => item.label.props.children[0].props.children), ['无推理', '轻度', '中', '高', '极高', 'Max']);
-    assert.deepEqual(menu.items[0].popupOffset, [12, -7]);
+    assert.deepEqual(menu.items[0].popupOffset, [12, 0]);
+    assert.ok(menu.items.every(item => item.popupOffset[1] === 0), '每个子菜单按对应模型行顶部定位，不固定对齐整个列表');
     assert.equal(menu.style.height, undefined);
     assert.equal(menu.items[0].popupStyle.height, undefined);
     assert.equal(menu.style.maxHeight, 'calc(100vh - 24px)');

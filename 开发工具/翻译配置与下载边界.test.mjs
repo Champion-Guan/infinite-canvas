@@ -196,6 +196,6 @@ test('参数卡启用独立AI入口后，填写仍同步原卡和关联预览，
     assert.equal(aiButton.props.ctx, ctx);
     const input = elements.find(el => el.type === 'input' && el.props.placeholder === '[NAME]'); input.props.onChange({ target: { value: '真实产品' } });
     assert.deepEqual(remembered, [['a', { '[NAME]': '真实产品' }]]); assert.equal(applied.length, 1);
-    assert.match(applied[0].find(op => op.id === 'preview').metadata.content, /^真实产品 （本画面不使用产品尺寸参数）/);
-    assert.match(applied[0].find(op => op.id === 'source').metadata.excelPromptResolved, /未填写变量：\[LENGTH\]/);
+    assert.match(applied[0].find(op => op.id === 'preview').metadata.content, /^真实产品 \[LENGTH\]/);
+    assert.doesNotMatch(applied[0].find(op => op.id === 'source').metadata.excelPromptResolved, /【变量与画面约束】/);
 });

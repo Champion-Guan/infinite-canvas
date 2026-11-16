@@ -1,0 +1,52 @@
+diff --git a/web/src/services/image-storage.ts b/web/src/services/image-storage.ts
+index c161039..586d33d 100644
+--- a/web/src/services/image-storage.ts
++++ b/web/src/services/image-storage.ts
+@@ -2,6 +2,7 @@ import { captureUserUpload } from "@/扩展功能/素材/上传资产规则";
+ import { createMediaUrlCache } from "@/扩展功能/媒体交付/媒体地址缓存";
+ import { createThumbnailCache } from "@/扩展功能/媒体交付/缩略图缓存";
+ import { createPreviewReadQueue } from "@/扩展功能/媒体交付/缩略图读取队列";
++import { createImageThumbnailInBackground, imagePreviewParallelism } from "@/扩展功能/媒体交付/缩略图后台生成";
+ import { 本地转发请求 as fetch } from "@/扩展功能/网络代理/本地转发请求";
+ import { sqliteForage as localforage } from "@/扩展功能/本机存储/上游浏览器存储桥";
+ 
+@@ -48,9 +49,9 @@ const objectUrls = createMediaUrlCache();
+ const previewUrls = createThumbnailCache();
+ const previewListeners = new Map<() => void, string | undefined>();
+ const previewRevisions = new Map<string, number>();
+-const readPreview = createPreviewReadQueue();
++const readPreview = createPreviewReadQueue(Math.max(3, imagePreviewParallelism()));
+ let previewRevision = 0;
+-let previewQueue: Promise<unknown> = Promise.resolve();
++const previewQueue = createPreviewReadQueue(imagePreviewParallelism());
+ const previewJobs = new Map<string, Promise<string | undefined>>();
+ const previewReads = new Map<string, Promise<string | undefined>>();
+ const IMAGE_PREVIEW_VERSION = 2;
+@@ -295,8 +296,7 @@ export async function resolveCanvasImageSource(storageKey?: string) {
+ function queueImagePreview(storageKey: string) {
+     const existing = previewJobs.get(storageKey);
+     if (existing) return existing;
+-    const job = previewQueue
+-        .then(async (): Promise<string | undefined> => {
++    const job = previewQueue(async (): Promise<string | undefined> => {
+             const original = await getImageBlob(storageKey);
+             return original && previewJobs.get(storageKey) === job
+                 ? storeImagePreview(storageKey, original, () => previewJobs.get(storageKey) === job)
+@@ -304,7 +304,6 @@ function queueImagePreview(storageKey: string) {
+         })
+         .catch(() => undefined);
+     previewJobs.set(storageKey, job);
+-    previewQueue = job;
+     void job.then(() => {
+         if (previewJobs.get(storageKey) === job) previewJobs.delete(storageKey);
+     });
+@@ -313,7 +312,8 @@ function queueImagePreview(storageKey: string) {
+ 
+ async function storeImagePreview(storageKey: string, original: Blob, current = () => true) {
+     let preview: Blob | undefined;
+-    try { preview = await previewCheckpoint.run(`decode:${storageKey}`, () => createImageThumbnail(original)); }
++    try { preview = await previewCheckpoint.run(`decode:${storageKey}`, () =>
++        createImageThumbnailInBackground(original, () => createImageThumbnail(original))); }
+     catch { return undefined; } // Failed decode is not a valid "preview unnecessary" cache record.
+     if (!current()) return undefined;
+     await previewCheckpoint.run(`save:${storageKey}`, () => previewStore.setItem<StoredImagePreview>(storageKey, { version: IMAGE_PREVIEW_VERSION, blob: preview }));

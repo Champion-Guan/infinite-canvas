@@ -1,0 +1,12 @@
+diff --git a/web/src/components/model-picker.tsx b/web/src/components/model-picker.tsx
+index 540e7ee..ff9d467 100644
+--- a/web/src/components/model-picker.tsx
++++ b/web/src/components/model-picker.tsx
+@@ -110,6 +110,7 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
+             </SelectTrigger>
+             <SelectContent
+                 style={{ zIndex: popupLayer.current }}
++                onEscapeKeyDown={event => event.stopPropagation()}
+                 data-canvas-no-zoom
+                 className="z-[1200] w-80 max-w-[calc(100vw-24px)]"
+                 position="popper"

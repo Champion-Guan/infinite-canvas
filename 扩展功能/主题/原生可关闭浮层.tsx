@@ -4,6 +4,7 @@ import { useProductActive } from "../产品/产品界面边界";
 import { createOutsidePanelRegistry, type OutsidePanelLayer } from "./面板外部关闭";
 import { NATIVE_POPUP_LIMIT, toolbarPopupTargetOffset, useNativePopupBoundary } from "../画布交互/原生浮层边界容器";
 import menuStyles from "./苹果下拉菜单.module.css";
+import "./下拉菜单动效.module.css";
 
 const ParentPanel = createContext<OutsidePanelLayer | null>(null);
 const outsidePanels = createOutsidePanelRegistry(typeof window === "undefined" ? null : window);
@@ -65,18 +66,18 @@ export const OutsideDropdown = forwardRef<HTMLElement, DropdownProps>(function O
     useEffect(() => { if (!active && expanded) change(false, { source: "trigger" }); }, [active, expanded, change]);
     const ref = useCallback((element: HTMLElement | null) => { trigger.current = element; assignRef(forwarded, element); }, [forwarded]);
     const render = popupRender ?? dropdownRender;
-    const popupContainer = useNativePopupBoundary(active && expanded);
+    const popupContainer = useNativePopupBoundary(active && expanded, true);
     const boundItems = (items: NonNullable<DropdownProps["menu"]>["items"]): typeof items => items?.map(item => {
         if (!item || !("children" in item)) return item;
         if (item.type === "group") return { ...item, children: boundItems(item.children) ?? [] };
         const renderSubmenu = "popupRender" in item ? item.popupRender : undefined;
-        return { ...item, children: boundItems(item.children) ?? [], popupStyle: { ...item.popupStyle, ...NATIVE_POPUP_LIMIT },
+        return { ...item, children: boundItems(item.children) ?? [], popupStyle: { ...NATIVE_POPUP_LIMIT, ...item.popupStyle },
             popupRender: (menu: React.ReactElement, info: Parameters<NonNullable<typeof renderSubmenu>>[1]) => (renderSubmenu ? renderSubmenu(menu, info) : menu) as React.ReactElement };
     });
-    return <ParentPanel.Provider value={layer}><Dropdown {...props} rootClassName={[menuStyles.dropdown, props.rootClassName].filter(Boolean).join(" ")} getPopupContainer={popupContainer}
+    return <ParentPanel.Provider value={layer}><Dropdown {...props} placement="bottomLeft" autoAdjustOverflow={{ adjustX: 1, adjustY: 0 }} transitionName="guan-option" rootClassName={[menuStyles.dropdown, props.rootClassName].filter(Boolean).join(" ")} getPopupContainer={popupContainer}
         align={{ ...props.align, targetOffset: toolbarPopupTargetOffset(trigger.current, props.placement) ?? props.align?.targetOffset }}
         styles={info => { const styles = typeof props.styles === "function" ? props.styles(info) : props.styles; return { ...styles, root: { ...styles?.root, ...NATIVE_POPUP_LIMIT } }; }}
-        menu={props.menu ? { ...props.menu, getPopupContainer: popupContainer, items: boundItems(props.menu.items) } : undefined} ref={ref} open={active && expanded} onOpenChange={change}
+        menu={props.menu ? { ...props.menu, motion: { motionName: "guan-option" }, getPopupContainer: popupContainer, items: boundItems(props.menu.items) } : undefined} ref={ref} open={active && expanded} onOpenChange={change}
         popupRender={menu => <div ref={popup} style={{ display: "contents" }}>{render ? render(menu) : menu}</div>} /></ParentPanel.Provider>;
 });
 
@@ -92,7 +93,7 @@ export const OutsidePopover = forwardRef<ComponentRef<typeof Popover>, PopoverPr
     const rawContent = props.content;
     const content = typeof rawContent === "function" ? rawContent : () => rawContent;
     const popupContainer = useNativePopupBoundary(active && expanded);
-    return <ParentPanel.Provider value={layer}><Popover {...props} rootClassName={[menuStyles.popover, props.rootClassName].filter(Boolean).join(" ")} ref={ref} open={active && expanded} onOpenChange={change}
+    return <ParentPanel.Provider value={layer}><Popover {...props} motion={{ motionName: "guan-option" }} rootClassName={[menuStyles.popover, props.rootClassName].filter(Boolean).join(" ")} ref={ref} open={active && expanded} onOpenChange={change}
         align={{ ...props.align, targetOffset: toolbarPopupTargetOffset(native.current?.nativeElement ?? null, props.placement) ?? props.align?.targetOffset }}
         getPopupContainer={popupContainer}
         styles={info => { const styles = typeof props.styles === "function" ? props.styles(info) : props.styles; return { ...styles, root: { ...styles?.root, ...NATIVE_POPUP_LIMIT } }; }}
@@ -109,8 +110,8 @@ const SelectWithOutside = forwardRef<ComponentRef<typeof Select>, ComponentProps
     useEffect(() => { if (!active && expanded) change(false); }, [active, expanded, change]);
     const ref = useCallback((element: ComponentRef<typeof Select> | null) => { native.current = element; assignRef(forwarded, element); }, [forwarded]);
     const render = popupRender ?? dropdownRender;
-    const popupContainer = useNativePopupBoundary(active && expanded);
-    return <ParentPanel.Provider value={layer}><Select {...props} ref={ref} open={active && expanded} onOpenChange={change}
+    const popupContainer = useNativePopupBoundary(active && expanded, true);
+    return <ParentPanel.Provider value={layer}><Select {...props} placement="bottomLeft" popupAlign={{ ...props.popupAlign, overflow: { adjustX: true, adjustY: false } }} transitionName="guan-option" ref={ref} open={active && expanded} onOpenChange={change}
         popupClassName={[menuStyles.select, props.popupClassName].filter(Boolean).join(" ")}
         getPopupContainer={popupContainer}
         styles={info => { const styles = typeof props.styles === "function" ? props.styles(info) : props.styles; return { ...styles, popup: { ...styles?.popup, root: { ...styles?.popup?.root, ...NATIVE_POPUP_LIMIT } } }; }}

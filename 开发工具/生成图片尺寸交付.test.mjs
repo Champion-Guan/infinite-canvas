@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { transformWithEsbuild } from '../.运行/3100源/画布副本/web/node_modules/vite/dist/node/index.js';
 import { parseDeliverySize, deliveryAction, prepareGeneratedDelivery, imageRequestSizePlan } from '../扩展功能/媒体交付/生成图片尺寸交付.mjs';
 import { prepareCompatibleImage } from '../扩展功能/媒体交付/HEIC上传兼容.mjs';
+import { variantModules } from './产品变体生成夹具.mjs';
 
 globalThis.window = { setTimeout, clearTimeout };
 const original = new Blob(['upstream-original'], { type: 'image/webp' });
@@ -27,6 +28,10 @@ async function fixture({ width = 1086, height = 1448, failAt, failFetch = false,
   new Function('module', 'exports', rulesCode)(rules, rules.exports);
   let id = 0;
   const dependencies = {
+    '@/扩展功能/媒体交付/缩略图后台生成': {
+      createImageThumbnailInBackground: (_blob, fallback) => fallback(), imagePreviewParallelism: () => 3,
+    },
+    '@/扩展功能/媒体交付/缩略图读取队列': variantModules().load('媒体交付/缩略图读取队列.ts'),
     '@/扩展功能/素材/上传资产规则': rules.exports,
     '@/扩展功能/媒体交付/上传前存储检查.mjs': { assertUploadStorageReady() {} },
     '@/扩展功能/媒体交付/媒体地址缓存': { createMediaUrlCache: () => ({ set() {}, get() {}, delete() {} }) },
@@ -64,6 +69,15 @@ test('原始900×1200无需对齐16；比例/auto没有交付目标，尺寸上�
   assert.equal(deliveryAction(1280, 800, parseDeliverySize('800x500')), 'resize');
   assert.equal(deliveryAction(1024, 1024, parseDeliverySize('900x1200')), 'ratio-mismatch');
   assert.equal(deliveryAction(1093, 1439, parseDeliverySize('900x1200')), 'ratio-mismatch');
+});
+
+test('渠道1280×800结果等比交付800×500，保留原图且不裁切', async () => {
+  const f = await fixture({ width: 1280, height: 800 });
+  const result = await f.uploadGeneratedImage(original, { targetSize: '800x500' });
+  assert.equal(result.width, 800); assert.equal(result.height, 500);
+  assert.equal(result.originalWidth, 1280); assert.equal(result.originalHeight, 800);
+  assert.equal(f.media.get(result.originalStorageKey), original);
+  assert.equal(f.media.get(result.storageKey), encoded);
 });
 
 test('上游1086×1448交付900×1200，完整原字节和PNG交付图只保存两个键', async () => {

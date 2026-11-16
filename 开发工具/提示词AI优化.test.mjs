@@ -109,7 +109,7 @@ test('双语优化分段响应保留对应关系，应用和再次打开可直�
     assert.equal(reopened.chinese, result.chinese); assert.equal(reopened.english, result.english);
 });
 
-test('最终卡片优化真正参与生成，源卡独立保留；来源变化后回到当前组装，变量约束后缀不可改', () => {
+test('最终卡片优化真正参与生成，源卡独立保留；来源变化后回到当前组装，产品补充保持原文', () => {
     const { loader, rules } = rulesFor(), fixture = textFixture();
     const raw = loader.load('提示词/变量使用规则.ts');
     const supplement = loader.load('Excel画布/旧版参数规则.ts').productParameterSupplement(fixture.parameter.metadata);
@@ -124,7 +124,9 @@ test('最终卡片优化真正参与生成，源卡独立保留；来源变化�
     assert.equal(after.find(node => node.id === 'prompt').metadata.content, fixture.text.metadata.content);
     const read = loader.load('提示词/生成文本读取.ts').readProtectedGenerationText;
     assert.equal(read(after.find(node => node.id === 'final'), after), text);
-    assert.throws(() => rules.parseOptimizedPrompt(JSON.stringify({ text: text.replace('【变量与画面约束】', '【约束】') }), source), /约束/);
+    assert.doesNotMatch(text, /【变量与画面约束】/);
+    if (supplement) assert.throws(() => rules.parseOptimizedPrompt(JSON.stringify({ text: text.replace(supplement, '改写的补充' + supplement) }), source), /产品补充/);
+    assert.doesNotMatch(rules.PROMPT_OPTIMIZATION_SYSTEM, /变量与画面约束/);
     const changed = after.map(node => node.id === fixture.parameter.id
         ? { ...node, metadata: { ...node.metadata, promptVariableValues: { ...node.metadata.promptVariableValues, '[COLOR]': '绿色' } } } : node);
     assert.notEqual(read(changed.find(node => node.id === 'final'), changed), text);
@@ -140,6 +142,19 @@ test('英文过期时以当前中文为准修复双语，不把旧译文的尺�
     const after = apply(fixture.nodes, rules.promptOptimizationOps(source, result, fixture.nodes));
     assert.equal(after.find(node => node.id === fixture.node.id).metadata.productImagePrompt.variants.red.translatedChinese, source.chinese);
     assert.ok(result.english.includes('8cm'));
+});
+
+test('旧双语提示词清理自动后缀后不复用旧文本偏移，优化返回旧后缀也会清理', () => {
+    const { loader, rules } = rulesFor(), fixture = bilingualFixture(loader);
+    const suffix = '\n\n【变量与画面约束】\n本卡为产品尺寸展示主题，也只能标注本提示词中已填写的尺寸；缺少长度等参数时省略该尺寸标注，不用其他尺寸代替。';
+    const pair = fixture.node.metadata.productImagePrompt.variants.red;
+    pair.chinese += suffix; pair.english += suffix; pair.translatedChinese = pair.chinese;
+    pair.alignment = [{ chineseStart: 0, chineseEnd: pair.chinese.length, englishStart: 0, englishEnd: pair.english.length }];
+    const source = rules.readPromptOptimizationSource(fixture.node, fixture.nodes);
+    assert.equal(source.alignment, undefined);
+    assert.doesNotMatch(source.chinese + source.english, /【变量与画面约束】/);
+    const result = rules.parseOptimizedPrompt(JSON.stringify({ chinese: source.chinese + suffix, english: source.english + suffix }), source);
+    assert.equal(result.chinese, source.chinese); assert.equal(result.english, source.english);
 });
 
 test('优化任务通过现有文本通道，先保存任务，候选和收据落盘；应用前原文不变，不调用图片模型', async () => {
