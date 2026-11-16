@@ -1,0 +1,33 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 4661657..b2f237e 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -619,6 +619,10 @@ function TextContent({ node, theme, promptHighlightSource: source, promptHighlig
+     const primaryText = texts.find((text) => text.id === primaryTextId);
+     // Excel cards are source templates; parameter substitution belongs to final preview cards only.
+     const content = primaryText?.content ?? node.metadata?.content ?? node.metadata?.excelPromptRaw ?? "";
++    const [editingContent, setEditingContent] = useState(content);
++    useEffect(() => {
++        if (!isEditingContent) setEditingContent(content);
++    }, [content, isEditingContent]);
+     const isExcelPrompt = Boolean(node.metadata?.excelPromptLabel || node.metadata?.excelPromptTheme || node.metadata?.excelPromptTokens?.length || node.metadata?.excelPromptTemplateId || node.metadata?.excelPromptRaw);
+     const paddingClass = isBatchRoot ? "px-4 pb-4 pt-14" : "p-4";
+     const isFinalPrompt = Boolean(node.metadata?.promptVariablePreviewOf);
+@@ -653,11 +657,14 @@ function TextContent({ node, theme, promptHighlightSource: source, promptHighlig
+                         ref={textareaRef}
+                         className={"guan-scroll-region " + (`thin-scrollbar block h-full w-full resize-none overflow-y-auto whitespace-pre-wrap break-words border-none bg-transparent m-0 font-mono outline-none select-text appearance-none ${paddingClass}` || "")}
+                         style={textStyle}
+-                        value={content}
++                        value={editingContent}
+                         references={mentionReferences}
+                         highlightLabels={false}
+-                        onChange={(value) => onContentChange(node.id, value)}
+-                        onBlur={onStopEditing}
++                        onChange={setEditingContent}
++                        onBlur={() => {
++                            if (editingContent !== content) onContentChange(node.id, editingContent);
++                            onStopEditing();
++                        }}
+                         onKeyDown={(event) => {
+                             if (event.key === "Escape") onStopEditing();
+                         }}

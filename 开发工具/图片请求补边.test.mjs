@@ -113,9 +113,11 @@ test('尺寸不符、缺失或篡改补边记录不裁图；取消释放位图�
     try {
         const plan=imageRequestSizePlan(790,1376), original=await source(790,1376);
         const encoded=await padImageReference(original.dataUrl,plan.padding), blob=new Blob([Buffer.from(encoded.split(',')[1],'base64')],{type:'image/png'});
-        await assert.rejects(prepareGeneratedDelivery(blob,{width:1024,height:1536},{targetSize:'790x1376',padding:plan.padding}),{code:'image_delivery_size_mismatch'});
+        const mismatch = await prepareGeneratedDelivery(blob,{width:1024,height:1536},{targetSize:'790x1376',padding:plan.padding});
+        assert.equal(mismatch.blob,blob); assert.deepEqual(mismatch.metadata,{width:1024,height:1536});
+        assert.match(mismatch.deliveryNote,/保留上游原图/);
         await assert.rejects(prepareGeneratedDelivery(blob,{width:800,height:1376},{targetSize:'790x1376',padding:{...plan.padding,left:4}}),/记录/);
-        await assert.rejects(prepareGeneratedDelivery(blob,{width:800,height:1376},{targetSize:'790x1376'}),{code:'image_delivery_size_mismatch'});
+        assert.equal((await prepareGeneratedDelivery(blob,{width:800,height:1376},{targetSize:'790x1376'})).blob,blob);
         const before=host.encodes(), controller=new AbortController();controller.abort();
         await assert.rejects(prepareGeneratedDelivery(blob,{width:800,height:1376},{targetSize:'790x1376',padding:plan.padding,signal:controller.signal}),{name:'AbortError'});
         assert.equal(host.encodes(),before);

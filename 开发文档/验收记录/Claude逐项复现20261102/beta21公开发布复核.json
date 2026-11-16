@@ -1,0 +1,23 @@
+{
+  "at": "2026-11-01T17:13:35.059Z",
+  "version": "2.0.0-beta.21",
+  "tag": "web-v2.0.0-beta.21",
+  "commit": "5639d54fb4a94bb3739411687ef2c8d56c2f81f3",
+  "url": "https://github.com/Champion-Guan/infinite-canvas/releases/tag/web-v2.0.0-beta.21",
+  "publishedAt": "2026-11-01T17:11:59Z",
+  "isDraft": false,
+  "isPrerelease": true,
+  "publicUnauthenticatedDownloads": true,
+  "signatureVerified": true,
+  "keyId": "61d0312290a5ac3688099d26d595e619161fcf34bcc582262c5ab26f1c20be00",
+  "archive": {
+    "name": "Web-v2.0.0-beta.21-macos-arm64.zip",
+    "size": 77702513,
+    "sha256": "ed423a788e12dfd7e691bd67c1fe7b5da9465452e72bf9048f9fd257600c4f0b"
+  },
+  "manifestSHA256": "381bbdb9d7f040f1aa6c3cbf3a4a318a7a1850a6efbc04250daa59927b078971",
+  "compatibilityEntrypointAndIconPresent": true,
+  "selectedPreview": "2.0.0-beta.21",
+  "stableTag": "v1.2.8",
+  "scope": "发布后匿名下载公开资产，验可信签名、SHA256、ZIP库存及兼容入口。未安装到Mac B，不代表macOS15实机升级验收。临时下载在finally清理。"
+}

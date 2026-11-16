@@ -94,19 +94,16 @@ test('应用失败后保留成功响应；重新交付不重新准备、绑定�
     prepare: async () => assert.fail('不可重建请求'), bind: async () => assert.fail('不可重新绑定') });
   assert.equal(f.jobs.get(id).applied, true); assert.equal(f.commands.filter(item => item.operation === 'submit').length, 1);
 });
-test('尺寸验收失败保留原任务响应；再次交付仍只读取原任务，不确认合格或重新计费', async () => {
+test('尺寸不符仍接受原任务响应，不确认合格规格或重新计费', async () => {
   const f = fixture();
-  const applyAndSave = async () => prepareGeneratedDelivery(new Blob(['original-response']), { width: 1024, height: 1536 }, { targetSize: '1152x1536' });
-  await assert.rejects(runCanvasImageTask({ ...f.options, applyAndSave }), code('image_delivery_size_mismatch'));
+  const applyAndSave = async () => { await prepareGeneratedDelivery(new Blob(['original-response']), { width: 1024, height: 1536 }, { targetSize: '1152x1536' }); f.markSaved(); return { persisted: true }; };
+  await runCanvasImageTask({ ...f.options, applyAndSave });
   const previous = f.records[0], before = structuredClone(f.jobs.get(previous.taskId));
-  await assert.rejects(runCanvasImageTask({ ...f.options, previous, retry: true, applyAndSave,
-    prepare: async () => assert.fail('不重新准备请求'), bind: async () => assert.fail('不重新绑定渠道'),
-  }), code('image_delivery_size_mismatch'));
   assert.deepEqual(f.jobs.get(previous.taskId), before);
-  assert.equal(before.state, 'succeeded'); assert.equal(before.applied, false);
+  assert.equal(before.state, 'succeeded'); assert.equal(before.applied, true);
   assert.equal(f.commands.filter(command => command.operation === 'submit').length, 1);
-  assert.equal(f.commands.filter(command => command.operation === 'result').length, 2);
-  assert.equal(f.commands.filter(command => command.operation === 'applied' || command.operation === 'checkpoint').length, 0);
+  assert.equal(f.commands.filter(command => command.operation === 'result').length, 1);
+  assert.equal(f.commands.filter(command => command.operation === 'applied' || command.operation === 'checkpoint').length, 2);
   await assert.rejects(f.options.host.deliver({ id: previous.taskId, productId: 'product-A', nodeId: 'node-A' },
     { applyAndSave: async job => {
       assert.equal(hash(Buffer.from(job.bytes, 'base64')), f.response.id, '上游原始响应字节仍可读取');

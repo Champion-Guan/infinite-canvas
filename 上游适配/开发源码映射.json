@@ -10595,6 +10595,11 @@
       "SHA256": "644dcff330ed2b6c725c628475d65b0d7474da8769e258ff68eddad8ab6d6e1f",
       "前态SHA256": "7e2176dbabaee59b6c35128b413f4af872e6936f7b3fd0dd4e9ad4891723c044",
       "后态SHA256": "1ef6b27aca6ef46fef210edd9fd96f3287eb221e60579fc0ffab64b792ed289e"
+    },
+    {
+      "文件": "上游适配/编辑框本地草稿防止长按退格卡顿.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "编辑框本地草稿防止长按退格卡顿"
     }
   ]
 }

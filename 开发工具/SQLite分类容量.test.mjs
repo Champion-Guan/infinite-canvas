@@ -206,6 +206,26 @@ test('后台容量读取期间服务仍可处理写入；结束后重新统计�
   assert.equal(category(await f.workspace.readDetailedUsage(), 'prompts').records, 2);
 }));
 
+test('容量统计事务先释放，再暂停分类；连续写入不会被长读快照阻塞', () => using(async f => {
+  for (let i = 0; i < 130; i++) f.workspace.writeDocument({ collection: 'extension', id: `usage-scan-${i}`, value: { step: i }, expectedRevision: 0, operationId: randomUUID() });
+  for (let i = 0; i < 130; i++) writeFileSync(join(f.root, '媒体', `usage-unindexed-${i}`), 'x', { mode: 0o600 });
+  let signalPause, release;
+  const paused = new Promise(resolve => { signalPause = resolve; });
+  const hold = new Promise(resolve => { release = resolve; });
+  const pending = readCategorizedUsage({ dataRoot: f.root, workspaceId: f.workspace.workspaceId, yieldControl: () => { signalPause(); return hold; } });
+  let timeout;
+  try {
+    await Promise.race([paused, new Promise((_, reject) => { timeout = setTimeout(() => reject(Error('容量统计没有到达受控暂停点')), 5000); })]);
+    let revision = 0;
+    const content = 'x'.repeat(1024 * 1024);
+    for (let i = 0; i < 20; i++) revision = f.workspace.writeDocument({ collection: 'extension', id: 'usage-scan-write',
+      value: { content, step: i }, expectedRevision: revision, operationId: randomUUID() }).revision;
+    assert.equal(f.workspace.readDocument('extension', 'usage-scan-write').revision, 20);
+  } finally { clearTimeout(timeout); release(); }
+  const usage = await pending;
+  assert.equal(usage.breakdown.businessSnapshot, true);
+}));
+
 test('缺当前分片明确失败，不当作空库或历史碎片略过', () => using(async f => {
   await f.app().createInstance({ storeName: 'prompt_cache' }).setItem('one', 'one');
   const head = f.workspace.readDocument('extension', idFor('prompt_cache')).value.head.id;

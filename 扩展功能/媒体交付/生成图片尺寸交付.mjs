@@ -149,13 +149,13 @@ export async function prepareGeneratedDelivery(blob, metadata, { targetSize, sig
     if (!expected || Object.keys(expected).some(key => expected[key] !== padding[key]))
       throw Error('请求补边记录与交付尺寸不一致，未裁切图片，原始响应已保留。');
     if (metadata.width !== padding.width || metadata.height !== padding.height)
-      throw new ImageDeliverySizeError(metadata, { width: padding.width, height: padding.height });
+      return { blob, metadata, deliveryNote: `上游返回 ${metadata.width} × ${metadata.height}，与请求适配画布 ${padding.width} × ${padding.height} 不符；已保留上游原图` };
     const bitmap = await createImageBitmap(blob);
     let canvas;
     try {
       signal?.throwIfAborted();
       if (bitmap.width !== padding.width || bitmap.height !== padding.height)
-        throw new ImageDeliverySizeError(bitmap, { width: padding.width, height: padding.height });
+        return { blob, metadata, deliveryNote: `上游返回 ${bitmap.width} × ${bitmap.height}，与请求适配画布 ${padding.width} × ${padding.height} 不符；已保留上游原图` };
       canvas = document.createElement('canvas'); canvas.width = target.width; canvas.height = target.height;
       const context = canvas.getContext('2d');
       if (!context) throw Error('无法创建交付图片画布。');
@@ -170,7 +170,8 @@ export async function prepareGeneratedDelivery(blob, metadata, { targetSize, sig
   }
   const action = deliveryAction(metadata.width, metadata.height, target);
   if (!target || action === 'original') return { blob, metadata };
-  if (action === 'ratio-mismatch') throw new ImageDeliverySizeError(metadata, target);
+  if (action === 'ratio-mismatch')
+    return { blob, metadata, deliveryNote: `上游返回 ${metadata.width} × ${metadata.height}，与请求尺寸 ${target.width} × ${target.height} 比例不同；已保留上游原图` };
   const delivery = await resizeDeliveryBlob(blob, target, { signal });
   return { blob: delivery, metadata: target,
     deliveryNote: '已按交付尺寸等比例缩放，生成原图另行保留' };

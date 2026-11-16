@@ -105,17 +105,15 @@ test('精确尺寸不重新编码；auto与仅比例配置沿用原图；普通�
   assert.equal(result.width, 1086); assert.equal(f.media.get(result.storageKey), original);
 });
 
-test('要求1152×1536却返回1024×1536时拒绝交付，不编码、不写盘、不冒充成功', async () => {
+test('要求1152×1536却返回1024×1536时按实际尺寸交付原图，不裁切或编码', async () => {
   const f = await fixture({ width: 1024, height: 1536 }), count = draws.length;
   const bytes = Buffer.from(await original.arrayBuffer());
-  await assert.rejects(f.uploadGeneratedImage(original, { targetSize: '1152x1536' }), error => {
-    assert.equal(error.code, 'image_delivery_size_mismatch');
-    assert.equal(error.requestedSize, '1152x1536'); assert.equal(error.actualSize, '1024x1536');
-    assert.match(error.message, /要求 1152 × 1536.*上游返回 1024 × 1536/);
-    return true;
-  });
-  assert.equal(draws.length, count); assert.equal(f.writes.length, 0);
-  assert.equal(f.media.size, 0); assert.equal(f.urls.size, 0);
+  const result = await f.uploadGeneratedImage(original, { targetSize: '1152x1536' });
+  assert.deepEqual([result.width, result.height], [1024, 1536]);
+  assert.match(result.deliveryNote, /比例不同.*保留上游原图/);
+  assert.equal(f.media.get(result.storageKey), original);
+  assert.equal(draws.length, count); assert.equal(f.writes.length, 1);
+  assert.equal(f.media.size, 1); assert.equal(f.urls.size, 1);
   assert.deepEqual(Buffer.from(await original.arrayBuffer()), bytes);
   const regular = await f.uploadImage(original);
   assert.deepEqual([regular.width, regular.height], [1024, 1536], '普通上传仍保留实际尺寸');
@@ -192,7 +190,7 @@ test('真实PNG像素处理：1086×1448到900×1200，透明像素保留，原�
   } finally { globalThis.createImageBitmap = savedBitmap; globalThis.document = savedDocument; }
 });
 
-test('公共真实上传一次保存补边原响应与原尺寸交付，尺寸不符时不产生存储文件', async () => {
+test('公共真实上传一次保存补边原响应与原尺寸交付，尺寸不符时仍保存上游原图', async () => {
   const { createCanvas, loadImage } = await import('@napi-rs/canvas');
   const plan = imageRequestSizePlan(790, 1376), canvas = createCanvas(plan.width, plan.height), context = canvas.getContext('2d');
   context.fillStyle = '#ef4444'; context.fillRect(0, 0, plan.width, plan.height);
@@ -215,7 +213,9 @@ test('公共真实上传一次保存补边原响应与原尺寸交付，尺寸�
     const output = createCanvas(790,1376), draw = output.getContext('2d'); draw.drawImage(delivered,0,0);
     for (const x of [0,789]) assert.deepEqual([...draw.getImageData(x,100,1,1).data], [34,197,94,255]);
     const invalid = await fixture({width:1024,height:1536});
-    await assert.rejects(invalid.uploadGeneratedImage(raw, {targetSize:'790x1376',padding:plan.padding}), {code:'image_delivery_size_mismatch'});
-    assert.equal(invalid.media.size,0); assert.equal(invalid.writes.length,0);
+    const fallback = await invalid.uploadGeneratedImage(raw, {targetSize:'790x1376',padding:plan.padding});
+    assert.deepEqual([fallback.width,fallback.height],[1024,1536]);
+    assert.equal(invalid.media.get(fallback.storageKey),raw);
+    assert.equal(invalid.media.size,1); assert.equal(invalid.writes.length,1);
   } finally { Object.assign(globalThis,previous); }
 });

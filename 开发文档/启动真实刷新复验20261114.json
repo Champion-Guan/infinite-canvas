@@ -1,0 +1,2681 @@
+[
+  {
+    "bg": null,
+    "body": {
+      "bottom": 611,
+      "height": 611,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "opacity": null,
+    "scene": null,
+    "transform": null
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 611,
+      "height": 611,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 360.5,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 250.5,
+      "width": 320,
+      "x": 560,
+      "y": 250.5
+    },
+    "heading": {
+      "bottom": 293.5,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 259.5,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 259.5
+    },
+    "logo": {
+      "bottom": 302.5,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 250.5,
+      "width": 52,
+      "x": 608.0625,
+      "y": 250.5
+    },
+    "name": "AI-Workbench",
+    "opacity": "0",
+    "scene": null,
+    "status": "正在验证本机工作区…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "0.696238",
+    "scene": null,
+    "status": "正在连接本机数据服务…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "0.803729",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "0.928195",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "0.99384",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "0.999866",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在加载工作台界面…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "scene": null,
+    "status": "正在恢复画布…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "1",
+    "ready": "ready",
+    "scene": "1",
+    "status": "正在恢复画布…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "0.27627",
+    "ready": "ready",
+    "scene": "1",
+    "status": "正在恢复画布…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "0.0550945",
+    "ready": "ready",
+    "scene": "1",
+    "status": "正在恢复画布…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "0.0300703",
+    "ready": "ready",
+    "scene": "1",
+    "status": "正在恢复画布…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "0.00280723",
+    "ready": "ready",
+    "scene": "1",
+    "status": "正在恢复画布…",
+    "transform": "none"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "content": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "heading": {
+      "bottom": 294,
+      "height": 34,
+      "left": 674.0625,
+      "right": 831.9296875,
+      "top": 260,
+      "width": 157.8671875,
+      "x": 674.0625,
+      "y": 260
+    },
+    "logo": {
+      "bottom": 303,
+      "height": 52,
+      "left": 608.0625,
+      "right": 660.0625,
+      "top": 251,
+      "width": 52,
+      "x": 608.0625,
+      "y": 251
+    },
+    "name": "AI-Workbench",
+    "opacity": "0.000118716",
+    "ready": "ready",
+    "scene": "1",
+    "status": "正在恢复画布…",
+    "transform": "none"
+  },
+  {
+    "bg": null,
+    "body": {
+      "bottom": 612,
+      "height": 612,
+      "left": 0,
+      "right": 1440,
+      "top": 0,
+      "width": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "opacity": null,
+    "ready": "ready",
+    "scene": "1",
+    "transform": null
+  }
+]

@@ -39,7 +39,8 @@ const stateCache = new Map<string, string>(), preferencesCache = new Map<string,
 const decodedStateCache = new Map<string, unknown>();
 const writes = new Set<Promise<unknown>>(), failed = new Map<string, unknown>();
 type StateSaveValue = string | (() => string);
-const scheduled = new Map<string, { value: StateSaveValue; queuedAt: number; timer: ReturnType<typeof setTimeout>; resolve: () => void; reject: (reason: unknown) => void; promise: Promise<void> }>();
+const scheduled = new Map<string, { value: StateSaveValue; timer: ReturnType<typeof setTimeout>; resolve: () => void; reject: (reason: unknown) => void; promise: Promise<void> }>();
+export const CANVAS_SAVE_QUIET_MS = 1000;
 const encodingFailures = new Map<string, StateSaveValue>();
 const activeSaves = new Set<string>();
 let retryFlight: Promise<void> | null = null;
@@ -209,11 +210,11 @@ export function scheduleStateSave(key: string, value: StateSaveValue) {
     // 新编辑替代尚未编码成功的旧候选；错误标记等新候选编码成功后再清除。
     encodingFailures.delete(key);
     const existing = scheduled.get(key);
-    // 空闲时短暂停笔80ms提交，持续输入最迟250ms启动；在途期间只保留最新候选。
-    if (existing) { existing.value = value; clearTimeout(existing.timer); existing.timer = setTimeout(() => startScheduled(key), Math.max(0, Math.min(80, 250 - (performance.now() - existing.queuedAt)))); return existing.promise; }
+    // 仅在停止输入一秒后提交；持续输入会不断重置计时器，在途期间只保留最新候选。
+    if (existing) { existing.value = value; clearTimeout(existing.timer); existing.timer = setTimeout(() => startScheduled(key), CANVAS_SAVE_QUIET_MS); return existing.promise; }
     let resolve!: () => void, reject!: (reason: unknown) => void;
     const promise = new Promise<void>((success, failure) => { resolve = success; reject = failure; });
-    scheduled.set(key, { value, queuedAt: performance.now(), timer: setTimeout(() => startScheduled(key), 80), resolve, reject, promise });
+    scheduled.set(key, { value, timer: setTimeout(() => startScheduled(key), CANVAS_SAVE_QUIET_MS), resolve, reject, promise });
     promise.catch(() => {}); statusChanged(); return promise;
 }
 export async function flushSQLiteStorage() {

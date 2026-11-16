@@ -9,6 +9,7 @@ import { readFragmentGraph } from './分片值编码.mjs';
 import { recycleOwnership, recycleCategory } from './回收站归属.mjs';
 
 export const USAGE_FORMAT = 'guan-sqlite-usage.v1';
+const MAX_USAGE_SNAPSHOT_BYTES = 256 * 1024 * 1024;
 const workerOperation = 'guan-read-categorized-usage';
 
 // 全库分类留在独立只读连接中执行，避免同步 SQL、哈希和 JSON 解析占住服务主线程。
@@ -60,7 +61,7 @@ const owner = owners => owners.size === 1 ? [...owners][0] : 'shared';
 
 // 只读独立连接持有业务快照；不在写连接跨await持有事务，不解密凭据、不读取媒体正文。
 // 磁盘文件长度是采样值，不冒充与并行写入原子一致的磁盘快照。备份明确不计入。
-export async function readCategorizedUsage({ dataRoot, workspaceId }) {
+export async function readCategorizedUsage({ dataRoot, workspaceId, yieldControl = setImmediate }) {
   let db;
   try {
     check(isAbsolute(dataRoot) && validUUID(workspaceId));
@@ -77,22 +78,32 @@ export async function readCategorizedUsage({ dataRoot, workspaceId }) {
     let ownership = recycleOwnership({});
     const docWeights = new Map();
     let documentBytes = 0, indexedMediaBytes = 0, steps = 0;
-    const yieldPeriodically = async () => { if (++steps % 128 === 0) await setImmediate(); };
-    for (const row of db.prepare('SELECT collection,id,length(CAST(body AS BLOB)) AS bytes FROM documents').iterate()) {
+    const yieldPeriodically = async () => { if (++steps % 128 === 0) await yieldControl(); };
+    let snapshotBytes = 0;
+    for (const row of db.prepare('SELECT collection,id,body,hash,length(CAST(body AS BLOB)) AS bytes FROM documents').iterate()) {
       docs.set(row.collection + '/' + row.id, row); documentBytes += row.bytes;
+      snapshotBytes += row.bytes;
+      requireValue(Number.isSafeInteger(snapshotBytes) && snapshotBytes <= MAX_USAGE_SNAPSHOT_BYTES,
+        'usage_snapshot_too_large', '容量统计快照超过安全内存上限，已停止统计；工作区数据未修改。', 503);
       check(docs.size <= 100_000, '统计记录超过本次安全上限，请使用后续分页统计。');
-      await yieldPeriodically();
     }
     for (const row of db.prepare('SELECT id,mime,size,content IS NULL AS external FROM media').iterate()) {
       check(validHash(row.id) && MEDIA_TYPES.includes(row.mime) && Number.isSafeInteger(row.size) && row.size > 0);
       media.set(row.id, row); indexedMediaBytes += row.size;
       check(media.size <= 100_000, '媒体索引超过本次安全上限，请使用后续分页统计。');
-      await yieldPeriodically();
     }
+    const documentMedia = new Map();
+    for (const row of db.prepare('SELECT collection,document_id,media_id FROM document_media ORDER BY collection,document_id,media_id').iterate()) {
+      const key = row.collection + '/' + row.document_id;
+      if (!documentMedia.has(key)) documentMedia.set(key, []);
+      documentMedia.get(key).push(row.media_id);
+    }
+    // Copy a bounded logical snapshot, then release SQLite before hashes, JSON, or async work.
+    db.exec('COMMIT'); db.close(); db = null;
     const getDocument = (collection, id) => {
-      const row = db.prepare('SELECT body,hash FROM documents WHERE collection=? AND id=?').get(collection, id);
+      const row = docs.get(collection + '/' + id);
       check(row && sha(row.body) === row.hash, '当前文档或分片缺失、哈希不符，统计已停止。');
-      return { collection, id, value: JSON.parse(row.body), mediaIds: db.prepare('SELECT media_id FROM document_media WHERE collection=? AND document_id=? ORDER BY media_id').all(collection, id).map(ref => ref.media_id) };
+      return { collection, id, value: JSON.parse(row.body), mediaIds: documentMedia.get(collection + '/' + id) ?? [] };
     };
     // 回收站快照和当前画布都保存在同一个 canvas_store 文档中；只把快照里的媒体归到对应回收站，
     // 这样不会把回收站误报成普通画布，也不会把当前产品的共享媒体重复计入。
@@ -312,18 +323,19 @@ export async function readCategorizedUsage({ dataRoot, workspaceId }) {
       if (kind === 'history') categories.get(kind).blocks++;
     }
     // 普通业务文档的直接媒体引用兼容；已有类型描述优先，不把同一图片另算一份。
-    for (const row of db.prepare('SELECT collection,document_id,media_id FROM document_media').iterate()) {
-      check(media.has(row.media_id));
-      if (docOwners.has(row.collection + '/' + row.document_id) || /^app-part-[a-f0-9]{64}$/.test(row.document_id)) continue;
-      if (!mediaOwners.has(row.media_id)) own(mediaOwners, row.media_id, mimeCategory(media.get(row.media_id).mime));
+    for (const [key, mediaIds] of documentMedia) {
+      const documentId = key.slice(key.indexOf('/') + 1);
+      for (const mediaId of mediaIds) {
+        check(media.has(mediaId));
+        if (docOwners.has(key) || /^app-part-[a-f0-9]{64}$/.test(documentId)) continue;
+        if (!mediaOwners.has(mediaId)) own(mediaOwners, mediaId, mimeCategory(media.get(mediaId).mime));
+      }
     }
     for (const [id, row] of media) {
       const kind = mediaOwners.has(id) ? owner(mediaOwners.get(id)) : 'retained_media';
       categories.get(kind).mediaBytes += row.size; categories.get(kind).blocks++;
     }
     for (const owners of files.values()) categories.get(owner(owners)).files++;
-    db.exec('COMMIT'); db.close(); db = null;
-
     const externalMedia = new Map([...media].filter(([, row]) => row.external));
     let mediaDiskBytes = 0, unindexedMediaBytes = 0, unindexedMediaFiles = 0;
     const seen = new Set();

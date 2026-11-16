@@ -44,17 +44,8 @@ export function useCanvasImageResults({ projectId, nodesRef, restoredProjectIdRe
         const targetSize = exactSize || request.image.deliverySize || request.requestedSize;
         const uploaded = await uploadGeneratedImage(request.image.dataUrl, {
             signal: request.signal, targetSize, padding: request.image.padding,
-        }).catch((error: unknown) => {
-            if (error instanceof Error && "code" in error && error.code === "image_delivery_size_mismatch")
-                throw Object.assign(new Error(`${error.message}上游原始响应已保留在原任务中，此结果不支持重试。`, { cause: error }),
-                    { code: error.code });
-            throw error;
         });
-        try {
-            assertTarget();
-            if (exactSize && `${uploaded.width}x${uploaded.height}` !== exactSize)
-                throw Error(`上游返回的图片比例与原图 ${exactSize} 不同，未采用该结果；原图已保留，请重试。`);
-        }
+        try { assertTarget(); }
         catch (error) {
             // 保存期间原目标消失时，只回收本次上传尚未被节点引用的文件。
             await deleteStoredImages([uploaded.storageKey, uploaded.originalStorageKey].filter((key): key is string => Boolean(key)));

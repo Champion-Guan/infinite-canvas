@@ -142,16 +142,16 @@ test('蒙版与多角度结果保持原卡片边界，保存原图交付图编�
     assert.deepEqual(api.order, ['upload', 'apply', 'save']);
 });
 
-test('一键超人首次和重试都优先采用保存的原图尺寸，拒绝比例不符的结果', async () => {
+test('一键超人首次和重试都优先使用原图目标，但上游比例不符仍回写实际图片', async () => {
     for (const mode of ['tool', 'retry']) {
         const api = await fixture();
         api.port.nodesRef.current[0].metadata.imageSuperSourceSize = '1086x1448';
         const request = { ...api.request, mode, prompt: '换语言', generationMetadata: { generationType: 'edit' }, requestedSize: '1024x1024' };
-        await assert.rejects(api.run(request), /比例与原图 1086x1448 不同/);
+        await api.run(request);
         assert.deepEqual(api.targets, ['1086x1448']);
-        assert.deepEqual(api.order, ['upload']);
-        assert.equal(api.counts().saves, 0);
-        assert.deepEqual(api.cleaned, ['image:交付', 'image:原图']);
+        assert.deepEqual(api.order, ['upload', 'apply', 'save']);
+        assert.equal(api.counts().saves, 1);
+        assert.deepEqual(api.cleaned, []);
     }
 });
 
@@ -230,7 +230,7 @@ test('尺寸不符时首次、重试和工具均不回写成功，保留原节�
         const before = structuredClone(api.port.nodesRef.current);
         await assert.rejects(api.run({ ...api.request, mode, prompt: '本地测试', generationMetadata: {} }), failure => {
             assert.equal(failure.code, 'image_delivery_size_mismatch');
-            assert.match(failure.message, /要求 1152 × 1536.*上游返回 1024 × 1536.*原始响应已保留.*不支持重试/);
+            assert.match(failure.message, /要求 1152 × 1536.*上游返回 1024 × 1536/);
             return true;
         });
         assert.deepEqual(api.port.nodesRef.current, before);

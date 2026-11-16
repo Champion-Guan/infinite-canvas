@@ -1,0 +1,1538 @@
+{
+  "channel": "不吃坤肉",
+  "endpoint": "https://api.kunrouai.com",
+  "tests": [
+    {
+      "id": "压缩-webp-50",
+      "startedAt": "2026-11-16T10:01:13.642Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-sunburst-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1024x1024",
+        "quality": "low",
+        "n": 1,
+        "output_format": "webp",
+        "moderation": "auto",
+        "output_compression": 50
+      },
+      "wireSHA256": "98e56228ca1ad066d6b509f7a5be50bc6ad61c4c089d4354c2088330960b7440",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 1198298,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 2058,
+        "output_tokens_details": {
+          "image_tokens": 2058,
+          "text_tokens": 0
+        },
+        "total_tokens": 2077
+      },
+      "responseMetadata": {
+        "size": "1024x1024",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 898354,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "ea16f359588a6da40d14d38a141cb50413b51b6c9b28db9c76949173336c2cd3",
+          "file": "压缩-webp-50-0.png"
+        }
+      ],
+      "durationMs": 38580
+    },
+    {
+      "id": "透明-webp",
+      "startedAt": "2026-11-16T10:01:52.222Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-sunburst-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1024x1024",
+        "quality": "low",
+        "n": 1,
+        "output_format": "webp",
+        "moderation": "auto",
+        "background": "transparent"
+      },
+      "wireSHA256": "c2b49262b51ee9b46654298da64dac33fa64ba3e1bc3a7ecef30f645c60806ab",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 869237,
+      "usage": {
+        "input_tokens": 48,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 48
+        },
+        "output_tokens": 2058,
+        "output_tokens_details": {
+          "image_tokens": 2058,
+          "text_tokens": 0
+        },
+        "total_tokens": 2106
+      },
+      "responseMetadata": {
+        "size": "1024x1024",
+        "quality": "low",
+        "background": "transparent",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 651459,
+          "type": "png",
+          "transparentPixels": 1045182,
+          "sha256": "9e96f2761d6732b622762f1729d92256cd6e825c8d0757f93d864b4eeb311b40",
+          "file": "透明-webp-0.png"
+        }
+      ],
+      "durationMs": 26991
+    },
+    {
+      "id": "透明-jpeg",
+      "startedAt": "2026-11-16T10:02:19.213Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-sunburst-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1024x1024",
+        "quality": "low",
+        "n": 1,
+        "output_format": "jpeg",
+        "moderation": "auto",
+        "background": "transparent"
+      },
+      "wireSHA256": "bf9fa165dcffe3ecc7dd971108f24f6c3a1fc79faf822a816908033df18db094",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 947245,
+      "usage": {
+        "input_tokens": 48,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 48
+        },
+        "output_tokens": 2058,
+        "output_tokens_details": {
+          "image_tokens": 2058,
+          "text_tokens": 0
+        },
+        "total_tokens": 2106
+      },
+      "responseMetadata": {
+        "size": "1024x1024",
+        "quality": "low",
+        "background": "transparent",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 709965,
+          "type": "png",
+          "transparentPixels": 1033999,
+          "sha256": "cba56266b2366e038ec579fd976e9e2ce1c109e22d38b694c51e9f42a554f120",
+          "file": "透明-jpeg-0.png"
+        }
+      ],
+      "durationMs": 21015
+    },
+    {
+      "id": "编辑背景透明",
+      "startedAt": "2026-11-16T10:02:40.229Z",
+      "interface": "edits",
+      "request": {
+        "model": "gpt-image-2.6-sunburst-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1024x1024",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto",
+        "background": "transparent"
+      },
+      "wireSHA256": "9b78457e7e860ac68d9df653317b29f764fe96f9eba81255f56d7362b441d133",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 830652,
+      "usage": {
+        "input_tokens": 242,
+        "input_tokens_details": {
+          "image_tokens": 194,
+          "text_tokens": 48
+        },
+        "output_tokens": 2058,
+        "output_tokens_details": {
+          "image_tokens": 2058,
+          "text_tokens": 0
+        },
+        "total_tokens": 2300
+      },
+      "responseMetadata": {
+        "size": "1024x1024",
+        "quality": "low",
+        "background": "transparent",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 622517,
+          "type": "png",
+          "transparentPixels": 1047402,
+          "sha256": "0c4fc79eddea6833442c10d24d1d3989dd786d7259b36ac31745f83d1098b684",
+          "file": "编辑背景透明-0.png"
+        }
+      ],
+      "durationMs": 30916
+    },
+    {
+      "id": "尺寸质量-max-2480x3312",
+      "startedAt": "2026-11-16T10:03:11.146Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-sunburst-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "2480x3312",
+        "quality": "max",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "e055ccecce0aba3200017d673b41ff9ca6b7b6a94720a9f218f4dadb95ccbae4",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 4757354,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1563
+      },
+      "responseMetadata": {
+        "size": "2448x3264",
+        "quality": "max",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 2448,
+          "height": 3264,
+          "bytes": 3567647,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "29df32ca04172665a5cd6e381f8fd56f4e82159a8b79501fb4cd46042cc97baf",
+          "file": "尺寸质量-max-2480x3312-0.png"
+        }
+      ],
+      "durationMs": 28528
+    },
+    {
+      "id": "尺寸质量-high-2480x3312",
+      "startedAt": "2026-11-16T10:03:39.678Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-sunburst-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "2480x3312",
+        "quality": "high",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "1a91b209923ee93efd58d533127be3e72308729698d55bcdff955b77ba49b5b5",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 4692451,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1563
+      },
+      "responseMetadata": {
+        "size": "2448x3264",
+        "quality": "high",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 2448,
+          "height": 3264,
+          "bytes": 3518970,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "98c23df6ed9c63643c6ff4aa4e3f9a3fde08325dee9ae78b1c808ff1fe121e7d",
+          "file": "尺寸质量-high-2480x3312-0.png"
+        }
+      ],
+      "durationMs": 31503
+    },
+    {
+      "id": "省略可选参数",
+      "startedAt": "2026-11-16T10:04:11.181Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-sunburst-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "n": 1
+      },
+      "wireSHA256": "705b5690f52b1f71e189289ecafda766e353d4c18019471e85956389336bd70e",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 5791055,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1887,
+        "output_tokens_details": {
+          "image_tokens": 1887,
+          "text_tokens": 0
+        },
+        "total_tokens": 1906
+      },
+      "responseMetadata": {
+        "size": "2880x2880",
+        "quality": "auto",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 2880,
+          "height": 2880,
+          "bytes": 4342921,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "93331c0f6b13302803d2230aed8968e20f05a1070babf3723a8cd89453285626",
+          "file": "省略可选参数-0.png"
+        }
+      ],
+      "durationMs": 47405
+    },
+    {
+      "id": "跨模型自定义-gpt-image-2.6-1k",
+      "startedAt": "2026-11-16T10:04:58.586Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-1k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1800x2400",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "5b8f51fa774f6d54eed4a24d158f8966ed9c2a3892f968040e3c82b43f98f9b3",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 1577314,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1563
+      },
+      "responseMetadata": {
+        "size": "1800x2400",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1086,
+          "height": 1448,
+          "bytes": 1182625,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "cd6c3df7b1831b32b7246811dd3ea0072279599c2f19bdebede71e9a09eec08a",
+          "file": "跨模型自定义-gpt-image-2.6-1k-0.png"
+        }
+      ],
+      "durationMs": 20454
+    },
+    {
+      "id": "跨模型自定义-gpt-image-2.6-flare-1k",
+      "startedAt": "2026-11-16T10:05:19.040Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-flare-1k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1800x2400",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "5fe1a9bc7b833b1870c0e2c70e2d1aa6ecdb6be357ca49cce69383ae082a625e",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 1749016,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1563
+      },
+      "responseMetadata": {
+        "size": "1800x2400",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1086,
+          "height": 1448,
+          "bytes": 1311397,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "87384fc264d84b9578b33717ab84d7514c7e1f21015dbe07dc3dca68604ffe86",
+          "file": "跨模型自定义-gpt-image-2.6-flare-1k-0.png"
+        }
+      ],
+      "durationMs": 19516
+    },
+    {
+      "id": "跨模型自定义-gpt-image-2.6-sunburst-1k",
+      "startedAt": "2026-11-16T10:05:38.556Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-sunburst-1k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1800x2400",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "3979227c12f85363b17883279c298dc59004e4b327fadb2bf50a881709bfe177",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 1622159,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1563
+      },
+      "responseMetadata": {
+        "size": "1800x2400",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1086,
+          "height": 1448,
+          "bytes": 1216252,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "26c74a1cda850530647060ab4470773027f0e0653536acf6409876e5ae25a75e",
+          "file": "跨模型自定义-gpt-image-2.6-sunburst-1k-0.png"
+        }
+      ],
+      "durationMs": 19598
+    },
+    {
+      "id": "跨模型自定义-gpt-image-2.5-4k",
+      "startedAt": "2026-11-16T10:05:58.155Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.5-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1800x2400",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "ed2bf2e799521fa07d6eda21bc1bd3fd8c26dfb8d10d5c6b924047fb39b0439e",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 3243825,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1563
+      },
+      "responseMetadata": {
+        "size": "1728x2304",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1728,
+          "height": 2304,
+          "bytes": 2432508,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "774201c84ae39f4c8eaf9e36e0236e6734ab23112ab89f858591915139219c1f",
+          "file": "跨模型自定义-gpt-image-2.5-4k-0.png"
+        }
+      ],
+      "durationMs": 49004
+    },
+    {
+      "id": "跨模型自定义-gpt-image-2.5-flare-4k",
+      "startedAt": "2026-11-16T10:06:47.160Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.5-flare-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1800x2400",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "783f1f96a87d9c90df14d997455f49c83c83f78ef5268f84f8c6afa955587508",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 3045851,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1563
+      },
+      "responseMetadata": {
+        "size": "1728x2304",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1728,
+          "height": 2304,
+          "bytes": 2284023,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "2f0377e1e895fed1ccec9232e35fdc3aeca9fe94df6a3f4cdbf748bc7de43ccb",
+          "file": "跨模型自定义-gpt-image-2.5-flare-4k-0.png"
+        }
+      ],
+      "durationMs": 22397
+    },
+    {
+      "id": "跨模型自定义-gpt-image-2.5-sunburst-4k",
+      "startedAt": "2026-11-16T10:07:09.557Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.5-sunburst-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1800x2400",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "131d7dca191b1ec32bcdba9cc4705effd1ec4ed2b9f8ed09a5d82bdc565592e9",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 4916438,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1563
+      },
+      "responseMetadata": {
+        "size": "1728x2304",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1728,
+          "height": 2304,
+          "bytes": 3686960,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "0b4c683f50b951186eeb9805f89c8f46bf94d1cb92580ec7045d1ec3226f46ef",
+          "file": "跨模型自定义-gpt-image-2.5-sunburst-4k-0.png"
+        }
+      ],
+      "durationMs": 29685
+    },
+    {
+      "id": "跨模型自定义-gpt-image-2.6-4k",
+      "startedAt": "2026-11-16T10:07:39.242Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1800x2400",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "3982df749669d652bfe7f93a13104edabf66f5b06e9fdfd3450c8e68380409c8",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 3295721,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1563
+      },
+      "responseMetadata": {
+        "size": "1728x2304",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1728,
+          "height": 2304,
+          "bytes": 2471428,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "f6d350c9cde4b4ab56b32a55b03dbbe99bfccb8bb40d8206a5f4a10ed8375c89",
+          "file": "跨模型自定义-gpt-image-2.6-4k-0.png"
+        }
+      ],
+      "durationMs": 30526
+    },
+    {
+      "id": "跨模型自定义-gpt-image-2.6-flare-4k",
+      "startedAt": "2026-11-16T10:08:09.768Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-flare-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1800x2400",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "3f43a919ca12badfa2313852304a32b60134cb1b4b841c395cedfc46ec6775c8",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 3142331,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1563
+      },
+      "responseMetadata": {
+        "size": "1728x2304",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1728,
+          "height": 2304,
+          "bytes": 2356382,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "65fbd3f2d7d33d3c60bf15c872c91c3d45f82a97b8f7c66f947a9b44c00a826c",
+          "file": "跨模型自定义-gpt-image-2.6-flare-4k-0.png"
+        }
+      ],
+      "durationMs": 45247
+    },
+    {
+      "id": "适配请求-1824x2432",
+      "startedAt": "2026-11-16T10:08:55.018Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-sunburst-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1824x2432",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "8abe3eccfabc6a068220fec5854eccae6cb439cd39f909e837a2a343ffe637be",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 3448046,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1563
+      },
+      "responseMetadata": {
+        "size": "1728x2304",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1728,
+          "height": 2304,
+          "bytes": 2585667,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "2475670678c52d5bb9ec3c0ef3e052918968952b368b6faa92563e0a2d561b68",
+          "file": "适配请求-1824x2432-0.png"
+        }
+      ],
+      "durationMs": 54830
+    },
+    {
+      "id": "适配请求-1024x640",
+      "startedAt": "2026-11-16T10:09:49.848Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-sunburst-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1024x640",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "22f6b622acb23b45f6b39f8d028423d826dcfd583650ff7ccaeb2670a327ac3b",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 979353,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1287,
+        "output_tokens_details": {
+          "image_tokens": 1287,
+          "text_tokens": 0
+        },
+        "total_tokens": 1306
+      },
+      "responseMetadata": {
+        "size": "1280x800",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1280,
+          "height": 800,
+          "bytes": 734148,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "4685ed3ec5a537193a3e7770fa08ddb56197860fada6d664a382cc7e2541b4e0",
+          "file": "适配请求-1024x640-0.png"
+        }
+      ],
+      "durationMs": 40837
+    },
+    {
+      "id": "适配请求-1008x1344",
+      "startedAt": "2026-11-16T10:10:30.688Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-sunburst-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1008x1344",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "55269f59920a8ad230d21937368e917ee2ed6faffc5f0306df8f137d25e19bd8",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 964009,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1563
+      },
+      "responseMetadata": {
+        "size": "864x1152",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 864,
+          "height": 1152,
+          "bytes": 722640,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "8571f904a9b59125b64e69c70c6beb04934fa8aee1937681b30ffa01ce3eba39",
+          "file": "适配请求-1008x1344-0.png"
+        }
+      ],
+      "durationMs": 23276
+    },
+    {
+      "id": "编辑遮罩独立",
+      "startedAt": "2026-11-16T10:10:53.965Z",
+      "interface": "edits",
+      "request": {
+        "model": "gpt-image-2.6-sunburst-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1024x1024",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "4a0a2c097691be0fe9edf07eccc7e0ba8e06f171232f766a3b1fe1a45079523e",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 1099561,
+      "usage": {
+        "input_tokens": 213,
+        "input_tokens_details": {
+          "image_tokens": 194,
+          "text_tokens": 19
+        },
+        "output_tokens": 2058,
+        "output_tokens_details": {
+          "image_tokens": 2058,
+          "text_tokens": 0
+        },
+        "total_tokens": 2271
+      },
+      "responseMetadata": {
+        "size": "1024x1024",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 824301,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "575a2f298a3755e2abe7ee3e51bf79029f0bada7cefb11f8f3bf0d347a999ede",
+          "file": "编辑遮罩独立-0.png"
+        }
+      ],
+      "durationMs": 24760
+    },
+    {
+      "id": "编辑合法适配尺寸",
+      "startedAt": "2026-11-16T10:11:18.726Z",
+      "interface": "edits",
+      "request": {
+        "model": "gpt-image-2.6-sunburst-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1824x2432",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "1c1ac590ebc47d36133312fd19c6e9fb8552fd298513d7c810442bd3766df2df",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 2861105,
+      "usage": {
+        "input_tokens": 213,
+        "input_tokens_details": {
+          "image_tokens": 194,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1757
+      },
+      "responseMetadata": {
+        "size": "1728x2304",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1728,
+          "height": 2304,
+          "bytes": 2145457,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "ccce48c970986f609d166205da2c7447ff47522ff3a28a809142e4a8f615e03a",
+          "file": "编辑合法适配尺寸-0.png"
+        }
+      ],
+      "durationMs": 29181
+    },
+    {
+      "id": "编辑保真2.5-high",
+      "startedAt": "2026-11-16T10:11:47.908Z",
+      "interface": "edits",
+      "request": {
+        "model": "gpt-image-2.5-sunburst-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1024x1024",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto",
+        "input_fidelity": "high"
+      },
+      "wireSHA256": "b46d9b15d3bf75491627a9bf2863aad00de26d3b94759d22c4d3b81501507247",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 1064705,
+      "usage": {
+        "input_tokens": 213,
+        "input_tokens_details": {
+          "image_tokens": 194,
+          "text_tokens": 19
+        },
+        "output_tokens": 2058,
+        "output_tokens_details": {
+          "image_tokens": 2058,
+          "text_tokens": 0
+        },
+        "total_tokens": 2271
+      },
+      "responseMetadata": {
+        "size": "1024x1024",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 798159,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "c1a729923b3823425d9220fb0b28c2c1f431894483b83432d3eb457b26cacb4b",
+          "file": "编辑保真2.5-high-0.png"
+        }
+      ],
+      "durationMs": 27314
+    },
+    {
+      "id": "跨型号大图-gpt-image-2.6-sunburst-1k",
+      "startedAt": "2026-11-16T10:12:15.224Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-sunburst-1k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "2480x3312",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "569e3b401dfdd5c9260a47ce1b685aaf8f30cb48a3d2a151608db567f7ccbfbf",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 1755635,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1563
+      },
+      "responseMetadata": {
+        "size": "2480x3312",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1086,
+          "height": 1448,
+          "bytes": 1316361,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "0f57984610257a0efcff54b0b137f0d38b077cc5bcf5d3dd4a487ddc0515ec07",
+          "file": "跨型号大图-gpt-image-2.6-sunburst-1k-0.png"
+        }
+      ],
+      "durationMs": 19507
+    },
+    {
+      "id": "跨型号大图-gpt-image-2.6-4k",
+      "startedAt": "2026-11-16T10:12:34.732Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "2480x3312",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "f7e33f58c88cc91bbaf2ceac0d34d8bd56c0d9f456301138f6e577e9635b13bc",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 5214965,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1563
+      },
+      "responseMetadata": {
+        "size": "2448x3264",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 2448,
+          "height": 3264,
+          "bytes": 3910861,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "3f522978b545cb6fab4bdc77b574bb129b39bc0ce9d85412a2b50fee05ea9e4f",
+          "file": "跨型号大图-gpt-image-2.6-4k-0.png"
+        }
+      ],
+      "durationMs": 33144
+    },
+    {
+      "id": "跨型号大图-gpt-image-2.6-flare-4k",
+      "startedAt": "2026-11-16T10:13:07.876Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-flare-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "2480x3312",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "5c536064585df5e7296a42b276c08cff90081c5c1bc0d0f7a35d480dc0838dbe",
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 191,
+      "error": {
+        "message": "您的请求无法用于生成图像。该请求可能因安全政策被拦截，或不适合进行图像生成。",
+        "type": "invalid_request_error",
+        "param": "",
+        "code": 400
+      },
+      "responseMetadata": {},
+      "responseFields": [
+        "error"
+      ],
+      "images": [],
+      "durationMs": 4616
+    },
+    {
+      "id": "编辑原问题尺寸",
+      "startedAt": "2026-11-16T10:13:12.495Z",
+      "interface": "edits",
+      "request": {
+        "model": "gpt-image-2.6-sunburst-4k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "2480x3312",
+        "quality": "max",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "b4bacf5f2a04305eaebd81e1a6f81a1f7b725a2a919923a507429f8497dd7bf2",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 4880949,
+      "usage": {
+        "input_tokens": 213,
+        "input_tokens_details": {
+          "image_tokens": 194,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1757
+      },
+      "responseMetadata": {
+        "size": "2448x3264",
+        "quality": "max",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 2448,
+          "height": 3264,
+          "bytes": 3660340,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "71f1a35a8b4e7e7e726c4194eb60177d04ebe0e3a566d3091babc617688edbe5",
+          "file": "编辑原问题尺寸-0.png"
+        }
+      ],
+      "durationMs": 34465
+    },
+    {
+      "id": "1k精确竖图",
+      "startedAt": "2026-11-16T12:24:40.810Z",
+      "interface": "generations",
+      "request": {
+        "model": "gpt-image-2.6-sunburst-1k",
+        "prompt": "A simple red ceramic mug centered on a plain white background, studio product photograph. No text.",
+        "size": "1086x1448",
+        "quality": "low",
+        "n": 1,
+        "output_format": "png",
+        "moderation": "auto"
+      },
+      "wireSHA256": "d57fdc561a82cdf125143762225f360e0b9ebd448cd7d1dc21220ac7b3563789",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "responseBytes": 1558771,
+      "usage": {
+        "input_tokens": 19,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 19
+        },
+        "output_tokens": 1544,
+        "output_tokens_details": {
+          "image_tokens": 1544,
+          "text_tokens": 0
+        },
+        "total_tokens": 1563
+      },
+      "responseMetadata": {
+        "size": "1086x1448",
+        "quality": "low",
+        "background": "opaque",
+        "output_format": "png"
+      },
+      "responseFields": [
+        "background",
+        "created",
+        "data",
+        "model",
+        "moderation",
+        "output_format",
+        "quality",
+        "size",
+        "usage"
+      ],
+      "images": [
+        {
+          "width": 1086,
+          "height": 1448,
+          "bytes": 1168711,
+          "type": "png",
+          "transparentPixels": 0,
+          "sha256": "bfe3a46c1556d9c8a292ee159073b2db13d20c5c8e0846d91e695ce35876e9b8",
+          "file": "1k精确竖图-0.png"
+        }
+      ],
+      "durationMs": 39053
+    }
+  ],
+  "primaryModel": "gpt-image-2.6-sunburst-4k"
+}

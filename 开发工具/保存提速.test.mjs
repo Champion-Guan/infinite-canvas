@@ -328,9 +328,9 @@ async function canvasStore(b, initial = { state: { projects: [], deletedProjects
   return { store, stats };
 }
 
-test('短编辑80ms提交，真正ACK之前持续显示保存中', async () => {
+test('停止输入1秒后提交，真正ACK之前持续显示保存中', async () => {
   const b = await bridge(), save = b.scheduleStateSave('画布', '第一稿');
-  b.advance(79); assert.equal(b.operations.length, 0); assert.equal(b.storageStatus().state, 'saving');
+  b.advance(999); assert.equal(b.operations.length, 0); assert.equal(b.storageStatus().state, 'saving');
   b.advance(1); assert.equal(b.operations.length, 1); assert.equal(b.storageStatus().state, 'saving');
   b.operations[0].resolve(); await save; await Promise.resolve();
   assert.equal(b.storageStatus().state, 'saved');
@@ -340,14 +340,16 @@ test('刷新完整读验的基线是已保存，新编辑与失败仍不能冒�
   const b = await bridge({ verifiedBaseline: true });
   assert.equal(b.storageStatus().state, 'saved'); assert.equal(b.operations.length, 0);
   const save = b.scheduleStateSave('画布', '新稿'); assert.equal(b.storageStatus().state, 'saving');
-  b.advance(80); assert.equal(b.storageStatus().state, 'saving');
+  b.advance(1000); assert.equal(b.storageStatus().state, 'saving');
   b.operations[0].reject(Error('合成离线')); await assert.rejects(save); await Promise.resolve();
   assert.equal(b.storageStatus().state, 'error');
 });
 
-test('持续输入最迟250ms提交最新合并稿，flush不等待计时器', async () => {
+test('持续输入期间不提交，停止1秒后提交最新合并稿，flush不等待计时器', async () => {
   const b = await bridge(); let save;
   for (let i = 0; i < 5; i++) { save = b.scheduleStateSave('画布', String(i)); b.advance(50); }
+  assert.equal(b.operations.length, 0);
+  b.advance(1000);
   assert.equal(b.operations.length, 1); assert.equal(b.operations[0].value, '4');
   b.operations[0].resolve(); await save;
   const last = b.scheduleStateSave('画布', '最终稿'), flush = b.flushSQLiteStorage();
@@ -355,8 +357,24 @@ test('持续输入最迟250ms提交最新合并稿，flush不等待计时器', a
   assert.equal(b.storageStatus().state, 'saved');
 });
 
+test('删除字符同样重置静默计时器，只保存删除后的最终内容', async () => {
+  const b = await bridge({ autoAck: true });
+  let save = b.scheduleStateSave('画布', '商品尺寸 1800x2400');
+  b.advance(500);
+  save = b.scheduleStateSave('画布', '商品尺寸 1800x240');
+  b.advance(500);
+  assert.equal(b.operations.length, 0);
+  b.advance(499);
+  assert.equal(b.operations.length, 0);
+  b.advance(1);
+  assert.equal(b.operations.length, 1);
+  assert.equal(b.operations[0].value, '商品尺寸 1800x240');
+  b.operations[0].resolve();
+  await save;
+});
+
 test('失败不提前显示已保存，flush拒绝未确认的数据', async () => {
-  const b = await bridge(), save = b.scheduleStateSave('画布', '未确认稿'); b.advance(80);
+  const b = await bridge(), save = b.scheduleStateSave('画布', '未确认稿'); b.advance(1000);
   b.operations[0].reject(Error('合成离线')); await assert.rejects(save); await Promise.resolve();
   assert.equal(b.storageStatus().state, 'error'); await assert.rejects(b.flushSQLiteStorage());
 });
@@ -368,7 +386,7 @@ test('真实Zustand连续100次编辑只编码最终画布一次，非持久化�
   for (let i = 0; i < 100; i++) store.setState({ hydrated: !!(i % 2) });
   assert.equal(stats.encodings, 0, '编辑和排队阶段不应遍历画布');
   assert.equal(b.operations.length, 0);
-  b.advance(79); assert.equal(stats.encodings, 0);
+  b.advance(999); assert.equal(stats.encodings, 0);
   b.advance(1); await b.flushSQLiteStorage();
   assert.equal(stats.encodings, 1); assert.equal(b.operations.length, 1);
   assert.deepEqual(JSON.parse(b.operations[0].value).state.projects[0].viewport, { x: 99, y: -99, k: 1 });
@@ -377,13 +395,15 @@ test('真实Zustand连续100次编辑只编码最终画布一次，非持久化�
   assert.equal(stats.encodings, 1, '只切换运行状态不应再编码');
 });
 
-test('延迟编码仍遵守250ms最长等待，立即保存不等待防抖', async () => {
+test('延迟编码等待1秒静默期，立即保存不等待防抖', async () => {
   const b = await bridge({ autoAck: true });
   let encodings = 0, save;
   for (let i = 0; i < 5; i++) {
     save = b.scheduleStateSave('画布', () => { encodings++; return String(i); });
     b.advance(50);
   }
+  assert.equal(encodings, 0); assert.equal(b.operations.length, 0);
+  b.advance(1000);
   assert.equal(encodings, 1); assert.equal(b.operations[0].value, '4'); await save;
   const final = b.scheduleStateSave('画布', () => { encodings++; return '最后一稿'; });
   const flush = b.flushSQLiteStorage();
@@ -394,7 +414,7 @@ test('延迟编码仍遵守250ms最长等待，立即保存不等待防抖', asy
 test('慢写入期间20份候选不编码，只编码最新一份且旧请求内容不变', async () => {
   const b = await bridge(); let encodings = 0;
   const first = b.scheduleStateSave('画布', () => { encodings++; return '在途快照'; });
-  b.advance(80);
+  b.advance(1000);
   let latest;
   for (let i = 0; i < 20; i++) {
     latest = b.scheduleStateSave('画布', () => { encodings++; return `新稿${i}`; });
@@ -415,7 +435,7 @@ test('编码失败保留快照并阻止已保存误报；重试重新编码且�
     if (invalid) throw Error('合成编码失败');
     return '有效画布';
   });
-  b.advance(80); await assert.rejects(save, /合成编码失败/);
+  b.advance(1000); await assert.rejects(save, /合成编码失败/);
   assert.equal(b.operations.length, 0);
   assert.equal(b.storageStatus().state, 'error'); assert.equal(b.storageStatus().pending, 1);
   await assert.rejects(b.flushSQLiteStorage());
@@ -432,7 +452,7 @@ test('编码失败后新编辑替代旧候选，重试不恢复过时内容', as
   const b = await bridge({ autoAck: true });
   let staleEncodings = 0;
   const old = b.scheduleStateSave('画布', () => { staleEncodings++; throw Error('旧快照非法'); });
-  b.advance(80); await assert.rejects(old);
+  b.advance(1000); await assert.rejects(old);
   const latest = b.scheduleStateSave('画布', () => '修正后的最新内容');
   await b.retrySQLiteStorage(); await latest;
   assert.equal(staleEncodings, 1); assert.equal(b.operations.length, 1);
@@ -444,7 +464,7 @@ test('提交前同步失败保留已编码候选，重试不因缓存相同而�
   let fail = true, encodings = 0;
   const b = await bridge({ autoAck: true, failSynchronously: () => fail });
   const save = b.scheduleStateSave('画布', () => { encodings++; return '尚未提交的画布'; });
-  b.advance(80); await assert.rejects(save, /同步失败/);
+  b.advance(1000); await assert.rejects(save, /同步失败/);
   assert.equal(b.storageStatus().state, 'error'); assert.equal(b.operations.length, 0);
   await assert.rejects(b.retrySQLiteStorage());
   assert.equal(b.storageStatus().state, 'error');
@@ -504,7 +524,7 @@ test('批量保存期间其他卡片状态更新时，同一产品只写入最�
 });
 
 test('慢提交期间连续编辑只留下一份最新候选，flush等两代真实ACK', async () => {
-  const b = await bridge(), first = b.scheduleStateSave('画布', '开始'); b.advance(80);
+  const b = await bridge(), first = b.scheduleStateSave('画布', '开始'); b.advance(1000);
   let latest;
   for (let i = 0; i < 20; i++) { latest = b.scheduleStateSave('画布', '最新' + i); b.advance(50); }
   assert.equal(b.operations.length, 1, '不能把过时快照堆进底层FIFO');

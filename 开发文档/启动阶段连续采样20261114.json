@@ -1,0 +1,799 @@
+[
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "0.698483",
+    "parent": "root",
+    "rect": {
+      "bottom": 362.80908203125,
+      "height": 109.99998474121094,
+      "left": 560,
+      "right": 880,
+      "top": 252.80909729003903,
+      "width": 320,
+      "x": 560,
+      "y": 252.80909729003903
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "0.957487",
+    "parent": "root",
+    "rect": {
+      "bottom": 361.2550659179687,
+      "height": 109.99998474121094,
+      "left": 560,
+      "right": 880,
+      "top": 251.2550811767578,
+      "width": 320,
+      "x": 560,
+      "y": 251.2550811767578
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "0.987087",
+    "parent": "root",
+    "rect": {
+      "bottom": 361.0774841308594,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251.07748413085935,
+      "width": 320,
+      "x": 560,
+      "y": 251.07748413085935
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "0.987087",
+    "parent": "root",
+    "rect": {
+      "bottom": 361.0774841308594,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251.07748413085935,
+      "width": 320,
+      "x": 560,
+      "y": 251.07748413085935
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "0.993793",
+    "parent": "root",
+    "rect": {
+      "bottom": 361.0372314453125,
+      "height": 109.99998474121094,
+      "left": 560,
+      "right": 880,
+      "top": 251.03724670410156,
+      "width": 320,
+      "x": 560,
+      "y": 251.03724670410156
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "0.999238",
+    "parent": "root",
+    "rect": {
+      "bottom": 361.0045776367187,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251.00457763671875,
+      "width": 320,
+      "x": 560,
+      "y": 251.00457763671875
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "0.999869",
+    "parent": "root",
+    "rect": {
+      "bottom": 361.0007934570313,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251.00079345703125,
+      "width": 320,
+      "x": 560,
+      "y": 251.00079345703125
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "0.999869",
+    "parent": "root",
+    "rect": {
+      "bottom": 361.0007934570313,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251.00079345703125,
+      "width": 320,
+      "x": 560,
+      "y": 251.00079345703125
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在加载工作台界面…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": null,
+    "status": "正在恢复画布…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "1",
+    "parent": "root",
+    "ready": "ready",
+    "rect": {
+      "bottom": 361,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 251,
+      "width": 320,
+      "x": 560,
+      "y": 251
+    },
+    "scene": "1",
+    "status": "正在恢复画布…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "0.454488",
+    "parent": "root",
+    "ready": "ready",
+    "rect": {
+      "bottom": 357.7269287109375,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 247.7269287109375,
+      "width": 320,
+      "x": 560,
+      "y": 247.7269287109375
+    },
+    "scene": "1",
+    "status": "正在恢复画布…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "0.273035",
+    "parent": "root",
+    "ready": "ready",
+    "rect": {
+      "bottom": 356.6382141113281,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 246.63821411132812,
+      "width": 320,
+      "x": 560,
+      "y": 246.63821411132812
+    },
+    "scene": "1",
+    "status": "正在恢复画布…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "0.169286",
+    "parent": "root",
+    "ready": "ready",
+    "rect": {
+      "bottom": 356.0157165527344,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 246.0157165527344,
+      "width": 320,
+      "x": 560,
+      "y": 246.0157165527344
+    },
+    "scene": "1",
+    "status": "正在恢复画布…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "0.096658",
+    "parent": "root",
+    "ready": "ready",
+    "rect": {
+      "bottom": 355.5799560546875,
+      "height": 110.00001525878906,
+      "left": 560,
+      "right": 880,
+      "top": 245.57994079589844,
+      "width": 320,
+      "x": 560,
+      "y": 245.57994079589844
+    },
+    "scene": "1",
+    "status": "正在恢复画布…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "0.0154348",
+    "parent": "root",
+    "ready": "ready",
+    "rect": {
+      "bottom": 355.09259033203125,
+      "height": 109.99998474121094,
+      "left": 560,
+      "right": 880,
+      "top": 245.0926055908203,
+      "width": 320,
+      "x": 560,
+      "y": 245.0926055908203
+    },
+    "scene": "1",
+    "status": "正在恢复画布…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "0.0028795",
+    "parent": "root",
+    "ready": "ready",
+    "rect": {
+      "bottom": 355.01727294921875,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 245.01727294921875,
+      "width": 320,
+      "x": 560,
+      "y": 245.01727294921875
+    },
+    "scene": "1",
+    "status": "正在恢复画布…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "0.000815115",
+    "parent": "root",
+    "ready": "ready",
+    "rect": {
+      "bottom": 355.0048828125,
+      "height": 109.99998474121094,
+      "left": 560,
+      "right": 880,
+      "top": 245.00489807128903,
+      "width": 320,
+      "x": 560,
+      "y": 245.00489807128903
+    },
+    "scene": "1",
+    "status": "正在恢复画布…"
+  },
+  {
+    "bg": "rgb(247, 247, 245)",
+    "opacity": "4.77751e-07",
+    "parent": "root",
+    "ready": "ready",
+    "rect": {
+      "bottom": 355,
+      "height": 110,
+      "left": 560,
+      "right": 880,
+      "top": 245,
+      "width": 320,
+      "x": 560,
+      "y": 245
+    },
+    "scene": "1",
+    "status": "正在恢复画布…"
+  },
+  {
+    "bg": null,
+    "opacity": null,
+    "ready": "ready",
+    "scene": "1"
+  }
+]
