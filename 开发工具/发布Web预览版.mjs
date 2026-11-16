@@ -5,8 +5,9 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WEB_REPOSITORY, WEB_MANIFEST_NAMES, webReleaseAssetName, verifyWebManifest } from '../扩展功能/客户安装/Web发布协议.mjs';
 import { verifyWebUpgradeCompatibility } from '../扩展功能/客户安装/Web安装包核验.mjs';
-import { assertWebReleaseSource } from './Web发布源码核对.mjs';
+import { assertWebReleaseSource, webReleaseCodeBranch } from './Web发布源码核对.mjs';
 import { readGitHubReleaseNotes } from './GitHub发布说明.mjs';
+import { assertRemoteReleaseChecks } from './发布远端检查.mjs';
 
 // 发布为单独web-v标签的Prerelease，旧Stable客户端忽略这个渠道。
 export async function publishWebPreview(recordFile) {
@@ -18,6 +19,9 @@ export async function publishWebPreview(recordFile) {
   assertWebReleaseSource(root, record.commit, record.sourceSHA256);
   const directory = resolve(record.archive, '..'), tag = 'web-v' + record.version;
   assert.equal(git(['rev-parse', tag + '^{commit}']), record.commit);
+  const checkRemote = () => assertRemoteReleaseChecks({ commit: record.commit, branch: webReleaseCodeBranch(record.version),
+    api: path => JSON.parse(run(['api', path])) });
+  checkRemote();
   const proof = await Promise.all(WEB_MANIFEST_NAMES.map(name => readFile(join(directory, name))));
   const { selected, manifest } = verifyWebManifest(proof[0], proof[1], { releaseVersion: record.version });
   assert.equal(manifest.commit, record.commit);
@@ -32,10 +36,14 @@ export async function publishWebPreview(recordFile) {
   verifyWebManifest(await readFile(join(downloaded, webReleaseAssetName(WEB_MANIFEST_NAMES[0]))), await readFile(join(downloaded, webReleaseAssetName(WEB_MANIFEST_NAMES[1]))), { releaseVersion: record.version });
   verifyWebUpgradeCompatibility(await readFile(join(downloaded, webReleaseAssetName(selected.name))), { manifest, selected });
   } finally { await rm(downloaded, { recursive: true, force: true }); }
+  checkRemote();
   run(['release', 'edit', tag, '--repo', WEB_REPOSITORY, '--draft=false', '--prerelease']);
   return { url: `https://github.com/${WEB_REPOSITORY}/releases/tag/${tag}`, version: record.version, channel: 'web-preview' };
 }
 if (resolve(process.argv[1] || '') === fileURLToPath(import.meta.url)) {
   try { assert.equal(process.argv.length, 4); assert.equal(process.argv[3], 'RELEASE-WEB-PREVIEW'); console.log(JSON.stringify(await publishWebPreview(resolve(process.argv[2])))); }
-  catch { console.error('Web预发布未完成；请检查现有Draft和资产。正式Stable及客户数据未改动。'); process.exitCode = 1; }
+  catch (error) {
+    console.error(error?.message?.startsWith('远端源码检查') ? error.message : 'Web预发布未完成；请检查现有Draft和资产。正式Stable及客户数据未改动。');
+    process.exitCode = 1;
+  }
 }

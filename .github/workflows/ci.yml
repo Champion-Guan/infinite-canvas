@@ -3,11 +3,14 @@ on:
   push:
   pull_request:
   workflow_call:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
   verify:
-    runs-on: macos-15
+    # macos-15 now targets ARM64, whose hosted pool can expire before a job starts.
+    # Source checks run on Intel; native ARM64 package QA remains a release check.
+    runs-on: macos-15-intel
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
