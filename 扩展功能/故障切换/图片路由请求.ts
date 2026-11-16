@@ -1,8 +1,24 @@
-import { fallbackModelsByCapability, resolveModelChannel, resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
+import { encodeChannelModel, fallbackModelsByCapability, resolveModelChannel, resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
 import type { ReferenceImage } from "@/types/image";
 import { prepareOriginalImageRequest, parseOriginalImageResponse } from "../画布生成/原版图片协议";
 import { imageRequestHash } from "../画布生成/图片任务衔接.mjs";
 import { fallbackHost } from "./浏览器状态";
+import { inferMediaScale } from "../图片设置/图片尺寸规则";
+
+export function preferLargeImageModel(config: AiConfig, model: string): string {
+    const channel = resolveModelChannel(config, model);
+    const resolved = resolveModelRequestConfig(config, model);
+    let hostname = "";
+    try { hostname = new URL(resolved.baseUrl).hostname; } catch { return model; }
+    if (hostname !== "api.kunrouai.com" || resolved.apiFormat !== "openai"
+        || !/^\d+x\d+$/i.test(config.size) || !["2k", "4k"].includes(inferMediaScale(config.size))
+        || !/^gpt-image-.+-1k$/.test(resolved.model)) return model;
+    if (channel.models.find(item => item.name === resolved.model)?.script) return model;
+    const replacement = resolved.model.replace(/-1k$/, "-4k");
+    if (!channel.models.some(item => item.name === replacement && item.capability === "image" && !item.script))
+        return model;
+    return encodeChannelModel(channel.id, replacement);
+}
 
 export type ImageRoute = { profileId: string; modelName: string; channelName: string; modelOption: string; kind: "openai" | "gemini"; endpoint: string; transport: "direct" | "proxy"; quality: string; size: string };
 type PlanCandidate = { profileId: string; modelName: string; channelName: string; binding: string; requestHash: string; quality: string; size: string };
@@ -15,12 +31,19 @@ export async function prepareRoutedImageRequest(config: AiConfig, prompt: string
     // 顺序准备，控制参考图/多协议编码的峰值内存；任一候选不兼容则发送前停止。
     const requests: Awaited<ReturnType<typeof prepareOriginalImageRequest>>[] = [], candidates: PlanCandidate[] = [];
     let bytes = 0;
+    const preparedModels = new Set<string>();
     for (const model of models) {
-        const candidate = { ...config, model, count: "1", fallbackRequested: false };
+        const actualModel = preferLargeImageModel(config, model);
+        const actualChannel = resolveModelChannel(config, actualModel);
+        const actualName = resolveModelRequestConfig(config, actualModel).model;
+        const candidateKey = JSON.stringify([actualChannel.id, actualName]);
+        if (preparedModels.has(candidateKey)) continue;
+        preparedModels.add(candidateKey);
+        const candidate = { ...config, model: actualModel, count: "1", fallbackRequested: false };
         const request = await prepareOriginalImageRequest(candidate, prompt, references);
         bytes += request.body.length;
         if (bytes > 31 * 1024 * 1024) throw new Error("Fallback多渠道请求合计超过本批限制；请减少候选或参考图，未发送请求。");
-        const channel = resolveModelChannel(config, model), resolved = resolveModelRequestConfig(candidate, model);
+        const channel = resolveModelChannel(candidate, actualModel), resolved = resolveModelRequestConfig(candidate, actualModel);
         candidates.push({ profileId: channel.id, modelName: resolved.model, channelName: channel.name || channel.id,
             binding: await bind(candidate), requestHash: await imageRequestHash(request), quality: config.quality, size: config.size });
         requests.push(request);
