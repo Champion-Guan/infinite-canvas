@@ -1,5 +1,5 @@
 {
-  "时间": "2026-11-16T12:34:40.888Z",
+  "时间": "2026-11-19T02:27:29.025Z",
   "测试文件数": 172,
   "测试文件": [
     "开发工具/Excel回收站.test.mjs",
@@ -176,32 +176,33 @@
     "开发工具/首页播放生命周期.test.mjs"
   ],
   "统计": {
-    "success": true,
+    "success": false,
     "counts": {
-      "tests": 1695,
-      "passed": 1695,
-      "failed": 0,
+      "tests": 1600,
+      "passed": 1599,
+      "failed": 1,
       "cancelled": 0,
       "skipped": 0
     }
   },
   "结果": [
     {
+      "文件": "开发工具/画布业务边界.test.mjs",
+      "通过": false,
+      "退出码": 1,
+      "测试": 0,
+      "成功": 0,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0,
+      "输出": "node:internal/modules/package_json_reader:301\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'globals' imported from /Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/开发工具/画布业务边界.test.mjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:859:18)\n    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:691:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:708:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:740:52)\n    at #resolve (node:internal/modules/esm/loader:673:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:593:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v24.16.0\n"
+    },
+    {
       "文件": "开发工具/目录装配.test.mjs",
       "通过": true,
       "退出码": 0,
       "测试": 3,
       "成功": 3,
-      "失败": 0,
-      "取消": 0,
-      "跳过": 0
-    },
-    {
-      "文件": "开发工具/画布业务边界.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 10,
-      "成功": 10,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -237,21 +238,21 @@
       "跳过": 0
     },
     {
-      "文件": "开发工具/Excel画布操作边界.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 11,
-      "成功": 11,
-      "失败": 0,
-      "取消": 0,
-      "跳过": 0
-    },
-    {
       "文件": "开发工具/软件更新任务提示边界.test.mjs",
       "通过": true,
       "退出码": 0,
       "测试": 1,
       "成功": 1,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0
+    },
+    {
+      "文件": "开发工具/Excel画布操作边界.test.mjs",
+      "通过": true,
+      "退出码": 0,
+      "测试": 11,
+      "成功": 11,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -267,6 +268,17 @@
       "跳过": 0
     },
     {
+      "文件": "开发工具/生成历史总览边界.test.mjs",
+      "通过": false,
+      "退出码": 1,
+      "测试": 0,
+      "成功": 0,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0,
+      "输出": "node:internal/modules/package_json_reader:301\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'typescript-eslint' imported from /Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/开发工具/生成历史总览边界.test.mjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:859:18)\n    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:691:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:708:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:740:52)\n    at #resolve (node:internal/modules/esm/loader:673:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:593:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v24.16.0\n"
+    },
+    {
       "文件": "开发工具/翻译配置与下载边界.test.mjs",
       "通过": true,
       "退出码": 0,
@@ -277,21 +289,11 @@
       "跳过": 0
     },
     {
-      "文件": "开发工具/生成历史总览边界.test.mjs",
+      "文件": "开发工具/产品变量使用边界.test.mjs",
       "通过": true,
       "退出码": 0,
-      "测试": 16,
-      "成功": 16,
-      "失败": 0,
-      "取消": 0,
-      "跳过": 0
-    },
-    {
-      "文件": "开发工具/批量结果排布边界.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 12,
-      "成功": 12,
+      "测试": 19,
+      "成功": 19,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -307,21 +309,21 @@
       "跳过": 0
     },
     {
-      "文件": "开发工具/保存自动重连边界.test.mjs",
+      "文件": "开发工具/批量结果排布边界.test.mjs",
       "通过": true,
       "退出码": 0,
-      "测试": 18,
-      "成功": 18,
+      "测试": 12,
+      "成功": 12,
       "失败": 0,
       "取消": 0,
       "跳过": 0
     },
     {
-      "文件": "开发工具/产品变量使用边界.test.mjs",
+      "文件": "开发工具/保存自动重连边界.test.mjs",
       "通过": true,
       "退出码": 0,
-      "测试": 19,
-      "成功": 19,
+      "测试": 18,
+      "成功": 18,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -367,6 +369,17 @@
       "跳过": 0
     },
     {
+      "文件": "开发工具/画布状态与参考图边界.test.mjs",
+      "通过": false,
+      "退出码": 1,
+      "测试": 0,
+      "成功": 0,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0,
+      "输出": "node:internal/modules/package_json_reader:301\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'typescript-eslint' imported from /Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/开发工具/画布状态与参考图边界.test.mjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:859:18)\n    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:691:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:708:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:740:52)\n    at #resolve (node:internal/modules/esm/loader:673:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:593:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v24.16.0\n"
+    },
+    {
       "文件": "开发工具/业务端口会话恢复边界.test.mjs",
       "通过": true,
       "退出码": 0,
@@ -377,24 +390,26 @@
       "跳过": 0
     },
     {
-      "文件": "开发工具/画布状态与参考图边界.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 22,
-      "成功": 22,
+      "文件": "开发工具/节点删除与整理边界.test.mjs",
+      "通过": false,
+      "退出码": 1,
+      "测试": 0,
+      "成功": 0,
       "失败": 0,
       "取消": 0,
-      "跳过": 0
+      "跳过": 0,
+      "输出": "node:internal/modules/package_json_reader:301\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'typescript-eslint' imported from /Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/开发工具/节点删除与整理边界.test.mjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:859:18)\n    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:691:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:708:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:740:52)\n    at #resolve (node:internal/modules/esm/loader:673:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:593:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v24.16.0\n"
     },
     {
-      "文件": "开发工具/节点删除与整理边界.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 31,
-      "成功": 31,
+      "文件": "开发工具/节点复制边界.test.mjs",
+      "通过": false,
+      "退出码": 1,
+      "测试": 0,
+      "成功": 0,
       "失败": 0,
       "取消": 0,
-      "跳过": 0
+      "跳过": 0,
+      "输出": "node:internal/modules/package_json_reader:301\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'typescript-eslint' imported from /Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/开发工具/节点复制边界.test.mjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:859:18)\n    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:691:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:708:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:740:52)\n    at #resolve (node:internal/modules/esm/loader:673:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:593:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v24.16.0\n"
     },
     {
       "文件": "开发工具/图片批次操作边界.test.mjs",
@@ -422,16 +437,6 @@
       "退出码": 0,
       "测试": 4,
       "成功": 4,
-      "失败": 0,
-      "取消": 0,
-      "跳过": 0
-    },
-    {
-      "文件": "开发工具/节点复制边界.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 14,
-      "成功": 14,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -487,6 +492,16 @@
       "跳过": 0
     },
     {
+      "文件": "开发工具/磁盘写入保护.test.mjs",
+      "通过": true,
+      "退出码": 0,
+      "测试": 10,
+      "成功": 10,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0
+    },
+    {
       "文件": "开发工具/界面异常恢复.test.mjs",
       "通过": true,
       "退出码": 0,
@@ -502,16 +517,6 @@
       "退出码": 0,
       "测试": 4,
       "成功": 4,
-      "失败": 0,
-      "取消": 0,
-      "跳过": 0
-    },
-    {
-      "文件": "开发工具/磁盘写入保护.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 10,
-      "成功": 10,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -567,24 +572,15 @@
       "跳过": 0
     },
     {
-      "文件": "开发工具/生成图片尺寸交付.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 11,
-      "成功": 11,
-      "失败": 0,
-      "取消": 0,
-      "跳过": 0
-    },
-    {
       "文件": "开发工具/图片详情恢复边界.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 11,
-      "成功": 11,
+      "通过": false,
+      "退出码": 1,
+      "测试": 0,
+      "成功": 0,
       "失败": 0,
       "取消": 0,
-      "跳过": 0
+      "跳过": 0,
+      "输出": "node:internal/modules/package_json_reader:301\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'typescript-eslint' imported from /Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/开发工具/图片详情恢复边界.test.mjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:859:18)\n    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:691:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:708:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:740:52)\n    at #resolve (node:internal/modules/esm/loader:673:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:593:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v24.16.0\n"
     },
     {
       "文件": "开发工具/HEIC上传保存.test.mjs",
@@ -597,11 +593,11 @@
       "跳过": 0
     },
     {
-      "文件": "开发工具/并发生成卡片状态.test.mjs",
+      "文件": "开发工具/生成图片尺寸交付.test.mjs",
       "通过": true,
       "退出码": 0,
-      "测试": 9,
-      "成功": 9,
+      "测试": 11,
+      "成功": 11,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -612,6 +608,16 @@
       "退出码": 0,
       "测试": 20,
       "成功": 20,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0
+    },
+    {
+      "文件": "开发工具/并发生成卡片状态.test.mjs",
+      "通过": true,
+      "退出码": 0,
+      "测试": 9,
+      "成功": 9,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -647,21 +653,21 @@
       "跳过": 0
     },
     {
-      "文件": "开发工具/批量生成授权边界.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 7,
-      "成功": 7,
-      "失败": 0,
-      "取消": 0,
-      "跳过": 0
-    },
-    {
       "文件": "开发工具/升级管理器接续.test.mjs",
       "通过": true,
       "退出码": 0,
       "测试": 8,
       "成功": 8,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0
+    },
+    {
+      "文件": "开发工具/批量生成授权边界.test.mjs",
+      "通过": true,
+      "退出码": 0,
+      "测试": 7,
+      "成功": 7,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -707,21 +713,21 @@
       "跳过": 0
     },
     {
-      "文件": "开发工具/内置Smart核心.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 5,
-      "成功": 5,
-      "失败": 0,
-      "取消": 0,
-      "跳过": 0
-    },
-    {
       "文件": "开发工具/在线安装入口边界.test.mjs",
       "通过": true,
       "退出码": 0,
       "测试": 11,
       "成功": 11,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0
+    },
+    {
+      "文件": "开发工具/内置Smart核心.test.mjs",
+      "通过": true,
+      "退出码": 0,
+      "测试": 5,
+      "成功": 5,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -817,21 +823,21 @@
       "跳过": 0
     },
     {
-      "文件": "开发工具/连线端口吸附.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 2,
-      "成功": 2,
-      "失败": 0,
-      "取消": 0,
-      "跳过": 0
-    },
-    {
       "文件": "开发工具/商品视觉策划.test.mjs",
       "通过": true,
       "退出码": 0,
       "测试": 30,
       "成功": 30,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0
+    },
+    {
+      "文件": "开发工具/连线端口吸附.test.mjs",
+      "通过": true,
+      "退出码": 0,
+      "测试": 2,
+      "成功": 2,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -937,21 +943,21 @@
       "跳过": 0
     },
     {
-      "文件": "开发工具/请求队列并发边界.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 6,
-      "成功": 6,
-      "失败": 0,
-      "取消": 0,
-      "跳过": 0
-    },
-    {
       "文件": "开发工具/编辑图片读取边界.test.mjs",
       "通过": true,
       "退出码": 0,
       "测试": 3,
       "成功": 3,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0
+    },
+    {
+      "文件": "开发工具/请求队列并发边界.test.mjs",
+      "通过": true,
+      "退出码": 0,
+      "测试": 6,
+      "成功": 6,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -1000,8 +1006,8 @@
       "文件": "开发工具/保存提速.test.mjs",
       "通过": true,
       "退出码": 0,
-      "测试": 29,
-      "成功": 29,
+      "测试": 30,
+      "成功": 30,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -1030,8 +1036,8 @@
       "文件": "开发工具/SQLite分类容量.test.mjs",
       "通过": true,
       "退出码": 0,
-      "测试": 30,
-      "成功": 30,
+      "测试": 31,
+      "成功": 31,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -1138,13 +1144,14 @@
     },
     {
       "文件": "开发工具/本地转发请求.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 4,
-      "成功": 4,
+      "通过": false,
+      "退出码": 1,
+      "测试": 0,
+      "成功": 0,
       "失败": 0,
       "取消": 0,
-      "跳过": 0
+      "跳过": 0,
+      "输出": "node:internal/modules/cjs/loader:1500\n  const err = new Error(message);\n              ^\n\nError: Cannot find module './node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/typescript.js'\nRequire stack:\n- /Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/.运行/3100源/画布副本/web/package.json\n    at Module._resolveFilename (node:internal/modules/cjs/loader:1500:15)\n    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)\n    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1116:12)\n    at Module._load (node:internal/modules/cjs/loader:1285:25)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1600:12)\n    at require (node:internal/modules/helpers:153:16)\n    at file:///Users/guanchengbin/CodexProjects/%E7%94%9F%E5%9B%BE%E5%B7%A5%E4%BD%9C%E5%8F%B0/Guan%E4%BA%8C%E6%AC%A1%E5%BC%80%E5%8F%91/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/%E6%9C%AC%E5%9C%B0%E8%BD%AC%E5%8F%91%E8%AF%B7%E6%B1%82.test.mjs:9:12\n    at ModuleJob.run (node:internal/modules/esm/module_job:439:25) {\n  code: 'MODULE_NOT_FOUND',\n  requireStack: [\n    '/Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/.运行/3100源/画布副本/web/package.json'\n  ]\n}\n\nNode.js v24.16.0\n"
     },
     {
       "文件": "开发工具/画布保存核验.test.mjs",
@@ -1157,11 +1164,11 @@
       "跳过": 0
     },
     {
-      "文件": "开发工具/生成HTTP闭环.test.mjs",
+      "文件": "开发工具/模型价格配置安全.test.mjs",
       "通过": true,
       "退出码": 0,
-      "测试": 15,
-      "成功": 15,
+      "测试": 49,
+      "成功": 49,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -1170,18 +1177,18 @@
       "文件": "开发工具/一键启动工作台.test.mjs",
       "通过": true,
       "退出码": 0,
-      "测试": 5,
-      "成功": 5,
+      "测试": 14,
+      "成功": 14,
       "失败": 0,
       "取消": 0,
       "跳过": 0
     },
     {
-      "文件": "开发工具/模型价格配置安全.test.mjs",
+      "文件": "开发工具/生成HTTP闭环.test.mjs",
       "通过": true,
       "退出码": 0,
-      "测试": 49,
-      "成功": 49,
+      "测试": 15,
+      "成功": 15,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -1227,21 +1234,21 @@
       "跳过": 0
     },
     {
-      "文件": "开发工具/代理状态自动刷新.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 7,
-      "成功": 7,
-      "失败": 0,
-      "取消": 0,
-      "跳过": 0
-    },
-    {
       "文件": "开发工具/凭据后端隔离.test.mjs",
       "通过": true,
       "退出码": 0,
       "测试": 13,
       "成功": 13,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0
+    },
+    {
+      "文件": "开发工具/代理状态自动刷新.test.mjs",
+      "通过": true,
+      "退出码": 0,
+      "测试": 7,
+      "成功": 7,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -1297,21 +1304,21 @@
       "跳过": 0
     },
     {
-      "文件": "开发工具/生成历史排序.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 4,
-      "成功": 4,
-      "失败": 0,
-      "取消": 0,
-      "跳过": 0
-    },
-    {
       "文件": "开发工具/提示词失效反馈.test.mjs",
       "通过": true,
       "退出码": 0,
       "测试": 5,
       "成功": 5,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0
+    },
+    {
+      "文件": "开发工具/生成历史排序.test.mjs",
+      "通过": true,
+      "退出码": 0,
+      "测试": 4,
+      "成功": 4,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -1427,21 +1434,21 @@
       "跳过": 0
     },
     {
-      "文件": "开发工具/画布与原生浮层交接.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 9,
-      "成功": 9,
-      "失败": 0,
-      "取消": 0,
-      "跳过": 0
-    },
-    {
       "文件": "开发工具/顶部胶囊连续滑动.test.mjs",
       "通过": true,
       "退出码": 0,
       "测试": 21,
       "成功": 21,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0
+    },
+    {
+      "文件": "开发工具/画布与原生浮层交接.test.mjs",
+      "通过": true,
+      "退出码": 0,
+      "测试": 9,
+      "成功": 9,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -1520,8 +1527,8 @@
       "文件": "开发工具/画布浮层可见边界.test.mjs",
       "通过": true,
       "退出码": 0,
-      "测试": 10,
-      "成功": 10,
+      "测试": 11,
+      "成功": 11,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -1547,21 +1554,21 @@
       "跳过": 0
     },
     {
-      "文件": "开发工具/更新历史统一展示.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 5,
-      "成功": 5,
-      "失败": 0,
-      "取消": 0,
-      "跳过": 0
-    },
-    {
       "文件": "开发工具/文本推理强度.test.mjs",
       "通过": true,
       "退出码": 0,
       "测试": 12,
       "成功": 12,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0
+    },
+    {
+      "文件": "开发工具/更新历史统一展示.test.mjs",
+      "通过": true,
+      "退出码": 0,
+      "测试": 5,
+      "成功": 5,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -1667,21 +1674,21 @@
       "跳过": 0
     },
     {
-      "文件": "开发工具/商品策划协议恢复.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 26,
-      "成功": 26,
-      "失败": 0,
-      "取消": 0,
-      "跳过": 0
-    },
-    {
       "文件": "开发工具/关闭Excel功能.test.mjs",
       "通过": true,
       "退出码": 0,
       "测试": 6,
       "成功": 6,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0
+    },
+    {
+      "文件": "开发工具/商品策划协议恢复.test.mjs",
+      "通过": true,
+      "退出码": 0,
+      "测试": 27,
+      "成功": 27,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -1748,10 +1755,21 @@
     },
     {
       "文件": "开发工具/商品策划流式预览.test.mjs",
+      "通过": false,
+      "退出码": 1,
+      "测试": 7,
+      "成功": 6,
+      "失败": 1,
+      "取消": 0,
+      "跳过": 0,
+      "输出": "TAP version 13\n# Subtest: 每个JSON切片均可安全预览，整体方案和半张图片先于完整结果出现\nok 1 - 每个JSON切片均可安全预览，整体方案和半张图片先于完整结果出现\n  ---\n  duration_ms: 46.333458\n  type: 'test'\n  ...\n# Subtest: 完整预览保留分类、片段空格、变体和旧格式双语，不读取持久状态或应用卡片\nok 2 - 完整预览保留分类、片段空格、变体和旧格式双语，不读取持久状态或应用卡片\n  ---\n  duration_ms: 0.218208\n  type: 'test'\n  ...\n# Subtest: Unicode转义和反斜杠切片不显示JSON语法；畸形类型不会成为界面文本\nok 3 - Unicode转义和反斜杠切片不显示JSON语法；畸形类型不会成为界面文本\n  ---\n  duration_ms: 0.972792\n  type: 'test'\n  ...\n# Subtest: 只显示原节点当前策划任务，忽略翻译、优化和过期任务；取消或完成清除预览\nok 4 - 只显示原节点当前策划任务，忽略翻译、优化和过期任务；取消或完成清除预览\n  ---\n  duration_ms: 0.380709\n  type: 'test'\n  ...\n# Subtest: 真实预览组件随进度展示、可滚动、英文可展开，完成后隐藏且不改写原节点\nok 5 - 真实预览组件随进度展示、可滚动、英文可展开，完成后隐藏且不改写原节点\n  ---\n  duration_ms: 26.272291\n  type: 'test'\n  ...\n# Subtest: 延迟渲染旧快照时，新任务与新节点不会闪现上一轮方案\nok 6 - 延迟渲染旧快照时，新任务与新节点不会闪现上一轮方案\n  ---\n  duration_ms: 14.009542\n  type: 'test'\n  ...\n# Subtest: 策划按钮只在收到真实正文后显示生成中，校验和保存阶段保持原状态\nnot ok 7 - 策划按钮只在收到真实正文后显示生成中，校验和保存阶段保持原状态\n  ---\n  duration_ms: 24.296459\n  type: 'test'\n  location: '/Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/开发工具/商品策划流式预览.test.mjs:136:1'\n  failureType: 'testCodeFailure'\n  error: './商品提示词规则'\n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: true\n  actual: false\n  operator: '=='\n  stack: |-\n    file:///Users/guanchengbin/CodexProjects/%E7%94%9F%E5%9B%BE%E5%B7%A5%E4%BD%9C%E5%8F%B0/Guan%E4%BA%8C%E6%AC%A1%E5%BC%80%E5%8F%91/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/%E5%95%86%E5%93%81%E7%AD%96%E5%88%92%E6%B5%81%E5%BC%8F%E9%A2%84%E8%A7%88.test.mjs:15:16\n    eval (eval at load (file:///Users/guanchengbin/CodexProjects/%E7%94%9F%E5%9B%BE%E5%B7%A5%E4%BD%9C%E5%8F%B0/Guan%E4%BA%8C%E6%AC%A1%E5%BC%80%E5%8F%91/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/%E5%95%86%E5%93%81%E7%AD%96%E5%88%92%E6%B5%81%E5%BC%8F%E9%A2%84%E8%A7%88.test.mjs:14:5), <anonymous>:10:18)\n    load (file:///Users/guanchengbin/CodexProjects/%E7%94%9F%E5%9B%BE%E5%B7%A5%E4%BD%9C%E5%8F%B0/Guan%E4%BA%8C%E6%AC%A1%E5%BC%80%E5%8F%91/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/%E5%95%86%E5%93%81%E7%AD%96%E5%88%92%E6%B5%81%E5%BC%8F%E9%A2%84%E8%A7%88.test.mjs:14:55)\n    TestContext.<anonymous> (file:///Users/guanchengbin/CodexProjects/%E7%94%9F%E5%9B%BE%E5%B7%A5%E4%BD%9C%E5%8F%B0/Guan%E4%BA%8C%E6%AC%A1%E5%BC%80%E5%8F%91/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/%E5%95%86%E5%93%81%E7%AD%96%E5%88%92%E6%B5%81%E5%BC%8F%E9%A2%84%E8%A7%88.test.mjs:139:16)\n    Test.runInAsyncScope (node:async_hooks:227:14)\n    Test.run (node:internal/test_runner/test:1306:25)\n    Test.processPendingSubtests (node:internal/test_runner/test:897:18)\n    Test.postRun (node:internal/test_runner/test:1447:19)\n    Test.run (node:internal/test_runner/test:1372:12)\n    async Test.processPendingSubtests (node:internal/test_runner/test:897:7)\n  ...\n1..7\n# tests 7\n# suites 0\n# pass 6\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 126.106959\n"
+    },
+    {
+      "文件": "开发工具/商品策划胶囊状态.test.mjs",
       "通过": true,
       "退出码": 0,
-      "测试": 7,
-      "成功": 7,
+      "测试": 6,
+      "成功": 6,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -1762,16 +1780,6 @@
       "退出码": 0,
       "测试": 12,
       "成功": 12,
-      "失败": 0,
-      "取消": 0,
-      "跳过": 0
-    },
-    {
-      "文件": "开发工具/商品策划胶囊状态.test.mjs",
-      "通过": true,
-      "退出码": 0,
-      "测试": 6,
-      "成功": 6,
       "失败": 0,
       "取消": 0,
       "跳过": 0
@@ -1907,6 +1915,95 @@
       "跳过": 0
     }
   ],
-  "失败": [],
+  "失败": [
+    {
+      "文件": "开发工具/画布业务边界.test.mjs",
+      "通过": false,
+      "退出码": 1,
+      "测试": 0,
+      "成功": 0,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0,
+      "输出": "node:internal/modules/package_json_reader:301\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'globals' imported from /Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/开发工具/画布业务边界.test.mjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:859:18)\n    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:691:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:708:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:740:52)\n    at #resolve (node:internal/modules/esm/loader:673:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:593:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v24.16.0\n"
+    },
+    {
+      "文件": "开发工具/生成历史总览边界.test.mjs",
+      "通过": false,
+      "退出码": 1,
+      "测试": 0,
+      "成功": 0,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0,
+      "输出": "node:internal/modules/package_json_reader:301\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'typescript-eslint' imported from /Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/开发工具/生成历史总览边界.test.mjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:859:18)\n    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:691:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:708:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:740:52)\n    at #resolve (node:internal/modules/esm/loader:673:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:593:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v24.16.0\n"
+    },
+    {
+      "文件": "开发工具/画布状态与参考图边界.test.mjs",
+      "通过": false,
+      "退出码": 1,
+      "测试": 0,
+      "成功": 0,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0,
+      "输出": "node:internal/modules/package_json_reader:301\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'typescript-eslint' imported from /Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/开发工具/画布状态与参考图边界.test.mjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:859:18)\n    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:691:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:708:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:740:52)\n    at #resolve (node:internal/modules/esm/loader:673:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:593:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v24.16.0\n"
+    },
+    {
+      "文件": "开发工具/节点删除与整理边界.test.mjs",
+      "通过": false,
+      "退出码": 1,
+      "测试": 0,
+      "成功": 0,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0,
+      "输出": "node:internal/modules/package_json_reader:301\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'typescript-eslint' imported from /Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/开发工具/节点删除与整理边界.test.mjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:859:18)\n    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:691:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:708:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:740:52)\n    at #resolve (node:internal/modules/esm/loader:673:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:593:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v24.16.0\n"
+    },
+    {
+      "文件": "开发工具/节点复制边界.test.mjs",
+      "通过": false,
+      "退出码": 1,
+      "测试": 0,
+      "成功": 0,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0,
+      "输出": "node:internal/modules/package_json_reader:301\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'typescript-eslint' imported from /Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/开发工具/节点复制边界.test.mjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:859:18)\n    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:691:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:708:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:740:52)\n    at #resolve (node:internal/modules/esm/loader:673:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:593:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v24.16.0\n"
+    },
+    {
+      "文件": "开发工具/图片详情恢复边界.test.mjs",
+      "通过": false,
+      "退出码": 1,
+      "测试": 0,
+      "成功": 0,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0,
+      "输出": "node:internal/modules/package_json_reader:301\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'typescript-eslint' imported from /Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/开发工具/图片详情恢复边界.test.mjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:859:18)\n    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:691:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:708:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:740:52)\n    at #resolve (node:internal/modules/esm/loader:673:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:593:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v24.16.0\n"
+    },
+    {
+      "文件": "开发工具/本地转发请求.test.mjs",
+      "通过": false,
+      "退出码": 1,
+      "测试": 0,
+      "成功": 0,
+      "失败": 0,
+      "取消": 0,
+      "跳过": 0,
+      "输出": "node:internal/modules/cjs/loader:1500\n  const err = new Error(message);\n              ^\n\nError: Cannot find module './node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/typescript.js'\nRequire stack:\n- /Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/.运行/3100源/画布副本/web/package.json\n    at Module._resolveFilename (node:internal/modules/cjs/loader:1500:15)\n    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)\n    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1116:12)\n    at Module._load (node:internal/modules/cjs/loader:1285:25)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1600:12)\n    at require (node:internal/modules/helpers:153:16)\n    at file:///Users/guanchengbin/CodexProjects/%E7%94%9F%E5%9B%BE%E5%B7%A5%E4%BD%9C%E5%8F%B0/Guan%E4%BA%8C%E6%AC%A1%E5%BC%80%E5%8F%91/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/%E6%9C%AC%E5%9C%B0%E8%BD%AC%E5%8F%91%E8%AF%B7%E6%B1%82.test.mjs:9:12\n    at ModuleJob.run (node:internal/modules/esm/module_job:439:25) {\n  code: 'MODULE_NOT_FOUND',\n  requireStack: [\n    '/Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/.运行/3100源/画布副本/web/package.json'\n  ]\n}\n\nNode.js v24.16.0\n"
+    },
+    {
+      "文件": "开发工具/商品策划流式预览.test.mjs",
+      "通过": false,
+      "退出码": 1,
+      "测试": 7,
+      "成功": 6,
+      "失败": 1,
+      "取消": 0,
+      "跳过": 0,
+      "输出": "TAP version 13\n# Subtest: 每个JSON切片均可安全预览，整体方案和半张图片先于完整结果出现\nok 1 - 每个JSON切片均可安全预览，整体方案和半张图片先于完整结果出现\n  ---\n  duration_ms: 46.333458\n  type: 'test'\n  ...\n# Subtest: 完整预览保留分类、片段空格、变体和旧格式双语，不读取持久状态或应用卡片\nok 2 - 完整预览保留分类、片段空格、变体和旧格式双语，不读取持久状态或应用卡片\n  ---\n  duration_ms: 0.218208\n  type: 'test'\n  ...\n# Subtest: Unicode转义和反斜杠切片不显示JSON语法；畸形类型不会成为界面文本\nok 3 - Unicode转义和反斜杠切片不显示JSON语法；畸形类型不会成为界面文本\n  ---\n  duration_ms: 0.972792\n  type: 'test'\n  ...\n# Subtest: 只显示原节点当前策划任务，忽略翻译、优化和过期任务；取消或完成清除预览\nok 4 - 只显示原节点当前策划任务，忽略翻译、优化和过期任务；取消或完成清除预览\n  ---\n  duration_ms: 0.380709\n  type: 'test'\n  ...\n# Subtest: 真实预览组件随进度展示、可滚动、英文可展开，完成后隐藏且不改写原节点\nok 5 - 真实预览组件随进度展示、可滚动、英文可展开，完成后隐藏且不改写原节点\n  ---\n  duration_ms: 26.272291\n  type: 'test'\n  ...\n# Subtest: 延迟渲染旧快照时，新任务与新节点不会闪现上一轮方案\nok 6 - 延迟渲染旧快照时，新任务与新节点不会闪现上一轮方案\n  ---\n  duration_ms: 14.009542\n  type: 'test'\n  ...\n# Subtest: 策划按钮只在收到真实正文后显示生成中，校验和保存阶段保持原状态\nnot ok 7 - 策划按钮只在收到真实正文后显示生成中，校验和保存阶段保持原状态\n  ---\n  duration_ms: 24.296459\n  type: 'test'\n  location: '/Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/开发工具/商品策划流式预览.test.mjs:136:1'\n  failureType: 'testCodeFailure'\n  error: './商品提示词规则'\n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: true\n  actual: false\n  operator: '=='\n  stack: |-\n    file:///Users/guanchengbin/CodexProjects/%E7%94%9F%E5%9B%BE%E5%B7%A5%E4%BD%9C%E5%8F%B0/Guan%E4%BA%8C%E6%AC%A1%E5%BC%80%E5%8F%91/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/%E5%95%86%E5%93%81%E7%AD%96%E5%88%92%E6%B5%81%E5%BC%8F%E9%A2%84%E8%A7%88.test.mjs:15:16\n    eval (eval at load (file:///Users/guanchengbin/CodexProjects/%E7%94%9F%E5%9B%BE%E5%B7%A5%E4%BD%9C%E5%8F%B0/Guan%E4%BA%8C%E6%AC%A1%E5%BC%80%E5%8F%91/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/%E5%95%86%E5%93%81%E7%AD%96%E5%88%92%E6%B5%81%E5%BC%8F%E9%A2%84%E8%A7%88.test.mjs:14:5), <anonymous>:10:18)\n    load (file:///Users/guanchengbin/CodexProjects/%E7%94%9F%E5%9B%BE%E5%B7%A5%E4%BD%9C%E5%8F%B0/Guan%E4%BA%8C%E6%AC%A1%E5%BC%80%E5%8F%91/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/%E5%95%86%E5%93%81%E7%AD%96%E5%88%92%E6%B5%81%E5%BC%8F%E9%A2%84%E8%A7%88.test.mjs:14:55)\n    TestContext.<anonymous> (file:///Users/guanchengbin/CodexProjects/%E7%94%9F%E5%9B%BE%E5%B7%A5%E4%BD%9C%E5%8F%B0/Guan%E4%BA%8C%E6%AC%A1%E5%BC%80%E5%8F%91/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/%E5%95%86%E5%93%81%E7%AD%96%E5%88%92%E6%B5%81%E5%BC%8F%E9%A2%84%E8%A7%88.test.mjs:139:16)\n    Test.runInAsyncScope (node:async_hooks:227:14)\n    Test.run (node:internal/test_runner/test:1306:25)\n    Test.processPendingSubtests (node:internal/test_runner/test:897:18)\n    Test.postRun (node:internal/test_runner/test:1447:19)\n    Test.run (node:internal/test_runner/test:1372:12)\n    async Test.processPendingSubtests (node:internal/test_runner/test:897:7)\n  ...\n1..7\n# tests 7\n# suites 0\n# pass 6\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 126.106959\n"
+    }
+  ],
   "范围说明": "现行根源码、装配引用及本机协议回归；嵌套场景计入用例数，不是独立功能数量。不把历史隔离包审批哈希作为当前功能测试，不代表付费生成或跨机器实机验收。"
 }

@@ -1,0 +1,12 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index da00330..42117cb 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -119,6 +119,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+     scale,
+     isInViewport = true,
+     isViewInteracting = false,
++    canvasNodeCount = 0,
+     isSelected,
+     isRelated,
+     isFocusRelated,

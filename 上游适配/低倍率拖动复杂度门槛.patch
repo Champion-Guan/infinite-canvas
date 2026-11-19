@@ -1,0 +1,32 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 746598f..da00330 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -22,7 +22,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
+ import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
+ import { CanvasNodeType, type CanvasNodeData, type CanvasNodeImage, type CanvasNodeText, type Position } from "@/types/canvas";
+ import { resultNodeLoadingLabel } from "@/扩展功能/画布生成/配置节点状态显示";
+-import { canReuseCanvasNodeDuringZoom, shouldFreezeCanvasNodeContent, shouldRenderCanvasNodeOverview, shouldUseCanvasOverview } from "@/扩展功能/画布布局/画布总览降级规则";
++import { canReuseCanvasNodeDuringZoom, shouldFreezeCanvasNodeContent, shouldRenderCanvasNodeOverview, shouldUseCanvasInteractionShell, shouldUseCanvasOverview } from "@/扩展功能/画布布局/画布总览降级规则";
+ import type { CanvasNodeContext, CanvasPluginHost } from "@/types/canvas-plugin";
+ import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
+ import { useTranslation } from "react-i18next";
+@@ -58,6 +58,7 @@ type CanvasNodeProps = {
+     batchExpanded?: boolean;
+     isInViewport?: boolean;
+     isViewInteracting?: boolean;
++    canvasNodeCount?: number;
+     onMouseDown: (event: React.MouseEvent, nodeId: string) => void;
+     onSelectCapture?: (event: React.MouseEvent, nodeId: string) => void;
+     onHoverStart: (nodeId: string) => void;
+@@ -183,8 +184,9 @@ export const CanvasNode = React.memo(function CanvasNode({
+         isEditing: isEditingContent || isEditingTitle,
+         batchExpanded,
+     });
+-    const freezeCanvasNodeContent = shouldUseCanvasOverview(scale) && data.type !== CanvasNodeType.Image && data.type !== CanvasNodeType.Group && !batchExpanded && shouldFreezeCanvasNodeContent({
++    const freezeCanvasNodeContent = shouldUseCanvasInteractionShell(scale) && data.type !== CanvasNodeType.Image && data.type !== CanvasNodeType.Group && !batchExpanded && shouldFreezeCanvasNodeContent({
+         isInteracting: isViewInteracting,
++        nodeCount: canvasNodeCount ?? 0,
+         isSelected, isRelated, isFocusRelated, isConnectionTarget, isConnecting,
+         referenceSelectionState, showPanel, isEditing: isEditingContent || isEditingTitle,
+     });

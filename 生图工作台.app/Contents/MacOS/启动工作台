@@ -24,14 +24,35 @@ if [[ -z "$workbench_node" ]]; then
   exit 1
 fi
 
-# 系统文件锁在进程退出后自动释放；连续双击不会并发启动两份服务。
+# 系统文件锁在进程退出后自动释放；启动中的重复点击立即退出，不排队打开多个标签。
 workbench_lock="$workbench_runtime/一键启动.lock"
 [[ ! -L "$workbench_lock" ]] || exit 1
 : >> "$workbench_lock"
 zmodload zsh/system || exit 1
-zsystem flock -t 180 -f workbench_lock_fd "$workbench_lock" || exit 1
+if ! zsystem flock -t 0 -f workbench_lock_fd "$workbench_lock" 2>/dev/null; then
+  exit 0
+fi
+
+# 服务刚由桌面入口打开时短暂抑制后续点击，避免重复打开页面。
+workbench_recent="$workbench_runtime/桌面入口最近打开"
+if [[ -L "$workbench_recent" ]]; then
+  zsystem flock -u "$workbench_lock_fd"
+  exit 1
+fi
+if [[ -f "$workbench_recent" ]]; then
+  workbench_last_open=$(/usr/bin/stat -f %m "$workbench_recent" 2>/dev/null || print 0)
+  workbench_now=$(/bin/date +%s)
+  if [[ "$workbench_last_open" == <-> ]] && (( workbench_now >= workbench_last_open && workbench_now - workbench_last_open < 5 )); then
+    zsystem flock -u "$workbench_lock_fd"
+    exit 0
+  fi
+fi
 "$workbench_node" "$workbench_root/开发工具/一键启动工作台.mjs"
 workbench_result=$?
+if (( workbench_result == 0 )); then
+  : >> "$workbench_recent"
+  /usr/bin/touch "$workbench_recent"
+fi
 zsystem flock -u "$workbench_lock_fd"
 if (( workbench_result != 0 )); then
   /usr/bin/open -a TextEdit "$workbench_runtime/一键启动.log"

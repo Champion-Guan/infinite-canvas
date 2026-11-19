@@ -1,0 +1,47 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 1bfb7d5..746598f 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -22,7 +22,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
+ import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
+ import { CanvasNodeType, type CanvasNodeData, type CanvasNodeImage, type CanvasNodeText, type Position } from "@/types/canvas";
+ import { resultNodeLoadingLabel } from "@/扩展功能/画布生成/配置节点状态显示";
+-import { canReuseCanvasNodeDuringZoom, shouldRenderCanvasNodeOverview } from "@/扩展功能/画布布局/画布总览降级规则";
++import { canReuseCanvasNodeDuringZoom, shouldFreezeCanvasNodeContent, shouldRenderCanvasNodeOverview, shouldUseCanvasOverview } from "@/扩展功能/画布布局/画布总览降级规则";
+ import type { CanvasNodeContext, CanvasPluginHost } from "@/types/canvas-plugin";
+ import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
+ import { useTranslation } from "react-i18next";
+@@ -183,6 +183,11 @@ export const CanvasNode = React.memo(function CanvasNode({
+         isEditing: isEditingContent || isEditingTitle,
+         batchExpanded,
+     });
++    const freezeCanvasNodeContent = shouldUseCanvasOverview(scale) && data.type !== CanvasNodeType.Image && data.type !== CanvasNodeType.Group && !batchExpanded && shouldFreezeCanvasNodeContent({
++        isInteracting: isViewInteracting,
++        isSelected, isRelated, isFocusRelated, isConnectionTarget, isConnecting,
++        referenceSelectionState, showPanel, isEditing: isEditingContent || isEditingTitle,
++    });
+     const pluginContext = useMemo<CanvasNodeContext | null>(() => (!isCanvasOverview && pluginHost ? buildNodeContext(pluginHost, data, theme, scale, isSelected) : null), [isCanvasOverview, pluginHost, data, theme, scale, isSelected]);
+     const pluginContentContext = useMemo<CanvasNodeContext | null>(() => !isCanvasOverview && pluginHost && !builtinNodeTypes.has(data.type)
+         ? buildNodeContext(pluginHost, data, theme, contentScale, isSelected) : null,
+@@ -383,6 +388,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+             data-config-settings-anchor={data.type === CanvasNodeType.Config ? "true" : undefined}
+             data-inline-result-obscured={isConnectionObscured ? "true" : undefined}
+             data-canvas-overview={isCanvasOverview ? "true" : undefined}
++            data-canvas-freeze-content={freezeCanvasNodeContent ? "true" : undefined}
+             className={`node-element ${isViewInteracting || isCanvasOverview ? "" : "group/node"} absolute flex select-none flex-col transition-shadow duration-200 ${isGroup ? "z-[5]" : isSelected ? "z-50" : "z-10"} ${referenceSelectionState === "available" ? "cursor-pointer" : referenceSelectionState ? "cursor-not-allowed" : ""}`}
+             style={{
+                 transform: `translate(${data.position.x}px, ${data.position.y}px)`,
+@@ -487,11 +493,13 @@ export const CanvasNode = React.memo(function CanvasNode({
+                 }}
+             >
+                 <div
++                    data-canvas-node-content
+                     className={`relative flex h-full w-full items-center justify-center rounded-[inherit] ${isBatchRoot ? "overflow-visible" : "overflow-hidden"}`}
+                     style={
+                         {
+                             background: isGroup ? "transparent" : hasImageContent || hasVideoContent || transparentBg ? "transparent" : theme.node.fill,
+                             pointerEvents: isViewInteracting ? "none" : contentInteractive ? undefined : "none",
++                            contentVisibility: freezeCanvasNodeContent ? "hidden" : undefined,
+                         } as React.CSSProperties
+                     }
+                 >

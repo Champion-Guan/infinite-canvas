@@ -1,0 +1,58 @@
+diff --git a/web/src/components/canvas/canvas-node-hover-toolbar.tsx b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+index f63684b..d4dca1f 100644
+--- a/web/src/components/canvas/canvas-node-hover-toolbar.tsx
++++ b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+@@ -3,7 +3,7 @@ import { nodeToolbarTop } from "@/扩展功能/画布交互/节点工具栏定
+ import { ImageSuperMenu } from "@/扩展功能/画布生成/一键超人菜单";
+ import type { ImageSuperAction } from "@/扩展功能/画布生成/一键超人规则";
+ import { sqlitePreferences } from "@/扩展功能/本机存储/上游浏览器存储桥";
+-import { useEffect, useMemo, useState, type ReactNode } from "react";
++import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+ import { App, Segmented } from "antd";
+ import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+ import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+@@ -70,6 +70,9 @@ type ToolbarTool = {
+     danger?: boolean;
+ };
+ 
++const TOOLBAR_HEIGHT = 48;
++const OUTSIDE_GAP = 14;
++
+ export function CanvasNodeHoverToolbar({
+     node,
+     viewport,
+@@ -109,6 +112,7 @@ export function CanvasNodeHoverToolbar({
+     const { message } = App.useApp();
+     const { t } = useTranslation();
+     const copyText = useCopyText();
++    const toolbarRef = useRef<HTMLDivElement>(null);
+ 
+     useEffect(() => {
+         try {
+@@ -192,6 +196,18 @@ export function CanvasNodeHoverToolbar({
+         onLeave();
+     };
+ 
++    // 节点模型坐标与实际卡片外框在小数缩放下可能相差几个像素。
++    // 首帧按模型定位后，再用真实 DOM 外框校正，确保工具栏完全悬空在卡片上方。
++    useLayoutEffect(() => {
++        const toolbar = toolbarRef.current;
++        const card = document.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(node.id)}"]`);
++        const layer = toolbar?.parentElement;
++        if (!toolbar || !card || !layer) return;
++        const cardRect = card.getBoundingClientRect();
++        const layerRect = layer.getBoundingClientRect();
++        toolbar.style.top = `${cardRect.top - layerRect.top - TOOLBAR_HEIGHT - OUTSIDE_GAP}px`;
++    }, [node.id, viewport.x, viewport.y, viewport.k]);
++
+     const setDraftImageToolVisible = (id: ImageQuickToolId, visible: boolean) => {
+         setDraftImageToolIds((current) => {
+             const selected = new Set(current);
+@@ -212,6 +228,7 @@ export function CanvasNodeHoverToolbar({
+     return (
+         <>
+             <CanvasFloatingBoundary><div
++                ref={toolbarRef}
+                 className="pointer-events-auto absolute z-[70] flex h-12 -translate-x-1/2 items-center overflow-visible rounded-[18px] border border-black/10 bg-white text-[15px] text-[#242529] shadow-[0_8px_28px_rgba(15,23,42,.12)]"
+                 data-node-toolbar={node.id}
+                 data-toolbar-node-x={node.position.x}

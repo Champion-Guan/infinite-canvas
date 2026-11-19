@@ -1,0 +1,16 @@
+diff --git a/web/src/styles/globals.css b/web/src/styles/globals.css
+index bd552ca..b38a986 100644
+--- a/web/src/styles/globals.css
++++ b/web/src/styles/globals.css
+@@ -383,6 +383,11 @@
+         opacity: .28;
+         transition: opacity 180ms var(--guan-motion-gentle);
+     }
++    .guan-canvas-viewport[data-panning="true"] [data-canvas-freeze-content="true"] [data-canvas-node-content] {
++        content-visibility: hidden;
++        contain: layout paint style;
++        contain-intrinsic-size: 240px 180px;
++    }
+ 
+     [data-canvas-grid] {
+         transition: opacity 320ms var(--guan-motion-gentle), filter 320ms var(--guan-motion-gentle);

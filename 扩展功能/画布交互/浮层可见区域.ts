@@ -2,9 +2,9 @@ export type FloatingRect = { left: number; top: number; right: number; bottom: n
 export const CANVAS_FLOATING_CHANGE = "guan-canvas-floating-change";
 export const CANVAS_PANEL_REVEAL = "guan-canvas-panel-reveal";
 
-export function floatingBounds(view: FloatingRect, canvas?: FloatingRect | null, dock?: FloatingRect | null) {
+export function floatingBounds(view: FloatingRect, canvas?: FloatingRect | null, dock?: FloatingRect | null, reserveHeader = true) {
     const left = Math.max(view.left, canvas?.left ?? view.left) + 12;
-    const top = Math.max(view.top, canvas ? canvas.top + 64 : view.top) + 12;
+    const top = Math.max(view.top, canvas ? canvas.top + (reserveHeader ? 64 : 0) : view.top) + 12;
     const right = Math.max(left + 1, Math.min(view.right, canvas?.right ?? view.right) - 12);
     const bottom = Math.max(top + 1, Math.min(view.bottom, canvas?.bottom ?? view.bottom, dock?.top ?? Infinity) - 12);
     return { left, top, right, bottom };
@@ -16,6 +16,25 @@ export function fitFloatingRect(rect: FloatingRect, bounds: FloatingRect) {
     const left = Math.max(bounds.left, Math.min(rect.left, bounds.right - width));
     const top = Math.max(bounds.top, Math.min(rect.top, bounds.bottom - height));
     return { left, top, width, height };
+}
+
+export function fitNodeToolbar(rect: FloatingRect, bounds: FloatingRect, obstacles: FloatingRect[]) {
+    const fit = fitFloatingRect(rect, bounds);
+    const gap = 12;
+    const relevant = obstacles.filter(obstacle =>
+        obstacle.right > obstacle.left && obstacle.bottom > obstacle.top &&
+        fit.left < obstacle.right + gap && fit.left + fit.width > obstacle.left - gap);
+    const overlapsY = (top: number, obstacle: FloatingRect) =>
+        top < obstacle.bottom + gap && top + fit.height > obstacle.top - gap;
+    if (!relevant.some(obstacle => overlapsY(fit.top, obstacle))) return fit;
+
+    const candidates = relevant.flatMap(obstacle => [
+        obstacle.top - gap - fit.height,
+        obstacle.bottom + gap,
+    ]).filter(top => top >= bounds.top && top + fit.height <= bounds.bottom &&
+        !relevant.some(obstacle => overlapsY(top, obstacle)));
+    const top = candidates.sort((a, b) => Math.abs(a - fit.top) - Math.abs(b - fit.top))[0];
+    return top === undefined ? fit : { ...fit, top };
 }
 
 export function revealCanvasPanel(view: { x: number; y: number; k: number }, node: { position: { x: number; y: number }; width: number; height: number }, bounds: FloatingRect, canvas: FloatingRect) {
@@ -68,15 +87,15 @@ export function placeCanvasSettings(card: FloatingRect, size: { width: number; h
     return placeCanvasPanel(card, { ...size, width }, bounds, toolbar);
 }
 
-export function readCanvasFloatingBounds(anchor: Element | null): FloatingRect {
+export function readCanvasFloatingBounds(anchor: Element | null, toolbarScene?: Element | null): FloatingRect {
     const visual = window.visualViewport;
     const view = { left: visual?.offsetLeft ?? 0, top: visual?.offsetTop ?? 0,
         right: (visual?.offsetLeft ?? 0) + (visual?.width ?? window.innerWidth),
         bottom: (visual?.offsetTop ?? 0) + (visual?.height ?? window.innerHeight) };
     // 全局设置和模态框使用浏览器边界；画布内浮层使用当前产品的可见画布。
     if (anchor?.closest('.ant-modal,.ant-drawer,[role="alertdialog"]')) return floatingBounds(view);
-    const product = anchor?.closest('[data-product-id]') ?? document.querySelector('[data-product-active="true"]');
+    const product = toolbarScene ?? anchor?.closest('[data-product-id]') ?? document.querySelector('[data-product-active="true"]');
     const canvas = product?.querySelector('.guan-canvas-viewport');
-    const dock = product?.querySelector('[data-canvas-bottom-toolbar]');
-    return floatingBounds(view, canvas?.getBoundingClientRect(), dock?.getBoundingClientRect());
+    const dock = toolbarScene ? null : product?.querySelector('[data-canvas-bottom-toolbar]');
+    return floatingBounds(view, canvas?.getBoundingClientRect(), dock?.getBoundingClientRect(), !toolbarScene);
 }

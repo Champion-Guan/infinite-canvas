@@ -6,6 +6,7 @@ import { readLocalStorageUsage, type LocalStorageUsage } from "@/services/local-
 import { clearRecycleStorage, pendingRecycleCleanup, type RecycleStorageKind } from "./回收站存储操作";
 import { StorageMaintenancePanel } from "./存储整理面板";
 import { storageCategoryCopy } from "./存储分类文案";
+import { productFeatures } from "../产品配置/功能开关";
 
 type Category = { name: string; label: string; records: number; files: number; blocks: number; documentBytes: number; mediaBytes: number; bytes: number };
 type DetailedUsage = Omit<LocalStorageUsage, "databases"> & {
@@ -96,7 +97,7 @@ export function ConfigLocalStorage({ active, settingsOpen }: { active: boolean; 
                         <div className="shrink-0 text-sm font-medium tabular-nums">{formatBytes(database.bytes)}</div>
                     </div>
                     <div className="divide-y divide-stone-200 dark:divide-stone-800">
-                        {database.stores.map(store => { const copy = storageCategoryCopy(store.name, store.label); return (
+                        {database.stores.filter(store => productFeatures.excel || store.name !== "workbook_recycle").map(store => { const copy = storageCategoryCopy(store.name, store.label); return (
                             <div key={store.name} className="px-4 py-3">
                                 <div className="flex items-start justify-between gap-4 text-sm">
                                     <div className="min-w-0"><div className="flex flex-wrap items-center gap-2 font-medium"><span>{copy.label}</span><span className="text-[11px] font-normal text-stone-500">{copy.status}</span>{isRecycleCategory(store.name) ? <Button size="small" danger loading={recycleAction === store.name} disabled={!!recycleAction || store.bytes === 0 && store.records === 0 && pendingCleanup !== store.name} onClick={() => void clearRecycle(store.name as RecycleStorageKind, copy.label)}>{pendingCleanup === store.name ? "重试删除" : "清空"}</Button> : null}</div><div className="mt-1 text-xs leading-5 text-stone-500">{copy.detail}</div>{countLabel(store) ? <div className="mt-0.5 text-[11px] text-stone-500">{countLabel(store)}</div> : null}</div>

@@ -1,0 +1,24 @@
+diff --git a/web/src/components/canvas/canvas-top-bar.tsx b/web/src/components/canvas/canvas-top-bar.tsx
+index 4d3a874..2d5fe19 100644
+--- a/web/src/components/canvas/canvas-top-bar.tsx
++++ b/web/src/components/canvas/canvas-top-bar.tsx
+@@ -91,8 +91,8 @@ export function CanvasTopBar({
+ 
+     return (
+         <>
+-            <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex h-16 items-center justify-between pl-1 pr-4">
+-                <div className="pointer-events-auto flex min-w-0 items-center gap-2">
++            <div data-canvas-top-bar className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex h-16 items-center justify-between pl-1 pr-4">
++                <div data-canvas-top-bar-side className="pointer-events-auto flex min-w-0 items-center gap-2">
+                     <Tooltip title={sidePanelOpen ? t("canvas.collapsePanel") : t("canvas.expandPanel")}>
+                         <button
+                             type="button"
+@@ -155,7 +155,7 @@ export function CanvasTopBar({
+                     {productFeatures.externalAgent ? <CompactAgentStatus status={compactAgentStatus} onClick={onToggleAgent} /> : null}
+                 </div>
+ 
+-                <div className="pointer-events-auto flex items-center gap-1.5">
++                <div data-canvas-top-bar-side className="pointer-events-auto flex items-center gap-1.5">
+                     <VersionReleaseModal className="guan-apple-glow guan-toolbar-focus inline-flex h-7 shrink-0 cursor-pointer items-center rounded-md px-2 text-xs font-medium transition-colors hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} />
+                     <button type="button" className="guan-apple-glow guan-toolbar-focus inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} onClick={() => setShortcutsOpen(true)} aria-label={t("topNav.shortcuts")} title={t("topNav.shortcuts")}>
+                         <Keyboard className="size-4" />

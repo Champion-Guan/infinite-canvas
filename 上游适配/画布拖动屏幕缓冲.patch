@@ -1,0 +1,16 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 5c23478..f3cdca6 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -897,7 +897,10 @@ function InfiniteCanvasPage() {
+     );
+ 
+     const viewBounds = useMemo(() => {
+-        const padding = 280;
++        // Keep a stable screen-space overscan. At 5% a fixed 280 world-unit
++        // margin is only 14px, so ordinary pointer movement repeatedly
++        // invalidates culling and re-renders the dense canvas.
++        const padding = Math.max(280, 140 / viewport.k);
+         const { width, height } = size;
+         const left = -viewport.x / viewport.k - padding;
+         const top = -viewport.y / viewport.k - padding;

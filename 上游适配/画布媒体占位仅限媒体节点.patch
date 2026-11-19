@@ -1,0 +1,24 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 79c5e98..5c23478 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -65,8 +65,9 @@ import { requestCanvasImage } from "@/扩展功能/画布生成/原画布图片
+ import { readProtectedRetryPrompt } from "@/扩展功能/提示词/生成文本读取";
+ import { useCanvasPersistence } from "@/扩展功能/产品/画布保存接线";
+ import { canvasHasPendingChanges, canvasSavePending, sameCanvasValue } from "@/扩展功能/产品/画布保存判定";
+-import { useVisibleCanvasMedia, hasDeferredCanvasMedia, CanvasMediaPlaceholder } from "@/扩展功能/媒体交付/可见画布媒体";
++import { useVisibleCanvasMedia, shouldRenderCanvasMediaPlaceholder, CanvasMediaPlaceholder } from "@/扩展功能/媒体交付/可见画布媒体";
+ import { useProgressiveCanvasNodes } from "@/扩展功能/画布布局/可见卡片渐进挂载";
++import { shouldUseCanvasOverview } from "@/扩展功能/画布布局/画布总览降级规则";
+ import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
+ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+ import { markWorkbenchStartup } from "@/扩展功能/本机存储/启动计时.mjs";
+@@ -3294,7 +3295,7 @@ function InfiniteCanvasPage() {
+                         viewBox="0 0 1 1" style={{ pointerEvents: "none", zIndex: 51 }}><g ref={setConnectionFocusTarget} /></svg>
+                     <div ref={setCardEndpointTarget} data-card-endpoints="true" className="absolute inset-0 pointer-events-none" style={{ zIndex: 52 }} />
+                     <div ref={setCardPanelTarget} data-card-panels="true" className="absolute inset-0 pointer-events-none" style={{ zIndex: 70 }} />
+-                    {residentCanvasNodes.map((node) => !mountedVisibleNodes.has(node.id) || hasDeferredCanvasMedia(node) ? (
++                    {residentCanvasNodes.map((node) => (!mountedVisibleNodes.has(node.id) && !shouldUseCanvasOverview(viewport.k)) || shouldRenderCanvasMediaPlaceholder(node) ? (
+                         <CanvasMediaPlaceholder key={node.id} node={node} />
+                     ) : (
+                         <CanvasNode

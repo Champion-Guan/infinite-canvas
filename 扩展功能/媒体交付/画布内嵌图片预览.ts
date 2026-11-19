@@ -44,7 +44,14 @@ export async function resolveEmbeddedCanvasPreview(fallback: string | undefined,
         }
         const result = await createImageThumbnailInBackground(blob, () => createImageThumbnail(blob, edge), edge) || blob;
         // 派生缓存落盘不阻塞第一张画面；页面关闭仍由既有SQLite排空门禁保护。
-        if (key) void Promise.resolve().then(() => previewStore!.setItem(key!, { version: 1, blob: result })).catch(() => {});
+        if (key) {
+            const persist = () => { void previewStore!.setItem(key!, { version: 1, blob: result }).catch(() => {}); };
+            // Preview persistence is a cache write, not part of the canvas
+            // commit. Keep it off the zoom/pan tail so SQLite IPC cannot
+            // compete with the frame that hands control back to the user.
+            if (typeof requestIdleCallback === "function") requestIdleCallback(persist, { timeout: 1500 });
+            else setTimeout(persist, 1000);
+        }
         return result;
     });
 }

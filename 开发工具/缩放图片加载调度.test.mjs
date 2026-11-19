@@ -59,6 +59,23 @@ test('缩略图读取预算最多三个并发，单项失败后仍释放队列�
     assert.equal(results.filter(result => result.status === 'fulfilled').length, 29);
 });
 
+test('5%慢拖只绘制，接近屏幕缓冲边缘或松手时提交', () => {
+    const { createCanvasPanScheduler } = variantModules().load('画布布局/画布平移调度.ts');
+    let work, now = 0;
+    const paints = [], commits = [];
+    const scheduler = createCanvasPanScheduler({ paint: view => paints.push(view.x), commit: view => commits.push(view.x),
+        frame: callback => { work = callback; return 1; }, cancel: () => { work = undefined; }, now: () => now });
+    const move = x => { scheduler.move({ x, y: 0, k: .05 }); now += 300; work(); };
+    scheduler.begin({ x: 0, y: 0, k: .05 });
+    move(10); move(50); move(99);
+    assert.deepEqual(paints, [10, 50, 99]);
+    assert.deepEqual(commits, []);
+    move(100); move(140);
+    assert.deepEqual(commits, [100]);
+    scheduler.flush();
+    assert.deepEqual(commits, [100, 140]);
+});
+
 test('新增可见卡片分帧挂载，手势暂停队列，已加载卡片随画布驻留而不随裁剪卸载', () => {
     const cells = [], frames = new Map();
     let cursor = 0, id = 0, effects = [];

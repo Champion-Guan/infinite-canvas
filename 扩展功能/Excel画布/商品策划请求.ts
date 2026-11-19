@@ -34,9 +34,10 @@ async function saved(productId: string) {
     return result;
 }
 
-async function request({ ctx, productId, signal, slotId, messages, assertCurrent, apply, onPhase, sourceKey, recoverOnly = false }: {
+async function request({ ctx, productId, signal, slotId, messages, assertCurrent, apply, onPhase, sourceKey, recoverOnly = false, onProgressText }: {
     ctx: CanvasNodeContext; productId: string; signal: AbortSignal; slotId: string; messages: AiTextMessage[];
     assertCurrent(): void; apply(text: string): void; onPhase?(phase: TextTaskPhase): void; sourceKey?: string; recoverOnly?: boolean;
+    onProgressText?(text: string): void;
 }) {
     const state = useConfigStore.getState(), config = {
         ...buildGenerationConfig(state.config, undefined, "text"), systemPrompt: "", textSystemPrompt: "",
@@ -83,6 +84,7 @@ async function request({ ctx, productId, signal, slotId, messages, assertCurrent
     try { return await requestCanvasText({
         config, messages, signal, retry: !recoverOnly, recoverOnly, scope: { productId, nodeId: ctx.node.id, slotId },
         previous: read().metadata?.gatewayGenerationTasks?.find(task => task.slotId === slotId),
+        onProgressText,
         recordTask: async task => {
             const node = read();
             onPhase?.("saving-task");
@@ -182,6 +184,7 @@ async function executeProductImagePlan(ctx: CanvasNodeContext, productId: string
         const marker = productPlanningCommit(ctx.getNode(ctx.node.id));
         if (!marker) return;
         ctx.updateMetadata({ ...productPlanningCommitPatch(),
+            ...productPlanningCandidatePatch(),
             ...productPlanningResolutionPatch({ taskId: marker.taskId, status: "succeeded" }) });
         try { await saved(productId); }
         catch (error) { ctx.updateMetadata(productPlanningCommitPatch(marker)); throw error; }
@@ -233,6 +236,7 @@ async function executeProductImagePlan(ctx: CanvasNodeContext, productId: string
     let hasImages = false;
     let configNodeIds: string[] = [];
     let activeSlot = "product-image-plan";
+    let streamedText = "";
     const validate = (text: string) => {
         const plan = parseProductImagePlan(text, facts.variants.map(variant => variant.id), { requireDesign: true });
         normalizeProductPlanReferences(plan, metadata);
@@ -258,7 +262,7 @@ async function executeProductImagePlan(ctx: CanvasNodeContext, productId: string
         const promptIds = new Set(ops.flatMap(op => op.type === "select_nodes" ? op.ids : []));
         configNodeIds = [...new Set(ops.flatMap(op => op.type === "connect_nodes" && promptIds.has(op.fromNodeId) ? [op.toNodeId] : []))];
         ctx.applyOps([...ops,
-            { type: "update_node", id: parameter.id, metadata: { ...productPlanningCandidatePatch(),
+            { type: "update_node", id: parameter.id, metadata: {
                 ...productPlanningCommitPatch({ slotId: activeSlot, taskId: task.taskId, configNodeIds }) } }]);
         hasImages = plan.images.length > 0;
     };
@@ -280,6 +284,30 @@ async function executeProductImagePlan(ctx: CanvasNodeContext, productId: string
         apply(plan);
         candidate = undefined;
     };
+    const preserveStreamedCandidate = async (text: string, slotId: string) => {
+        if (!text.trim()) return;
+        const task = ctx.getNode(parameter.id)?.metadata?.gatewayGenerationTasks?.find(item => item.slotId === slotId);
+        if (!task) return;
+        let issues;
+        try {
+            validate(text);
+            issues = [{ path: "response", problem: "task_failed_after_stream" }];
+        } catch (error) {
+            issues = productPlanProtocolIssues(error) || [{ path: "response", problem: "invalid_streamed_plan" }];
+        }
+        ctx.updateMetadata(productPlanningCandidatePatch({
+            requestKey,
+            response: text,
+            issues,
+            // A repair must keep the first candidate's image identity as its
+            // invariant. Recomputing it from a malformed repair response
+            // makes every subsequent retry validate against the wrong plan.
+            imageIdentity: candidate?.imageIdentity || productPlanImageIdentity(text),
+            slotId,
+            taskId: task.taskId,
+        }));
+        try { await saved(productId); } catch { /* Keep the in-memory candidate while the original task error remains visible. */ }
+    };
     if (!candidate) {
     const content: Exclude<AiTextMessage["content"], string> = [{ type: "text", text: JSON.stringify({
         facts, requirements: productPlanningRequirements(metadata), confirmationInputs,
@@ -299,10 +327,16 @@ async function executeProductImagePlan(ctx: CanvasNodeContext, productId: string
         content.push({ type: "text", text: `Reference ID: ${image.id}; filename: ${image.name}` },
             { type: "image_url", image_url: { url } });
     }
-    await request({ ctx, productId, signal, slotId: "product-image-plan", assertCurrent, onPhase, sourceKey: requestKey, recoverOnly,
-        messages: [{ role: "system", content: `${planningRole}\n\n${PRODUCT_PLANNING_OUTPUT}` }, { role: "user", content }],
-        apply: text => receive(text),
-    });
+    try {
+        await request({ ctx, productId, signal, slotId: "product-image-plan", assertCurrent, onPhase, sourceKey: requestKey, recoverOnly,
+            onProgressText: text => { streamedText = text; },
+            messages: [{ role: "system", content: `${planningRole}\n\n${PRODUCT_PLANNING_OUTPUT}` }, { role: "user", content }],
+            apply: text => receive(text),
+        });
+    } catch (error) {
+        await preserveStreamedCandidate(streamedText, "product-image-plan");
+        throw error;
+    }
     }
     if (candidate) {
         if (recoverOnly) throw Error("原方案已取回，尚需修正结构；请使用“继续修正”，不会重新执行整套策划。");
@@ -313,12 +347,19 @@ async function executeProductImagePlan(ctx: CanvasNodeContext, productId: string
             factId: field.id, imageKeys: field.imageKeys, scope: field.scope,
             variants: field.answers.map(answer => ({ variantId: answer.variantId, imageIds: answer.images.map(image => image.id) })),
         }));
-        await request({ ctx, productId, signal, slotId: "product-image-plan-repair", assertCurrent, sourceKey: requestKey,
-            onPhase: value => onPhase?.(value === "requesting" ? "repairing" : value),
-            messages: [{ role: "system", content: `${PRODUCT_PLAN_REPAIR_ROLE}\n\n${PRODUCT_PLANNING_OUTPUT}` },
-                { role: "user", content: JSON.stringify({ facts, requirements: productPlanningRequirements(metadata),
-                    confirmationInputs, allowedConfirmationImages, candidate: source.response, issues: source.issues }) }],
-            apply: text => receive(text, true) });
+        streamedText = "";
+        try {
+            await request({ ctx, productId, signal, slotId: "product-image-plan-repair", assertCurrent, sourceKey: requestKey,
+                onProgressText: text => { streamedText = text; },
+                onPhase: value => onPhase?.(value === "requesting" ? "repairing" : value),
+                messages: [{ role: "system", content: `${PRODUCT_PLAN_REPAIR_ROLE}\n\n${PRODUCT_PLANNING_OUTPUT}` },
+                    { role: "user", content: JSON.stringify({ facts, requirements: productPlanningRequirements(metadata),
+                        confirmationInputs, allowedConfirmationImages, candidate: source.response, issues: source.issues }) }],
+                apply: text => receive(text, true) });
+        } catch (error) {
+            await preserveStreamedCandidate(streamedText, "product-image-plan-repair");
+            throw error;
+        }
         if (candidate) throw Object.assign(Error("方案结构修正后仍未通过检查，原卡片已保留；请继续修正已返回的方案。"),
             { code: "product_plan_repair_incomplete" });
     }

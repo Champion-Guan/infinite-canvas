@@ -1,9 +1,10 @@
 import type { ViewportTransform } from "@/types/canvas";
 import { restoreValidViewport, validCanvasViewport } from "../画布交互/有效视区";
 
-// Paint the latest pointer once per frame; expensive scene culling and React
-// work only checkpoint periodically or before crossing the culling overscan.
-export function createCanvasPanScheduler({ paint, commit, frame, cancel, now, extent, probe }: {
+// Leave 40px of the minimum 140px screen overscan for the next commit.
+const PAN_CHECKPOINT_PX = 100;
+
+export function createCanvasPanScheduler({ paint, commit, frame, cancel, now, probe }: {
     paint: (viewport: ViewportTransform) => void;
     commit: (viewport: ViewportTransform) => void;
     frame: (callback: () => void) => number;
@@ -15,12 +16,10 @@ export function createCanvasPanScheduler({ paint, commit, frame, cancel, now, ex
     let pending: number | null = null;
     let latest: ViewportTransform | null = null;
     let checkpoint: ViewportTransform | null = null;
-    let checkpointAt = 0;
     const changed = () => latest && checkpoint && (latest.x !== checkpoint.x || latest.y !== checkpoint.y || latest.k !== checkpoint.k);
     const publish = () => {
         if (!latest || !changed()) return;
         checkpoint = latest;
-        checkpointAt = now();
         const started = now();
         commit(latest);
         probe?.commit(now() - started);
@@ -28,7 +27,7 @@ export function createCanvasPanScheduler({ paint, commit, frame, cancel, now, ex
     return {
         begin(viewport: ViewportTransform, measure = true) {
             if (pending !== null) cancel(pending);
-            pending = null; latest = restoreValidViewport(viewport); checkpoint = latest; checkpointAt = now();
+            pending = null; latest = restoreValidViewport(viewport); checkpoint = latest;
             if (measure) probe?.begin();
         },
         move(viewport: ViewportTransform) {
@@ -38,21 +37,10 @@ export function createCanvasPanScheduler({ paint, commit, frame, cancel, now, ex
             pending = frame(() => {
                 pending = null;
                 if (!latest) return;
-                const size = extent?.();
                 const started = now(); paint(latest); probe?.paint(now() - started);
-                // Culling overscan is measured in screen pixels, not world
-                // pixels: zooming out must not make a few pixels trigger React.
-                const overscanStep = 140;
-                const zoomTravel = checkpoint && size ? Math.max(
-                    Math.abs((size.width - checkpoint.x) / checkpoint.k - (size.width - latest.x) / latest.k),
-                    Math.abs((size.height - checkpoint.y) / checkpoint.k - (size.height - latest.y) / latest.k),
-                    Math.abs(checkpoint.x / checkpoint.k - latest.x / latest.k),
-                    Math.abs(checkpoint.y / checkpoint.k - latest.y / latest.k),
-                ) : latest.k !== checkpoint?.k ? Infinity : 0;
                 // 缩放中保持已绘制内容，仅变换合成层；结束后再更新视区裁剪和内容。
                 if (checkpoint && latest.k !== checkpoint.k) return;
-                if (!checkpoint || zoomTravel * latest.k >= overscanStep || now() - checkpointAt >= 80
-                    || Math.abs(latest.x - checkpoint.x) >= overscanStep || Math.abs(latest.y - checkpoint.y) >= overscanStep) publish();
+                if (!checkpoint || Math.max(Math.abs(latest.x - checkpoint.x), Math.abs(latest.y - checkpoint.y)) >= PAN_CHECKPOINT_PX) publish();
             });
         },
         flush() {

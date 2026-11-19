@@ -114,8 +114,10 @@ export function ProductSurface({
       style={{
         position: "absolute",
         inset: 0,
+        zIndex: active ? 2 : 1,
         visibility: active || fadingOut ? "visible" : "hidden",
         pointerEvents: active && !retiringProject ? "auto" : "none",
+        background: "var(--background)",
         // 显隐和 inert 已隔离缓存产品；此处不能创建层叠上下文，
         // 否则产品内弹窗/消息会被外部顶栏和全局弹窗盖住。
       }}
