@@ -4694,6 +4694,16 @@
   ],
   "接入差异": [
     {
+      "目标": "web/src/lib/canvas/plugin-node-context.ts",
+      "基线SHA256": "282a394da78c3aa875c35d12e50d5df012208f7b0ca78c539e63e41bbc1e19ba",
+      "原SHA256": "282a394da78c3aa875c35d12e50d5df012208f7b0ca78c539e63e41bbc1e19ba"
+    },
+    {
+      "目标": "web/src/types/canvas-plugin.ts",
+      "基线SHA256": "62dfe2a62e20222aaf7deabce31930efa02faef677e5bfcf3fa8dcbde93e4538",
+      "原SHA256": "62dfe2a62e20222aaf7deabce31930efa02faef677e5bfcf3fa8dcbde93e4538"
+    },
+    {
       "目标": "web/src/components/prompts/prompt-card.tsx",
       "基线SHA256": "16bf7482723d590b4d2f130e4746f23028b7900cc506be24498a2c567bb4b497",
       "原SHA256": "16bf7482723d590b4d2f130e4746f23028b7900cc506be24498a2c567bb4b497"
@@ -10704,6 +10714,12 @@
       "SHA256": "5327710ba8a851f6cedb8a315993e3b90ab18b821f24262cad62972734827c5c",
       "前态SHA256": "3d6e996448c5bf160081d85f8608112ce31d789fd66cc00bfa1afda87ff4ce71",
       "后态SHA256": "a6c487f21c0de18aa3199def098ed2594ff98d748b0a66c2b48dcd98c91983aa"
+    },
+    {
+      "文件": "上游适配/变体勾选定点元数据更新.patch",
+      "目标": "web/src/lib/canvas/plugin-node-context.ts",
+      "职责": "变体勾选定点元数据更新",
+      "SHA256": "6ed744a5279be0611c9660d4def3cabf196c4950542794b873fa924845ec42c0"
     }
   ]
 }

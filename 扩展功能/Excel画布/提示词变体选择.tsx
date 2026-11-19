@@ -19,9 +19,9 @@ export function updatePromptVariantSelection(ctx: CanvasNodeContext, parameterId
     if (!parameter || parameter.type !== "guan:prompt-variables") return;
     const selected = new Set(ids), variants = productVariants(parameter.metadata);
     if (!variants.some(variant => selected.has(variant.id) && variant.enabled !== enabled)) return;
-    ctx.applyOps([{ type: "update_node", id: parameter.id, metadata: {
+    ctx.updateNodeMetadata(parameter.id, {
         productVariants: variants.map(variant => selected.has(variant.id) ? { ...variant, enabled } : variant),
-    } as ProductVariantMetadata }]);
+    } as ProductVariantMetadata);
 }
 
 export function PromptVariantSelectAll({ ctx, parameterId, ids }: { ctx: CanvasNodeContext; parameterId: string; ids: string[] }) {

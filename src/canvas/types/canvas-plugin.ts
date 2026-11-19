@@ -46,6 +46,7 @@ export type CanvasNodeContext = {
     isSelected: boolean; // Whether this node is selected, used to enable iframe interaction on demand.
     // Node data.
     updateMetadata: (patch: CanvasNodeMetadata) => void;
+    updateNodeMetadata: (nodeId: string, patch: CanvasNodeMetadata) => void;
     updateNode: (patch: Partial<Pick<CanvasNodeData, "title" | "width" | "height">>) => void;
     // Graph access.
     getNode: (id: string) => CanvasNodeData | null;

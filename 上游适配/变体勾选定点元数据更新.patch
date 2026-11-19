@@ -1,0 +1,41 @@
+diff --git a/web/src/lib/canvas/plugin-node-context.ts b/web/src/lib/canvas/plugin-node-context.ts
+index 4404672..0000000 100644
+--- a/web/src/lib/canvas/plugin-node-context.ts
++++ b/web/src/lib/canvas/plugin-node-context.ts
+@@ -12,6 +12,7 @@ export function buildNodeContext(host: CanvasPluginHost, node: CanvasNodeData, t
+         scale,
+         isSelected,
+         updateMetadata: (patch) => host.updateMetadata(node.id, patch),
++        updateNodeMetadata: (nodeId, patch) => host.updateMetadata(nodeId, patch),
+         updateNode: (patch) => host.updateNode(node.id, patch),
+         getNode: (id) => host.getNode(id),
+         getNodes: () => host.getNodes(),
+diff --git a/web/src/types/canvas-plugin.ts b/web/src/types/canvas-plugin.ts
+index 1b57f1a..0000000 100644
+--- a/web/src/types/canvas-plugin.ts
++++ b/web/src/types/canvas-plugin.ts
+@@ -45,6 +45,7 @@ export type CanvasNodeContext = {
+     isSelected: boolean; // Whether this node is selected, used to enable iframe interaction on demand.
+     // Node data.
+     updateMetadata: (patch: CanvasNodeMetadata) => void;
++    updateNodeMetadata: (nodeId: string, patch: CanvasNodeMetadata) => void;
+     updateNode: (patch: Partial<Pick<CanvasNodeData, "title" | "width" | "height">>) => void;
+     // Graph access.
+     getNode: (id: string) => CanvasNodeData | null;
+*** Update File: /Users/guanchengbin/CodexProjects/生图工作台/Guan二次开发/上游适配/开发源码映射.json
+@@
+     {
+       "文件": "上游适配/画布顶栏控件区域标记.patch",
+       "目标": "web/src/components/canvas/canvas-top-bar.tsx",
+       "职责": "画布顶栏控件区域标记",
+       "SHA256": "5327710ba8a851f6cedb8a315993e3b90ab18b821f24262cad62972734827c5c",
+       "前态SHA256": "3d6e996448c5bf160081d85f8608112ce31d789fd66cc00bfa1afda87ff4ce71",
+       "后态SHA256": "a6c487f21c0de18aa3199def098ed2594ff98d748b0a66c2b48dcd98c91983aa"
+    },
+    {
+      "文件": "上游适配/变体勾选定点元数据更新.patch",
+      "目标": "web/src/lib/canvas/plugin-node-context.ts",
+      "职责": "变体勾选定点元数据更新"
+    }
+  ]
+}

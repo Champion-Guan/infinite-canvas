@@ -8,13 +8,12 @@ function fixture() {
     const loader = variantModules({ react: { useRef: current => ({ current }), useEffect() {}, useLayoutEffect() {} },
         'react/jsx-runtime': { jsx, jsxs: jsx }, antd: { Checkbox: 'Checkbox', Tooltip: 'Tooltip' } });
     const ui = loader.load('Excel画布/提示词变体选择.tsx');
-    const ctx = { node: { id: 'prompt' }, getNode: id => data.nodes.find(node => node.id === id), applyOps(items) {
-        ops.push(...items);
-        for (const item of items) {
-            const node = data.nodes.find(node => node.id === item.id);
-            node.metadata = { ...node.metadata, ...item.metadata };
-        }
-    } };
+    const ctx = { node: { id: 'prompt' }, getNode: id => data.nodes.find(node => node.id === id),
+        updateNodeMetadata(id, patch) {
+            ops.push({ type: 'update_node_metadata', id, metadata: patch });
+            const node = data.nodes.find(node => node.id === id);
+            node.metadata = { ...node.metadata, ...patch };
+        } };
     return { data, loader, ui, ctx, ops };
 }
 test('默认全选，单个勾选写回参数卡并产生半选，另一个提示词卡读取同一状态', () => {
@@ -95,4 +94,14 @@ test('文字先切换查看，再次点击当前文字反选；连续点击读�
     f.ctx.getNode = () => undefined;
     red.props.onClick();
     assert.equal(f.ops.length, 2);
+});
+test('高频勾选只定点写入参数元数据，最终状态始终跟随最后一次点击', () => {
+    const f = fixture();
+    for (let index = 0; index < 1000; index++) {
+        const current = f.ctx.getNode(f.data.parameter.id).metadata.productVariants[0].enabled;
+        f.ui.updatePromptVariantSelection(f.ctx, f.data.parameter.id, ['red'], !current);
+    }
+    assert.equal(f.data.parameter.metadata.productVariants[0].enabled, true);
+    assert.equal(f.ops.length, 1000);
+    assert.ok(f.ops.every(op => op.type === 'update_node_metadata' && op.id === f.data.parameter.id));
 });
