@@ -24,6 +24,25 @@ test('四边四角及大于可用区域的窗口均完整限制在同一边界',
             inside(rules.fitFloatingRect({ left, top, right: left + width, bottom: top + height }, bounds));
 });
 
+test('节点工具栏避让只调整纵向，不横移，并避开顶栏控件与选中卡片', () => {
+    const toolbar = { left: 394, top: 113, right: 528, bottom: 161 };
+    const controls = [
+        { left: 328, top: 100, right: 502, bottom: 132 },
+        { left: 1276, top: 102, right: 1424, bottom: 130 },
+        { left: 344, top: 176, right: 578, bottom: 526 },
+    ];
+    const safe = { left: 312, top: 96, right: 1428, bottom: 700 };
+    const result = rules.fitNodeToolbar(toolbar, safe, controls);
+    assert.equal(result.left, toolbar.left, '工具栏不能横向移动');
+    assert.ok(result.top >= 538, '上方空间不足以同时避开左侧控件和卡片时，放到卡片下方');
+    for (const obstacle of controls) {
+        assert.ok(result.left + (toolbar.right - toolbar.left) <= obstacle.left - 12
+            || result.left >= obstacle.right + 12
+            || result.top + (toolbar.bottom - toolbar.top) <= obstacle.top - 12
+            || result.top >= obstacle.bottom + 12);
+    }
+});
+
 test('长面板依次选择下、上、两侧或停靠，不改动源卡片位置', () => {
     for (const anchor of [
         { left: 500, top: 200, right: 600, bottom: 280 },

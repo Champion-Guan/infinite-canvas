@@ -1,9 +1,15 @@
 import { useEffect, useRef, type RefObject } from "react";
-import type { CanvasNodeData } from "@/types/canvas";
+import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
 import { hasDeferredCanvasMedia as hasDeferredMedia, restoreCanvasMedia, retainCanvasMedia } from "../本机存储/画布媒体延迟恢复.mjs";
 import { markWorkbenchStartup } from "../本机存储/启动计时.mjs";
 
 export const hasDeferredCanvasMedia = (value: unknown) => hasDeferredMedia(value, { ignoreKeyedImageUrls: true, deferImageNodes: true });
+export const shouldRenderCanvasMediaPlaceholder = (value: unknown) => {
+    if (!value || typeof value !== "object") return false;
+    const node = value as CanvasNodeData;
+    return (node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video || node.type === CanvasNodeType.Audio)
+        && hasDeferredCanvasMedia(node);
+};
 
 export function useVisibleCanvasMedia({
     projectId, snapshot, nodesRef, visibleNodes, ready, interacting = false, setNodes, onError,

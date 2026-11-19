@@ -174,6 +174,17 @@ test('修复仍错保留原卡，下一次显式重试只发送repair，不重�
     assert.equal(f.notices.filter(Boolean).length, 1);
 });
 
+test('修正失败后继续修正仍沿用首次候选的图片身份基准', async () => {
+    const f = fixture([badPlan(), badPlan(), badPlan()]);
+    await assert.rejects(f.run(), /修正后仍未通过检查/);
+    const firstIdentity = f.parameter.metadata.productPlanningCandidate.imageIdentity;
+    assert.ok(firstIdentity);
+    await assert.rejects(f.run({ repairOnly: true }), /修正后仍未通过检查/);
+    assert.equal(f.parameter.metadata.productPlanningCandidate.imageIdentity, firstIdentity);
+    assert.deepEqual(f.requests.map(request => request.scope.slotId),
+        ['product-image-plan', 'product-image-plan-repair', 'product-image-plan-repair']);
+});
+
 test('客户两类报错合并复现：重复编号与缺失条件保留候选，继续只修正已有方案', async () => {
     const duplicate = badPlan();
     duplicate.images[0].key = 'detail';

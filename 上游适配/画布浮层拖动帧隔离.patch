@@ -1,0 +1,86 @@
+diff --git a/web/src/components/canvas/infinite-canvas.tsx b/web/src/components/canvas/infinite-canvas.tsx
+index 960a7df..dabd728 100644
+--- a/web/src/components/canvas/infinite-canvas.tsx
++++ b/web/src/components/canvas/infinite-canvas.tsx
+@@ -50,6 +50,7 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+     const scaleRef = useRef(viewport.k);
+     const liveViewportRef = useRef(viewport);
+     const zoomingRef = useRef(false);
++    const floatingNotifyRef = useRef(true);
+     const controlledRef = useRef(false);
+     const zoomTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+     const layerRef = useRef<HTMLDivElement>(null);
+@@ -74,7 +75,7 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+                 gridRef.current.style.backgroundSize = `${step}px ${step}px`;
+             }
+             callbacksRef.current.onViewportPreview?.(next);
+-            window.dispatchEvent(new Event(CANVAS_FLOATING_CHANGE));
++            if (floatingNotifyRef.current) window.dispatchEvent(new Event(CANVAS_FLOATING_CHANGE));
+         },
+         commit: next => callbacksRef.current.onViewportChange(next),
+         frame: callback => requestAnimationFrame(callback), cancel: id => cancelAnimationFrame(id), now: () => performance.now(),
+@@ -106,6 +107,7 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+                 zoomingRef.current = false;
+                 panState.current.isPanning = false;
+                 controlledRef.current = true;
++                floatingNotifyRef.current = false;
+                 schedulerRef.current?.begin(start);
+                 setIsPanning(true);
+                 callbacksRef.current.onPanningChange?.(true);
+@@ -117,6 +119,8 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+                 controlledRef.current = false;
+                 setIsPanning(false);
+                 callbacksRef.current.onPanningChange?.(false);
++                floatingNotifyRef.current = true;
++                window.dispatchEvent?.(new Event(CANVAS_FLOATING_CHANGE));
+             },
+         };
+         viewportControllerRef.current = controller;
+@@ -165,10 +169,13 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+             setIsControlPressed(false);
+             if (panState.current.isPanning || zoomingRef.current) schedulerRef.current?.flush();
+             zoomingRef.current = false;
++            floatingNotifyRef.current = false;
+             if (zoomTimerRef.current) clearTimeout(zoomTimerRef.current);
+             panState.current.isPanning = false;
+             callbacksRef.current.onPanningChange?.(false);
+             setIsPanning(false);
++            floatingNotifyRef.current = true;
++            window.dispatchEvent?.(new Event(CANVAS_FLOATING_CHANGE));
+             document.body.style.cursor = "";
+         };
+ 
+@@ -208,6 +215,7 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+             schedulerRef.current?.begin(current);
+             zoomingRef.current = true;
+             setIsPanning(true);
++            floatingNotifyRef.current = false;
+             callbacksRef.current.onPanningChange?.(true);
+         }
+         const next = {
+@@ -223,6 +231,8 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+             zoomingRef.current = false;
+             callbacksRef.current.onPanningChange?.(false);
+             setIsPanning(false);
++            floatingNotifyRef.current = true;
++            window.dispatchEvent?.(new Event(CANVAS_FLOATING_CHANGE));
+         }, 120);
+     };
+ 
+@@ -251,6 +261,7 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+                 hasMoved: false,
+                 startedOnBackground: isBackgroundClick,
+             };
++            floatingNotifyRef.current = false;
+             setIsPanning(true);
+             schedulerRef.current?.begin(start);
+             callbacksRef.current.onPanningChange?.(true);
+@@ -299,6 +310,8 @@ export function InfiniteCanvas({ onManualViewportStart, viewportControllerRef, c
+             panState.current.isPanning = false;
+             callbacksRef.current.onPanningChange?.(false);
+             setIsPanning(false);
++            floatingNotifyRef.current = true;
++            window.dispatchEvent?.(new Event(CANVAS_FLOATING_CHANGE));
+             document.body.style.cursor = "";
+         };
+ 

@@ -9,7 +9,10 @@ import { readFragmentGraph } from './分片值编码.mjs';
 import { recycleOwnership, recycleCategory } from './回收站归属.mjs';
 
 export const USAGE_FORMAT = 'guan-sqlite-usage.v1';
-const MAX_USAGE_SNAPSHOT_BYTES = 256 * 1024 * 1024;
+// Large workspaces contain embedded canvas metadata and can exceed 256 MiB
+// before media blobs are even inspected. Keep a bounded ceiling, but leave
+// enough room for the existing single-document canvas format to be classified.
+const MAX_USAGE_SNAPSHOT_BYTES = 768 * 1024 * 1024;
 const workerOperation = 'guan-read-categorized-usage';
 
 // 全库分类留在独立只读连接中执行，避免同步 SQL、哈希和 JSON 解析占住服务主线程。

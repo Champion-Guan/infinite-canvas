@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, RotateCcw, Sparkles, X } from "lucide-react";
 import type { CanvasNodeContext } from "@/types/canvas-plugin";
-import type { ProductPromptMetadata } from "./商品提示词规则";
+import { promptDocument, productPromptTitle, type ProductPromptMetadata } from "./商品提示词规则";
+import { productVariants } from "./产品变体规则";
 import { compactProductPromptTitles, mergeLegacyProductPrompts } from "./商品提示词画布";
 import { AppleActionButton } from "../主题/苹果交互按钮";
 import { TextTaskStatus, type TextTaskPhase } from "../主题/任务阶段反馈";
@@ -89,17 +90,40 @@ export function ProductPlanOverview({ metadata, ctx, productId }: { metadata: Pr
     const references = imageReferenceCatalog(metadata);
     if (!plan) return null;
     const count = plan.confirmations?.length ?? plan.pendingFacts.length;
+    const variants = productVariants(metadata);
+    const byKey = new Map<string, NonNullable<ReturnType<typeof promptDocument>>>();
+    if (ctx?.node && plan.imageCount > 0) for (const node of ctx.getNodes()) {
+        const doc = promptDocument(node);
+        if (!doc || doc.parameterId !== ctx.node.id || (node.metadata as ProductPromptMetadata).productPromptRetired) continue;
+        const previous = byKey.get(doc.key);
+        if (!previous || (previous.variantId && !doc.variantId)) byKey.set(doc.key, doc);
+    }
+    const rank = { main: 0, carousel: 1, rich: 2 };
+    const images = [...byKey.values()].map((image, index) => ({ image, order: image.planIndex ?? index }))
+        .sort((a, b) => rank[a.image.kind] - rank[b.image.kind] || a.order - b.order).map(entry => entry.image);
+    const overview = [
+        ["目标买家", plan.overview.buyers], ["核心卖点", plan.overview.sellingPoints], ["购买顾虑", plan.overview.concerns],
+        ["视觉风格", plan.style], ["一致性约束", plan.overview.consistency], ["顺序与分工", plan.overview.sequence],
+    ];
     return <details className="border-t border-current/15 pt-2 text-[11px]" open={count > 0}>
-        <summary className="cursor-pointer font-medium">整套策划 · {plan.imageCount} 张{count ? ` · ${count} 项待确认` : ""}</summary>
+        <summary className="cursor-pointer font-medium">整套策划 · {plan.imageCount}{variants.length ? " 个图片用途" : " 张"}{count ? ` · ${count} 项待确认` : ""}</summary>
         <dl className="mt-2 space-y-2 leading-5">
+            {images.length ? <div><dt className="font-medium">逐图总览</dt>
+                <dd>
+                    <ol className="mt-1 max-h-48 space-y-1.5 overflow-y-auto overscroll-contain [overflow-wrap:anywhere]"
+                        aria-label="逐图总览" tabIndex={0} data-canvas-no-zoom onWheel={event => event.stopPropagation()}>
+                        {images.map(({ variantName: _variantName, ...image }, index) =>
+                            <li key={image.key} className="border-b border-current/10 py-1.5 last:border-0">
+                                <span className="font-medium">第 {index + 1} 张 · {productPromptTitle(image, images)}：</span>{" "}
+                                {image.buyerQuestion ? <ImageReferenceText text={image.buyerQuestion} images={references} /> : null}
+                            </li>)}
+                    </ol>
+                </dd>
+            </div> : null}
             {plan.pendingFacts.length || plan.confirmations?.length ? <div><dt className="font-medium text-amber-700 dark:text-amber-300">待确认</dt>
                 <dd>{ctx && productId ? <ProductConfirmationList ctx={ctx} productId={productId} />
                     : <span className="whitespace-pre-wrap">{plan.pendingFacts.join("\n")}</span>}</dd></div> : null}
-            {([
-                ["目标买家", plan.overview.buyers], ["核心卖点", plan.overview.sellingPoints],
-                ["购买顾虑", plan.overview.concerns], ["视觉风格", plan.style],
-                ["一致性约束", plan.overview.consistency], ["顺序与分工", plan.overview.sequence],
-            ] as const).map(([label, text]) => <div key={label}><dt className="font-medium">{label}</dt><dd className="whitespace-pre-wrap opacity-75"><ImageReferenceText text={text} images={references} /></dd></div>)}
+            {overview.map(([label, text]) => <div key={label}><dt className="font-medium">{label}</dt><dd className="whitespace-pre-wrap opacity-75"><ImageReferenceText text={text} images={references} /></dd></div>)}
             {plan.assumptions.length ? <div><dt className="font-medium">本次制作假设</dt><dd><ImageReferenceText text={plan.assumptions.join("\n")} images={references} /></dd></div> : null}
             {plan.preserved ? <div>已保留 {plan.preserved} 张手工修改的旧方案，批量生成使用新方案。</div> : null}
         </dl>

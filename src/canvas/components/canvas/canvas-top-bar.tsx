@@ -68,8 +68,8 @@ export function CanvasTopBar({
 
     return (
         <>
-            <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex h-16 items-center justify-between pl-1 pr-4">
-                <div className="pointer-events-auto flex min-w-0 items-center gap-2">
+            <div data-canvas-top-bar className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex h-16 items-center justify-between pl-1 pr-4">
+                <div data-canvas-top-bar-side className="pointer-events-auto flex min-w-0 items-center gap-2">
                     <Tooltip title={sidePanelOpen ? t("canvas.collapsePanel") : t("canvas.expandPanel")}>
                         <button
                             type="button"
@@ -128,7 +128,7 @@ export function CanvasTopBar({
                     <CanvasSaveStatus status={saveStatus} />
                 </div>
 
-                <div className="pointer-events-auto flex items-center gap-1.5">
+                <div data-canvas-top-bar-side className="pointer-events-auto flex items-center gap-1.5">
                     <button
                         type="button"
                         className="guan-apple-glow guan-toolbar-focus inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-stone-600 transition-colors hover:bg-black/5 hover:text-stone-950 dark:text-stone-300 dark:hover:bg-white/10 dark:hover:text-white"

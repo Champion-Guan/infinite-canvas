@@ -49,6 +49,46 @@ test('整套策划先展示待确认，保留真实编辑组件；无待确认�
         assert.equal(sections[0].props.children[0].props.children, mode === 'none' ? '目标买家' : '待确认');
         if (mode !== 'none') assert.equal(sections[0].props.children[1].props.children.type, 'ConfirmationList');
     }
+    const [main, dimension] = plan().images;
+    const card = (image, extra = {}, retired = false) => ({ metadata: {
+        productImagePrompt: { ...image, parameterId: 'parameter', ...extra }, productPromptRetired: retired,
+    } });
+    const nodes = [card(dimension, { planIndex: 2, variantId: 'white', buyerQuestion: '旧变体说明' }),
+        card(main, { planIndex: 1 }), card(dimension, { planIndex: 2, buyerQuestion: '能不能放进柜子？' }),
+        card({ ...dimension, key: 'package', name: '配件图' }, { planIndex: 0 }),
+        card({ ...main, key: 'old' }, {}, true), card({ ...main, key: 'other' }, { parameterId: 'other' })];
+    const ctx = { node: { id: 'parameter' }, getNodes: () => nodes };
+    const overview = (imageCount, productVariants) => render({ metadata: { productImagePlan: { ...value, imageCount }, productVariants }, ctx, productId: 'product' });
+    const rowsOf = tree => tree.props.children[1].props.children.flat().find(section => section?.props.children[0]?.props.children === '逐图总览')
+        .props.children[1].props.children.props.children;
+    const rows = rowsOf(overview(3));
+    assert.equal(rows.length, 3);
+    for (const [row, title] of rows.map((row, index) => [row, ['主图', '配件图', '尺寸图'][index]])) {
+        assert.match(JSON.stringify(row.props.children[0]), new RegExp(title));
+    }
+    assert.match(JSON.stringify(rows[2]), /能不能放进柜子？/);
+    assert.doesNotMatch(JSON.stringify(overview(0)), /逐图总览/);
+    const variants = [
+        { id: 'tree', name: '彩球圣诞树', enabled: true, attributes: {}, imageIds: [] },
+        { id: 'snow', name: '大号雪花', enabled: true, attributes: {}, imageIds: [] },
+    ];
+    nodes.splice(0, nodes.length,
+        card(main, { variants: { tree: pair(''), snow: pair('') } }),
+        card(dimension, { variants: { tree: pair('') } }));
+    value.pendingFacts = ['尺寸待确认'];
+    value.confirmations = undefined;
+    const tree = overview(2, variants), rowsForVariants = rowsOf(tree);
+    const sectionsForVariants = tree.props.children[1].props.children.flat().filter(Boolean);
+    assert.ok(sectionsForVariants.findIndex(section => section.props.children[0]?.props.children === '逐图总览')
+        < sectionsForVariants.findIndex(section => section.props.children[0]?.props.children === '待确认'));
+    assert.equal(rowsForVariants.length, 2);
+    const [allVariants, oneVariant] = rowsForVariants;
+    assert.ok(tree.props.children[0].props.children.includes(' 个图片用途'));
+    assert.match(JSON.stringify(allVariants), /"第 ",1," 张 · .*主图/);
+    assert.match(JSON.stringify(allVariants), /收到什么商品/);
+    assert.doesNotMatch(JSON.stringify(tree), /全部 2 个变体|1\/2 个变体|彩球圣诞树|大号雪花/);
+    assert.match(JSON.stringify(oneVariant), /"第 ",2," 张 · .*尺寸图/);
+    assert.match(JSON.stringify(rowsOf(overview(3))[0]), /"第 ",1," 张 · /);
 });
 function apply(data, ops) {
     for (const op of ops) {

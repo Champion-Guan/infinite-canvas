@@ -22,20 +22,23 @@ test("实时视区绘制在卡片外和图内切换，保持屏幕尺寸不随�
     assert.deepEqual(toolbar.style, {left: "145px", top: "188px"});
     assert.deepEqual(selection.style, {left: "170px", top: "180px"});
     module.exports.paintNodeToolbar(root, {x: 20, y: -200, k: .5});
-    assert.deepEqual(toolbar.style, {left: "145px", top: "64px"});
-    assert.equal(selection.style.top, "64px", "多选工具条同样避开顶部标题区域");
+    assert.deepEqual(toolbar.style, {left: "145px", top: "0px"});
+    assert.equal(selection.style.top, "0px", "内容层顶部才是工具栏的真实边界");
     module.exports.paintNodeToolbar(null, {x: 0, y: 0, k: 1});
 });
-test("只有外侧位置触及标题区才移入图片顶部", () => {
-    assert.equal(nodeToolbarTop(126), 64);
-    assert.equal(nodeToolbarTop(125), 135);
-    assert.equal(nodeToolbarTop(100), 110);
+test("外侧空间不足时才移入图片顶部", () => {
+    assert.equal(nodeToolbarTop(50), 60);
+    assert.equal(nodeToolbarTop(125), 63);
+    assert.equal(nodeToolbarTop(100), 38);
 });
 test("图片顶部已经被裁切，工具栏留在标题区下方的可见图片内", () => {
-    for (const top of [-300, -50, 0, 40]) assert.equal(nodeToolbarTop(top), 64);
+    assert.equal(nodeToolbarTop(-300), 0);
+    assert.equal(nodeToolbarTop(-50), 0);
+    assert.equal(nodeToolbarTop(0), 10);
+    assert.equal(nodeToolbarTop(40), 50);
 });
 test("平移缩放后的屏幕坐标决定位置，不使用图片尺寸或固定画布坐标", () => {
     assert.equal(nodeToolbarTop(150 + 100 * .45), 133);
-    assert.equal(nodeToolbarTop(-60 + 100 * .45), 64);
+    assert.equal(nodeToolbarTop(-60 + 100 * .45), 0);
     assert.equal(nodeToolbarTop(200 + 100 * 2), 338);
 });

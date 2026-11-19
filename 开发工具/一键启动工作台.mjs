@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isWorkbenchOrigin } from '../扩展功能/本机服务/工作台端口.mjs';
 import { 创建有界运行日志 } from '../扩展功能/本机服务/有界运行日志.mjs';
+import { 创建桌面启动反馈 } from './桌面启动反馈.mjs';
+import { 打开或复用工作台标签 } from './打开或复用工作台标签.mjs';
 
 const run = promisify(execFile);
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -73,18 +75,29 @@ async function manager(operation) {
 }
 
 export async function 启动并打开工作台({ readStatus = () => manager('status'), startService = () => manager('start'),
-  openPage = origin => run('/usr/bin/open', [origin], { timeout: 15000 }), wait = delay, timeoutMs = 180000, intervalMs = 500 } = {}) {
+  openPage = origin => 打开或复用工作台标签(origin), wait = delay, timeoutMs = 180000, intervalMs = 500,
+  onProgress = () => {} } = {}) {
   const deadline = Date.now() + timeoutMs;
+  await onProgress('checking', '正在检查本机服务...');
   let state = await readStatus();
-  if (!state.running) { await startService(); state = await readStatus(); }
+  if (!state.running) {
+    await onProgress('starting', '正在启动本机服务并准备工作区...');
+    await startService(); state = await readStatus();
+  }
+  let reportedWaiting = false;
   do {
     if (state.running && state.ready && state.http === 200) {
       if (!isWorkbenchOrigin(state.origin)) throw Error('服务返回的地址不属于本机工作台，未打开网页。');
+      await onProgress('opening', '服务已就绪，正在打开工作台...');
       await openPage(state.origin);
       return state;
     }
     if (state.failedAt && !state.running) throw Error('工作台启动失败，请查看同目录开发服务日志。');
     if (Date.now() >= deadline) break;
+    if (!reportedWaiting) {
+      await onProgress('waiting', '正在等待工作区就绪...');
+      reportedWaiting = true;
+    }
     await wait(intervalMs); state = await readStatus();
   } while (true);
   throw Error('工作台尚未就绪，未打开其他端口。请查看开发服务日志后重试。');
@@ -92,14 +105,28 @@ export async function 启动并打开工作台({ readStatus = () => manager('sta
 
 if (resolve(process.argv[1] || '') === fileURLToPath(import.meta.url)) {
   const log = 创建有界运行日志(join(projectRoot, '.运行/开发版3100/一键启动.log'), { maxBytes: 128 * 1024, files: 2 });
+  let feedback;
+  const createFeedback = async () => feedback ||= await 创建桌面启动反馈({
+      runtime: join(projectRoot, '.运行/开发版3100'),
+      logo: join(projectRoot, '生图工作台.app/Contents/Resources/工作台图标.icns'),
+      log: join(projectRoot, '.运行/开发版3100/一键启动.log'),
+    });
   try {
     try { const shortcut = 创建桌面入口(); log.write('桌面入口已就绪：' + shortcut.path + '\n'); }
     catch (error) { log.write('桌面入口未更新：' + error.message + '\n'); }
-    const state = await 启动并打开工作台();
+    const state = await 启动并打开工作台({ onProgress: async (phase, message) => {
+      if (!feedback && ['starting', 'waiting'].includes(phase)) await createFeedback();
+      feedback?.update(phase, message);
+    } });
     log.write(new Date().toISOString() + ' 工作台已打开：' + state.origin + '\n');
     console.log('工作台已打开：' + state.origin);
-  } catch {
+    await feedback?.close();
+  } catch (error) {
     log.write(new Date().toISOString() + ' 启动未完成，请检查开发服务.log；未停止其他服务或改写产品数据。\n');
     process.exitCode = 1;
+    await createFeedback();
+    feedback.update('error', error.message + '\n原有画布和配置保持不变。请查看日志后通过桌面入口重试。');
+    await feedback.waitUntilClosed();
+    await feedback.close();
   }
 }

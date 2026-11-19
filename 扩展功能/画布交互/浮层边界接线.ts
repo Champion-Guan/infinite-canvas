@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from "react";
-import { CANVAS_FLOATING_CHANGE, fitFloatingRect, readCanvasFloatingBounds, type FloatingRect } from "./浮层可见区域";
+import { CANVAS_FLOATING_CHANGE, fitFloatingRect, fitNodeToolbar, readCanvasFloatingBounds, type FloatingRect } from "./浮层可见区域";
 import { floatingLayoutRect } from "./浮层布局矩形";
 
 // 只定位组件交付的自身面板，不拦截全局Portal，不扫描或改写其他业务窗口。
@@ -36,9 +36,11 @@ export function useFloatingBoundary(open: boolean, anchor: () => Element | null,
                 if (written[key] === value && node.style[key] === normalized[key]) return;
                 node.style[key] = value; written[key] = value; normalized[key] = node.style[key];
             };
-            const bounds = readCanvasFloatingBounds(latest.current.anchor());
-            const width = bounds.right - bounds.left, height = bounds.bottom - bounds.top;
+            const anchor = latest.current.anchor();
             const toolbar = node.hasAttribute("data-node-toolbar");
+            const scene = toolbar ? node.closest("section") : null;
+            const bounds = readCanvasFloatingBounds(anchor, scene);
+            const width = bounds.right - bounds.left, height = bounds.bottom - bounds.top;
             write("maxWidth", `${width}px`);
             write("minWidth", "0");
             write("maxHeight", `${height}px`);
@@ -47,7 +49,15 @@ export function useFloatingBoundary(open: boolean, anchor: () => Element | null,
             write("overscrollBehavior", "contain");
             const { rect: r, parentX, parentY } = floatingLayoutRect(node);
             const base: FloatingRect = { left: r.left - dx * parentX, right: r.right - dx * parentX, top: r.top - dy * parentY, bottom: r.bottom - dy * parentY };
-            const fit = fitFloatingRect(base, bounds);
+            const controls = scene?.querySelectorAll<HTMLElement>("[data-canvas-top-bar] > [data-canvas-top-bar-side]");
+            const obstacles: FloatingRect[] = controls ? Array.from(controls, item => item.getBoundingClientRect()) : [];
+            const dock = scene?.querySelector<HTMLElement>("[data-canvas-bottom-toolbar]");
+            if (dock) obstacles.push(dock.getBoundingClientRect());
+            if (scene && node.dataset.nodeToolbar) {
+                const card = scene.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(node.dataset.nodeToolbar)}"]`);
+                if (card) obstacles.push(card.getBoundingClientRect());
+            }
+            const fit = obstacles.length ? fitNodeToolbar(base, bounds, obstacles) : fitFloatingRect(base, bounds);
             dx = (fit.left - base.left) / parentX; dy = (fit.top - base.top) / parentY;
             write("translate", `calc(${baseTranslate[0]} + ${dx}px) calc(${baseTranslate[1] || "0px"} + ${dy}px)`);
             node.dataset.canvasFloatingBounded = "true";

@@ -1,0 +1,12 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index f3cdca6..a3a1594 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -3310,6 +3310,7 @@ function InfiniteCanvasPage() {
+                             scale={viewport.k}
+                             isInViewport={visibleNodeIds.has(node.id)}
+                             isViewInteracting={isCanvasPanning}
++                            canvasNodeCount={displayNodes.length}
+                             isSelected={selectedNodeIds.has(node.id)}
+                             isRelated={relatedHighlight.nodeIds.has(node.id) || connectionFocus.nodeIds.has(node.id) || connectionPreviewNodeIds.has(node.id)}
+                             isFocusRelated={activeNodeId === node.id}

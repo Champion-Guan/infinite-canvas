@@ -117,6 +117,14 @@ export class ProductCommitCheckpoint<T> {
         throw new Error("产品保存提交已失效。");
       // 批量任务会在第一次保存期间更新其他卡片；直接跟进最新完整快照。
       if (committed.revision !== this.revision) continue;
+      // 画布手势期间暂停真正的持久化边界。已排队的检查点保留在内存，
+      // 待平移、缩放或拖拽结束后再写入，避免SQLite提交和画布绘制争抢主线程。
+      while (!this.isSnapshotCurrent()) {
+        await new Promise(resolve => setTimeout(resolve, 80));
+        if (!this.active || generation !== this.generation)
+          throw new Error("产品保存提交已失效。");
+      }
+      if (committed.revision !== this.revision) continue;
       // 批量生成开始前可能已经有一笔检查点保存正在等待 React 提交。
       // 如果它在批量期间才到达持久化边界，调用方必须明确返回 deferred；
       // 不能把“没有写 SQLite”误记成 persistedRevision，否则批量结束的最终快照会被跳过。

@@ -52,6 +52,7 @@ export async function requestCanvasText(options: {
     previous?: CanvasImageTask; signal?: AbortSignal; retry?: boolean; recoverOnly?: boolean;
     recordTask(task: CanvasImageTask): Promise<void>;
     applyAndSave(text: string, receipt: CanvasImageReceipt): Promise<unknown>;
+    onProgressText?: (text: string) => void;
     deferConfirm?: () => boolean;
 }) {
     options.signal?.throwIfAborted();
@@ -72,6 +73,7 @@ export async function requestCanvasText(options: {
         onProgress: (text: string, taskId: string) => {
             if (options.signal?.aborted) return;
             observedTaskId = taskId;
+            options.onProgressText?.(text);
             publishTextPreview({ nodeId: options.scope.nodeId, slotId: options.scope.slotId, taskId, text });
         },
         applyAndSave: async (job: { bytes: string }, receipt: CanvasImageReceipt) => {

@@ -12,6 +12,7 @@ import { 创建有界运行日志, 创建有界日志流 } from '../扩展功能
 import { 检查目录容量 } from '../扩展功能/本机服务/目录容量限制.mjs';
 import { 执行有界构建命令 } from './有界构建进程.mjs';
 import { 读取开发进程身份 } from './开发进程身份.mjs';
+import { 准备开发构建环境 } from './准备开发构建环境.mjs';
 
 const entry = fileURLToPath(import.meta.url), root = dirname(dirname(entry));
 // 根目录业务模块和接入补丁是维护来源；此处仅为可重建的运行输入。
@@ -52,6 +53,8 @@ async function createBuild() {
   const sourceSnapshot = null;
   检查目录容量(runtime, { maxBytes: 512 * 1024 ** 2, incomingBytes: 64 * 1024 ** 2, reserveBytes: 1024 ** 3 });
   console.log(JSON.stringify({ phase: 'assembled', ...装配开发源码() }));
+  const baseline = JSON.parse(readFileSync(join(root, '上游基线.json'), 'utf8'));
+  await 准备开发构建环境({ root, web, upstream: resolve(root, baseline.目录), commit: baseline.提交 });
   // 服务保留上一代内存静态包；编译失败或越限后仍能继续提供。
   try { await 执行有界构建命令(process.execPath, [join(root, '开发工具/构建Web前端.mjs'), '开发', web, join(runtime, 'vite-cache'), join(runtime, 'web')],
     { budgetDirectory: runtime, maxBytes: 512 * 1024 ** 2, reserveBytes: 1024 ** 3, timeout: 600000 }); }

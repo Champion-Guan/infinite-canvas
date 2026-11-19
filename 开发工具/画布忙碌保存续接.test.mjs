@@ -57,6 +57,19 @@ test('交互期间收到第二张结果，一次续存保留两张结果和最�
   assert.deepEqual(f.writes, [{ a: '成功', b: '成功', x: 900 }]);
 });
 
+test('提交票据已到达后开始画布手势，SQLite写入等待手势结束', async t => {
+  const f = fixture(); t.after(() => f.checkpoint.unmount());
+  f.commit({ image: '待写入' }, true);
+  const pending = f.checkpoint.flush(async value => f.writes.push(value));
+  await Promise.resolve();
+  f.stale();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.deepEqual(f.writes, []);
+  f.commit({ image: '待写入', x: 40 }, true);
+  await pending;
+  assert.deepEqual(f.writes, [{ image: '待写入', x: 40 }]);
+});
+
 test('忙碌等待中卸载作废原票据并清除定时器，不写入其他画布', async () => {
   const f = fixture(); f.stale();
   const pending = f.checkpoint.flush(async () => assert.fail('不可保存失效画布'));

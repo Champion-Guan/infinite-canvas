@@ -1,0 +1,43 @@
+diff --git a/web/src/components/canvas/canvas-node-hover-toolbar.tsx b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+index d4dca1f..4ca8381 100644
+--- a/web/src/components/canvas/canvas-node-hover-toolbar.tsx
++++ b/web/src/components/canvas/canvas-node-hover-toolbar.tsx
+@@ -132,6 +132,19 @@ export function CanvasNodeHoverToolbar({
+         setSuperMenuOpen(false);
+     }, [node?.id]);
+ 
++    // 节点模型坐标与实际卡片外框在小数缩放下可能相差几个像素。
++    // 首帧按模型定位后，再用真实 DOM 外框校正，确保工具栏完全悬空在卡片上方。
++    useLayoutEffect(() => {
++        const toolbar = toolbarRef.current;
++        if (!node) return;
++        const card = document.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(node.id)}"]`);
++        const layer = toolbar?.parentElement;
++        if (!toolbar || !card || !layer) return;
++        const cardRect = card.getBoundingClientRect();
++        const layerRect = layer.getBoundingClientRect();
++        toolbar.style.top = `${cardRect.top - layerRect.top - TOOLBAR_HEIGHT - OUTSIDE_GAP}px`;
++    }, [node?.id, viewport.x, viewport.y, viewport.k]);
++
+     if (!node) return null;
+ 
+     const activeNode = node;
+@@ -196,18 +209,6 @@ export function CanvasNodeHoverToolbar({
+         onLeave();
+     };
+ 
+-    // 节点模型坐标与实际卡片外框在小数缩放下可能相差几个像素。
+-    // 首帧按模型定位后，再用真实 DOM 外框校正，确保工具栏完全悬空在卡片上方。
+-    useLayoutEffect(() => {
+-        const toolbar = toolbarRef.current;
+-        const card = document.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(node.id)}"]`);
+-        const layer = toolbar?.parentElement;
+-        if (!toolbar || !card || !layer) return;
+-        const cardRect = card.getBoundingClientRect();
+-        const layerRect = layer.getBoundingClientRect();
+-        toolbar.style.top = `${cardRect.top - layerRect.top - TOOLBAR_HEIGHT - OUTSIDE_GAP}px`;
+-    }, [node.id, viewport.x, viewport.y, viewport.k]);
+-
+     const setDraftImageToolVisible = (id: ImageQuickToolId, visible: boolean) => {
+         setDraftImageToolIds((current) => {
+             const selected = new Set(current);
