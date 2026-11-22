@@ -23,6 +23,7 @@ const clone = value => JSON.parse(JSON.stringify(value));
 const source = readFileSync(join(根目录, '扩展功能/配置文件/配置文件安全.ts'), 'utf8');
 const baseline = join(根目录, '.运行/3100源/画布副本');
 const i18n = { t: key => key };
+const invalidFileMessage = /config\.invalidFile|配置文件格式不正确/;
 function evaluate(code, imports = {}, globals = {}) {
   const compiled = ts.transpileModule(code, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } });
   const module = { exports: {} };
@@ -140,8 +141,8 @@ test('旧导出核心字段行为对照：脱敏后的共同字段一致', () =>
 });
 test('文件超4MiB时不读取正文；伪造size也受UTF8字节限制', async () => {
   const f = fixture();
-  await assert.rejects(f.api.importAppConfig({ size: f.api.MAX_CONFIG_BYTES + 1, text: () => assert.fail('不应读大文件') }), /config.invalidFile/);
-  await assert.rejects(f.api.importAppConfig({ size: 1, text: async () => '汉'.repeat(1_400_000) }), /config.invalidFile/);
+  await assert.rejects(f.api.importAppConfig({ size: f.api.MAX_CONFIG_BYTES + 1, text: () => assert.fail('不应读大文件') }), invalidFileMessage);
+  await assert.rejects(f.api.importAppConfig({ size: 1, text: async () => '汉'.repeat(1_400_000) }), invalidFileMessage);
   assert.equal(f.writes, 0);
 });
 for (const [title, change] of [
@@ -155,7 +156,7 @@ for (const [title, change] of [
   ['错类型调度', v => { v.promptSources.schedule.intervalMinutes = '30'; return v; }], ['非法脱敏标记', v => ({ ...v, credentialsOmitted: 'true' })],
 ]) test('拒绝结构损坏且不修改任何store：' + title, async () => {
   const f = fixture(), before = JSON.stringify(f.payload());
-  await assert.rejects(f.api.importAppConfig(file(change(f.payload()))), /config.invalidFile/);
+  await assert.rejects(f.api.importAppConfig(file(change(f.payload()))), invalidFileMessage);
   assert.equal(f.writes, 0); assert.equal(JSON.stringify(f.payload()), before);
 });
 for (const [title, change] of [
@@ -311,7 +312,7 @@ test('脱敏导出保留合法小数与零值，去除价格字段里伪装的�
 });
 for (const price of ['1.2', null, -1, [], { token: 'synthetic-hidden-secret' }, Number.MAX_VALUE * 2]) test('拒绝无效导入价格：' + JSON.stringify(price), async () => {
   const f = fixture(), value = f.payload(); value.config.channels[0].models[0].price = price;
-  await assert.rejects(f.api.importAppConfig(file(value)), /config.invalidFile/); assert.equal(f.writes, 0);
+  await assert.rejects(f.api.importAppConfig(file(value)), invalidFileMessage); assert.equal(f.writes, 0);
 });
 test('合法价格可导入/再导出，缺失价格清空旧值，同渠道安全凭据绑定保持', async () => {
   const f = fixture(), state = f.configStore.getState(); state.config.channels[0].apiKey = 'secret:synthetic-local';
