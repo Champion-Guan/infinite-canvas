@@ -1,0 +1,19 @@
+diff --git a/web/src/components/canvas/canvas-node-prompt-panel.tsx b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+index 4543a1a..5da668a 100644
+--- a/web/src/components/canvas/canvas-node-prompt-panel.tsx
++++ b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+@@ -70,8 +70,12 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+ 
+     useLayoutEffect(() => {
+         if (suspended || !productActive || !restoreTrigger.current) return;
+-        document.getElementById(restoreTrigger.current)?.focus({ preventScroll: true });
+-        restoreTrigger.current = null;
++        const triggerId = restoreTrigger.current;
++        const frame = requestAnimationFrame(() => {
++            restoreTrigger.current = null;
++            document.getElementById(triggerId)?.focus({ preventScroll: true });
++        });
++        return () => cancelAnimationFrame(frame);
+     }, [suspended, productActive]);
+ 
+     const finishClose = (triggerId: string) => {

@@ -852,6 +852,7 @@ test('旧翻译错误可重试，失败仅更新错误说明，保留中英文�
         'lucide-react': { Languages: 'Languages', RotateCcw: 'RotateCcw' },
         './Excel画布上下文': { useExcelProductId: () => 'product' },
         './商品策划请求': { translateProductPrompt: async () => { calls++; throw new Error(resourceError); } },
+        './提示词变体选择': { usePromptVariantSelectionQueue: () => () => {} },
         './商品待确认编辑': { ProductConfirmationDialog: 'ProductConfirmationDialog' },
         './图片引用标签': { ImageReferenceToken: 'ImageReferenceToken', ImageReferenceText: 'ImageReferenceText' },
         '../提示词/双语联动文本框': { useBilingualPromptSync: () => ({}), BilingualPromptField: 'textarea' },

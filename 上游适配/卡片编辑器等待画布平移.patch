@@ -1,0 +1,19 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index bb0282e..4551937 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1507,11 +1507,11 @@ function InfiniteCanvasPage() {
+                 // Clicking a display-only plugin node selects it without opening a lower panel.
+                 setDialogNodeId((current) => (current === clickedNodeId ? current : null));
+             } else if (clickedNode?.type !== CanvasNodeType.Group) {
+-                setDialogNodeId(clickedNodeId);
+                 if (useConfigStore.getState().config.autoFocusOnSelect) {
+-                    // Wait for the generation panel to render so centering accounts for it.
+-                    requestAnimationFrame(() => focusNodeRef.current(clickedNodeId, { preserveScale: true, scale: clickScaleRef.current }));
++                    // Begin viewport motion before mounting the panel; its floating layer waits for the final position.
++                    focusNodeRef.current(clickedNodeId, { preserveScale: true, scale: clickScaleRef.current });
+                 }
++                setDialogNodeId(clickedNodeId);
+             }
+         }
+     }, [commitHistoryEntry, createHistoryEntry, historyMatches, nodesRef, setNodes]);

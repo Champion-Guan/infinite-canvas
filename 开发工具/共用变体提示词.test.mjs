@@ -146,7 +146,7 @@ test('卡内切换变体不保存或生成，编辑与AI优化仅改变所选变
         'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
         'lucide-react': { Languages: 'Languages', RotateCcw: 'RotateCcw' },
         antd: { Segmented: 'Segmented' }, '../主题/页签内容过渡': { TabContentTransition: 'TabContentTransition' },
-        './提示词变体选择': { PromptVariantTabs: 'VariantTabs', PromptVariantSelectAll: 'SelectAll' },
+        './提示词变体选择': { PromptVariantTabs: 'VariantTabs', PromptVariantSelectAll: 'SelectAll', usePromptVariantSelectionQueue: () => () => {} },
         './Excel画布上下文': { useExcelProductId: () => 'product' }, './商品策划请求': {},
         '../提示词/双语联动文本框': { useBilingualPromptSync: () => ({}), BilingualPromptField: 'Field' },
         './商品待确认编辑': { ProductConfirmationDialog: 'ProductConfirmationDialog' },

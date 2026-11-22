@@ -1,0 +1,45 @@
+diff --git a/web/src/components/canvas/canvas-top-bar.tsx b/web/src/components/canvas/canvas-top-bar.tsx
+index 2d5fe19..06a54ed 100644
+--- a/web/src/components/canvas/canvas-top-bar.tsx
++++ b/web/src/components/canvas/canvas-top-bar.tsx
+@@ -1,6 +1,6 @@
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+ import { productFeatures } from "@/扩展功能/产品配置/功能开关";
+-import { useEffect, useRef, useState } from "react";
++import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+ import { Bot, Download, Grid2x2, Keyboard, Menu, PanelLeftClose, PanelLeftOpen, Redo2, Undo2, Upload } from "lucide-react";
+ import { Button, type MenuProps } from "antd";
+ import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+@@ -67,6 +67,14 @@ export function CanvasTopBar({
+     const sidePanelOpen = useCanvasSidePanelStore((state) => state.panelOpen);
+     const toggleSidePanel = useCanvasSidePanelStore((state) => state.togglePanel);
+ 
++    const closeMenuOnEscape = (event: KeyboardEvent<HTMLElement>) => {
++        if (event.key !== "Escape" || !menuOpen || !productActive) return;
++        event.preventDefault();
++        event.stopPropagation();
++        setMenuOpen(false);
++        menuButtonRef.current?.focus({ preventScroll: true });
++    };
++
+     useEffect(() => {
+         if (!productActive) { setMenuOpen(false); return; }
+         if (!menuOpen) return;
+@@ -108,7 +116,7 @@ export function CanvasTopBar({
+                         trigger={["click"]}
+                         open={productActive && menuOpen}
+                         onOpenChange={setMenuOpen}
+-                        popupRender={menu => <div ref={menuPanelRef} data-canvas-menu>{menu}</div>}
++                        popupRender={menu => <div ref={menuPanelRef} data-canvas-menu onKeyDownCapture={closeMenuOnEscape}>{menu}</div>}
+                         menu={{
+                             items: ([
+                                 { key: "importContents", icon: <Upload className="size-4" />, label: "导入画布内容（ZIP）", onClick: onImportContents },
+@@ -120,7 +128,7 @@ export function CanvasTopBar({
+                             ] satisfies NonNullable<MenuProps["items"]>),
+                         }}
+                     >
+-                        <button ref={menuButtonRef} type="button" className="guan-apple-glow guan-toolbar-focus grid size-7 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} aria-label={t("canvas.openMenu")} aria-haspopup="menu" aria-expanded={productActive && menuOpen}>
++                        <button ref={menuButtonRef} type="button" className="guan-apple-glow guan-toolbar-focus grid size-7 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} aria-label={t("canvas.openMenu")} aria-haspopup="menu" aria-expanded={productActive && menuOpen} onKeyDownCapture={closeMenuOnEscape}>
+                             <Menu className="size-4" />
+                         </button>
+                     </Dropdown>

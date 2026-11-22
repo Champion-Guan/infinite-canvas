@@ -98,7 +98,7 @@ test('100次勾选不重新编译正文或解析引用，编辑资料和切换�
         './商品提示词状态': { productPromptProblems: () => [] },
         './商品待确认提示词': { compileConfirmationPair(value) { compiled++; return { pair: value, ranges: { chinese: [], english: [] }, sections: {}, states: [] }; } },
         './图片引用标签规则': { imageReferenceCatalog: () => [], projectImageReferences(value) { projected++; return { text: value, occurrences: [], position: n => n }; } },
-        './图片引用标签': {}, './商品待确认编辑': {}, './提示词变体选择': {},
+        './图片引用标签': {}, './商品待确认编辑': {}, './提示词变体选择': { usePromptVariantSelectionQueue: () => () => {} },
         '../主题/页签内容过渡': {}, '../提示词/双语联动文本框': { useBilingualPromptSync: () => ({}) },
     });
     const component = loader.load('Excel画布/商品提示词卡片.tsx').ProductPromptContent;

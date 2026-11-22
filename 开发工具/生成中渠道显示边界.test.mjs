@@ -38,7 +38,8 @@ test("生成中的图片槽位优先显示本次实际渠道，旧数据有模�
 
 test("生成历史只为存在成功文件的项目显示查看入口", () => {
   const source = readFileSync(resolve(root, "扩展功能/生成历史/生成历史页签.tsx"), "utf8");
-  assert.match(source, /!selectionMode && nodeFiles\.length \? <span[^>]*>查看<\/span>/);
+  assert.match(source, /!selectionMode && nodeFiles\.length \?\s*<SelectionInline\b[^>]*>\s*<span[^>]*>查看<\/span>\s*<\/SelectionInline>\s*: null/);
+  assert.match(source, /disabled=\{downloading \|\| \(!selectionMode && !nodeFiles\.length\)\}/);
   assert.match(source, /nodeFiles\.length \? `查看\$\{node\.title \|\| "生成任务"\}的成功图片/);
   assert.match(source, /historyDownloadFiles\(displayedHistory\)/);
 });

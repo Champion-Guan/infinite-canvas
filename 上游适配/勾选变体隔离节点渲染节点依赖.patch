@@ -1,0 +1,12 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 42117cb..5379ad2 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -51,6 +51,7 @@ type CanvasNodeProps = {
+     promptHighlightParameters?: CanvasNodeData;
+ 
+     registryVersion?: number;
++    renderDependencies?: CanvasNodeData[];
+     renderPanel?: (node: CanvasNodeData) => ReactNode;
+     renderNodeContent?: (node: CanvasNodeData) => ReactNode;
+     groupChildCount?: number;

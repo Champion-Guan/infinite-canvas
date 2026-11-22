@@ -17,7 +17,7 @@ import { useGlobalPlatformRules } from "./平台规则订阅";
 import { imageReferenceCatalog, projectImageReferences, restoreImageReferences } from "./图片引用标签规则";
 import { ImageReferenceText, ImageReferenceToken } from "./图片引用标签";
 import { ProductVariantGenerateButton } from "./商品变体生成按钮";
-import { PromptVariantSelectAll, PromptVariantTabs } from "./提示词变体选择";
+import { PromptVariantSelectAll, PromptVariantTabs, usePromptVariantSelectionQueue } from "./提示词变体选择";
 import { variantContentSnapshot } from "./变体正文快照";
 
 export function ProductPromptContent({ ctx }: { ctx: CanvasNodeContext }) {
@@ -70,6 +70,7 @@ export function ProductPromptContent({ ctx }: { ctx: CanvasNodeContext }) {
         }, 650);
         return () => { clearTimeout(timer); job.abort(); if (controller.current === job) { controller.current = null; setTranslating(false); } };
     }, [ctx.node.id, productId, variantId, chinese, translatedChinese, translationError]);
+    const queueSelection = usePromptVariantSelectionQueue(ctx, doc?.parameterId);
     if (!doc || !pair) return <div className="p-3 text-xs">提示词数据不完整</div>;
     const updatePair = (patch: Partial<BilingualPrompt>) => {
         controller.current?.abort();
@@ -108,20 +109,20 @@ export function ProductPromptContent({ ctx }: { ctx: CanvasNodeContext }) {
     const configs = ctx.getConnections().filter(edge => edge.fromNodeId === ctx.node.id).map(edge => edge.toNodeId);
     const results = ctx.getConnections().filter(edge => configs.includes(edge.fromNodeId)).flatMap(edge => ctx.getNode(edge.toNodeId) || []);
     const staleResults = results.some(node => node.type === "image" && (node.metadata?.generationStartedAt || 0) < lastFactEdit);
-    return <div data-canvas-no-zoom className="flex h-full w-full min-h-0 min-w-0 max-w-full flex-col overflow-hidden p-3 text-xs" style={{ color: ctx.theme.node.text }}
+    return <div data-canvas-no-zoom data-product-prompt-card className="flex h-full w-full min-h-0 min-w-0 max-w-full flex-col overflow-hidden p-3 text-xs" style={{ color: ctx.theme.node.text }}
         onMouseDown={event => { if ((event.target as HTMLElement).closest("input, textarea, button, select, [contenteditable=true]")) event.stopPropagation(); }}
         onPointerDown={event => { if ((event.target as HTMLElement).closest("input, textarea, button, select, [contenteditable=true]")) event.stopPropagation(); }}
         onWheel={event => event.stopPropagation()}>
-        <div className={`mb-2 min-w-0 shrink-0 cursor-grab items-center gap-2 active:cursor-grabbing ${problems.length ? "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]" : "flex justify-between"}`}>
-            <span aria-hidden={ctx.isSelected || undefined} title={doc.planName || doc.name}
-                className={`min-w-0 truncate font-semibold ${ctx.isSelected ? "invisible" : ""}`}>{ctx.node.title}</span>
+        <div className={`mb-2 min-h-6 min-w-0 shrink-0 cursor-grab items-center gap-2 active:cursor-grabbing ${problems.length ? "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]" : "flex justify-between"}`}>
+            <span title={doc.planName || doc.name}
+                className="min-w-0 truncate font-semibold">{ctx.node.title}</span>
             {problems.length ? <p role="alert" title={problems.join("\n")} style={{ margin: 0 }} className="justify-self-center whitespace-nowrap font-semibold text-red-600 dark:text-red-400">提示词已失效</p> : null}
-            <div className="flex shrink-0 items-center justify-self-end gap-2">
-                <span className="whitespace-nowrap text-[10px] opacity-60">{doc.delivery.width} x {doc.delivery.height} · {doc.delivery.format.toUpperCase()}</span>
-                {Object.keys(doc.variants).length ? <PromptVariantSelectAll ctx={ctx} parameterId={doc.parameterId} ids={Object.keys(doc.variants)} /> : null}
+            <div className="flex min-h-6 shrink-0 items-center justify-self-end gap-3">
+                <span className="whitespace-nowrap text-[10px] leading-4 opacity-60">{doc.delivery.width} x {doc.delivery.height} · {doc.delivery.format.toUpperCase()}</span>
+                {Object.keys(doc.variants).length ? <span className="flex h-6 items-center"><PromptVariantSelectAll ctx={ctx} parameterId={doc.parameterId} ids={Object.keys(doc.variants)} queueSelection={queueSelection} /></span> : null}
             </div>
         </div>
-        {Object.keys(doc.variants).length ? <PromptVariantTabs ctx={ctx} parameterId={doc.parameterId}
+        {Object.keys(doc.variants).length ? <PromptVariantTabs ctx={ctx} parameterId={doc.parameterId} queueSelection={queueSelection}
             ids={doc.variantId ? [doc.variantId] : Object.keys(doc.variants)} value={variantId}
             onChange={id => { selectProductPromptVariant(ctx.node.id, id); setSelection(id); }} /> : null}
         <TabContentTransition transitionKey={`${ctx.node.id}:${variantId || "base"}`} className="min-h-0 min-w-0 flex-1">

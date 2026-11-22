@@ -1,0 +1,6 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -429,7 +429,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+-            {!isCanvasOverview && !referenceSelectionState && (isSelected || hoverVisible || isEditingTitle) && (
++            {!isCanvasOverview && !referenceSelectionState && data.type !== "guan:product-prompt" && (isSelected || hoverVisible || isEditingTitle) && (

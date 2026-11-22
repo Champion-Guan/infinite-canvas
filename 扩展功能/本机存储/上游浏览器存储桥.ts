@@ -52,13 +52,17 @@ let reconnecting = false, reconnectError: string | null = null;
 const SESSION_RECOVERY_ERRORS = new Set(["session_expired", "session_denied", "authorization_connection_failed"]);
 const AUTHORIZATION_END_ERRORS = new Set(["authorization_expired", "authorization_denied", "lease_expired", "session_host_closed"]);
 function ready() { if (!runtime) throw new Error("本机存储尚未初始化，不允许退回浏览器数据库。"); return runtime; }
+function savePreparationFailure(): NonNullable<RuntimeStatus["failures"]>[number] | null {
+    if (encodingFailures.size) return { namespace: "app_state", code: "save_prepare_failed", stage: "prepare" };
+    return null;
+}
 export function storageStatus() {
     const current = runtime?.getStatus();
     const codes = [...(current?.failures?.map(item => item.code) ?? []), ...[...failed.values()].map(error => (error as { code?: string } | null)?.code)];
     return { state: failed.size || current?.state === "error" ? "error" : writes.size || scheduled.size || current?.pending ? "saving" : current?.state === "idle" && stateCache.size + decodedStateCache.size > 0 ? "saved" : current?.state ?? "idle",
         pending: Math.max(writes.size, current?.pending ?? 0) + scheduled.size + encodingFailures.size, retrying: !!retryFlight || !!current?.retrying,
         conflict: codes.includes("revision_conflict"), reconnectRequired: codes.some(code => SESSION_RECOVERY_ERRORS.has(code ?? "")), reconnecting,
-        failure: current?.failures?.[0] ?? null,
+        failure: current?.failures?.find(item => item.code === "revision_conflict") ?? current?.failures?.[0] ?? savePreparationFailure(),
         reconnectError: reconnectError ?? codes.find(code => AUTHORIZATION_END_ERRORS.has(code ?? "")) ?? null };
 }
 function statusChanged() { if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("guan:storage-status", { detail: storageStatus() })); }

@@ -1,0 +1,38 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index a7b6cf5..107d2e5 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -134,6 +134,7 @@ import { applyNodeConfigPatch, audioMetadata, buildAudioGenerationMetadata, buil
+ import { resolveGenerationChannelMetadata } from "@/扩展功能/画布生成/配置节点状态显示";
+ import { isBatchCanvasSaveActive } from "@/扩展功能/画布生成/批量保存协调";
+ import { applyGroupSelection, applyUngroupSelection, canGroupSelectedNodes, canUngroupSelectedNodes, collectGroupMemberNodes, findContainingGroupId, findGroupDropTarget, focusViewportForNode, getConnectionTargetAnchor, getGroupWrapRect, normalizeConnection, nodeBounds, snapNodesIntoGroup } from "@/lib/canvas/canvas-node-geometry";
++import { centerCanvasNodeAtScale } from "@/扩展功能/画布交互/保持缩放聚焦";
+ import {
+     buildAngleLabel,
+     buildAnglePrompt,
+@@ -1241,11 +1242,14 @@ function InfiniteCanvasPage() {
+     }, [size.height, size.width, moveFocusViewport]);
+ 
+     const focusNode = useCallback(
+-        (nodeId: string) => {
++        (nodeId: string, options: { preserveScale?: boolean } = {}) => {
+             const node = displayNodesRef.current.find((item) => item.id === nodeId);
+             if (!node) return;
+             setHoverPreviewNodeId(null);
+-            const target = focusViewportForNode(node, size, measureFocusFrame(containerRef.current, nodeId));
++            const frame = measureFocusFrame(containerRef.current, nodeId);
++            const target = options.preserveScale
++                ? centerCanvasNodeAtScale(node, size, frame, viewportRef.current.k)
++                : focusViewportForNode(node, size, frame);
+             setSelectedNodeIds(new Set([nodeId]));
+             setSelectedConnectionId(null);
+             setContextMenu(null);
+@@ -1504,7 +1508,7 @@ function InfiniteCanvasPage() {
+                 setDialogNodeId(clickedNodeId);
+                 if (useConfigStore.getState().config.autoFocusOnSelect) {
+                     // Wait for the generation panel to render so centering accounts for it.
+-                    requestAnimationFrame(() => focusNodeRef.current(clickedNodeId));
++                    requestAnimationFrame(() => focusNodeRef.current(clickedNodeId, { preserveScale: true }));
+                 }
+             }
+         }

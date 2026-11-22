@@ -1,4 +1,4 @@
-import { readZip } from "@/lib/zip";
+import { readCanvasImportPackage } from "./画布导入包读取";
 import { deleteStoredMedia, setMediaBlob } from "@/services/file-storage";
 import { deleteStoredImages, setImageBlob } from "@/services/image-storage";
 import { prepareCanvasExport } from "./画布导入数据";
@@ -10,10 +10,8 @@ export async function readCanvasExport(file: File) {
     const report = (phase: string, completed: number, total: number, percent: number) =>
         publishImportProgress({ name: file.name || "产品包", phase, completed, total, percent, status: "running" });
     report("正在读取并解压产品包…", 0, 0, 5);
-    const zip = await readZip(file);
-    const projectFile = zip.get("projects.json");
-    if (!projectFile) throw new Error("导入包缺少 projects.json");
-    const { projects, media } = prepareCanvasExport(JSON.parse(await projectFile.text()), zip);
+    const { data, zip } = await readCanvasImportPackage(file);
+    const { projects, media } = prepareCanvasExport(data, zip);
     report("正在保存图片与媒体…", 0, media.length, 15);
     try {
         let cursor = 0, completed = 0;

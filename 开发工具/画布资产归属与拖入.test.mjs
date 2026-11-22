@@ -182,7 +182,7 @@ test('外部拖放真实入口对图片、视频、音频保留转换后的松�
     assert.equal(transaction.getCurrentNode('old'), old);
 });
 
-test('画布批量拖入统一收集音视频失败并继续处理后续文件', async () => {
+test('画布拖入立即报告不支持格式，支持的文件单个失败不阻断后续', async () => {
     const placement = load(source('扩展功能/画布布局/卡片自动避让.ts'));
     const transaction = load(source('扩展功能/画布生成/画布节点事务.ts'), {
         react: { useCallback: fn => fn, useState: value => [value, () => {}], useRef: value => ({ current: value }) },
@@ -206,7 +206,7 @@ test('画布批量拖入统一收集音视频失败并继续处理后续文件',
         useCallback: fn => fn, ...transaction, projectId: 'A',
         setSelectedNodeIds() {}, setSelectedConnectionId() {}, setDialogNodeId() {},
         attemptImageUpload: async fn => { try { return await fn(); } catch { return undefined; } },
-        message: { error: value => messages.push(value) },
+        message: { warning: value => messages.push(value), error: value => messages.push(value) },
         uploadImage: async () => ({ ...image, width: 240, height: 180 }),
         uploadMediaFile: async file => {
             mediaAttempts.push(file.name);
@@ -227,10 +227,20 @@ test('画布批量拖入统一收集音视频失败并继续处理后续文件',
         new File(['a'], '失败音频.wav', { type: 'audio/wav' }),
         new File(['v'], '成功视频.mp4', { type: 'video/mp4' }),
     ];
-    await api.handleDrop({ preventDefault() {}, clientX: 100, clientY: 200, dataTransfer: { types: ['Files'], files, getData: () => '' } });
+    const unsupported = new File(['text'], '不支持.txt', { type: 'text/plain' });
+    const drop = files => api.handleDrop({ preventDefault() {}, clientX: 100, clientY: 200, dataTransfer: { types: ['Files'], files, getData: () => '' } });
+    const warning = '1 个文件格式不支持，未添加：不支持.txt。画布支持拖入图片、视频和音频。';
+    await drop([unsupported]);
+    assert.deepEqual(messages, [warning]);
+    assert.deepEqual(mediaAttempts, []);
+    assert.equal(transaction.nodesRef.current.length, 0);
+    messages = [];
+    const completed = drop([files[0], unsupported, ...files.slice(1)]);
+    assert.deepEqual(messages, [warning], '无需等待第一个媒体文件');
+    await completed;
     assert.deepEqual(mediaAttempts, files.map(file => file.name), '单个失败后仍逐项处理后续文件');
     assert.equal(transaction.nodesRef.current.length, 2, '只创建成功的音视频节点');
-    assert.deepEqual(messages, ['有 2 个文件上传失败，请重试。']);
+    assert.deepEqual(messages, [warning, '有 2 个文件上传失败，请重试。']);
 });
 
 test('图片与视频工作台参考图存储失败时上传忙碌状态在 finally 中复位', async () => {

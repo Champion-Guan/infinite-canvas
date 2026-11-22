@@ -54,6 +54,18 @@ test('保存失败显示精确阶段与错误码，不显示内容或凭据', ()
     assert.match(details({ failure: { code: 'connection_failed', stage: 'fragment' } }), /写入分片/);
 });
 
+test('保存准备失败、存储拒绝与回执未确认用不同的中文提示', () => {
+    const prepare = details({ failure: { code: 'save_prepare_failed', stage: 'prepare' } });
+    assert.match(prepare, /尚未提交.*编辑仍在本页/);
+    assert.match(details({ failure: { code: 'storage_unavailable', stage: 'root' } }), /本机存储未能完成保存/);
+    for (const code of ['connection_failed', 'invalid_ack']) {
+        const unconfirmed = details({ failure: { code, stage: 'root' } });
+        assert.match(unconfirmed, /无法判断本次写入是否成功.*请勿刷新或关闭/);
+        assert.match(unconfirmed, /重试保存/);
+        assert.doesNotMatch(unconfirmed, /尚未提交|已保存到本机/);
+    }
+});
+
 test('详情只重试原保存，失败保留提醒，确认成功后才清除；连接失效走恢复入口', async () => {
     const elements = node => Array.isArray(node) ? node.flatMap(elements) : node && typeof node === 'object'
         ? [node, ...elements(node.props?.children)] : [];

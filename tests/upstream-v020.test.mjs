@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import ts from '../src/canvas/node_modules/typescript/lib/typescript.js';
+import ts from '../node_modules/typescript/lib/typescript.js';
 
 function functions(file, names, globals = {}) {
   const source = readFileSync(new URL('../src/canvas/' + file, import.meta.url), 'utf8');
@@ -46,4 +46,35 @@ test('focus centers nodes and respects the floating panel and bottom dock', () =
   assert.ok(bottom <= 624);
   assert.ok(Math.abs(624 - bottom - top / 3) < 1e-8);
   assert.equal(geometry.focusViewportForNode({ ...node, width: 20000, height: 20000 }, size).k, 0.05);
+});
+const stableFocus = functions('../../扩展功能/画布交互/保持缩放聚焦.ts', ['centerCanvasNodeAtScale'], {});
+test('automatic node focus preserves the current zoom while reserving panel space', () => {
+  const node = { position: { x: 1234, y: -567 }, width: 340, height: 240 }, size = { width: 900, height: 700 }, scale = 1.2;
+  const view = stableFocus.centerCanvasNodeAtScale(node, size, { below: 316, bottomInset: 76 }, scale);
+  assert.equal(view.k, scale);
+  assert.equal(view.x + (node.position.x + node.width / 2) * view.k, size.width / 2);
+  const top = view.y + node.position.y * scale, bottom = view.y + (node.position.y + node.height) * scale + 316;
+  assert.ok(bottom <= 624);
+  assert.ok(Math.abs(624 - bottom - top / 3) < 1e-8);
+});
+test('card selection requests focus without fitting the current zoom', () => {
+  const patch = readFileSync(new URL('../上游适配/卡片点击时捕获倍率.patch', import.meta.url), 'utf8');
+  assert.match(patch, /\+\s*requestAnimationFrame\(\(\) => focusNodeRef\.current\(clickedNodeId, \{ preserveScale: true \}\)\);/);
+  assert.match(patch, /centerCanvasNodeAtScale\(node, size, frame, options\.scale \?\? viewportRef\.current\.k\)/);
+});
+test('card auto-focus uses the zoom captured when the click began', () => {
+  const patch = readFileSync(new URL('../上游适配/卡片聚焦使用按下时倍率.patch', import.meta.url), 'utf8');
+  assert.match(patch, /\+\s*const clickScaleRef = useRef\(1\);/);
+  assert.match(patch, /\+\s*clickScaleRef\.current = viewportRef\.current\.k;/);
+  assert.match(patch, /\+\s*requestAnimationFrame\(\(\) => focusNodeRef\.current\(clickedNodeId, \{ preserveScale: true, scale: clickScaleRef\.current \}\)\);/);
+});
+test('mouse focus on a canvas node cannot trigger a competing zoom-to-fit before selection', () => {
+  const patch = readFileSync(new URL('../上游适配/鼠标点击节点跳过焦点自动聚焦.patch', import.meta.url), 'utf8');
+  assert.match(patch, /\+\s*if \(performance\.now\(\) < pointerFocusUntilRef\.current\) return;/);
+  assert.match(patch, /\+\s*pointerFocusUntilRef\.current = performance\.now\(\) \+ 250;/);
+});
+test('slow canvas clicks keep the pointer-focus guard active through delayed rendering', () => {
+  const patch = readFileSync(new URL('../上游适配/鼠标点击聚焦延迟保护.patch', import.meta.url), 'utf8');
+  assert.match(patch, /-\s*pointerFocusUntilRef\.current = performance\.now\(\) \+ 250;/);
+  assert.match(patch, /\+\s*pointerFocusUntilRef\.current = performance\.now\(\) \+ 1500;/);
 });

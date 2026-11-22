@@ -1,0 +1,142 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index 0c442b0..c236a2b 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -731,6 +731,7 @@ const CanvasPromptsTab = memo(function CanvasPromptsTab({ onInsert, theme }: { o
+     const hasExcelPrompts = Boolean(localExcel?.source.enabled && localExcel.items.length);
+     const [keyword, setKeyword] = useState("");
+     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
++    const scrollRef = useRef<HTMLDivElement>(null);
+     const productActive = useProductActive();
+     const [detail, setDetail] = useState<Prompt | null>(null);
+ 
+@@ -748,7 +749,7 @@ const CanvasPromptsTab = memo(function CanvasPromptsTab({ onInsert, theme }: { o
+             <div className="px-3 pb-2.5 pt-1">
+                 <Input size="small" allowClear prefix={<Search className="size-3.5 text-stone-400" />} placeholder={t("canvas.sidePanel.searchPrompts")} value={keyword} onChange={(e) => setKeyword(e.target.value)} />
+             </div>
+-            <div className="guan-scroll-region min-h-0 flex-1 overflow-y-auto px-2 pb-3">
++            <div ref={scrollRef} className="guan-scroll-region min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+                 <div className="space-y-1">
+                     <ExcelPromptGroup keyword={keyword} theme={theme} onInsert={onInsert} onView={setDetail} renderRow={(item, insert, view) => <PromptRow item={item} displayTitle={[item.excelPrompt.label, item.excelPrompt.theme].filter(Boolean).join(" · ")} theme={theme} onInsert={insert} onView={view} />} />
+                     {enabledSources.length ? enabledSources.map((source) => (
+@@ -758,6 +759,7 @@ const CanvasPromptsTab = memo(function CanvasPromptsTab({ onInsert, theme }: { o
+                             sourceName={source.name}
+                             keyword={keyword}
+                             open={expanded[source.id] !== false}
++                            scrollRef={scrollRef}
+                             theme={theme}
+                             onToggle={() => setExpanded((prev) => ({ ...prev, [source.id]: prev[source.id] === false }))}
+                             onInsert={onInsert}
+@@ -771,11 +773,29 @@ const CanvasPromptsTab = memo(function CanvasPromptsTab({ onInsert, theme }: { o
+     );
+ });
+ 
++const PROMPT_ROWS_PER_BATCH = 6;
++
++function observePromptVisibility(root: HTMLDivElement | null, target: HTMLDivElement | null, onVisible: () => void) {
++    if (!root || !target) return;
++    if (typeof IntersectionObserver === "undefined") {
++        onVisible();
++        return;
++    }
++    const observer = new IntersectionObserver(([entry]) => {
++        if (!entry?.isIntersecting) return;
++        observer.disconnect();
++        onVisible();
++    }, { root });
++    observer.observe(target);
++    return () => observer.disconnect();
++}
++
+ function PromptSourceGroup({
+     sourceId,
+     sourceName,
+     keyword,
+     open,
++    scrollRef,
+     theme,
+     onToggle,
+     onInsert,
+@@ -785,28 +805,46 @@ function PromptSourceGroup({
+     sourceName: string;
+     keyword: string;
+     open: boolean;
++    scrollRef: { current: HTMLDivElement | null };
+     theme: CanvasTheme;
+     onToggle: () => void;
+     onInsert: (payload: InsertAssetPayload) => void;
+     onView: (prompt: Prompt) => void;
+ }) {
+     const { t } = useTranslation();
+-    // Cache a source after its first expansion to avoid repeated requests; search results also need the data for counts.
+-    const showResults = open || !!keyword.trim();
+-    const query = useQuery({ queryKey: ["side-panel-prompts", sourceId], queryFn: () => fetchSourcePrompts(sourceId), enabled: showResults, staleTime: 1000 * 60 * 60 });
++    const searchTerm = keyword.trim().toLowerCase();
++    const showResults = open || !!searchTerm;
++    const groupRef = useRef<HTMLDivElement>(null);
++    const moreRef = useRef<HTMLDivElement>(null);
++    const [seen, setSeen] = useState(false);
++    const [batch, setBatch] = useState({ term: "", limit: PROMPT_ROWS_PER_BATCH });
++    const rowLimit = batch.term === searchTerm ? batch.limit : PROMPT_ROWS_PER_BATCH;
++
++    useEffect(() => {
++        if (open && !seen) return observePromptVisibility(scrollRef.current, groupRef.current, () => setSeen(true));
++    }, [open, scrollRef, seen]);
++
++    // A search must include offscreen sources; ordinary browsing reads each source only on arrival.
++    const query = useQuery({ queryKey: ["side-panel-prompts", sourceId], queryFn: () => fetchSourcePrompts(sourceId), enabled: (open && seen) || !!searchTerm, staleTime: 1000 * 60 * 60 });
+ 
+     const filtered = useMemo(() => {
+         const items = query.data || [];
+-        const q = keyword.trim().toLowerCase();
+-        if (!q) return items;
+-        return items.filter((item) => [item.title, item.prompt, ...item.tags].join(" ").toLowerCase().includes(q));
+-    }, [query.data, keyword]);
++        if (!searchTerm) return items;
++        return items.filter((item) => [item.title, item.prompt, ...item.tags].join(" ").toLowerCase().includes(searchTerm));
++    }, [query.data, searchTerm]);
++
++    const hasMore = showResults && filtered.length > rowLimit;
++    useEffect(() => {
++        if (hasMore) return observePromptVisibility(scrollRef.current, moreRef.current, () => {
++            setBatch({ term: searchTerm, limit: rowLimit + PROMPT_ROWS_PER_BATCH });
++        });
++    }, [hasMore, rowLimit, scrollRef, searchTerm]);
+ 
+     const insertPrompt = (item: Prompt) => onInsert({ kind: "text", content: item.prompt, title: item.title });
+ 
+     return (
+-        <div>
+-            <button type="button" onClick={onToggle} className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1.5 text-left text-xs font-semibold opacity-75 transition hover:opacity-100">
++        <div ref={groupRef}>
++            <button type="button" aria-expanded={showResults} onClick={onToggle} className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1.5 text-left text-xs font-semibold opacity-75 transition hover:opacity-100">
+                 <ChevronRight className={cn("size-3.5 transition-transform", showResults && "rotate-90")} />
+                 <BookOpen className="size-3.5" />
+                 <span className="min-w-0 flex-1 truncate">{sourceName}</span>
+@@ -814,9 +852,11 @@ function PromptSourceGroup({
+             </button>
+             {showResults ? (
+                 <div className="px-1 pb-2 pt-1">
+-                    {query.isLoading ? (
+-                        <div className="flex justify-center py-6">
+-                            <Spin size="small" />
++                    {query.isPending ? (
++                        <div className={cn("space-y-1.5", query.isFetching && "motion-safe:animate-pulse")} aria-hidden="true">
++                            {Array.from({ length: PROMPT_ROWS_PER_BATCH }, (_, index) => (
++                                <div key={index} className="h-14 rounded-md bg-current opacity-[0.035]" />
++                            ))}
+                         </div>
+                     ) : query.isError ? (
+                         <button type="button" onClick={() => void query.refetch()} className="block w-full py-4 text-center text-xs text-red-500 opacity-80 transition hover:opacity-100">
+@@ -824,9 +864,10 @@ function PromptSourceGroup({
+                         </button>
+                     ) : filtered.length ? (
+                         <div className="space-y-1.5">
+-                            {filtered.map((item) => (
++                            {filtered.slice(0, rowLimit).map((item) => (
+                                 <PromptRow key={item.id} item={item} theme={theme} onInsert={() => insertPrompt(item)} onView={() => onView(item)} />
+                             ))}
++                            {hasMore && <div ref={moreRef} className="h-px" aria-hidden="true" />}
+                         </div>
+                     ) : (
+                         <div className="py-4 text-center text-xs opacity-40">{keyword.trim() ? t("canvas.sidePanel.noMatchingPrompts") : t("canvas.sidePanel.sourceEmpty")}</div>

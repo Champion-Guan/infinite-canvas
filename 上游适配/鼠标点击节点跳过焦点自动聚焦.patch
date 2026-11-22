@@ -1,0 +1,26 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -203,6 +203,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+     const imageBorderColor = isActive ? selectionBlue : isRelated ? theme.node.muted : "transparent";
+     const textareaRef = useRef<HTMLTextAreaElement>(null);
+     const titleInputRef = useRef<HTMLInputElement>(null);
++    const pointerFocusUntilRef = useRef(0);
+     const resizeRef = useRef({
+         isResizing: false,
+         corner: "bottom-right" as ResizeCorner,
+@@ -386,6 +387,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+         <div
+             data-node-id={data.id}
+             onFocusCapture={(event) => {
++                if (performance.now() < pointerFocusUntilRef.current) return;
+                 if (isInViewport || showPanel || !onRequestFocus) return;
+                 const rect = event.currentTarget.getBoundingClientRect();
+                 const view = event.currentTarget.closest(".guan-canvas-viewport")?.getBoundingClientRect();
+@@ -417,5 +419,6 @@ export const CanvasNode = React.memo(function CanvasNode({
+             }}
+             onMouseDownCapture={(event) => {
++                pointerFocusUntilRef.current = performance.now() + 250;
+                 const target = event.target as Element;
+                 if (target.closest("[data-card-panel-anchor], button")) return;
+                 if (data.type === "guan:product-prompt" && target.closest("input[type='checkbox'], label:has(input[type='checkbox'])")) return;

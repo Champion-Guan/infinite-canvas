@@ -6,7 +6,7 @@ import { StorageError } from '../扩展功能/本机存储/协议.mjs';
 import { GENERATION_PROTOCOL } from '../扩展功能/生成网关/生成协议.mjs';
 import { createGenerationClient } from '../扩展功能/生成任务/生成任务客户端.mjs';
 import { recoverGenerationResponse } from '../扩展功能/生成任务/本机任务响应恢复.mjs';
-import { runCanvasImageTask } from '../扩展功能/画布生成/图片任务衔接.mjs';
+import { isOriginalTaskRecovering, runCanvasImageTask, subscribeOriginalTaskRecovery } from '../扩展功能/画布生成/图片任务衔接.mjs';
 import { generationFixture } from './生成网关隔离夹具.mjs';
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -72,6 +72,39 @@ test('提交ACK超时后自动查询原任务，不重发收费请求', async ()
   assert.equal(f.commands.filter(value => value.operation === 'submit').length, 1);
   assert.equal(f.commands.filter(value => value.operation === 'get').length, 2);
 });
+for (const outcome of ['running', 'failed', 'abort']) {
+  test(`提交回执丢失时仅原卡片显示断线，查询${outcome}时退出断线状态`, async () => {
+    const f = fixture({ faults: { submit: ['lost_ack'] }, state: outcome === 'failed' ? 'failed' : 'succeeded' });
+    const id = randomUUID(), unrelatedId = randomUUID(), states = [], gate = deferred(), started = deferred();
+    const controller = new AbortController();
+    const unsubscribe = subscribeOriginalTaskRecovery(id, () => states.push(isOriginalTaskRecovering(id)));
+    const unrelated = subscribeOriginalTaskRecovery(unrelatedId, () => assert.fail('不能唤醒其他卡片'));
+    const flight = runCanvasImageTask({ ...f.options, makeId: () => id, signal: controller.signal,
+      host: { ...f.options.host, async get(taskId) {
+        assert.equal(taskId, id);
+        if (!states.includes(false)) {
+          started.resolve(); await gate.promise;
+          if (outcome === 'running') return { ...await f.options.host.get(taskId), state: 'running' };
+        }
+        return f.options.host.get(taskId);
+      } }, wait: async () => assert.deepEqual(states, [true, false]) });
+    try {
+      await started.promise;
+      assert.deepEqual(states, [true]);
+      assert.equal(isOriginalTaskRecovering(unrelatedId), false);
+      if (outcome === 'abort') {
+        controller.abort();
+        await assert.rejects(flight, { name: 'AbortError' });
+      } else {
+        gate.resolve();
+        if (outcome === 'failed') await assert.rejects(flight, { code: 'generation_failed' });
+        else assert.equal((await flight).applied, true);
+      }
+      assert.deepEqual(states, [true, false]);
+      assert.equal(f.commands.filter(value => value.operation === 'submit').length, 1);
+    } finally { gate.resolve(); unsubscribe(); unrelated(); }
+  });
+}
 for (const operation of ['checkpoint', 'applied']) test(`${operation}遇到自动保存造成的过期检查点只刷新证明，不重新应用或提交`, async () => {
   const f = fixture({ faults: { [operation]: [operation === 'checkpoint' ? 'generation_canvas_unsaved' : 'generation_canvas_unconfirmed'] } });
   assert.equal((await runCanvasImageTask(f.options)).applied, true);

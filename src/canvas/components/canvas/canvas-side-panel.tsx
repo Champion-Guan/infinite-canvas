@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { memo, startTransition, useEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { App, Checkbox, Empty, Input, Popconfirm, Select, Spin, Tag } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowDownWideNarrow, BookOpen, Check, ChevronRight, Download, Eye, FileText, Image as ImageIcon, LayoutGrid, ListChecks, Rows3, Music2, Plus, RotateCcw, Search, Settings2, Square, Trash2, Type, Video } from "lucide-react";
@@ -73,6 +73,11 @@ export function CanvasSidePanel({ projectId, nodes, connections, deletedNodeBatc
     const { t } = useTranslation();
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const [tab, setTab] = useState<PanelTab>("canvas");
+    const [contentTab, setContentTab] = useState<PanelTab>("canvas");
+    const switchTab = (next: PanelTab) => {
+        setTab(next);
+        startTransition(() => setContentTab(next));
+    };
     const width = useCanvasSidePanelStore((state) => state.width);
     const panelOpen = useCanvasSidePanelStore((state) => state.panelOpen);
     const panelMounted = useCanvasSidePanelStore((state) => state.panelMounted);
@@ -119,20 +124,20 @@ export function CanvasSidePanel({ projectId, nodes, connections, deletedNodeBatc
                 data-canvas-no-zoom
             >
                 <div className="flex items-center gap-5 px-4 pt-3.5">
-                    <TabButton label={t("canvas.sidePanel.canvas")} active={tab === "canvas"} theme={theme} onClick={() => setTab("canvas")} />
-                    <TabButton label={t("canvas.sidePanel.assets")} active={tab === "assets"} theme={theme} onClick={() => setTab("assets")} />
-                    <TabButton label={t("canvas.sidePanel.prompts")} active={tab === "prompts"} theme={theme} onClick={() => setTab("prompts")} />
-                    <TabButton label="生成历史" active={tab === "history"} theme={theme} onClick={() => setTab("history")} />
-                    <TabButton label="回收站" active={tab === "trash"} theme={theme} onClick={() => setTab("trash")} />
+                    <TabButton label={t("canvas.sidePanel.canvas")} active={tab === "canvas"} theme={theme} onClick={() => switchTab("canvas")} />
+                    <TabButton label={t("canvas.sidePanel.assets")} active={tab === "assets"} theme={theme} onClick={() => switchTab("assets")} />
+                    <TabButton label={t("canvas.sidePanel.prompts")} active={tab === "prompts"} theme={theme} onClick={() => switchTab("prompts")} />
+                    <TabButton label="生成历史" active={tab === "history"} theme={theme} onClick={() => switchTab("history")} />
+                    <TabButton label="回收站" active={tab === "trash"} theme={theme} onClick={() => switchTab("trash")} />
                 </div>
                 <div className="mt-2 min-h-0 flex-1 overflow-hidden">
-                    {tab === "canvas" ? (
+                    {contentTab === "canvas" ? (
                         <CanvasNodesTab nodes={nodes} connections={connections} selectedNodeIds={selectedNodeIds} onFocusNode={onFocusNode} onPreviewNode={onPreviewNode} onHoverNode={onHoverNode} theme={theme} />
-                    ) : tab === "assets" ? (
+                    ) : contentTab === "assets" ? (
                         <CanvasAssetsTab projectId={projectId} nodes={nodes} onInsert={onInsertAsset} onPreviewNode={onPreviewNode} theme={theme} />
-                    ) : tab === "history" ? (
+                    ) : contentTab === "history" ? (
                         <CanvasGenerationHistoryTab nodes={nodes} connections={connections} onPreviewNode={onPreviewNode} onRetryNode={onRetryNode} theme={theme} />
-                    ) : tab === "trash" ? (
+                    ) : contentTab === "trash" ? (
                         <CanvasRecycleBinTab batches={deletedNodeBatches} activeNodes={nodes} onRestore={onRestoreDeletedNodeBatch} onPermanentlyDelete={onPermanentlyDeleteNodeBatch} theme={theme} />
                     ) : (
                         <CanvasPromptsTab onInsert={onInsertAsset} theme={theme} />
@@ -826,7 +831,9 @@ const CanvasPromptsTab = memo(function CanvasPromptsTab({ onInsert, theme }: { o
     const sources = usePromptSourceStore((state) => state.sources);
     const enabledSources = useMemo(() => sources.filter((source) => source.enabled), [sources]);
     const [keyword, setKeyword] = useState("");
-    const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+    const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
+        Object.fromEntries(enabledSources.map((source) => [source.id, false]))
+    );
     const [detail, setDetail] = useState<Prompt | null>(null);
 
     const copyPrompt = async (prompt: string) => {

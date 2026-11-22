@@ -6,6 +6,43 @@ import { variantModules } from './产品变体生成夹具.mjs';
 
 const require = createRequire(new URL('../.运行/3100源/画布副本/web/package.json', import.meta.url));
 const ts = require('typescript');
+
+test('资产批量添加先报告进度，坏图不阻断后续文件，最终报告部分成功', async () => {
+    const source = readFileSync(new URL('../.运行/3100源/画布副本/web/src/components/canvas/canvas-side-panel.tsx', import.meta.url), 'utf8');
+    const ast = ts.createSourceFile('sidebar.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const findHandler = node => ts.isVariableDeclaration(node) && node.name.getText(ast) === 'handleFiles'
+        ? node.initializer : ts.forEachChild(node, findHandler);
+    const handler = findHandler(ast);
+    assert.ok(handler);
+    const code = ts.transpileModule(`const handleFiles = ${handler.getText(ast)};`, {
+        compilerOptions: { target: ts.ScriptTarget.ES2022 },
+    }).outputText;
+    const updates = [], uploads = [], busy = [];
+    let rejectFirst;
+    const first = new Promise((_, reject) => { rejectFirst = reject; });
+    const scope = {
+        projectId: 'product', setUploading: value => busy.push(value), fileInputRef: { current: { value: 'files' } },
+        t: (key, args) => args ? `${key}:${args.count}:${args.files || ''}` : key,
+        message: { open: options => updates.push(options) },
+        uploadImage: (file, options) => { uploads.push([file.name, options.assetProjectId]); return uploads.length === 1 ? first : Promise.resolve(); },
+        console: { error() {} },
+    };
+    const run = new Function(...Object.keys(scope), `${code}; return handleFiles;`)(...Object.values(scope));
+    const completed = run([{ name: 'bad.png', type: 'image/png' }, { name: 'good.png', type: 'image/png' }]);
+    assert.deepEqual(busy, [true]);
+    assert.match(updates[0].content, /1\/2$/);
+    assert.deepEqual(uploads, [['bad.png', 'product']]);
+    rejectFirst(new Error('decode failed'));
+    await completed;
+    assert.deepEqual(uploads, [['bad.png', 'product'], ['good.png', 'product']]);
+    assert.match(updates[1].content, /2\/2$/);
+    assert.equal(new Set(updates.map(update => update.key)).size, 1);
+    assert.equal(updates.at(-1).type, 'warning');
+    assert.match(updates.at(-1).content, /addedAssets:1:.*assetsFailed:1:bad\.png/);
+    assert.deepEqual(busy, [true, false]);
+    assert.equal(scope.fileInputRef.current.value, '');
+});
+
 function load(file, dependencies, globals = {}) {
     const source = readFileSync(new URL('../' + file, import.meta.url), 'utf8');
     const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;

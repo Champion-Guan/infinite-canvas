@@ -32,7 +32,7 @@ type Snapshot = { key: string; children: ReactNode };
 type Handoff = { key: string; previous: Snapshot | null; revision: number };
 
 // 只保留当前内容和最近一次退场内容；连续切换不排队，也不积累隐藏页签。
-export function TabContentTransition({ transitionKey, children, className, enabled = true, ...props }: { transitionKey: string; children: ReactNode; enabled?: boolean } & HTMLAttributes<HTMLDivElement>) {
+export function TabContentTransition({ transitionKey, children, className, enabled = true, keepPrevious = true, ...props }: { transitionKey: string; children: ReactNode; enabled?: boolean; keepPrevious?: boolean } & HTMLAttributes<HTMLDivElement>) {
     const committed = useRef<Snapshot>({ key: transitionKey, children });
     const [handoff, setHandoff] = useState<Handoff>({ key: transitionKey, previous: null, revision: 0 });
     if (handoff.key !== transitionKey) setHandoff({ key: transitionKey, previous: committed.current.key === handoff.key ? committed.current : null, revision: handoff.revision + 1 });
@@ -49,7 +49,7 @@ export function TabContentTransition({ transitionKey, children, className, enabl
     }, [enabled, handoff.previous, handoff.revision, finish]);
     return <div {...props} data-tab-transition={transitionKey} className={`${styles.root} ${className || ""}`}>
         <TabSurface key={transitionKey} present enter={handoff.revision > 0} enabled={enabled}>{children}</TabSurface>
-        {handoff.previous && handoff.previous.key !== transitionKey ? <TabSurface key={handoff.previous.key} present={false} enter={false} enabled={enabled}
+        {keepPrevious && handoff.previous && handoff.previous.key !== transitionKey ? <TabSurface key={handoff.previous.key} present={false} enter={false} enabled={enabled}
             onExited={() => finish(handoff.previous!.key, handoff.revision)}>{handoff.previous.children}</TabSurface> : null}
     </div>;
 }

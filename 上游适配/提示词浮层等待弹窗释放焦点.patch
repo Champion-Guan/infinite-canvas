@@ -1,0 +1,36 @@
+diff --git a/web/src/components/canvas/canvas-node-prompt-panel.tsx b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+index 5da668a..277f331 100644
+--- a/web/src/components/canvas/canvas-node-prompt-panel.tsx
++++ b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+@@ -3,7 +3,7 @@ import { stripLegacyPromptConstraints } from "@/扩展功能/提示词/变量使
+ import { normalizeTextReasoningEffort } from "@/扩展功能/画布生成/文本推理强度";
+ import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
+ import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
++import { useEffect, useId, useRef, useState } from "react";
+ import { ArrowUp, LoaderCircle, Maximize2, Square } from "lucide-react";
+ import { Button } from "antd";
+ import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+@@ -68,12 +68,18 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+     const setExpanded = (value: boolean) => { setLocalExpanded(value); onExpandedChange?.(value); };
+     const suspended = expanded || libraryOpen || closingTriggerId !== null;
+ 
+-    useLayoutEffect(() => {
++    useEffect(() => {
+         if (suspended || !productActive || !restoreTrigger.current) return;
+         const triggerId = restoreTrigger.current;
+-        const frame = requestAnimationFrame(() => {
+-            restoreTrigger.current = null;
+-            document.getElementById(triggerId)?.focus({ preventScroll: true });
++        // Let the dialog finish releasing focus before returning it to the composer.
++        let frame = requestAnimationFrame(() => {
++            frame = requestAnimationFrame(() => {
++                restoreTrigger.current = null;
++                const focused = document.activeElement;
++                if (focused === document.body || focused?.closest('[data-apple-modal-state="closing"]')) {
++                    document.getElementById(triggerId)?.focus({ preventScroll: true });
++                }
++            });
+         });
+         return () => cancelAnimationFrame(frame);
+     }, [suspended, productActive]);

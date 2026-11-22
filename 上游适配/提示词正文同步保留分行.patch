@@ -1,0 +1,43 @@
+diff --git a/web/src/components/canvas/canvas-prompt-chip-input.tsx b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+index 66102a2..a7ad1a3 100644
+--- a/web/src/components/canvas/canvas-prompt-chip-input.tsx
++++ b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+@@ -307,20 +307,27 @@ function createReferenceChip(reference: CanvasResourceReference, theme: (typeof
+ }
+ 
+ function serializeEditor(editor: HTMLElement) {
+-    if (editor.childNodes.length === 1 && editor.firstChild?.nodeName === "BR") return "";
+-    return serializeNodes(editor.childNodes).replace(/﻿/g, "");
++    return serializeNodes(editor).replace(/﻿/g, "");
+ }
+ 
+-function serializeNodes(nodes: NodeListOf<ChildNode>) {
++function serializeNodes(container: HTMLElement) {
++    if (container.childNodes.length === 1 && container.firstChild?.nodeName === "BR") return "";
+     let result = "";
+-    nodes.forEach((node) => {
+-        if (node.nodeType === Node.TEXT_NODE) result += node.textContent || "";
+-        if (!(node instanceof HTMLElement)) return;
+-        const label = node.dataset.refLabel;
+-        if (label) result += label;
+-        else if (node.tagName === "BR") result += "\n";
+-        else result += serializeNodes(node.childNodes);
+-    });
++    let hasContent = false;
++    let previousWasBlock = false;
++    for (const node of container.childNodes) {
++        const element = node instanceof HTMLElement ? node : null;
++        const text = element
++            ? element.dataset.refLabel || (element.tagName === "BR" ? "\n" : serializeNodes(element))
++            : node.nodeType === Node.TEXT_NODE ? node.textContent || "" : "";
++        // Chromium uses DIV line wrappers even in plaintext-only editors.
++        const isBlock = element?.tagName === "DIV" || element?.tagName === "P";
++        if (!text && !isBlock) continue;
++        if (hasContent && (isBlock || previousWasBlock)) result += "\n";
++        result += text;
++        hasContent = true;
++        previousWasBlock = isBlock;
++    }
+     return result;
+ }
+ 

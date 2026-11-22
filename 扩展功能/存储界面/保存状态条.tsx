@@ -8,6 +8,11 @@ export function SQLiteSaveDetails({ status, reported = "" }: { status: ReturnTyp
     const conflict = status.conflict || status.failure?.code === "revision_conflict";
     const reconnect = status.reconnectRequired && !conflict;
     const expired = ["authorization_expired", "authorization_denied", "lease_expired", "session_host_closed"].includes(status.reconnectError ?? "");
+    const failure = status.failure;
+    const cause = failure?.code === "save_prepare_failed" ? "画布内容未能完成保存准备，尚未提交。"
+        : failure?.code === "connection_failed" || failure?.code === "invalid_ack" ? "未收到有效的保存确认，暂时无法判断本次写入是否成功。"
+        : failure?.code === "storage_unavailable" ? "本机存储未能完成保存。"
+        : null;
     const retry = async () => {
         try {
             await (reconnect ? reconnectAndRetrySQLiteStorage() : retrySQLiteStorage());
@@ -20,7 +25,7 @@ export function SQLiteSaveDetails({ status, reported = "" }: { status: ReturnTyp
         <p>{conflict ? "其他窗口已修改数据。请保留本页，先从画布菜单导出当前画布；处理冲突前不要刷新、关闭或强制覆盖。"
             : expired ? "页面授权已结束，原连接尚未恢复。编辑仍在本页，请保留页面，先恢复本机连接。"
             : reconnect ? "自动恢复本机连接未完成。编辑仍在本页，请勿刷新或关闭，可以重新连接并保存。"
-            : "部分编辑尚未确认保存。请保留本页，勿刷新或关闭；可以重试原保存。"}</p>
+            : `${cause ?? "部分编辑尚未确认保存。"}编辑仍在本页，请勿刷新或关闭；可以重试原保存。`}</p>
         {reported ? <p className="text-muted-foreground">{reported}</p> : null}
         {status.reconnectError && !expired ? <p>重新连接或保存尚未完成，请稍后重试。</p> : null}
         {status.failure ? <details className="text-muted-foreground">

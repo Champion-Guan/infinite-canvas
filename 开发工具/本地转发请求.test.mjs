@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
 
 const webRequire = createRequire(new URL('../.运行/3100源/画布副本/web/package.json', import.meta.url));
-const ts = webRequire('./node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/typescript.js');
+const ts = createRequire(import.meta.url)('typescript');
 const source = readFileSync(new URL('../扩展功能/网络代理/本地转发请求.ts', import.meta.url), 'utf8');
 const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText;
 function fixture(relay = async () => ({ status: 200, headers: { 'content-type': 'application/json' }, body: Buffer.from('{"ok":true}').toString('base64') })) {

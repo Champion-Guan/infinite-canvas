@@ -1,0 +1,69 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index c236a2b..ff6ee30 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -11,7 +11,7 @@ import { TAB_INDICATOR_BASE_STYLE, useUnifiedTabIndicator } from "@/扩展功能
+ import { TabContentTransition, useNativeTabFade } from "@/扩展功能/主题/页签内容过渡";
+ import { AppleActionButton } from "@/扩展功能/主题/苹果交互按钮";
+ import { sqlitePreferences } from "@/扩展功能/本机存储/上游浏览器存储桥";
+-import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
++import { memo, startTransition, useEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
+ import { App, Empty, Input, Popconfirm, Spin, Tag } from "antd";
+ import { OutsideSelect as Select } from "@/扩展功能/主题/原生可关闭浮层";
+ import { useQuery } from "@tanstack/react-query";
+@@ -45,6 +45,28 @@ import type { InsertAssetPayload } from "./asset-picker-modal";
+ 
+ const PROMPT_DRAG_DATA_TYPE = "application/x-infinite-canvas-prompt";
+ 
++const SidebarSearch = memo(function SidebarSearch({ placeholder, onQuery }: { placeholder: string; onQuery: (query: string) => void }) {
++    const [draft, setDraft] = useState("");
++    const composing = useRef(false);
++    const publish = (value: string) => startTransition(() => onQuery(value));
++
++    return <Input size="small" allowClear prefix={<Search className="size-3.5 text-stone-400" />}
++        placeholder={placeholder} value={draft}
++        onChange={event => {
++            const value = event.target.value;
++            setDraft(value);
++            if (!composing.current) publish(value);
++        }}
++        onCompositionStart={() => { composing.current = true; }}
++        onCompositionEnd={event => {
++            composing.current = false;
++            const value = event.currentTarget.value;
++            setDraft(value);
++            publish(value);
++        }}
++    />;
++});
++
+ type PanelTab = "canvas" | "assets" | "history" | "prompts" | "trash";
+ 
+ type Props = {
+@@ -334,7 +356,7 @@ function CanvasNodesTab({ nodes, connections, selectedNodeIds, onFocusNode, onPr
+                 </button>
+             </div>
+             <div className="px-3 pb-2.5">
+-                <Input size="small" allowClear prefix={<Search className="size-3.5 text-stone-400" />} placeholder={t("canvas.sidePanel.searchNodes")} value={keyword} onChange={(e) => setKeyword(e.target.value)} />
++                <SidebarSearch placeholder={t("canvas.sidePanel.searchNodes")} onQuery={setKeyword} />
+             </div>
+             <div className="guan-scroll-region min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+                 {nodeViewMode === "grid" ? (
+@@ -530,7 +552,7 @@ const CanvasAssetsTab = memo(function CanvasAssetsTab({ projectId, onInsert, the
+     return (
+         <div className="flex h-full flex-col">
+             <div className="flex items-center gap-2 px-3 pb-2 pt-1">
+-                <Input size="small" allowClear prefix={<Search className="size-3.5 text-stone-400" />} placeholder={t("canvas.sidePanel.searchAssets")} value={keyword} onChange={(e) => setKeyword(e.target.value)} />
++                <SidebarSearch placeholder={t("canvas.sidePanel.searchAssets")} onQuery={setKeyword} />
+                 <button
+                     type="button"
+                     disabled={uploading}
+@@ -747,7 +769,7 @@ const CanvasPromptsTab = memo(function CanvasPromptsTab({ onInsert, theme }: { o
+     return (
+         <div className="flex h-full flex-col">
+             <div className="px-3 pb-2.5 pt-1">
+-                <Input size="small" allowClear prefix={<Search className="size-3.5 text-stone-400" />} placeholder={t("canvas.sidePanel.searchPrompts")} value={keyword} onChange={(e) => setKeyword(e.target.value)} />
++                <SidebarSearch placeholder={t("canvas.sidePanel.searchPrompts")} onQuery={setKeyword} />
+             </div>
+             <div ref={scrollRef} className="guan-scroll-region min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+                 <div className="space-y-1">

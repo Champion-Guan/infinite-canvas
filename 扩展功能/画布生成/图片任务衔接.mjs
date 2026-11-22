@@ -25,6 +25,28 @@ function scoped(job, scope, id) {
 // 控制单个任务的查询频率；批量任务不再共用固定的每分钟查询额度。
 const delay = () => new Promise(resolve => setTimeout(resolve, 3000));
 
+const recoveringTasks = new Map();
+const recoveryListeners = new Map();
+/** @param {string} id */
+export const isOriginalTaskRecovering = id => recoveringTasks.has(id);
+/** @param {string} id @param {() => void} listener */
+export function subscribeOriginalTaskRecovery(id, listener) {
+  const listeners = recoveryListeners.get(id) || new Set();
+  listeners.add(listener);
+  recoveryListeners.set(id, listeners);
+  return () => {
+    listeners.delete(listener);
+    if (!listeners.size) recoveryListeners.delete(id);
+  };
+}
+function changeRecoveryCount(id, delta) {
+  const count = recoveringTasks.get(id) || 0;
+  const next = count + delta;
+  if (next) recoveringTasks.set(id, next);
+  else recoveringTasks.delete(id);
+  if (!count || !next) recoveryListeners.get(id)?.forEach(listener => listener());
+}
+
 async function failureMessage(host, job, options) {
   const fallback = job.result?.status >= 400 ? `上游返回 HTTP ${job.result.status}，生成失败。`
     : '原生成任务未成功；请查看任务状态后明确重试。';
@@ -52,7 +74,29 @@ async function run({ host, scope, prepare, bind, previous, recordTask, applyAndS
   'invalid_canvas_generation', '原画布生成接入不完整，没有改用直连接口。');
   const target = Object.freeze({ ...scope });
   const recovery = { signal, wait: retryWait };
-  const get = id => recoverGenerationResponse(async () => scoped(await host.get(id), target, id), recovery);
+  const get = async (id, lostSubmit = false) => {
+    let recovering = false;
+    const markRecovering = () => {
+      if (recovering || signal?.aborted) return;
+      recovering = true;
+      changeRecoveryCount(id, 1);
+    };
+    try {
+      if (lostSubmit) markRecovering();
+      return await recoverGenerationResponse(async () => {
+        try { return scoped(await host.get(id), target, id); }
+        catch (error) {
+          if (isGenerationConnectionError(error)) markRecovering();
+          throw error;
+        }
+      }, recovery);
+    } finally {
+      if (recovering) {
+        recovering = false;
+        changeRecoveryCount(id, -1);
+      }
+    }
+  };
   let descriptor = previous ? structuredClone(previous) : null, job, replacementId;
   requireValue(!recoverOnly || descriptor, 'generation_recovery_missing', '没有可查询的原任务记录，未发送新请求。', 409);
   if (descriptor) {
@@ -106,7 +150,7 @@ async function run({ host, scope, prepare, bind, previous, recordTask, applyAndS
       catch (error) {
         if (!isGenerationConnectionError(error)) throw error;
         // 提交可能已被接受并计费；响应丢失后只查询已保存的原ID。
-        job = await get(task.id);
+        job = await get(task.id, true);
       }
       if (cancelled) cancel();
     }

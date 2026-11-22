@@ -1,0 +1,123 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 701e69e..ab70ce1 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -271,6 +271,7 @@ function InfiniteCanvasPage() {
+     const historyPausedRef = useRef(false);
+     const rafRef = useRef<number | null>(null);
+     const nodeDraggingRef = useRef(false);
++    const dragHistoryStartRef = useRef<CanvasHistoryEntry | null>(null);
+     const dragRef = useRef<{
+         isDraggingNode: boolean;
+         hasMoved: boolean;
+@@ -417,6 +418,23 @@ function InfiniteCanvasPage() {
+         }),
+         [activeChatId, backgroundMode, chatSessions, projectId, showImageInfo],
+     );
++    const historyMatches = useCallback((previous: CanvasHistoryEntry, next: CanvasHistoryEntry) => (
++        previous.connections === next.connections &&
++        previous.deletedNodeBatches === next.deletedNodeBatches &&
++        previous.chatSessions === next.chatSessions &&
++        previous.activeChatId === next.activeChatId &&
++        previous.backgroundMode === next.backgroundMode &&
++        previous.showImageInfo === next.showImageInfo &&
++        sameCanvasValue(previous.nodes, next.nodes)
++    ), []);
++    const commitHistoryEntry = useCallback((next: CanvasHistoryEntry) => {
++        const previous = lastHistoryRef.current;
++        if (!previous || historyMatches(previous, next)) return;
++        historyRef.current.past = [...historyRef.current.past.slice(-49), previous];
++        historyRef.current.future = [];
++        lastHistoryRef.current = next;
++        setHistoryState({ canUndo: true, canRedo: false });
++    }, [historyMatches]);
+     const beforeCanvasRelease = useCallback(async () => {
+         if (titleEditing || cropNodeId || maskEditNodeId || splitNodeId || upscaleNodeId || angleNodeId || pluginManagerOpen || assetPickerOpen || applyingHistoryRef.current)
+             throw Error("画布仍有未完成的编辑窗口，暂不休眠。");
+@@ -679,27 +697,12 @@ function InfiniteCanvasPage() {
+         if (!projectLoaded || applyingHistoryRef.current || historyPausedRef.current) return;
+         const next = createHistoryEntry();
+         const previous = lastHistoryRef.current;
+-        if (
+-            previous && sameCanvasValue(previous.nodes, next.nodes) &&
+-            previous.connections === next.connections &&
+-            previous.deletedNodeBatches === next.deletedNodeBatches &&
+-            previous.chatSessions === next.chatSessions &&
+-            previous.activeChatId === next.activeChatId &&
+-            previous.backgroundMode === next.backgroundMode &&
+-            previous.showImageInfo === next.showImageInfo
+-        )
+-            return;
++        if (previous && historyMatches(previous, next)) return;
+ 
+         if (historyCommitTimerRef.current) clearTimeout(historyCommitTimerRef.current);
+         historyCommitTimerRef.current = setTimeout(() => {
+-            const current = createHistoryEntry();
+-            const last = lastHistoryRef.current;
+-            if (!last) return;
+-            historyRef.current.past = [...historyRef.current.past.slice(-49), last];
+-            historyRef.current.future = [];
+-            setHistoryState({ canUndo: true, canRedo: false });
+-            lastHistoryRef.current = current;
+             historyCommitTimerRef.current = null;
++            commitHistoryEntry(createHistoryEntry());
+         }, 180);
+ 
+         return () => {
+@@ -708,7 +711,7 @@ function InfiniteCanvasPage() {
+                 historyCommitTimerRef.current = null;
+             }
+         };
+-    }, [activeChatId, backgroundMode, chatSessions, connections, createHistoryEntry, deletedNodeBatches, nodes, projectLoaded, showImageInfo]);
++    }, [activeChatId, backgroundMode, chatSessions, commitHistoryEntry, connections, createHistoryEntry, deletedNodeBatches, historyMatches, nodes, projectLoaded, showImageInfo]);
+ 
+     useCanvasPersistence({
+         projectId, nodes, connections, chatSessions, activeChatId, backgroundMode, showImageInfo, viewport,
+@@ -1431,10 +1434,11 @@ function InfiniteCanvasPage() {
+             initialSelectedNodes,
+             movedIds: new Set(initialSelectedNodes.keys()),
+         };
++        dragHistoryStartRef.current = createHistoryEntry();
+         historyPausedRef.current = true;
+         nodeDraggingRef.current = true;
+         setIsNodeDragging(true);
+-    }, []);
++    }, [createHistoryEntry, nodesRef, selectNodeByEvent]);
+ 
+     const finishNodeDrag = useCallback((clientX?: number, clientY?: number) => {
+         if (rafRef.current) {
+@@ -1450,6 +1454,8 @@ function InfiniteCanvasPage() {
+         const dy = clientY == null ? 0 : (clientY - dragRef.current.startY) / currentViewport.k;
+         const initialPositions = dragRef.current.initialSelectedNodes;
+         const movedIds = dragRef.current.movedIds;
++        const beforeDrag = dragHistoryStartRef.current;
++        dragHistoryStartRef.current = null;
+ 
+         historyPausedRef.current = false;
+         nodeDraggingRef.current = false;
+@@ -1472,6 +1478,16 @@ function InfiniteCanvasPage() {
+                     return { ...node, metadata: { ...node.metadata, groupId } };
+                 });
+             });
++            // Release is a discrete edit; preview frames and text-edit debounce are not undo steps.
++            const afterDrag = createHistoryEntry();
++            if (beforeDrag && !historyMatches(beforeDrag, afterDrag)) {
++                if (historyCommitTimerRef.current) {
++                    clearTimeout(historyCommitTimerRef.current);
++                    historyCommitTimerRef.current = null;
++                }
++                commitHistoryEntry(beforeDrag);
++                commitHistoryEntry(afterDrag);
++            }
+         }
+ 
+         dragRef.current.isDraggingNode = false;
+@@ -1492,7 +1508,7 @@ function InfiniteCanvasPage() {
+                 }
+             }
+         }
+-    }, []);
++    }, [commitHistoryEntry, createHistoryEntry, historyMatches, nodesRef, setNodes]);
+ 
+     const handleGlobalMouseMove = useCallback(
+         (event: MouseEvent) => {

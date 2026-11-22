@@ -389,7 +389,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/generation/图片任务衔接.mjs",
       "原SHA256": "f5c95ebfdbce89144cdc5e5919183ddd252e51fbaa0ed7938fc8751fce6d1ed1",
       "类型": "前端",
-      "SHA256": "12070ca2ff272b256ac0bce0ed48c6f8cf59643676726c40d74dfdc6cbbc646a"
+      "SHA256": "22853da2d0210ac71f1e4c4032bd7ccccbfbd580c74f72768e738d8cfa5e4b8b"
     },
     {
       "来源": "扩展功能/画布生成/文本生成协议.ts",
@@ -659,7 +659,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/上游浏览器存储桥.ts",
       "原SHA256": "9bd9d38d869ab5609870a940b0aed287b8c6b2fb978d685fc2a03d90a225e67b",
       "类型": "前端",
-      "SHA256": "6777bfc0aa6a8834a60fc0be02fe7be1d81f8a8d9f7c8a3d17b048be5ffd6dbe"
+      "SHA256": "16f1fd9f1d019466290c21fe58eb3fa854485da95a704d18dadc1623723f47e3"
     },
     {
       "来源": "扩展功能/Excel画布/主题校准规则.ts",
@@ -755,7 +755,7 @@
       "原位置": ".运行/3100源/画布副本/web/src/guan/保存状态条.tsx",
       "原SHA256": "bd4e474ff247b6f496b1eabc6b39fabe58e4639efec6263df70c2a4610d47222",
       "类型": "前端",
-      "SHA256": "21d5c6f07bf28fd3d9494d85df4607ede57cb0962ed5d98760cf10132a5a0926"
+      "SHA256": "54969ee829c7f84552835767adebd15963b91d44a1b1aad4e0cf4b434606e640"
     },
     {
       "来源": "扩展功能/产品配置/功能开关.ts",
@@ -1087,7 +1087,13 @@
       "原位置": ".运行/3100源/画布副本/web/src/lib/canvas/canvas-import.ts",
       "原SHA256": "b356d75490015b984bc5036f95cdeb294568a0d41094ee6bb71808c6ec810560",
       "类型": "前端",
-      "SHA256": "77d18506e1061474a02b58aa51b0dd31b903910a95ddb5f7968976b07fc9cead"
+      "SHA256": "5cb9fbd20b20429ec67c17d2b7e556382b98485a545b926249cfbc8ac1e8e94a"
+    },
+    {
+      "来源": "扩展功能/画布导入/画布导入包读取.ts",
+      "目标": "画布副本/web/src/扩展功能/画布导入/画布导入包读取.ts",
+      "类型": "前端模块",
+      "SHA256": "633c63a47b4d349e97a7b64a74ecc4790904d3956ebadade6439e13e7a994ea4"
     },
     {
       "来源": "扩展功能/画布导入/画布导入数据.ts",
@@ -2083,7 +2089,7 @@
       "来源": "扩展功能/画布导入/当前画布导入操作.ts",
       "目标": "画布副本/web/src/扩展功能/画布导入/当前画布导入操作.ts",
       "类型": "前端模块",
-      "SHA256": "cbee19ef273b7b2c3180f585cd49bef59b9ba3e85e37e3633bc5a1afdddf2a88"
+      "SHA256": "542e23d8f228963166894ff0e98240a2e35d47d4e07a62e2e5a30ef96101c69e"
     },
     {
       "来源": "扩展功能/画布回收/节点回收操作.ts",
@@ -3000,7 +3006,7 @@
       "目标": "画布副本/web/src/扩展功能/画布连线/卡片浮层.tsx",
       "原位置": "源项目连线系统迁移",
       "类型": "前端",
-      "SHA256": "f0d9943aea00ed1af2d998ca41f7e05205bf02ed2b7cecbcb7f16c8d299a9d94"
+      "SHA256": "581e7d936a3bfef02c287d3286dda47dcfbf3c810b47397b99045175553c98d7"
     },
     {
       "来源": "扩展功能/画布连线/卡片端点层.tsx",
@@ -3625,7 +3631,7 @@
       "目标": "画布副本/web/src/扩展功能/Excel画布/商品提示词卡片.tsx",
       "原位置": "新增商品视觉策划功能",
       "类型": "前端",
-      "SHA256": "7c7e56da99d782b87cc2316d856b2dd0607b27506c1165b7feca5e616779fd77"
+      "SHA256": "4486314f3ed7b0c88078e3453a2acc16e9a3a31c6ca5e2de7273d9cc744a24d8"
     },
     {
       "来源": "扩展功能/Excel画布/商品变体生成按钮.tsx",
@@ -3905,7 +3911,7 @@
       "目标": "画布副本/web/src/扩展功能/主题/页签内容过渡.tsx",
       "原位置": "全部页签双向淡变组件",
       "类型": "前端",
-      "SHA256": "d5d1cdf559274cb0eb995d9cf9a2f8fc9feb1d246f499482bcb0f252d4130877"
+      "SHA256": "221a0be769050baab47594abaf3fc1fd10231de4c9846e2a9fcf9e635acfc098"
     },
     {
       "来源": "扩展功能/主题/统一页签横条.ts",
@@ -4294,7 +4300,7 @@
       "目标": "画布副本/web/src/扩展功能/画布交互/浮层可见区域.ts",
       "原位置": "浮层可见区域公共规则",
       "类型": "前端",
-      "SHA256": "5dffaee3fd8483249bacad237147a6ce92166b2949e969bc5d3bd45a819d7d9d"
+      "SHA256": "096d8e99016ebd205d4fde5d404f2842f390b4f9e2c9c374293fcaa9c3e1d793"
     },
     {
       "来源": "扩展功能/画布交互/浮层边界接线.ts",
@@ -4367,14 +4373,14 @@
       "目标": "画布副本/web/src/扩展功能/Excel画布/提示词变体选择.tsx",
       "原位置": "新增提示词变体选择联动",
       "类型": "前端",
-      "SHA256": "00cfc4e675986fc034f518e740f438ddc794e9edec4d2e343ed0993168f15405"
+      "SHA256": "5a2903e829adec08a9afb9ff32f045049cf5cd5d26e2512e036026b5bf6d469c"
     },
     {
       "来源": "扩展功能/Excel画布/提示词变体选择.module.css",
       "目标": "画布副本/web/src/扩展功能/Excel画布/提示词变体选择.module.css",
       "原位置": "新增提示词变体选择联动",
       "类型": "前端",
-      "SHA256": "07712f08376275635d21ef058c83c902cfb7e2f6b7fab49edf349ac92c39687a"
+      "SHA256": "71b24ff189f5ff6850ffdf7a4bce78c6737de999d3372a2de19c4591a655397b"
     },
     {
       "来源": "扩展功能/画布交互/原生浮层边界容器.ts",
@@ -4472,7 +4478,7 @@
       "目标": "画布副本/web/src/扩展功能/生成任务/图片自动重试状态.tsx",
       "类型": "前端",
       "原位置": "新增指定渠道图片自动重试",
-      "SHA256": "2edd69759a964ddf9234103857be6273f1c4e58479d5ff564c369e9e1cc26854"
+      "SHA256": "92bd8eead6eab26a818e606ac05276c2a8a1e0e1dc0e3f72860583c61ea73679"
     },
     {
       "来源": "扩展功能/网络代理/代理请求排队.mjs",
@@ -4690,6 +4696,18 @@
       "类型": "前端",
       "原位置": "旧产品内嵌图片连续预览",
       "SHA256": "85b2f9f52cafa87f9aa5762553115543ea677350066fcc81780ab1bd3fc0e027"
+    },
+    {
+      "来源": "扩展功能/画布交互/画布节点渲染依赖.ts",
+      "目标": "画布副本/web/src/扩展功能/画布交互/画布节点渲染依赖.ts",
+      "类型": "前端",
+      "SHA256": "55e518841c81df6f506347ce9e8a7a6cfbc93c9443113260532407a1c73f7cbb"
+    },
+    {
+      "来源": "扩展功能/画布交互/保持缩放聚焦.ts",
+      "目标": "画布副本/web/src/扩展功能/画布交互/保持缩放聚焦.ts",
+      "类型": "前端",
+      "SHA256": "943a7d4a4cfc3a2faaad5e22afa37b4b5b3f0bffc93b075442bb1b5d4f3a7727"
     }
   ],
   "接入差异": [
@@ -10720,6 +10738,212 @@
       "目标": "web/src/lib/canvas/plugin-node-context.ts",
       "职责": "变体勾选定点元数据更新",
       "SHA256": "6ed744a5279be0611c9660d4def3cabf196c4950542794b873fa924845ec42c0"
+    },
+    {
+      "文件": "上游适配/勾选变体隔离节点渲染.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "勾选变体隔离节点渲染",
+      "SHA256": "84b5a57aab37b323bbb9a28645835670e397a4261adaecd22f21e01534f72e0d",
+      "前态SHA256": "d2cc78175f0df0daa6947bfac8f385f8a7e8cc36eab30fe4fe26b4c4a47db7e8",
+      "后态SHA256": "9039a5e8b65f0b67846fb70f680ae6851aa8eed689cc11f70848c69b06ef97e7"
+    },
+    {
+      "文件": "上游适配/勾选变体隔离节点渲染节点依赖.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "勾选变体隔离节点渲染节点依赖",
+      "SHA256": "1cf5948e6c380588b05e79a6724b8a447552c9003ab86fe8616822593e69cdbd",
+      "前态SHA256": "2a2811adfd824e0120256edf04b69081c243cea3bd92e8ac2ca4d9e99c870efc",
+      "后态SHA256": "adff12b790a15a0a4a8e1d599c0df619729caf24f10bccec15dae19eaa13e3c0"
+    },
+    {
+      "文件": "上游适配/变体勾选配置刷新.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "变体勾选配置刷新",
+      "SHA256": "e17a004aba2706b028302cfceb2dfcef3e6cab7d92bfc7276fea36c4e4ab5d1e",
+      "前态SHA256": "9039a5e8b65f0b67846fb70f680ae6851aa8eed689cc11f70848c69b06ef97e7",
+      "后态SHA256": "f3c5c28e2b87f8b87ee171cdfcf520edb0364017d1a0fccd7c4b49efef9e7677"
+    },
+    {
+      "文件": "上游适配/变体勾选正文刷新.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "变体勾选正文刷新",
+      "SHA256": "4dd94ed8626a47835e42f0efa56904fe50114bc9653e59a3f4be5df63667e5bd",
+      "前态SHA256": "adff12b790a15a0a4a8e1d599c0df619729caf24f10bccec15dae19eaa13e3c0",
+      "后态SHA256": "59c5c13538a5546c9f5cebec8a62d7791fee90082faf7f774d1d5da329d9fb90"
+    },
+    {
+      "文件": "上游适配/提示词勾选不选中卡片.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "提示词勾选不选中卡片",
+      "SHA256": "c421a3bbd2c70bb4fd307e6003104125093c353362d0fccd63a44da03f3d931c",
+      "前态SHA256": "59c5c13538a5546c9f5cebec8a62d7791fee90082faf7f774d1d5da329d9fb90",
+      "后态SHA256": "6ef9af3071d17c18cd0ed6037359a990842d6a434538e4b749fa23ebe11295b5"
+    },
+    {
+      "文件": "上游适配/提示词库侧栏可见区按需加载.patch",
+      "目标": "web/src/components/canvas/canvas-side-panel.tsx",
+      "职责": "提示词库侧栏可见区按需加载",
+      "SHA256": "051faa7631d72ec9b6f9fbf9d8ec09998d4faa805ddd45eb1fee4ea1fa03d5e1",
+      "前态SHA256": "26753b7275c7c3b95f3b6c632cbac6c9802f12c5cae71f293d6a94436a3047a2",
+      "后态SHA256": "640f33062cfc5fde9d3d69c1e929bda216fdbba681f8e8e132582cde00dca83c"
+    },
+    {
+      "文件": "上游适配/节点拖动落点立即可撤销.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "节点拖动落点立即可撤销",
+      "SHA256": "920630cfe8d26f310d7a2a37095b4ea5ec51fde38247a6554cec0966434a7784",
+      "前态SHA256": "f3c5c28e2b87f8b87ee171cdfcf520edb0364017d1a0fccd7c4b49efef9e7677",
+      "后态SHA256": "8d809d7866671b2a88cd2b3edfa3fa8816ca5172de49e5717c61e6a6c5af40a3"
+    },
+    {
+      "文件": "上游适配/画布菜单关闭归还键盘焦点.patch",
+      "目标": "web/src/components/canvas/canvas-top-bar.tsx",
+      "职责": "画布菜单关闭归还键盘焦点",
+      "SHA256": "a3818e9ea5f2c20702ec4672ad914ae95d2dab4402903e1dc42b26374a77e6df",
+      "前态SHA256": "a6c487f21c0de18aa3199def098ed2594ff98d748b0a66c2b48dcd98c91983aa",
+      "后态SHA256": "1ab4285a1a171f86781f4ab0f9fd25096035a8179b1cd2d22fc5a0ed12ea2667"
+    },
+    {
+      "文件": "上游适配/侧栏搜索输入与结果分离.patch",
+      "目标": "web/src/components/canvas/canvas-side-panel.tsx",
+      "职责": "侧栏搜索输入与结果分离",
+      "SHA256": "b1ba47686f9deaca16da7a55fdcc0b28b71b6cde4d7ccc9d24600a37f4b82d28",
+      "前态SHA256": "640f33062cfc5fde9d3d69c1e929bda216fdbba681f8e8e132582cde00dca83c",
+      "后态SHA256": "05e1964c80caccf15b5635bf9705ac647649a18e800d1cf3b237681ad1d20b2a"
+    },
+    {
+      "文件": "上游适配/提示词正文粘贴保留换行.patch",
+      "目标": "web/src/components/canvas/canvas-prompt-chip-input.tsx",
+      "职责": "提示词正文粘贴保留换行",
+      "SHA256": "f757d66a7c7873a4921c7d83f74c2a0fca552a0f6168188c50eb62d0b7488274",
+      "前态SHA256": "779569e53253c9a25e76dd0d31d0327ecd35c9fcb9422dde96e6464ba321c9c5",
+      "后态SHA256": "bad4def1f00a10ca3b5581543ab06c828ebdfe9fec1b4232d3b896ee70f6c528"
+    },
+    {
+      "文件": "上游适配/提示词正文同步保留分行.patch",
+      "目标": "web/src/components/canvas/canvas-prompt-chip-input.tsx",
+      "职责": "提示词正文同步保留分行",
+      "SHA256": "8e40ff9d77f209dd79aaec5a37932a7adf11dd6f308b1ad796d0297cb08493e7",
+      "前态SHA256": "bad4def1f00a10ca3b5581543ab06c828ebdfe9fec1b4232d3b896ee70f6c528",
+      "后态SHA256": "b8db336e702a75cdb78e9982c59ea8941816938a966b7139afb2d548ee478176"
+    },
+    {
+      "文件": "上游适配/提示词弹窗暂隐原编辑浮层.patch",
+      "目标": "web/src/components/canvas/canvas-node-prompt-panel.tsx",
+      "职责": "提示词弹窗暂隐原编辑浮层",
+      "SHA256": "c5eced780312764469bcd7534b50ef1dd78a779c129ad30714b9a838fc3bf0c3",
+      "前态SHA256": "1ef6b27aca6ef46fef210edd9fd96f3287eb221e60579fc0ffab64b792ed289e",
+      "后态SHA256": "a05f53b903502ebe7cc9b879196de79f23a6057811e0a98e62631773518a9727"
+    },
+    {
+      "文件": "上游适配/节点提示词库交接浮层状态.patch",
+      "目标": "web/src/components/canvas/canvas-prompt-library.tsx",
+      "职责": "节点提示词库交接浮层状态",
+      "SHA256": "d8a499031bfcd23bbdccb89c789c7bfbb332bce203fed0b569205d59d181dec2",
+      "前态SHA256": "2bd4d0c3e2f01cf1a0dcc79128250f61e7242b8ce8a14d6be111d962a5f19723",
+      "后态SHA256": "7c816810c02ad094cd9d01140bc5ff9b2a2b286eb1d15b39e7f623db681c2d6d"
+    },
+    {
+      "文件": "上游适配/提示词选择弹窗返回入口.patch",
+      "目标": "web/src/components/prompts/prompt-select-dialog.tsx",
+      "职责": "提示词选择弹窗返回入口",
+      "SHA256": "9dab85c023fd6f9b2d788af46d147d42b218af60346cecab00a5e27325d2bc26",
+      "前态SHA256": "44777a9a31bef473183093859d5387f242d66e96541e1aea5081876deca26a58",
+      "后态SHA256": "9555ae162efe962d78b9f61d5b763c16c23ae734c54ebffe21b317b6afaec131"
+    },
+    {
+      "文件": "上游适配/提示词浮层退场后恢复键盘焦点.patch",
+      "目标": "web/src/components/canvas/canvas-node-prompt-panel.tsx",
+      "职责": "提示词浮层退场后恢复键盘焦点",
+      "SHA256": "b42d1db638ceb547cce417be765a3f3327f0fed1a6e55fe81fdb31ba795f0932",
+      "前态SHA256": "a05f53b903502ebe7cc9b879196de79f23a6057811e0a98e62631773518a9727",
+      "后态SHA256": "0e65857c17ab6902dd55e8b6b078ab0ca026b8c02adbcab19baff81ff11ecf4d"
+    },
+    {
+      "文件": "上游适配/提示词浮层等待弹窗释放焦点.patch",
+      "目标": "web/src/components/canvas/canvas-node-prompt-panel.tsx",
+      "职责": "提示词浮层等待弹窗释放焦点",
+      "SHA256": "39745bfd5952494e5d21deffab2def2ed5c42147910e90cbee6b4ab3519fd934",
+      "前态SHA256": "0e65857c17ab6902dd55e8b6b078ab0ca026b8c02adbcab19baff81ff11ecf4d",
+      "后态SHA256": "f4982bb618095fbeda1f0f2887e5918e90ac0d76e2dd203e668fe9a02ed2609c"
+    },
+    {
+      "文件": "上游适配/侧栏资产上传逐项反馈.patch",
+      "目标": "web/src/components/canvas/canvas-side-panel.tsx",
+      "职责": "侧栏资产上传逐项反馈",
+      "SHA256": "6459dd69096674590f7a617654b6bec2e4224760f3d78e76efc95b50143bb10a",
+      "前态SHA256": "05e1964c80caccf15b5635bf9705ac647649a18e800d1cf3b237681ad1d20b2a",
+      "后态SHA256": "2c966ca118bcf8e8f24e41cd61e7d8e39b003d69c48dcada869ea128a612f994"
+    },
+    {
+      "文件": "上游适配/侧栏资产上传中文反馈.patch",
+      "目标": "web/src/i18n/locales/zh-CN.ts",
+      "职责": "侧栏资产上传中文反馈",
+      "SHA256": "a49ae815ce4383f43e0779940056825c5482a387b1d923c2f86e1bbcf5faf28b",
+      "前态SHA256": "def9f1b68909eeb123a592249dd611a301b946d03e5993efb7f128e5bb1f3917",
+      "后态SHA256": "d9fdfd558431f89841c671c193adae462994498895cdbc1a8b1e156707a1531d"
+    },
+    {
+      "文件": "上游适配/侧栏资产上传英文反馈.patch",
+      "目标": "web/src/i18n/locales/en-US.ts",
+      "职责": "侧栏资产上传英文反馈",
+      "SHA256": "f7809f17d8b8b20dceea5e352a199c35c22fa5432e751114342b5ced24e09a0d",
+      "前态SHA256": "08e543f99dfa24db15b117c404a9789374befd7e022528c55139c5e0b0398eac",
+      "后态SHA256": "eca70d3cab479d36c84bf7a6c6f6115964c876cc698ae8083b06207812a1ad3e"
+    },
+    {
+      "文件": "上游适配/画布拖入不支持格式反馈.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "画布拖入不支持格式反馈",
+      "SHA256": "75ccc4d155579c407f6726c206dbfce8623c556b6168d716dac7a9f15b364420",
+      "前态SHA256": "8d809d7866671b2a88cd2b3edfa3fa8816ca5172de49e5717c61e6a6c5af40a3",
+      "后态SHA256": "ce281503ff22b0003983b557972d861ced341c1ccd80de286c2cdcd64a3a33de"
+    },
+    {
+      "文件": "上游适配/卡片自动聚焦保持当前缩放.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "卡片自动聚焦保持当前缩放",
+      "SHA256": "50c2bd09201f86ae60c02390ddbbe6858b785f95a1e65ede7d79504db4ab9ea9",
+      "前态SHA256": "ce281503ff22b0003983b557972d861ced341c1ccd80de286c2cdcd64a3a33de",
+      "后态SHA256": "1880db66db59cb6483341e815fdef24c28b23d82e49b95f21d2c4a68da2f75a4"
+    },
+    {
+      "文件": "上游适配/卡片点击时捕获倍率.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "卡片点击时捕获倍率",
+      "SHA256": "2ce0858b6b3f8ffe23aa7e7a816192232e9ccd59ef9658ca0f58e9ef80bb406d",
+      "前态SHA256": "1880db66db59cb6483341e815fdef24c28b23d82e49b95f21d2c4a68da2f75a4",
+      "后态SHA256": "9ad531de79a386a933d56cceaa87405c237a6c99c5abeb17d640f486b541e863"
+    },
+    {
+      "文件": "上游适配/鼠标点击节点跳过焦点自动聚焦.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "鼠标点击节点不触发焦点自动聚焦",
+      "SHA256": "8dfbd79e92f06b760aea39419e3c9d840fc78d5c40082b168fc1541d7f68c52b"
+    },
+    {
+      "文件": "上游适配/卡片聚焦使用按下时倍率.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "卡片聚焦使用按下时倍率",
+      "SHA256": "d2c769c57e04f9bc9982da21ca2328c4ae2417781f52a5ad35af421b4b47ac33",
+      "前态SHA256": "9ad531de79a386a933d56cceaa87405c237a6c99c5abeb17d640f486b541e863",
+      "后态SHA256": "24f11a69b96c00e060a84ca47b37d656fc6b189008f8c571d9d0de4a74f44697"
+    },
+    {
+      "文件": "上游适配/鼠标点击聚焦延迟保护.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "鼠标点击聚焦延迟保护",
+      "SHA256": "8752ee6fb1ed1b1d0b859a6fed61a19815e44c30bfc3f88c6f218773fbda2dfb",
+      "前态SHA256": "5946926ecea8b8148e5f9da4bc7e8ea4da2cc9c47134d4af1ef11173f64e4493",
+      "后态SHA256": "767581401bc67b504673241fb119c9688caf2fbd662313efba311e812cdc844c"
+    },
+    {
+      "文件": "上游适配/卡片编辑器等待画布平移.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "卡片编辑器等待画布平移",
+      "SHA256": "99b7005e690731df31034ed63a966597dbedf9e2bbe9253b093dce4cc66091df",
+      "前态SHA256": "24f11a69b96c00e060a84ca47b37d656fc6b189008f8c571d9d0de4a74f44697",
+      "后态SHA256": "18acd8e5dd2ecd7cf29aac613596ef59d24b82aafd85ce9a50ffcbbe860f203e"
     }
   ]
 }

@@ -1,0 +1,13 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index bc31c3b..6d52e84 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -418,7 +418,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+                 onHoverEnd(data.id);
+             }}
+             onMouseDownCapture={(event) => {
+-                pointerFocusUntilRef.current = performance.now() + 250;
++                pointerFocusUntilRef.current = performance.now() + 1500;
+                 const target = event.target as Element;
+                 if (target.closest("[data-card-panel-anchor], button")) return;
+                 if (data.type === "guan:product-prompt" && target.closest("input[type='checkbox'], label:has(input[type='checkbox'])")) return;

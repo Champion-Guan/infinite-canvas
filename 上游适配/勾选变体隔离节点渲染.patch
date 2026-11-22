@@ -1,0 +1,77 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index a3a1594..47dd253 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -127,6 +127,7 @@ import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
+ import { useAgentBridge } from "@/pages/canvas/hooks/use-agent-bridge";
+ import { usePluginHost } from "@/pages/canvas/hooks/use-plugin-host";
+ import { buildNodeMentionReferences, getGroupResourceNodes, isCanvasReferenceNode, type CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
++import { buildCanvasNodeRenderDependencies, reuseCanvasResourceReferences } from "@/扩展功能/画布交互/画布节点渲染依赖";
+ import { exportCanvasProjects } from "@/lib/canvas/canvas-export";
+ import { GENERATED_CONNECTION_DELETE_NOTICE, isGeneratedResultConnection, useCanvasConnectionDeletion } from "@/扩展功能/画布生成/生成连线保护";
+ import { applyNodeConfigPatch, audioMetadata, buildAudioGenerationMetadata, buildImageGenerationMetadata, createCanvasNode, imageMetadata, videoMetadata } from "@/lib/canvas/canvas-node-factory";
+@@ -926,6 +927,12 @@ function InfiniteCanvasPage() {
+         ready: projectLoaded && productActive, interacting: isCanvasPanning, setNodes: setRawNodes, onError: setRestoreError });
+     const nodeById = useMemo(() => new Map(nodes.map(node => [node.id, node])), [nodes]);
+     const contentNodeById = useMemo(() => new Map(contentNodes.map(node => [node.id, node])), [contentNodes]);
++    const renderDependenciesRef = useRef(new Map<string, CanvasNodeData[]>());
++    const renderDependenciesByNodeId = useMemo(() => {
++        const next = buildCanvasNodeRenderDependencies(contentNodes, connections, renderDependenciesRef.current);
++        renderDependenciesRef.current = next;
++        return next;
++    }, [connections, contentNodes]);
+     const { connectionGeometry, connectionFocus, obscuredResultIds, connectionPreviewNodeIds, setConnectionPreviewNodeIds, cardEndpointTarget, setCardEndpointTarget, cardPanelTarget, setCardPanelTarget, connectionFocusTarget, setConnectionFocusTarget, setDisplayConnectionIds, keepFocusBehindCards, portAlignmentGuide, setPortAlignmentGuide } = useCanvasConnectionSystem(connections, displayNodeById, selectedNodeIds, selectedConnectionId, hoveredNodeId);
+     const queryVisibleConnections = useMemo(() => createVisibilityIndex(connectionGeometry, item => item.bounds), [connectionGeometry]);
+     const visibleConnections = useMemo(() => queryVisibleConnections(viewBounds), [queryVisibleConnections, viewBounds]);
+@@ -991,9 +998,15 @@ function InfiniteCanvasPage() {
+         });
+         return map;
+     }, [connections, contentNodes]);
++    const mentionReferencesByNodeIdRef = useRef(new Map<string, ReturnType<typeof buildNodeMentionReferences>>());
+     const mentionReferencesByNodeId = useMemo(() => {
++        const previous = mentionReferencesByNodeIdRef.current;
+         const map = new Map<string, ReturnType<typeof buildNodeMentionReferences>>();
+-        contentNodes.forEach((node) => map.set(node.id, buildNodeMentionReferences(node, contentNodes, connections)));
++        contentNodes.forEach((node) => map.set(
++            node.id,
++            reuseCanvasResourceReferences(previous.get(node.id), buildNodeMentionReferences(node, contentNodes, connections)),
++        ));
++        mentionReferencesByNodeIdRef.current = map;
+         return map;
+     }, [connections, contentNodes]);
+     const connectedNodesByNodeId = useMemo(() => {
+@@ -3212,6 +3225,13 @@ function InfiniteCanvasPage() {
+         [configInputsById, confirmStopGeneration, handleConfigNodeChange, handleGenerateNode, runningNodeIds, contentNodes, connections, effectiveConfig.canvasImageCount, effectiveConfig.count],
+     );
+ 
++    const renderNodePanelRef = useRef(renderNodePanel);
++    renderNodePanelRef.current = renderNodePanel;
++    const stableRenderNodePanel = useCallback((node: CanvasNodeData) => renderNodePanelRef.current(node), []);
++    const renderNodeContentPanelRef = useRef(renderNodeContentPanel);
++    renderNodeContentPanelRef.current = renderNodeContentPanel;
++    const stableRenderNodeContentPanel = useCallback((node: CanvasNodeData) => renderNodeContentPanelRef.current(node), []);
++
+     const hoverPreviewNode = hoverPreviewNodeId ? nodeById.get(hoverPreviewNodeId) || null : null;
+     const hoverPreviewMedia =
+         hoverPreviewNode && (hoverPreviewNode.type === CanvasNodeType.Image || hoverPreviewNode.type === CanvasNodeType.Video) && hoverPreviewNode.metadata?.content
+@@ -3304,6 +3324,7 @@ function InfiniteCanvasPage() {
+                         <CanvasNode
+                             key={node.id}
+                             data={node}
++                            renderDependencies={renderDependenciesByNodeId.get(node.id)}
+                             endpointTarget={cardEndpointTarget}
+                             panelTarget={cardPanelTarget}
+                             isConnectionObscured={obscuredResultIds.has(node.id)}
+@@ -3343,8 +3364,10 @@ function InfiniteCanvasPage() {
+                                       return parameterId ? nodeById.get(parameterId) : undefined;
+                                   })()
+                                   : undefined}
+-                            renderPanel={renderNodePanel}
+-                            renderNodeContent={renderNodeContentPanel}
++                            renderPanel={!isNodeResizing && dialogNodeId === node.id && !selectionBox && !getNodeDefinition(node.type)?.hidePanel
++                                ? renderNodePanel
++                                : stableRenderNodePanel}
++                            renderNodeContent={stableRenderNodeContentPanel}
+                             onMouseDown={handleNodeMouseDown}
+                             onSelectCapture={handleNodeSelectCapture}
+                             onHoverStart={handleNodeHoverStart}

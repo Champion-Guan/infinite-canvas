@@ -140,7 +140,7 @@ function actualHistoryCallback(name, context) {
     const visit = item => {
         if (typescript.isVariableDeclaration(item) && item.name.getText(historySource) === name) callback = item.initializer.arguments[0];
         if (name === 'recordHistory' && typescript.isCallExpression(item) && item.expression.getText(historySource) === 'useEffect'
-            && item.arguments[0].getText(historySource).includes('sameCanvasValue(previous.nodes, next.nodes)')) callback = item.arguments[0];
+            && item.arguments[0].getText(historySource).includes('commitHistoryEntry(createHistoryEntry())')) callback = item.arguments[0];
         typescript.forEachChild(item, visit);
     };
     visit(historySource); assert.ok(callback, '缺少真实画布历史入口：' + name);
@@ -168,6 +168,8 @@ function historyFixture(project, writes, applied) {
         setTimeout: callback => { timers.add(callback); return callback; }, clearTimeout: callback => timers.delete(callback),
     };
     context.createHistoryEntry = actualHistoryCallback('createHistoryEntry', context);
+    context.historyMatches = actualHistoryCallback('historyMatches', context);
+    context.commitHistoryEntry = actualHistoryCallback('commitHistoryEntry', context);
     const apply = actualHistoryCallback('applyHistory', context);
     context.applyHistory = value => { applied.push(value); apply(value); };
     context.undo = actualHistoryCallback('undoCanvas', context);

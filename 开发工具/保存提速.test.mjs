@@ -438,6 +438,7 @@ test('编码失败保留快照并阻止已保存误报；重试重新编码且�
   b.advance(1000); await assert.rejects(save, /合成编码失败/);
   assert.equal(b.operations.length, 0);
   assert.equal(b.storageStatus().state, 'error'); assert.equal(b.storageStatus().pending, 1);
+  assert.deepEqual(b.storageStatus().failure, { namespace: 'app_state', code: 'save_prepare_failed', stage: 'prepare' });
   await assert.rejects(b.flushSQLiteStorage());
   await assert.rejects(b.retrySQLiteStorage(), /编码失败/);
   assert.equal(b.storageStatus().state, 'error'); assert.equal(encodings, 2);
@@ -446,6 +447,7 @@ test('编码失败保留快照并阻止已保存误报；重试重新编码且�
   assert.equal(b.operations.length, 1); assert.equal(b.storageStatus().state, 'saving');
   b.operations[0].resolve(); await retry; await b.flushSQLiteStorage();
   assert.equal(encodings, 3); assert.equal(b.storageStatus().state, 'saved');
+  assert.equal(b.storageStatus().failure, null);
 });
 
 test('编码失败后新编辑替代旧候选，重试不恢复过时内容', async () => {
@@ -466,6 +468,7 @@ test('提交前同步失败保留已编码候选，重试不因缓存相同而�
   const save = b.scheduleStateSave('画布', () => { encodings++; return '尚未提交的画布'; });
   b.advance(1000); await assert.rejects(save, /同步失败/);
   assert.equal(b.storageStatus().state, 'error'); assert.equal(b.operations.length, 0);
+  assert.equal(b.storageStatus().failure?.code, 'save_prepare_failed');
   await assert.rejects(b.retrySQLiteStorage());
   assert.equal(b.storageStatus().state, 'error');
   fail = false; await b.retrySQLiteStorage(); await b.flushSQLiteStorage();

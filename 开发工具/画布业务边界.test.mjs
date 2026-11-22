@@ -90,9 +90,12 @@ test('确认清理保存失败后仅重试保存；节点不存在时不记录�
 test('导入期间切走原画布会停止应用，清理此次素材并保留原历史', async () => {
   let assertions = 0, applied = 0, saves = 0;
   const removed = [], errors = [], historyRef = { current: { past: [], future: [] } };
+  const importPackage = await load('画布导入/画布导入包读取.ts', {
+    '@/lib/zip': { readZip: async () => new Map([['projects.json', { text: async () => '{}' }]]) },
+  });
   const { useCanvasContentImport } = await load('画布导入/当前画布导入操作.ts', {
     react: hooks,
-    '@/lib/zip': { readZip: async () => new Map([['projects.json', { text: async () => '{}' }]]) },
+    './画布导入包读取': importPackage,
     '@/services/image-storage': { setImageBlob: async () => {}, deleteStoredImages: async keys => removed.push(...keys) },
     '@/services/file-storage': { setMediaBlob: async () => {}, deleteStoredMedia: async () => {} },
     '@/lib/canvas/canvas-generation-helpers': { hydrateCanvasImages: async nodes => nodes },

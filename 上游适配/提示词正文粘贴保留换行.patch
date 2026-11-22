@@ -1,0 +1,22 @@
+diff --git a/web/src/components/canvas/canvas-prompt-chip-input.tsx b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+index 5c7ff9d..66102a2 100644
+--- a/web/src/components/canvas/canvas-prompt-chip-input.tsx
++++ b/web/src/components/canvas/canvas-prompt-chip-input.tsx
+@@ -136,7 +136,7 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
+         <div className="relative min-h-0 w-full" style={{ height: className?.includes("h-full") ? "100%" : undefined }}>
+             <div
+                 ref={editorRef}
+-                contentEditable
++                contentEditable="plaintext-only"
+                 suppressContentEditableWarning
+                 role="textbox"
+                 aria-multiline="true"
+@@ -394,7 +394,7 @@ function caretRect(): DOMRect | null {
+ 
+ function closestEditor(node: Node) {
+     const element = node instanceof Element ? node : node.parentElement;
+-    return element?.closest("[contenteditable='true']") || null;
++    return element?.closest("[contenteditable='plaintext-only']") || null;
+ }
+ 
+ function placeCaretAtEnd(element: HTMLElement) {

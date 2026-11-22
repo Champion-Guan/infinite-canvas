@@ -2,6 +2,24 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { variantModules } from './产品变体生成夹具.mjs';
 
+test('导入包读取错误区分坏压缩包、缺少画布和无法读取画布数据', async () => {
+    const unzipError = new Error('invalid zip data');
+    const file = new File(['zip'], '客户包.zip');
+    for (const [readZip, message, cause] of [
+        [async () => { throw unzipError; }, /文件可能已损坏或未下载完整/, unzipError],
+        [async () => new Map(), /请选择工作台导出的 ZIP 文件/],
+        [async () => new Map([['projects.json', new Blob(['{'])]]), /画布数据无法读取/, SyntaxError],
+    ]) {
+        const { readCanvasImportPackage } = variantModules({ '@/lib/zip': { readZip } }).load('画布导入/画布导入包读取.ts');
+        await assert.rejects(readCanvasImportPackage(file), error => {
+            assert.match(error.message, message);
+            if (cause === SyntaxError) assert.ok(error.cause instanceof SyntaxError);
+            else assert.equal(error.cause, cause);
+            return true;
+        });
+    }
+});
+
 test('导入归档来源任务身份并保留全部结果、错误和历史，重复处理不嵌套归档', () => {
     const { portableTaskSnapshot } = variantModules().load('画布导入/导入任务快照.ts');
     const value = { nodes: [{ id: 'result', type: 'image', metadata: { status: 'success', storageKey: 'image:original',

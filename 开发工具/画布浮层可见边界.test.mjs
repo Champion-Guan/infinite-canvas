@@ -84,11 +84,58 @@ test('客户截图的侧边停靠不覆盖宽于卡片的功能栏，满视区�
         || panel.top + panel.height <= obstacle.top - 12 || panel.top >= obstacle.bottom + 12);
     const huge = { position: { x: 100, y: 300 }, width: 1000, height: 800 };
     const next = rules.revealCanvasPanel({ x: 0, y: 0, k: 4 }, huge, safe, { left: 248, top: 84, right: 1440, bottom: 722 });
+    assert.equal(next.k, 4, '面板腾位只平移，不自动缩小');
     const rect = { left: 248 + next.x + huge.position.x * next.k, right: 248 + next.x + (huge.position.x + huge.width) * next.k,
         top: 84 + next.y + huge.position.y * next.k - 60, bottom: 84 + next.y + (huge.position.y + huge.height) * next.k };
     const fit = rules.placeCanvasPanel(rect, { width: 600, height: 313 }, safe);
     assert.ok(fit.width >= 240 && fit.height >= 140);
     assert.ok(fit.top >= rect.bottom + 12 || fit.left + fit.width <= rect.left - 12 || fit.left >= rect.right + 12 || fit.top + fit.height <= rect.top - 12);
+});
+
+test('卡片编辑器等待画布结束平移后才定位并显示', t => {
+    let moving = true, layout, queued, onMotionChange, styleUpdates = 0;
+    const rect = { left: 390, right: 690, top: 250, bottom: 440 };
+    const source = { getBoundingClientRect: () => rect, closest: () => null };
+    const viewport = { querySelector: () => source, getAttribute: () => String(moving) };
+    const globals = {
+        CSS: { escape: value => value }, document: { body: {} },
+        window: { addEventListener() {}, removeEventListener() {} },
+        requestAnimationFrame: callback => (queued = callback, 1), cancelAnimationFrame() {},
+        ResizeObserver: class { observe() {} disconnect() {} },
+        MutationObserver: class { constructor(callback) { onMotionChange = callback; } observe() {} disconnect() {} },
+    };
+    const previous = Object.fromEntries(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+    for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, value });
+    t.after(() => {
+        for (const [key, descriptor] of Object.entries(previous)) {
+            if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+            else delete globalThis[key];
+        }
+    });
+    const { CardPanelLayer } = variantModules({
+        react: {
+            useLayoutEffect: effect => { layout = effect; },
+            useRef: () => ({ current: { scrollHeight: 260, clientWidth: 600 } }),
+            useState: initial => [initial, update => {
+                if (typeof update === 'function' && update(initial).visibility === 'visible') styleUpdates++;
+            }],
+        },
+        'react/jsx-runtime': { jsx() {} }, 'react-dom': { createPortal() {} },
+        'motion/react': { motion: {}, useIsPresent: () => true, useReducedMotion: () => false },
+        '../产品/产品界面边界': { useProductActive: () => true },
+        '../主题/苹果动效': {},
+        '../画布交互/浮层可见区域': { ...rules, readCanvasFloatingBounds: () => bounds },
+    }).load('画布连线/卡片浮层.tsx');
+    CardPanelLayer({ node: { id: 'image', position: { x: 0, y: 0 }, width: 300, height: 190 }, target: { closest: () => viewport } });
+    const cleanup = layout();
+    try {
+        assert.equal(styleUpdates, 0);
+        onMotionChange(); queued();
+        assert.equal(styleUpdates, 0);
+        moving = false;
+        onMotionChange(); queued();
+        assert.equal(styleUpdates, 1);
+    } finally { cleanup(); }
 });
 
 test('左右面板紧邻卡片且顶边对齐，不被顶部宽功能栏推远', () => {

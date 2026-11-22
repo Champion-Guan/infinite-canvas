@@ -39,10 +39,13 @@ export function fitNodeToolbar(rect: FloatingRect, bounds: FloatingRect, obstacl
 
 export function revealCanvasPanel(view: { x: number; y: number; k: number }, node: { position: { x: number; y: number }; width: number; height: number }, bounds: FloatingRect, canvas: FloatingRect) {
     const height = bounds.bottom - bounds.top, width = bounds.right - bounds.left;
-    const cardHeight = Math.max(24, height * .38 - 48);
-    const k = Math.min(view.k, cardHeight / Math.max(node.height, 1), (width - 24) / Math.max(node.width, 1));
-    return { k, x: (bounds.left + bounds.right) / 2 - canvas.left - (node.position.x + node.width / 2) * k,
-        y: bounds.top + 60 - canvas.top - node.position.y * k };
+    const k = view.k, cardWidth = node.width * k, cardHeight = node.height * k;
+    const gap = 12;
+    const sideBySide = width - cardWidth >= Math.min(320, width * .55) + gap || (width >= 520 && height < 400);
+    const editorWidth = Math.min(600, Math.max(Math.min(320, width * .55), width - cardWidth - gap));
+    const cardLeft = sideBySide ? bounds.right - editorWidth - gap - cardWidth : bounds.left + (width - cardWidth) / 2;
+    const cardTop = sideBySide ? bounds.top : bounds.top + Math.min(cardHeight, height * .4) - cardHeight;
+    return { k, x: cardLeft - canvas.left - node.position.x * k, y: cardTop - canvas.top - node.position.y * k };
 }
 
 export function placeCanvasPanel(anchor: FloatingRect, size: { width: number; height: number }, bounds: FloatingRect, toolbar?: FloatingRect) {

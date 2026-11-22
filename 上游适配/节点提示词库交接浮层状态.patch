@@ -1,0 +1,48 @@
+diff --git a/web/src/components/canvas/canvas-prompt-library.tsx b/web/src/components/canvas/canvas-prompt-library.tsx
+index f401f0b..18ca981 100644
+--- a/web/src/components/canvas/canvas-prompt-library.tsx
++++ b/web/src/components/canvas/canvas-prompt-library.tsx
+@@ -1,6 +1,5 @@
+ import { businessFeatures } from "@/扩展功能/产品配置/脚本与提示词来源";
+ import { useProductActive } from "@/扩展功能/产品/产品界面边界";
+-import { useState } from "react";
+ import { Button } from "antd";
+ import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+ import { BookOpen } from "lucide-react";
+@@ -10,10 +9,15 @@ import { PromptSelectDialog } from "@/components/prompts/prompt-select-dialog";
+ import { canvasThemes } from "@/lib/canvas-theme";
+ import { useThemeStore } from "@/stores/use-theme-store";
+ 
+-export function CanvasPromptLibrary({ onSelect }: { onSelect: (prompt: string) => void }) {
++export function CanvasPromptLibrary({ triggerId, open, onOpenChange, afterClose, onSelect }: {
++    triggerId: string;
++    open: boolean;
++    onOpenChange: (open: boolean) => void;
++    afterClose: () => void;
++    onSelect: (prompt: string) => void;
++}) {
+     const { t } = useTranslation();
+     const productActive = useProductActive();
+-    const [open, setOpen] = useState(false);
+     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+ 
+     if (!businessFeatures.promptLibrary) return null;
+@@ -22,15 +26,16 @@ export function CanvasPromptLibrary({ onSelect }: { onSelect: (prompt: string) =
+         <>
+             <Tooltip title={t("navigation.prompts")}>
+                 <Button
++                    id={triggerId}
+                     type="text"
+                     className="!h-8 !w-8 !min-w-8 shrink-0 !rounded-full !bg-transparent !p-0"
+                     style={{ color: theme.node.text }}
+                     icon={<BookOpen className="size-3.5" />}
+-                    onClick={() => setOpen(true)}
++                    onClick={() => onOpenChange(true)}
+                     aria-label={t("navigation.prompts")}
+                 />
+             </Tooltip>
+-            <PromptSelectDialog open={productActive && open} onOpenChange={setOpen} onSelect={onSelect} />
++            <PromptSelectDialog triggerId={triggerId} open={productActive && open} onOpenChange={onOpenChange} afterClose={afterClose} onSelect={onSelect} />
+         </>
+     );
+ }

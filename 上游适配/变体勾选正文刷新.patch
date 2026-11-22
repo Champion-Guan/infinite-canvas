@@ -1,0 +1,47 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 5379ad2..93f0dde 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -94,6 +94,7 @@ type NodeContentRendererProps = {
+     scale: number;
+     renderNodeContent?: (node: CanvasNodeData) => ReactNode;
+     pluginContext?: CanvasNodeContext | null;
++    renderDependencies?: CanvasNodeData[];
+     promptHighlightSource?: CanvasNodeData;
+     promptHighlightParameters?: CanvasNodeData;
+ 
+@@ -133,6 +134,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+     pluginHost,
+     promptHighlightSource,
+     promptHighlightParameters,
++    renderDependencies,
+     renderPanel,
+     renderNodeContent,
+     groupChildCount = 0,
+@@ -366,7 +368,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+         theme={theme} isEditingContent={isEditingContent} textareaRef={textareaRef}
+         isCanvasOverview={isCanvasOverview}
+         isBatchRoot={isBatchRoot} batchCount={batchCount} batchExpanded={batchExpanded} scale={contentScaleValue}
+-        renderNodeContent={renderNodeContent} pluginContext={pluginContentContext} mentionReferences={mentionReferences}
++        renderNodeContent={renderNodeContent} pluginContext={pluginContentContext} renderDependencies={renderDependencies} mentionReferences={mentionReferences}
+         onContentChange={onContentChange} onStopEditing={() => setIsEditingContent(false)} onRetry={onRetry}
+         onToggleBatch={() => onToggleBatch?.(data.id)} onSetBatchPrimary={itemId => onSetBatchPrimary?.(data.id, itemId)}
+         onDuplicateBatchImage={imageId => onDuplicateBatchImage?.(data, imageId)}
+@@ -375,7 +377,7 @@ export const CanvasNode = React.memo(function CanvasNode({
+         onDeleteBatchImage={imageId => onDeleteBatchImage?.(data.id, imageId)}
+         onViewBatchImage={imageId => onViewImage?.(data, imageId)} groupChildCount={groupChildCount}
+     />, [data, promptHighlightSource, promptHighlightParameters, theme, isEditingContent, isBatchRoot, batchCount,
+-        batchExpanded, contentScaleValue, renderNodeContent, pluginContentContext, mentionReferences, onContentChange,
++        batchExpanded, contentScaleValue, renderNodeContent, pluginContentContext, renderDependencies, mentionReferences, onContentChange,
+         onRetry, onToggleBatch, onSetBatchPrimary, onDuplicateBatchImage, onDownloadBatchImage, onRetryBatchImage,
+         onDeleteBatchImage, onViewImage, groupChildCount, textareaRef, isCanvasOverview]);
+ 
+@@ -566,7 +568,7 @@ function NodeContent(props: NodeContentRendererProps) {
+     // Render plugin nodes with their registered renderer, or show the missing-plugin placeholder.
+     const definition = getNodeDefinition(props.node.type);
+     if (definition?.Content && props.pluginContext) {
+-        return <PluginNodeBody Content={definition.Content} ctx={props.pluginContext} revision={props.renderNodeContent} />;
++        return <PluginNodeBody Content={definition.Content} ctx={props.pluginContext} revision={props.renderDependencies} />;
+     }
+     return <MissingPluginContent theme={props.theme} type={props.node.type} />;
+ }

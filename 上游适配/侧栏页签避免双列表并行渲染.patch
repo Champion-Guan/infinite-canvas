@@ -1,0 +1,7 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+index 0c442b0..0c442b1 100644
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -172,7 +172,7 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+-                <TabContentTransition transitionKey={`${projectId}:${tab}`} enabled={productActive && panelOpen} className="h-full min-h-0 overflow-hidden">
++                <TabContentTransition transitionKey={`${projectId}:${tab}`} enabled={productActive && panelOpen} keepPrevious={false} className="h-full min-h-0 overflow-hidden">

@@ -1,6 +1,6 @@
 // 当前画布ZIP追加及失败素材回收；与顶栏新建产品导入分开。
 import { useCallback, useRef } from "react";
-import { readZip } from "@/lib/zip";
+import { readCanvasImportPackage } from "./画布导入包读取";
 import { setImageBlob, deleteStoredImages } from "@/services/image-storage";
 import { setMediaBlob, deleteStoredMedia } from "@/services/file-storage";
 import { hydrateCanvasImages } from "@/lib/canvas/canvas-generation-helpers";
@@ -24,10 +24,8 @@ export function useCanvasContentImport<T extends CanvasHistorySnapshot>({ projec
             await observeActivity("storage", async () => {
                 assertImportTarget();
                 if (file.size > 256 * 1024 * 1024) throw new Error("ZIP 文件不能超过 256 MB");
-                const zip = await readZip(file);
-                const manifest = zip.get("projects.json");
-                if (!manifest) throw new Error("请选择导出当前画布生成的 ZIP 文件");
-                const prepared = prepareCanvasContentImport(JSON.parse(await manifest.text()), zip, nodesRef.current);
+                const { data, zip } = await readCanvasImportPackage(file);
+                const prepared = prepareCanvasContentImport(data, zip, nodesRef.current);
                 assertImportTarget();
                 media = prepared.media;
                 await settleActivityGroup(media.map(({ key, blob }) => key.startsWith("image:") ? setImageBlob(key, blob) : setMediaBlob(key, blob)));

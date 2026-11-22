@@ -411,7 +411,7 @@ test('视区覆盖层保持穿透，节点与多选胶囊恢复命中并只触�
         : value && typeof value === 'object' ? [value, ...descendants(value.props?.children)] : [];
     const common = {
         'react/jsx-runtime': { jsx, jsxs: jsx },
-        react: { useState: value => [value, () => {}], useEffect: () => {} },
+        react: { useState: value => [value, () => {}], useEffect: () => {}, useLayoutEffect: () => {}, useRef: current => ({ current }) },
         antd: { App: { useApp: () => ({ message: {} }) }, Tooltip: 'Tooltip' },
         '@/扩展功能/主题/原生可关闭浮层': { OutsideDropdown: 'NativeDropdown' },
         '@/扩展功能/主题/苹果弹窗': { AppleModal: 'Modal' },

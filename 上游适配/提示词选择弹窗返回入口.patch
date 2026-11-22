@@ -1,0 +1,28 @@
+diff --git a/web/src/components/prompts/prompt-select-dialog.tsx b/web/src/components/prompts/prompt-select-dialog.tsx
+index 2c9d65b..f8c6351 100644
+--- a/web/src/components/prompts/prompt-select-dialog.tsx
++++ b/web/src/components/prompts/prompt-select-dialog.tsx
+@@ -12,7 +12,13 @@ import { PromptCard } from "./prompt-card";
+ import { usePromptList } from "./use-prompt-list";
+ import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+ 
+-export function PromptSelectDialog({ open, onOpenChange, onSelect }: { open: boolean; onOpenChange: (open: boolean) => void; onSelect: (prompt: string) => void }) {
++export function PromptSelectDialog({ open, onOpenChange, onSelect, triggerId, afterClose }: {
++    open: boolean;
++    onOpenChange: (open: boolean) => void;
++    onSelect: (prompt: string) => void;
++    triggerId?: string;
++    afterClose?: () => void;
++}) {
+     const { message } = App.useApp();
+     const { t } = useTranslation();
+     const copyText = useCopyText();
+@@ -45,7 +51,7 @@ export function PromptSelectDialog({ open, onOpenChange, onSelect }: { open: boo
+     };
+ 
+     return (<>
+-        <Modal title={t("prompts.library")} open={open} onCancel={() => onOpenChange(false)} footer={null} width={880} centered>
++        <Modal triggerId={triggerId} title={t("prompts.library")} open={open} onCancel={() => onOpenChange(false)} afterClose={afterClose} footer={null} width={880} centered>
+             <div className="grid h-[62dvh] min-h-0 gap-5 sm:grid-cols-[200px_minmax(0,1fr)]" data-canvas-no-zoom onWheelCapture={(event) => event.stopPropagation()}>
+                 <aside className="guan-scroll-region thin-scrollbar min-h-0 overflow-y-auto border-r border-stone-200 pr-4 dark:border-stone-800">
+                     <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-stone-400 dark:text-stone-500">{t("prompts.category")}</div>

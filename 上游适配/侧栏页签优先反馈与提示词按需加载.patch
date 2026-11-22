@@ -1,0 +1,42 @@
+diff --git a/web/src/components/canvas/canvas-side-panel.tsx b/web/src/components/canvas/canvas-side-panel.tsx
+--- a/web/src/components/canvas/canvas-side-panel.tsx
++++ b/web/src/components/canvas/canvas-side-panel.tsx
+@@ -1,4 +1,4 @@
+-import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
++import { memo, startTransition, useEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
+@@ -85,6 +85,11 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+     const [tab, setTab] = useState<PanelTab>("canvas");
++    const [contentTab, setContentTab] = useState<PanelTab>("canvas");
++    const switchTab = (next: PanelTab) => {
++        setTab(next);
++        startTransition(() => setContentTab(next));
++    };
+@@ -168,11 +173,11 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+-                    <TabButton label={t("canvas.sidePanel.canvas")} active={tab === "canvas"} theme={theme} onClick={() => setTab("canvas")} />
+-                    <TabButton label={t("canvas.sidePanel.assets")} active={tab === "assets"} theme={theme} onClick={() => setTab("assets")} />
+-                    {businessFeatures.promptLibrary ? <TabButton label={t("canvas.sidePanel.prompts")} active={tab === "prompts"} theme={theme} onClick={() => setTab("prompts")} /> : null}
+-                    <TabButton label="生成历史" active={tab === "history"} theme={theme} onClick={() => setTab("history")} />
+-                    <TabButton label="回收站" active={tab === "trash"} theme={theme} onClick={() => setTab("trash")} />
++                    <TabButton label={t("canvas.sidePanel.canvas")} active={tab === "canvas"} theme={theme} onClick={() => switchTab("canvas")} />
++                    <TabButton label={t("canvas.sidePanel.assets")} active={tab === "assets"} theme={theme} onClick={() => switchTab("assets")} />
++                    {businessFeatures.promptLibrary ? <TabButton label={t("canvas.sidePanel.prompts")} active={tab === "prompts"} theme={theme} onClick={() => switchTab("prompts")} /> : null}
++                    <TabButton label="生成历史" active={tab === "history"} theme={theme} onClick={() => switchTab("history")} />
++                    <TabButton label="回收站" active={tab === "trash"} theme={theme} onClick={() => switchTab("trash")} />
+@@ -176,13 +181,13 @@ export function CanvasSidePanel({ projectId, connections, getCurrentNode, onRetr
+-                    {tab === "canvas" ? (
++                    {contentTab === "canvas" ? (
+@@
+-                    ) : tab === "assets" ? (
++                    ) : contentTab === "assets" ? (
+@@
+-                    ) : tab === "history" ? (
++                    ) : contentTab === "history" ? (
+@@
+-                    ) : tab === "trash" ? (
++                    ) : contentTab === "trash" ? (
+@@ -733,7 +738,7 @@ const CanvasPromptsTab = memo(function CanvasPromptsTab({ onInsert, theme }: { onInsert: (payload: InsertAssetPayload) => void; theme: CanvasTheme }) {
+-    const [expanded, setExpanded] = useState<Record<string, boolean>>({});
++    const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+@@ -760,7 +765,7 @@ const CanvasPromptsTab = memo(function CanvasPromptsTab({ onInsert, theme }: { onInsert: (payload: InsertAssetPayload) => void; theme: CanvasTheme }) {
+-                            open={expanded[source.id] !== false}
++                            open={expanded[source.id] === true}

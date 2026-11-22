@@ -1,0 +1,25 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index ab70ce1..a7b6cf5 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -2399,9 +2399,17 @@ function InfiniteCanvasPage() {
+                 } catch { /* 沿用旧画布行为，忽略格式错误的提示词拖入。 */ }
+                 return;
+             }
+-            const files = Array.from(event.dataTransfer.files).filter(
+-                (item) => item.type.startsWith("image/") || hasHeicNameOrType(item) || item.type.startsWith("video/") || isAudioFile(item),
+-            );
++            const files: File[] = [];
++            const unsupported: File[] = [];
++            for (const file of Array.from(event.dataTransfer.files)) {
++                if (file.type.startsWith("image/") || hasHeicNameOrType(file) || file.type.startsWith("video/") || isAudioFile(file)) files.push(file);
++                else unsupported.push(file);
++            }
++            if (unsupported.length) {
++                const names = unsupported.slice(0, 3).map(file => file.name || "未命名文件").join("、");
++                const suffix = unsupported.length > 3 ? "等" : "";
++                message.warning(`${unsupported.length} 个文件格式不支持，未添加：${names}${suffix}。画布支持拖入图片、视频和音频。`);
++            }
+             if (!files.length) return;
+ 
+             const basePos = screenToCanvas(event.clientX, event.clientY);

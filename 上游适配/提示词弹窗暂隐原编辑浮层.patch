@@ -1,0 +1,76 @@
+diff --git a/web/src/components/canvas/canvas-node-prompt-panel.tsx b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+index a48478c..4543a1a 100644
+--- a/web/src/components/canvas/canvas-node-prompt-panel.tsx
++++ b/web/src/components/canvas/canvas-node-prompt-panel.tsx
+@@ -3,7 +3,7 @@ import { stripLegacyPromptConstraints } from "@/扩展功能/提示词/变量使
+ import { normalizeTextReasoningEffort } from "@/扩展功能/画布生成/文本推理强度";
+ import { isGenerationModeEnabled } from "@/扩展功能/产品配置/精简与离线策略";
+ import { TabContentTransition } from "@/扩展功能/主题/页签内容过渡";
+-import { useEffect, useId, useState } from "react";
++import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+ import { ArrowUp, LoaderCircle, Maximize2, Square } from "lucide-react";
+ import { Button } from "antd";
+ import { OutsideTooltip as Tooltip } from "@/扩展功能/主题/原生可关闭浮层";
+@@ -59,9 +59,26 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+     const [prompt, setPrompt] = useState(() => stripLegacyPromptConstraints(node.metadata?.composerContent ?? node.metadata?.prompt ?? ""));
+     const productActive = useProductActive();
+     const expandTriggerId = useId();
++    const libraryTriggerId = useId();
+     const [localExpanded, setLocalExpanded] = useState(false);
++    const [libraryOpen, setLibraryOpen] = useState(false);
++    const [closingTriggerId, setClosingTriggerId] = useState<string | null>(null);
++    const restoreTrigger = useRef<string | null>(null);
+     const expanded = controlledExpanded ?? localExpanded;
+     const setExpanded = (value: boolean) => { setLocalExpanded(value); onExpandedChange?.(value); };
++    const suspended = expanded || libraryOpen || closingTriggerId !== null;
++
++    useLayoutEffect(() => {
++        if (suspended || !productActive || !restoreTrigger.current) return;
++        document.getElementById(restoreTrigger.current)?.focus({ preventScroll: true });
++        restoreTrigger.current = null;
++    }, [suspended, productActive]);
++
++    const finishClose = (triggerId: string) => {
++        if (closingTriggerId !== triggerId) return;
++        restoreTrigger.current = triggerId;
++        setClosingTriggerId(null);
++    };
+ 
+     // Restore prompts only when switching nodes; preserve the current input after generation on the same node.
+     useEffect(() => {
+@@ -91,8 +108,10 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+     return (
+         <div
+             data-canvas-no-zoom
++            data-canvas-prompt-suspended={suspended ? "" : undefined}
++            inert={suspended}
+             className="flex min-h-0 flex-col overflow-hidden rounded-2xl border p-3 shadow-2xl backdrop-blur"
+-            style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text, maxHeight: "var(--canvas-panel-max-height, calc(100dvh - 96px))" }}
++            style={{ visibility: suspended ? "hidden" : undefined, background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text, maxHeight: "var(--canvas-panel-max-height, calc(100dvh - 96px))" }}
+             onMouseDown={(event) => event.stopPropagation()}
+             onPointerDown={(event) => event.stopPropagation()}
+             onWheel={(event) => event.stopPropagation()}
+@@ -113,7 +132,10 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+                     <Tooltip title={t("canvas.promptPanel.expandEditor")}>
+                         <Button id={expandTriggerId} type="text" className="!h-8 !w-8 !min-w-8 shrink-0 !rounded-full !bg-transparent !p-0" style={{ color: theme.node.text }} icon={<Maximize2 className="size-3.5" />} onClick={openExpandedEditor} aria-label={t("canvas.promptPanel.expandEditor")} />
+                     </Tooltip>
+-                    <CanvasPromptLibrary onSelect={updatePrompt} />
++                    <CanvasPromptLibrary triggerId={libraryTriggerId} open={libraryOpen} onOpenChange={open => {
++                        if (!open) setClosingTriggerId(libraryTriggerId);
++                        setLibraryOpen(open);
++                    }} afterClose={() => finishClose(libraryTriggerId)} onSelect={updatePrompt} />
+                     <TabContentTransition transitionKey={`${node.id}:${mode}`} className="min-w-0">
+                     <div className="flex min-w-0 flex-wrap items-center gap-2">
+                     {mode === "image" ? (
+@@ -169,7 +191,10 @@ export function CanvasNodePromptPanel({ node, nodes, isRunning, onPromptChange,
+                     </span>
+                 </Button>
+             </div>
+-            <Modal triggerId={expandTriggerId} title={t("canvas.promptPanel.editorTitle")} open={productActive && expanded} centered width={760} footer={null} onCancel={() => setExpanded(false)} destroyOnHidden>
++            <Modal triggerId={expandTriggerId} title={t("canvas.promptPanel.editorTitle")} open={productActive && expanded} centered width={760} footer={null} onCancel={() => {
++                setClosingTriggerId(expandTriggerId);
++                setExpanded(false);
++            }} afterClose={() => finishClose(expandTriggerId)} destroyOnHidden>
+                 <div data-canvas-no-zoom className="pt-2" onWheelCapture={(event) => event.stopPropagation()}>
+                     <CanvasNodeReferenceBar nodeId={node.id} nodes={nodes} connectedNodes={connectedNodes} onDisconnect={onDisconnectReference} onStartSelection={onStartReferenceSelection} />
+                     <CanvasPromptChipInput
