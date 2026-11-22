@@ -33,16 +33,11 @@ jobs:
       # Existing Pro Components beta declares antd 5 peers; preserve the tested
       # locked antd 6 graph explicitly until a separately tested provider upgrade.
       - run: npm ci --prefix src/canvas --ignore-scripts --legacy-peer-deps
-      - name: Reuse audited canvas dependencies in regression fixture
-        run: |
-          fixture=".运行/3100源/画布副本/web"
-          mkdir -p "$fixture"
-          if [ ! -e "$fixture/node_modules/vite/dist/node/index.js" ]; then
-            ln -s "$GITHUB_WORKSPACE/src/canvas/node_modules" "$fixture/node_modules"
-          fi
-          test -e "$fixture/node_modules/vite/dist/node/index.js"
+      - run: node 开发工具/准备CI回归夹具.mjs
       - run: npm audit --audit-level=moderate
       - run: npm audit --prefix src/canvas --legacy-peer-deps --audit-level=moderate
+      - run: npm audit --prefix .运行/3100源/画布副本/web --legacy-peer-deps --audit-level=moderate
+      - run: npm audit --prefix .运行/3100源 --audit-level=moderate
       - run: npm --prefix src/canvas run typecheck
       - run: npm run lint
       - run: npm test
