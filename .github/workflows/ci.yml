@@ -1,8 +1,9 @@
 name: Source quality gates
 on:
   push:
-    branches: ['**']
+    branches: [master, main]
   pull_request:
+    branches: [master, main]
   workflow_call:
   workflow_dispatch:
 permissions:
@@ -35,7 +36,7 @@ jobs:
       - run: npm --prefix src/canvas run typecheck
       - run: npm run lint
       - run: npm test
-      - run: node --test 开发工具/发布远端检查.test.mjs
+      - run: npm run test:all-current
       - run: npm run build:canvas
       - run: npm run secrets:scan
       - run: npm run secrets:history

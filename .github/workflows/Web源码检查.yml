@@ -1,6 +1,7 @@
 name: Web源码与更新边界
 on:
   pull_request:
+    branches: [master, main]
     paths:
       - '扩展功能/**'
       - '上游适配/**'

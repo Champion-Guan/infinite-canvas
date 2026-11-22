@@ -21,7 +21,7 @@ GitHub会净化中文资产名，远程固定为`Web.json`、`Web.sig`和`Web-v�
 
 ## 开发、构建与签名
 
-2026-11-16起，公开客户包还必须通过同一构建提交在发布代码分支上的远端`Source quality gates`。发布工具创建草稿前及公开前各核对一次，检查不存在、排队中、取消、失败、作业跳过或GitHub API不可用时停止，不以本地构建、测试或签名包核验代替。修复后必须等待最新远端CI真正完成再宣称通过；旧发布标签和签名资产保持不可变。执行机容量故障从Annotations确认，不通过关闭检查消除失败。
+GitHub Actions用于补充检查，不是发布或公开预览版的前置条件；它可能因 fork 仓库策略停用。源码检查仅在`master`/`main`的push、目标分支PR触发，并保留手动及复用入口；没有定时任务。发布前在本机对固定提交运行`npm run lint`、`npm run test:all-current`、`npm run web:test-update`、`npm run build:canvas`、`npm run secrets:scan`和`npm run secrets:history`，再构建客户包并用既有可信密钥签名。发布工具核对干净固定提交、版本标签、签名清单与包兼容性，Draft上传后必须回下载复核才公开。Actions结果可作额外证据，但不阻断发布。
 
 2026-11-12起，Beta发布代码推送到`master`，Stable发布代码推送到`main`。构建使用对应分支的干净固定提交；先同步远程并保留已有提交，再创建版本标签。GitHub发布标题使用`AI-Workbench v版本号`，日志格式见下节。
 
@@ -29,10 +29,15 @@ GitHub会净化中文资产名，远程固定为`Web.json`、`Web.sig`和`Web-v�
 
 根`扩展功能/`是业务唯一来源，根`上游适配/`保存锁定作者提交的有序单功能补丁；`.运行/`是生成输入和私人证据，不提交。不要将运行副本变成第二业务来源。
 
-在发布检出、macOS arm64及Node24环境执行：
+在发布检出、macOS arm64及Node24环境先完成本地质量检查，再执行：
 
 ```sh
+npm run lint
+npm run test:all-current
 npm run web:test-update
+npm run build:canvas
+npm run secrets:scan
+npm run secrets:history
 npm run stable:runtime -- arm64
 npm run web:build -- output/stable-runtime/arm64
 ```
