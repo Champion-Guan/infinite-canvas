@@ -13,9 +13,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   verify:
-    # macos-15 now targets ARM64, whose hosted pool can expire before a job starts.
-    # Source checks run on Intel; native ARM64 package QA remains a release check.
-    runs-on: macos-15-intel
+    # The desktop-entry integration tests target the supported Apple Silicon runtime.
+    runs-on: macos-15
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -33,9 +32,11 @@ jobs:
       # Existing Pro Components beta declares antd 5 peers; preserve the tested
       # locked antd 6 graph explicitly until a separately tested provider upgrade.
       - run: npm ci --prefix src/canvas --ignore-scripts --legacy-peer-deps
+      - run: npm ci --prefix 扩展功能/网络代理 --ignore-scripts
       - run: node 开发工具/准备CI回归夹具.mjs
       - run: npm audit --audit-level=moderate
       - run: npm audit --prefix src/canvas --legacy-peer-deps --audit-level=moderate
+      - run: npm audit --prefix 扩展功能/网络代理 --audit-level=moderate
       - run: npm audit --prefix .运行/3100源/画布副本/web --legacy-peer-deps --audit-level=moderate
       - run: npm audit --prefix .运行/3100源 --audit-level=moderate
       - run: npm --prefix src/canvas run typecheck
