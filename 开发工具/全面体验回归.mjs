@@ -44,6 +44,9 @@ const exclusive = ['内置网络代理', '异常退出写盘', 'Web构建缓存�
 const directory = resolve(root, '开发文档/验收记录/M1苹果交互20261105');
 mkdirSync(directory, { recursive: true });
 const results = [];
+// GitHub macOS runners contend heavily on resource-intensive integration fixtures;
+// keep CI deterministic while retaining two workers for local feedback.
+const workerCount = process.env.CI ? 1 : 2;
 async function verify(file) {
     const result = await new Promise((done, reject) => {
         // 直接执行各测试模块，模块加载失败须以非零退出；node:test自行输出TAP。
@@ -65,7 +68,7 @@ async function verify(file) {
     console.log((result.通过 ? '通过 ' : '失败 ') + file + ' · ' + result.成功 + '/' + result.测试);
 }
 const queue = [...files].filter(file => !exclusive.includes(file));
-await Promise.all(Array.from({ length: 2 }, async () => { while (queue.length) await verify(queue.shift()); }));
+await Promise.all(Array.from({ length: workerCount }, async () => { while (queue.length) await verify(queue.shift()); }));
 for (const file of exclusive) if (files.has(file)) await verify(file);
 const failures = results.filter(item => !item.通过);
 const summary = { success: !failures.length, counts: { tests: 0, passed: 0, failed: 0, cancelled: 0, skipped: 0 } };
