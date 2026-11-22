@@ -64,7 +64,10 @@ export function createPortableAppConfig(config: AiConfig, webdav: WebdavSyncConf
     };
 }
 
-function invalid(): never { throw new Error(i18n.t("config.invalidFile")); }
+function invalid(): never {
+    const message = typeof i18n?.t === "function" ? i18n.t("config.invalidFile") : "配置文件格式不正确";
+    throw new Error(message);
+}
 function record(value: unknown): value is Record<string, unknown> {
     return value !== null && typeof value === "object" && !Array.isArray(value);
 }
