@@ -71,6 +71,9 @@ const queue = [...files].filter(file => !exclusive.includes(file));
 await Promise.all(Array.from({ length: workerCount }, async () => { while (queue.length) await verify(queue.shift()); }));
 for (const file of exclusive) if (files.has(file)) await verify(file);
 const failures = results.filter(item => !item.通过);
+for (const failure of failures.slice(0, 10)) {
+    console.error(`\n失败详情 ${failure.文件} · ${failure.退出码}\n${failure.输出 || '(无 TAP 输出)'}`);
+}
 const summary = { success: !failures.length, counts: { tests: 0, passed: 0, failed: 0, cancelled: 0, skipped: 0 } };
 for (const item of results) for (const [key, name] of Object.entries({ tests: '测试', passed: '成功', failed: '失败', cancelled: '取消', skipped: '跳过' })) summary.counts[key] += item[name];
 const report = { 时间: new Date().toISOString(), 测试文件数: files.size, 测试文件: [...files].sort(), 统计: summary, 结果: results, 失败: failures,
