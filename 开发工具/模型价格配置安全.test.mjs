@@ -86,7 +86,7 @@ test('文本六档和模型支持列表导出冷读保持，旧自动迁移为�
   for (const invalid of [['ultramax'], ['max', 1], 'max']) {
     const value = f.payload();
     value.config.channels[0].models[0].reasoningEfforts = invalid;
-    assert.throws(() => f.api.parseConfigFile(value), /invalidFile/);
+    assert.throws(() => f.api.parseConfigFile(value), invalidFileMessage);
   }
 });
 
@@ -103,7 +103,7 @@ test('分类系统提示词与自定义策划角色可导出冷读，旧字段�
   for (const key of ['imageSystemPrompt', 'textSystemPrompt', 'videoSystemPrompt', 'imagePlanningSystemPrompt']) delete legacy.config[key];
   assert.equal(f.api.parseConfigFile(legacy).config.imageSystemPrompt, null);
   payload.config.imagePlanningSystemPrompt = { wrong: true };
-  assert.throws(() => f.api.parseConfigFile(payload), /invalidFile/);
+  assert.throws(() => f.api.parseConfigFile(payload), invalidFileMessage);
 });
 
 test('导出剥离三类凭据、模型脚本和未知JSON字段，不改页面原配置', async () => {
