@@ -33,6 +33,8 @@ jobs:
       # Existing Pro Components beta declares antd 5 peers; preserve the tested
       # locked antd 6 graph explicitly until a separately tested provider upgrade.
       - run: npm ci --prefix src/canvas --ignore-scripts --legacy-peer-deps
+      - run: npm audit --audit-level=moderate
+      - run: npm audit --prefix src/canvas --legacy-peer-deps --audit-level=moderate
       - run: npm --prefix src/canvas run typecheck
       - run: npm run lint
       - run: npm test
