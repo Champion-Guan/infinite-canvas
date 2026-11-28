@@ -65,6 +65,7 @@ test('无打包媒体对应的临时地址在应用产品前明确拒绝', () =>
 async function exportPackage(project, media) {
     let saved;
     const exporter = variantModules({
+        fflate: require('fflate'),
         'file-saver': { saveAs: blob => { saved = blob; } },
         '@/i18n': { default: { t: key => key } },
         '@/services/image-storage': { getImageBlob: async key => media.get(key) },
@@ -87,6 +88,28 @@ test('重新导出的ZIP只含稳定引用，兼容单主图旧字段且不改�
     assert.doesNotMatch(JSON.stringify(exported), /blob:/);
     assert.equal(exported.projects[0].project.nodes[0].metadata.productMainImageStorageKey, 'image:source');
     assert.deepEqual(project, before);
+});
+
+test('大媒体按块读取，导出的 ZIP 保留每个文件的完整字节', async () => {
+    const { data } = sample(), project = data.projects[0].project;
+    const bytes = new Uint8Array(9 * 1024 * 1024);
+    bytes[4 * 1024 * 1024] = 97;
+    bytes[8 * 1024 * 1024] = 98;
+    bytes[bytes.length - 1] = 99;
+    const reads = [];
+    class ObservedBlob extends Blob {
+        async arrayBuffer() { assert.fail('导出不应一次读取完整大文件'); }
+        slice(start, end) {
+            const part = super.slice(start, end);
+            reads.push(part.size);
+            return part;
+        }
+    }
+    const blob = await exportPackage(project, new Map([['image:source', new ObservedBlob([bytes], { type: 'image/png' })]]));
+    const entries = unzipSync(new Uint8Array(await blob.arrayBuffer()));
+    const manifest = JSON.parse(Buffer.from(entries['projects.json']).toString());
+    assert.deepEqual(reads, [4, 4, 1].map(size => size * 1024 * 1024));
+    assert.deepEqual(entries[manifest.projects[0].files[0].path], bytes);
 });
 
 test('缺失原图时拒绝不完整导出，不再静默跳过文件', async () => {

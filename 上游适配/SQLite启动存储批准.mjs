@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { SQLite安全指纹, 核验SQLite自有依赖 } from './SQLite全面替换批准.mjs';
 import { 读取节点存储批准, 检查节点存储后继, 节点存储差异SHA256 } from './SQLite节点存储批准.mjs';
+import { 当前存储基线包含 } from './SQLite当前存储基线批准.mjs';
 
 // 2026-10-17用户批准已展示的3文件精确差异。只允许新隔离副本验收。
 // 历史审批JSON/patch及前置保护器不改，不授权接管3100、真实数据或发布。
@@ -24,7 +25,9 @@ export function 读取启动存储批准() {
 export function 核验启动存储自有依赖(root) {
   核验SQLite自有依赖(root);
   const item = 读取启动存储批准().文件[2];
-  if (SQLite安全指纹(root, '扩展功能/本机存储/路由临时状态.ts') !== item.候选SHA256) throw Error('路由临时状态自有源码偏离批准内容');
+  const path = '扩展功能/本机存储/路由临时状态.ts';
+  if (SQLite安全指纹(root, path) !== item.候选SHA256 &&
+      !当前存储基线包含(root, path, SQLite安全指纹)) throw Error('路由临时状态自有源码偏离批准内容');
 }
 // 必须先有完整25文件+节点修正后继，新增3文件只接受全前态或全后态。
 export function 检查启动存储后继(root) {

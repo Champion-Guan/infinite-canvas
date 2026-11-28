@@ -18,10 +18,14 @@ test('已运行时沿用实际顺延地址，不启动或重建服务', async ()
     startService: async () => assert.fail('不应重复启动'), openPage: async value => opened.push(value) });
   assert.equal(result.pid, ready.pid); assert.deepEqual(opened, [ready.origin]);
 });
-test('找到同源Chrome标签时复用该标签，不新开页面', async () => {
+test('复用同源Chrome标签，仅重新加载已停止加载的空白或连接错误页', async () => {
   const calls = [];
   const result = await 打开或复用工作台标签('http://localhost:3000', {
-    automateChrome: async (_script, address) => { calls.push(['automation', address]); return { stdout: 'reused\n' }; },
+    automateChrome: async (script, address) => {
+      assert.match(script, /if not \(loading of matchedTab\).*tabTitle is "localhost".*then\n\s+reload matchedTab\n\s+end if/);
+      calls.push(['automation', address]);
+      return { stdout: 'reused\n' };
+    },
     openURL: async url => calls.push(['open', url]),
   });
   assert.equal(result.reused, true);

@@ -1,0 +1,98 @@
+diff --git a/web/src/lib/canvas/canvas-export.ts b/web/src/lib/canvas/canvas-export.ts
+index 1e0ece0..b237cc3 100644
+--- a/web/src/lib/canvas/canvas-export.ts
++++ b/web/src/lib/canvas/canvas-export.ts
+@@ -1,4 +1,5 @@
+ import { saveAs } from "file-saver";
++import { Zip, ZipPassThrough } from "fflate";
+ 
+ import i18n from "@/i18n";
+ import { createZip } from "@/lib/zip";
+@@ -9,29 +10,66 @@ import type { CanvasProject } from "@/stores/canvas/use-canvas-store";
+ import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
+ import { collectCanvasStorageKeys, remapCanvasMedia } from "@/扩展功能/画布导入/便携媒体引用";
+ 
+-export async function exportCanvasProjects(projects: CanvasProject[], fileName = i18n.t("canvas.export.defaultProjectName")) {
+-    const zipFiles: { name: string; data: BlobPart }[] = [];
+-    const exportedProjects = await Promise.all(
+-        projects.map(async (project) => {
+-            const files: CanvasExportAsset[] = [];
+-            const storageKeys = collectCanvasStorageKeys(project);
+-            const portable = remapCanvasMedia(project, new Map(storageKeys.map(key => [key, key])));
+-            await Promise.all(
+-                storageKeys.map(async (storageKey) => {
+-                    const blob = storageKey.startsWith("image:") ? await getImageBlob(storageKey) : await getMediaBlob(storageKey);
+-                    if (!blob) throw new Error("画布媒体无法读取，请确认原图仍在后重新导出");
+-                    const path = `projects/${project.id}/files/${safeFileName(storageKey)}.${fileExtension(blob.type, storageKey)}`;
+-                    files.push({ storageKey, path, mimeType: blob.type || "application/octet-stream", bytes: blob.size });
+-                    zipFiles.push({ name: path, data: blob });
+-                }),
+-            );
+-            return { project: portable, files };
+-        }),
+-    );
++async function* canvasArchiveEntries(projects: CanvasProject[]) {
++    const exportedProjects: CanvasExportFile["projects"] = [];
++    for (const project of projects) {
++        const files: CanvasExportAsset[] = [];
++        const storageKeys = collectCanvasStorageKeys(project);
++        const portable = remapCanvasMedia(project, new Map(storageKeys.map(key => [key, key])));
++        for (const storageKey of storageKeys) {
++            const blob = storageKey.startsWith("image:") ? await getImageBlob(storageKey) : await getMediaBlob(storageKey);
++            if (!blob) throw new Error("画布媒体无法读取，请确认原图仍在后重新导出");
++            const path = `projects/${project.id}/files/${safeFileName(storageKey)}.${fileExtension(blob.type, storageKey)}`;
++            files.push({ storageKey, path, mimeType: blob.type || "application/octet-stream", bytes: blob.size });
++            yield { name: path, blob };
++        }
++        exportedProjects.push({ project: portable, files });
++    }
+ 
+     const data: CanvasExportFile = { app: "infinite-canvas", version: 3, exportedAt: new Date().toISOString(), projects: exportedProjects };
+-    const zip = await createZip([{ name: "projects.json", data: JSON.stringify(data, null, 2) }, ...zipFiles]);
+-    saveAs(zip, `${safeFileName(fileName)}.zip`);
++    yield { name: "projects.json", blob: new Blob([JSON.stringify(data)]) };
++}
++
++export async function exportCanvasProjects(projects: CanvasProject[], fileName = i18n.t("canvas.export.defaultProjectName")) {
++    const parts: BlobPart[] = [];
++    const chunkSize = 4 * 1024 * 1024;
++    const zip32Limit = 0xffffffff;
++    let outputSize = 0;
++    let count = 0;
++    let payloadBytes: Uint8Array<ArrayBuffer> | undefined;
++    let payloadBlob: Blob | undefined;
++    const sizeError = () => new Error("画布导出超过 ZIP 格式的容量限制");
++    const archive = new Zip((error, bytes) => {
++        if (error) throw error;
++        outputSize += bytes.byteLength;
++        if (outputSize >= zip32Limit) throw sizeError();
++        // ZipPassThrough emits the input unchanged. Reuse its Blob slice in the download.
++        if (bytes.byteLength) parts.push(bytes === payloadBytes && payloadBlob ? payloadBlob : bytes);
++    });
++    let nextYield = performance.now() + 16;
++    try {
++        for await (const { name, blob } of canvasArchiveEntries(projects)) {
++            if (++count >= 0xffff || outputSize + blob.size >= zip32Limit) throw sizeError();
++            const entry = new ZipPassThrough(name);
++            archive.add(entry);
++            for (let offset = 0; offset < blob.size; offset += chunkSize) {
++                payloadBlob = blob.slice(offset, offset + chunkSize);
++                payloadBytes = new Uint8Array(await payloadBlob.arrayBuffer());
++                entry.push(payloadBytes);
++                payloadBlob = payloadBytes = undefined;
++                if (performance.now() >= nextYield) {
++                    await new Promise<void>(resolve => setTimeout(resolve, 0));
++                    nextYield = performance.now() + 16;
++                }
++            }
++            entry.push(new Uint8Array(0), true);
++        }
++        archive.end();
++        saveAs(new Blob(parts, { type: "application/zip" }), `${safeFileName(fileName)}.zip`);
++    } catch (error) {
++        archive.terminate();
++        throw error;
++    }
+ }
+ 
+ export async function exportCanvasNodes(nodes: CanvasNodeData[], fileName = i18n.t("canvas.export.defaultNodesName")) {

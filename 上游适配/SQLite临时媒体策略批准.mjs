@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { SQLite安全指纹 } from './SQLite全面替换批准.mjs';
+import { 当前存储基线包含 } from './SQLite当前存储基线批准.mjs';
 import { 读取授权入口批准, 核验授权入口自有依赖, 授权入口差异SHA256 } from './SQLite工作台授权入口批准.mjs';
 import { 服务包协议路径, 服务包协议SHA256 } from './SQLite写入协调批准.mjs';
 
@@ -25,7 +26,8 @@ export function 媒体启动器依赖() {
 }
 export function 核验媒体策略自有依赖(root) {
   核验授权入口自有依赖(root);
-  for (const item of 媒体启动器依赖()) if (SQLite安全指纹(root, item.文件) !== item.SHA256) throw Error('媒体启动器自有依赖未知改动：' + item.文件);
+  for (const item of 媒体启动器依赖()) if (SQLite安全指纹(root, item.文件) !== item.SHA256 &&
+    !当前存储基线包含(root, item.文件, SQLite安全指纹)) throw Error('媒体启动器自有依赖未知改动：' + item.文件);
 }
 export function 检查媒体启动器包(root) {
   const item = 读取媒体策略批准().文件[0], allowed = new Set([媒体启动器路径, ...媒体启动器依赖().map(item => item.文件)]);

@@ -185,6 +185,50 @@ test('修正失败后继续修正仍沿用首次候选的图片身份基准', as
         ['product-image-plan', 'product-image-plan-repair', 'product-image-plan-repair']);
 });
 
+test('缺失整份变体时一次操作自动补缺，部分修正先落盘', async () => {
+    const original = planData();
+    const pair = original.images[0].prompt;
+    original.images[0].variants.red = structuredClone(pair);
+    const partial = { variantPatches: [{ key: 'main', variantId: 'blue', prompt: pair }] };
+    const detail = original.images[1].prompt;
+    const final = { variantPatches: ['red', 'blue'].map(variantId => ({ key: 'detail', variantId, prompt: detail })) };
+    const f = fixture([original, partial, final], {
+        beforeRequest(index, _request, current) {
+            if (index !== 2) return;
+            assert.equal(current.operations.length, 0);
+            const saved = current.snapshots.at(-1).nodes.find(node => node.id === current.parameter.id);
+            const candidate = JSON.parse(saved.metadata.productPlanningCandidate.response);
+            assert.deepEqual(candidate.images[0].variants, { red: pair, blue: pair });
+            assert.deepEqual(candidate.images[1].variants, {});
+        },
+    });
+    const metadata = variantFixture().parameter.metadata;
+    Object.assign(f.parameter.metadata, { productVariants: metadata.productVariants, productSharedImageIds: metadata.productSharedImageIds });
+    const progress = [];
+    await f.run({ onRepairProgress: value => progress.push(value) });
+    assert.deepEqual(progress, [{ completed: 1, total: 4 }, { completed: 2, total: 4 }, { completed: 4, total: 4 }]);
+    const targets = f.requests.slice(1).map(request => JSON.parse(request.messages[1].content).targets
+        .map(({ key, variantIds }) => [key, variantIds]));
+    assert.deepEqual(targets, [[['main', ['blue']], ['detail', ['red', 'blue']]], [['detail', ['red', 'blue']]]]);
+    assert.equal(f.operations.length, 1);
+    assert.equal(f.parameter.metadata.productPlanningCandidate, undefined);
+});
+
+test('变体补丁不能覆盖已经存在的提示词或引入未知变体', () => {
+    const f = fixture([]);
+    const original = planData();
+    const pair = original.images[0].prompt;
+    original.images[0].variants.red = pair;
+    const repair = f.loader.load('Excel画布/商品策划协议恢复.ts').missingProductPlanVariants({
+        response: JSON.stringify(original),
+        issues: [{ path: 'images[0].variants[1].designSegments', problem: 'design_segments_required' }],
+    }, ['red', 'blue']);
+    for (const variantId of ['red', 'unknown']) {
+        assert.throws(() => repair.merge(JSON.stringify({ variantPatches: [{ key: 'main', variantId, prompt: pair }] })),
+            { code: 'invalid_product_plan_protocol' });
+    }
+});
+
 test('客户两类报错合并复现：重复编号与缺失条件保留候选，继续只修正已有方案', async () => {
     const duplicate = badPlan();
     duplicate.images[0].key = 'detail';

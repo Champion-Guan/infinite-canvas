@@ -3,6 +3,7 @@ import { lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { SQLite安全指纹, 读取SQLite批准, 核验SQLite自有依赖 } from './SQLite全面替换批准.mjs';
 import { 核验启动存储自有依赖 } from './SQLite启动存储批准.mjs';
+import { 当前存储基线包含 } from './SQLite当前存储基线批准.mjs';
 
 // 用户批准后的独立登记；不覆盖待审查快照，不放宽旧依赖保护器。
 export const 写入协调差异SHA256 = 'e3b1e5bee1c6885400bad45d982da47db5c39da0ad45eb1d0e38e387a2b95efe';
@@ -27,8 +28,10 @@ export function 读取写入协调批准() {
 }
 export function 核验写入协调自有依赖(root) {
   核验SQLite自有依赖(root); 核验启动存储自有依赖(root);
-  if (SQLite安全指纹(root, 服务包协议路径) !== 服务包协议SHA256 ||
-      SQLite安全指纹(root, paths[1]) !== 读取写入协调批准().文件[1].候选SHA256) throw Error('写入协调自有依赖偏离批准内容');
+  if ((SQLite安全指纹(root, 服务包协议路径) !== 服务包协议SHA256 &&
+       !当前存储基线包含(root, 服务包协议路径, SQLite安全指纹)) ||
+      (SQLite安全指纹(root, paths[1]) !== 读取写入协调批准().文件[1].候选SHA256 &&
+       !当前存储基线包含(root, paths[1], SQLite安全指纹))) throw Error('写入协调自有依赖偏离批准内容');
 }
 
 // 工作区、服务、队列共用同一协议实例，避免StorageError跨模块身份导致404/409退化为500。

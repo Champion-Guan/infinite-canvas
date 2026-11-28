@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { SQLite安全指纹, 读取SQLite批准 } from './SQLite全面替换批准.mjs';
+import { 当前存储基线包含 } from './SQLite当前存储基线批准.mjs';
 import { 读取节点存储批准 } from './SQLite节点存储批准.mjs';
 import { 读取启动存储批准 } from './SQLite启动存储批准.mjs';
 import { 读取授权入口批准 } from './SQLite工作台授权入口批准.mjs';
@@ -33,7 +34,8 @@ export function 核验保存恢复自有依赖(root) {
     ['扩展功能/本机存储/保存恢复存储桥.ts', paths[0]],
     ['扩展功能/本机存储/可恢复应用存储.mjs', paths[3]],
     ['扩展功能/存储界面/保存状态条.tsx', paths[4]],
-  ]) if (SQLite安全指纹(root, source) !== 读取保存恢复批准().文件.find(item => item.文件 === target).候选SHA256) throw Error('保存恢复自有来源未知改动：' + source);
+  ]) if (SQLite安全指纹(root, source) !== 读取保存恢复批准().文件.find(item => item.文件 === target).候选SHA256 &&
+    !当前存储基线包含(root, source, SQLite安全指纹)) throw Error('保存恢复自有来源未知改动：' + source);
 }
 function exactTree(root, directory, files) {
   if (!existsSync(join(root, directory))) return;

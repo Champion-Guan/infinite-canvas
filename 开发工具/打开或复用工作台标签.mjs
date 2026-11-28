@@ -5,6 +5,7 @@ const exec = promisify(execFile);
 const CHROME_SCRIPT = `on run argv
   set targetURL to item 1 of argv
   set targetPrefix to targetURL & "/"
+  set targetAuthority to text 8 thru -1 of targetURL
   tell application id "com.google.Chrome"
     set matchWindow to missing value
     set matchIndex to 0
@@ -23,6 +24,11 @@ const CHROME_SCRIPT = `on run argv
     end repeat
     if matchWindow is not missing value then
       set active tab index of matchWindow to matchIndex
+      set matchedTab to tab matchIndex of matchWindow
+      set tabTitle to title of matchedTab
+      if not (loading of matchedTab) and (tabTitle is "" or tabTitle is "localhost" or tabTitle is targetAuthority) then
+        reload matchedTab
+      end if
       set index of matchWindow to 1
       activate
       return "reused"

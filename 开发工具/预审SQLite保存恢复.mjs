@@ -9,7 +9,12 @@ import { 核验免填码自有依赖, 免填码差异SHA256 } from '../上游适
 import { 精确替换, 预审类型, 生成审查差异 } from './检查首批功能适配.mjs';
 
 export function 自动入口保存恢复候选(source) {
-  return 精确替换(source, [["import { createApplicationStorage } from './应用存储适配.mjs';", "import { createRecoverableApplicationStorage as createApplicationStorage } from './可恢复应用存储.mjs';"]]);
+  const before = "import { createApplicationStorage } from './应用存储适配.mjs';";
+  const after = "import { createRecoverableApplicationStorage as createApplicationStorage } from './可恢复应用存储.mjs';";
+  const afterCount = source.split(after).length - 1;
+  if (afterCount === 1 && !source.includes(before)) return source;
+  if (afterCount > 0) throw Error('保存恢复入口同时存在旧导入或重复的新导入，停止预审。');
+  return 精确替换(source, [[before, after]]);
 }
 export function 构建保存恢复候选() {
   检查运行副本(); 核验免填码自有依赖(根目录);

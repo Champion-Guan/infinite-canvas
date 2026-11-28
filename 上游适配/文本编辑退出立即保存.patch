@@ -1,0 +1,28 @@
+diff --git a/web/src/pages/canvas/project.tsx b/web/src/pages/canvas/project.tsx
+index 4551937..b3cab29 100644
+--- a/web/src/pages/canvas/project.tsx
++++ b/web/src/pages/canvas/project.tsx
+@@ -1867,13 +1867,17 @@ function InfiniteCanvasPage() {
+ 
+     const handleNodeContentChange = useCallback((nodeId: string, content: string) => {
+         setNodes((prev) =>
+-            prev.map((node) =>
+-                node.id === nodeId
+-                    ? { ...node, metadata: { ...node.metadata, content, texts: node.metadata?.texts?.map((text) => (text.id === node.metadata?.primaryTextId ? { ...text, content } : text)) } }
+-                    : node,
+-            ),
++            prev.map((node) => {
++                if (node.id !== nodeId) return node;
++                const texts = node.metadata?.texts;
++                const primaryId = node.metadata?.primaryTextId || texts?.[0]?.id;
++                return { ...node, metadata: { ...node.metadata, content, texts: texts?.map((text) => text.id === primaryId ? { ...text, content } : text) } };
++            }),
+         );
+-    }, []);
++        void saveProductCanvas(projectId).catch(() => {
++            void message.warning("文本已更新，保存尚未确认。请查看画布保存状态。");
++        });
++    }, [message, projectId, setNodes]);
+ 
+     const handleNodeTitleChange = useCallback((nodeId: string, title: string) => {
+         setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, title } : node)));

@@ -39,7 +39,8 @@ test('OpenAI真流式：UTF-8逐字节拆片、CRLF、跨事件凭据均先消�
   const text = parts.join(''), stream = createProviderTextStream({ kind: 'responses', credential: key, onProgress: value => output.push(value) });
   const bytes = Buffer.from(': heartbeat\r\n\r\n' + parts.map(delta).join('') + complete(text) + 'data: [DONE]\r\n\r\n');
   for (const byte of bytes) stream.push(Buffer.from([byte]));
-  const final = JSON.parse(stream.finish(bytes)).output_text;
+  const { output_text: final, finish_reason: finishReason } = JSON.parse(stream.finish(bytes));
+  assert.equal(finishReason, 'completed');
   assert.ok(output.some(value => value === '中文开始：'), '终态之前已交付文字');
   for (const value of output) for (const secret of variants) assert.equal(value.includes(secret), false);
   assert.equal(final, '中文开始：' + '[credential-redacted]；'.repeat(variants.length) + '完成');
@@ -49,10 +50,12 @@ test('Gemini和Chat流式只显示正文，终态缺失、错误或截断不能�
   const gemini = createProviderTextStream({ kind: 'gemini', credential: 'synthetic-secret' });
   gemini.push(Buffer.from(event({ candidates: [{ index: 0, content: { parts: [{ text: '隐藏思考', thought: true }, { text: '你好' }] } }] })));
   gemini.push(Buffer.from(event({ candidates: [{ content: { parts: [{ text: '后半' }] }, finishReason: 'STOP' }] })));
-  assert.equal(JSON.parse(gemini.finish(Buffer.alloc(0))).output_text, '你好后半');
+  assert.deepEqual(JSON.parse(gemini.finish(Buffer.alloc(0))), { output_text: '你好后半', finish_reason: 'STOP' });
   const chat = createProviderTextStream({ kind: 'chat', credential: 'synthetic-secret' });
   const wire = event({ choices: [{ index: 0, delta: { content: '真实文字' }, finish_reason: null }] }) + event({ choices: [{ delta: {}, finish_reason: 'stop' }] }) + 'data: [DONE]\n\n';
-  assert.equal(JSON.parse(chat.finish(Buffer.from(wire))).output_text, '真实文字');
+  assert.deepEqual(JSON.parse(chat.finish(Buffer.from(wire))), { output_text: '真实文字', finish_reason: 'stop' });
+  const limited = createProviderTextStream({ kind: 'chat', credential: 'synthetic-secret' });
+  assert.equal(JSON.parse(limited.finish(Buffer.from(wire.replace('"stop"', '"length"')))).finish_reason, 'length');
   for (const wire of [delta('半份'), delta('半份') + event({ type: 'response.failed', response: {} }), 'data: {bad}\n\n', event({ error: { message: 'synthetic-secret' } })]) {
     assert.throws(() => createProviderTextStream({ kind: 'responses', credential: 'synthetic-secret' }).finish(Buffer.from(wire)));
   }
@@ -87,7 +90,7 @@ test('真实直连传输先交付进度，逐字不写SQLite，完整结果只�
     assert.throws(() => f.tasks.result(f.input.id));
     f.finish.resolve(); await f.tasks.drain();
     assert.equal(f.tasks.get(f.input.id).state, 'succeeded');
-    assert.equal(JSON.parse(f.tasks.result(f.input.id).bytes).output_text, '第一段文字与结尾');
+    assert.deepEqual(JSON.parse(f.tasks.result(f.input.id).bytes), { output_text: '第一段文字与结尾', finish_reason: 'completed' });
     assert.equal(f.tasks.textProgress(f.input.id).progress, null);
     assert.equal(f.requests.length, 1); assert.equal(JSON.parse(f.requests[0].bytes).stream, true);
   } finally { await f.close(); }

@@ -1,0 +1,75 @@
+diff --git a/web/src/components/canvas/canvas-node.tsx b/web/src/components/canvas/canvas-node.tsx
+index 6d52e84..5c0ebc8 100644
+--- a/web/src/components/canvas/canvas-node.tsx
++++ b/web/src/components/canvas/canvas-node.tsx
+@@ -15,6 +15,7 @@ import { ChevronRight, Copy, Download, Group, Image as ImageIcon, Music2, Puzzle
+ 
+ import { canvasThemes } from "@/lib/canvas-theme";
+ import { formatBytes } from "@/lib/image-utils";
++import { isImeComposing } from "@/lib/keyboard-event";
+ import { resolveMediaUrl } from "@/services/file-storage";
+ import { getNodeDefinition } from "@/lib/canvas/node-registry";
+ import { buildNodeContext } from "@/lib/canvas/plugin-node-context";
+@@ -273,21 +274,6 @@ export const CanvasNode = React.memo(function CanvasNode({
+         textarea?.setSelectionRange(textarea.value.length, textarea.value.length);
+     }, [isEditingContent]);
+ 
+-    useEffect(() => {
+-        if (!isEditingContent) return;
+-
+-        const handleOutsidePointerDown = (event: PointerEvent) => {
+-            const target = event.target;
+-            if (!(target instanceof Node)) return;
+-            if (isEditingContent && textareaRef.current?.contains(target)) return;
+-
+-            setIsEditingContent(false);
+-        };
+-
+-        window.addEventListener("pointerdown", handleOutsidePointerDown, true);
+-        return () => window.removeEventListener("pointerdown", handleOutsidePointerDown, true);
+-    }, [isEditingContent]);
+-
+     const handleResizeMove = useCallback(
+         (event: MouseEvent) => {
+             if (!resizeRef.current.isResizing) return;
+@@ -666,6 +652,25 @@ function TextContent({ node, theme, promptHighlightSource: source, promptHighlig
+     useEffect(() => {
+         if (!isEditingContent) setEditingContent(content);
+     }, [content, isEditingContent]);
++    const finishEditing = useCallback((value: string) => {
++        if (value !== content) onContentChange(node.id, value);
++        onStopEditing();
++    }, [content, node.id, onContentChange, onStopEditing]);
++    useEffect(() => {
++        if (!isEditingContent) return;
++        const handleOutsidePointerDown = (event: PointerEvent) => {
++            const textarea = textareaRef.current;
++            const target = event.target;
++            if (!textarea || !(target instanceof Node) || textarea.contains(target)) return;
++            if (target instanceof Element && target.closest("[data-canvas-resource-mention-menu]")) return;
++
++            // The canvas can prevent native focus changes on pointer down.
++            if (textarea === document.activeElement) textarea.blur();
++            else finishEditing(textarea.value);
++        };
++        window.addEventListener("pointerdown", handleOutsidePointerDown, true);
++        return () => window.removeEventListener("pointerdown", handleOutsidePointerDown, true);
++    }, [finishEditing, isEditingContent, textareaRef]);
+     const isExcelPrompt = Boolean(node.metadata?.excelPromptLabel || node.metadata?.excelPromptTheme || node.metadata?.excelPromptTokens?.length || node.metadata?.excelPromptTemplateId || node.metadata?.excelPromptRaw);
+     const paddingClass = isBatchRoot ? "px-4 pb-4 pt-14" : "p-4";
+     const isFinalPrompt = Boolean(node.metadata?.promptVariablePreviewOf);
+@@ -704,12 +709,9 @@ function TextContent({ node, theme, promptHighlightSource: source, promptHighlig
+                         references={mentionReferences}
+                         highlightLabels={false}
+                         onChange={setEditingContent}
+-                        onBlur={() => {
+-                            if (editingContent !== content) onContentChange(node.id, editingContent);
+-                            onStopEditing();
+-                        }}
++                        onBlur={(event) => finishEditing(event.currentTarget.value)}
+                         onKeyDown={(event) => {
+-                            if (event.key === "Escape") onStopEditing();
++                            if (event.key === "Escape" && !isImeComposing(event)) onStopEditing();
+                         }}
+                         onMouseDown={(event) => event.stopPropagation()}
+                         onPointerDown={(event) => event.stopPropagation()}

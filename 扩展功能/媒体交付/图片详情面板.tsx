@@ -41,8 +41,8 @@ function ImageDetails({ node, detail, theme, onClose }: { node: CanvasNodeData; 
         ["生成数量", metadata.count != null ? String(metadata.count) : "暂无"], ["背景设置", detail.background],
     ];
     const variables = { "--图片详情背景": theme.node.panel, "--图片详情文字": theme.node.text, "--图片详情边框": theme.node.stroke, "--图片详情次要文字": theme.node.muted } as CSSProperties;
-    return <Modal open centered title={<div className={styles.heading}><span>图片详情 - {detail.file.name}</span><button type="button" className={`${styles.download} guan-apple-action guan-apple-press`} onClick={() => void downloadFile(detail.file)} disabled={downloading} aria-busy={downloading}>{downloading ? "正在下载…" : "下载图片"}</button></div>}
-        onCancel={onClose} footer={null} width={980} styles={{ body: { padding: 0, maxHeight: "80vh", overflow: "hidden" }, container: { background: theme.node.panel, color: theme.node.text } }}>
+    return <Modal open centered wrapClassName={styles.workspaceModal} title={<div className={styles.heading}><span>图片详情 - {detail.file.name}</span><button type="button" className={`${styles.download} guan-apple-action guan-apple-press`} onClick={() => void downloadFile(detail.file)} disabled={downloading} aria-busy={downloading}>{downloading ? "正在下载…" : "下载图片"}</button></div>}
+        onCancel={onClose} footer={null} width={980} styles={{ body: { padding: 0 }, container: { background: theme.node.panel, color: theme.node.text } }}>
         <div className={styles.shell} style={variables} data-canvas-shortcuts-ignore>
             <div className={styles.preview}>
                 {preview.error ? <p role="alert">{preview.error}</p> : preview.url ? node.type === "video" ? <video src={preview.url} controls className={styles.image} /> : <img src={preview.url} alt={detail.file.name} className={styles.image} /> : <Spin aria-label="正在读取图片" />}

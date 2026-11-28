@@ -23,7 +23,7 @@ import { confirmationDefinition, confirmationFields, factTokens, type Confirmati
 import { confirmationPlanInputs, confirmationPlanningImages, validateConfirmationImages } from "./商品待确认提示词";
 import { inheritedProductPlanningPatch } from "./商品策划副本规则";
 import { readPlanningReference } from "./策划参考图读取";
-import { PRODUCT_PLAN_REPAIR_ROLE, ProductPlanProtocolError, normalizeProductPlanReferences, productPlanImageIdentity,
+import { PRODUCT_PLAN_REPAIR_ROLE, PRODUCT_PLAN_VARIANT_REPAIR_ROLE, ProductPlanProtocolError, missingProductPlanVariants, normalizeProductPlanReferences, productPlanImageIdentity,
     productPlanProtocolIssues, productPlanningCandidate, productPlanningCandidatePatch, productPlanningRequestKey,
     productPlanningCommit, productPlanningCommitPatch, productPlanningTaskSource, productPlanningTaskSourcePatch,
     validateProductPlanConfirmations, validateRepairedProductPlan, type ProductPlanningCandidate } from "./商品策划协议恢复";
@@ -121,8 +121,10 @@ async function request({ ctx, productId, signal, slotId, messages, assertCurrent
     }
 }
 
+type VariantRepairProgress = { completed: number; total: number };
+
 export async function planProductImages(ctx: CanvasNodeContext, productId: string, signal: AbortSignal, onPhase?: (phase: TextTaskPhase) => void,
-    options: { recoverOnly?: boolean; repairOnly?: boolean } = {}) {
+    options: { recoverOnly?: boolean; repairOnly?: boolean; onRepairProgress?(progress: VariantRepairProgress): void } = {}) {
     const node = ctx.getNode(ctx.node.id);
     const inherited = node && inheritedProductPlanningPatch(node, productId);
     if (inherited) {
@@ -153,7 +155,7 @@ export async function planProductImages(ctx: CanvasNodeContext, productId: strin
                     return;
                 }
             }
-            return executeProductImagePlan(ctx, productId, signal, onPhase, options.recoverOnly === true, options.repairOnly === true);
+            return executeProductImagePlan(ctx, productId, signal, onPhase, options.recoverOnly === true, options.repairOnly === true, options.onRepairProgress);
         }, productId);
     } catch (error) {
         if (options.recoverOnly && recovery && (error as { code?: string }).code === "generation_failed") {
@@ -165,7 +167,8 @@ export async function planProductImages(ctx: CanvasNodeContext, productId: strin
     }
 }
 
-async function executeProductImagePlan(ctx: CanvasNodeContext, productId: string, signal: AbortSignal, onPhase?: (phase: TextTaskPhase) => void, recoverOnly = false, repairOnly = false) {
+async function executeProductImagePlan(ctx: CanvasNodeContext, productId: string, signal: AbortSignal, onPhase?: (phase: TextTaskPhase) => void,
+    recoverOnly = false, repairOnly = false, onRepairProgress?: (progress: VariantRepairProgress) => void) {
     const release = productCanvasResidency.acquire(productId);
     try {
     signal.throwIfAborted();
@@ -338,11 +341,22 @@ async function executeProductImagePlan(ctx: CanvasNodeContext, productId: string
         throw error;
     }
     }
-    if (candidate) {
+    let previousMissing = Infinity;
+    let stalledVariantBatches = 0;
+    const variantIds = facts.variants.map(variant => variant.id);
+    while (candidate) {
         if (recoverOnly) throw Error("原方案已取回，尚需修正结构；请使用“继续修正”，不会重新执行整套策划。");
         signal.throwIfAborted(); assertCurrent();
         const source: ProductPlanningCandidate = candidate;
         activeSlot = "product-image-plan-repair";
+        const variantRepair = missingProductPlanVariants(source, variantIds);
+        if (variantRepair) {
+            const missing = variantRepair.targets.reduce((total, target) => total + target.variantIds.length, 0);
+            stalledVariantBatches = missing < previousMissing ? 0 : stalledVariantBatches + 1;
+            if (stalledVariantBatches >= 2) break;
+            previousMissing = missing;
+            onRepairProgress?.({ completed: variantRepair.total - missing, total: variantRepair.total });
+        }
         const allowedConfirmationImages = confirmationInputs.filter(field => field.kind === "image").map(field => ({
             factId: field.id, imageKeys: field.imageKeys, scope: field.scope,
             variants: field.answers.map(answer => ({ variantId: answer.variantId, imageIds: answer.images.map(image => image.id) })),
@@ -352,17 +366,33 @@ async function executeProductImagePlan(ctx: CanvasNodeContext, productId: string
             await request({ ctx, productId, signal, slotId: "product-image-plan-repair", assertCurrent, sourceKey: requestKey,
                 onProgressText: text => { streamedText = text; },
                 onPhase: value => onPhase?.(value === "requesting" ? "repairing" : value),
-                messages: [{ role: "system", content: `${PRODUCT_PLAN_REPAIR_ROLE}\n\n${PRODUCT_PLANNING_OUTPUT}` },
+                messages: variantRepair ? [{ role: "system", content: PRODUCT_PLAN_VARIANT_REPAIR_ROLE },
+                    { role: "user", content: JSON.stringify({ facts, requirements: productPlanningRequirements(metadata),
+                        confirmationInputs, allowedConfirmationImages, targets: variantRepair.targets }) }]
+                    : [{ role: "system", content: `${PRODUCT_PLAN_REPAIR_ROLE}\n\n${PRODUCT_PLANNING_OUTPUT}` },
                     { role: "user", content: JSON.stringify({ facts, requirements: productPlanningRequirements(metadata),
                         confirmationInputs, allowedConfirmationImages, candidate: source.response, issues: source.issues }) }],
-                apply: text => receive(text, true) });
+                apply: text => {
+                    if (!variantRepair) return receive(text, true);
+                    try { text = variantRepair.merge(text); }
+                    catch {
+                        const task = ctx.getNode(parameter.id)?.metadata?.gatewayGenerationTasks?.find(item => item.slotId === activeSlot);
+                        if (!task) throw Error("策划任务身份已变化，未保留其他任务的结果。");
+                        candidate = { ...source, slotId: activeSlot, taskId: task.taskId };
+                        ctx.updateMetadata(productPlanningCandidatePatch(candidate));
+                        return;
+                    }
+                    receive(text, true);
+                } });
         } catch (error) {
-            await preserveStreamedCandidate(streamedText, "product-image-plan-repair");
+            if (!variantRepair) await preserveStreamedCandidate(streamedText, "product-image-plan-repair");
             throw error;
         }
-        if (candidate) throw Object.assign(Error("方案结构修正后仍未通过检查，原卡片已保留；请继续修正已返回的方案。"),
-            { code: "product_plan_repair_incomplete" });
+        if (variantRepair && !candidate) onRepairProgress?.({ completed: variantRepair.total, total: variantRepair.total });
+        if (!variantRepair) break;
     }
+    if (candidate) throw Object.assign(Error("方案结构修正后仍未通过检查，原卡片已保留；请继续修正已返回的方案。"),
+        { code: "product_plan_repair_incomplete" });
     await clearCommit();
     signal.throwIfAborted();
     if (hasImages) { notifyProductPlanning(productId, parameter.id, true, configNodeIds); onPhase?.("ready"); }

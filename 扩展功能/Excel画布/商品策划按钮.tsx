@@ -19,6 +19,7 @@ import type { ProductPlanningTask } from "./商品策划任务状态";
 export function ProductPlanningButton({ ctx, productId }: { ctx: CanvasNodeContext; productId: string }) {
     const [busy, setBusy] = useState(false), [error, setError] = useState("");
     const [phase, setPhase] = useState<TextTaskPhase | null>(null);
+    const [repairProgress, setRepairProgress] = useState<{ completed: number; total: number } | null>(null);
     const streamingText = useProductPlanningText(ctx.node);
     const inherited = inheritedProductPlanningPatch(ctx.node, productId);
     const recovery = inherited ? undefined : productPlanningRecovery(ctx.node);
@@ -44,12 +45,13 @@ export function ProductPlanningButton({ ctx, productId }: { ctx: CanvasNodeConte
             || productPlanningRecovery(ctx.getNode(ctx.node.id))?.kind !== "save")) return false;
         const job = new AbortController();
         runningAction.current = recovery;
-        controller.current = job; setBusy(true); setError(""); setPhase("preparing");
+        controller.current = job; setBusy(true); setError(""); setPhase("preparing"); setRepairProgress(null);
         try {
             const { planProductImages } = await import("./商品策划请求");
             job.signal.throwIfAborted();
             await planProductImages(ctx, productId, job.signal, value => { if (controller.current === job && !job.signal.aborted) setPhase(value); },
-                { recoverOnly: recovery?.kind === "save" || recovery?.kind === "query", repairOnly: recovery?.kind === "repair" });
+                { recoverOnly: recovery?.kind === "save" || recovery?.kind === "query", repairOnly: recovery?.kind === "repair",
+                    onRepairProgress: value => { if (controller.current === job && !job.signal.aborted) setRepairProgress(value); } });
             return false;
         } catch (error) {
             if (controller.current === job && !job.signal.aborted) {
@@ -73,6 +75,11 @@ export function ProductPlanningButton({ ctx, productId }: { ctx: CanvasNodeConte
             {busy ? runningAction.current?.kind === "save" ? "自动保存中" : runningAction.current?.kind === "query" ? "查询原任务中" : "策划中" : actionLabel}{busy ? <X aria-hidden className="size-3" /> : null}
         </AppleActionButton>
         {phase ? <TextTaskStatus phase={phase === "requesting" && streamingText ? "streaming" : phase} kind="planning" compact /> : null}
+        {repairProgress && (busy || visibleError) ? <div className="mt-1 min-w-[112px] text-[11px] text-muted-foreground">
+            <div role="status" className="tabular-nums">变体提示词 {repairProgress.completed} / {repairProgress.total}</div>
+            <progress aria-label="变体提示词完成进度" value={repairProgress.completed} max={repairProgress.total}
+                className="mt-0.5 block h-1 w-full accent-current" />
+        </div> : null}
         {!busy && (visibleError || recovery) ? <div className="mt-1 flex justify-end">
             <StatusDetails label={visibleError ? recovery?.kind === "save" ? "保存待确认" : recovery ? "策划失败" : "待重新策划" : "任务详情"} failed={Boolean(visibleError)}>
                 {visibleError ? <p>{visibleError}</p> : null}

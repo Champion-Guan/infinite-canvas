@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
 import { 值编码提速后态通过 } from './SQLite值编码提速批准.mjs';
+import { 当前存储基线包含 } from './SQLite当前存储基线批准.mjs';
 
 // 2026-10-17 用户批准已展示的25文件差异；历史JSON/patch原字节保留。
 // 不授权生产切换、旧数据迁入、真实凭据访问、服务重启或发布。
@@ -57,5 +58,6 @@ export function 核验SQLite自有依赖(root) {
 // 历史清单仍保留原始哈希；只有已登记的单文件后继可以替代它，其他文件不放宽。
 export function SQLite自有依赖通过(root, item) {
   const current = SQLite安全指纹(root, item.文件);
+  if (当前存储基线包含(root, item.文件, SQLite安全指纹)) return true;
   return current === item.SHA256 || 值编码提速后态通过(current, item.文件);
 }

@@ -10944,6 +10944,30 @@
       "SHA256": "99b7005e690731df31034ed63a966597dbedf9e2bbe9253b093dce4cc66091df",
       "前态SHA256": "24f11a69b96c00e060a84ca47b37d656fc6b189008f8c571d9d0de4a74f44697",
       "后态SHA256": "18acd8e5dd2ecd7cf29aac613596ef59d24b82aafd85ce9a50ffcbbe860f203e"
+    },
+    {
+      "文件": "上游适配/文本卡片点击画布前提交编辑.patch",
+      "目标": "web/src/components/canvas/canvas-node.tsx",
+      "职责": "文本卡片点击画布前提交编辑",
+      "SHA256": "b8f7b18565c34c4137869babbdb7e63797d40a0f9f5a9086b26374d73319e83c",
+      "前态SHA256": "767581401bc67b504673241fb119c9688caf2fbd662313efba311e812cdc844c",
+      "后态SHA256": "091f75c08d99cf3c67cb7a96e453474142974559e077c1ac1480f14568ad356b"
+    },
+    {
+      "文件": "上游适配/文本编辑退出立即保存.patch",
+      "目标": "web/src/pages/canvas/project.tsx",
+      "职责": "文本编辑退出立即保存",
+      "SHA256": "9c684e2808ea08f803759d46c04ec3c14ca02c2bdbc2874cb0c5e0678b6bdabc",
+      "前态SHA256": "18acd8e5dd2ecd7cf29aac613596ef59d24b82aafd85ce9a50ffcbbe860f203e",
+      "后态SHA256": "76a74769137e82fc6f5cd5079f5e37561ddbf4b503b795e130929f6e200d0e28"
+    },
+    {
+      "文件": "上游适配/画布分块导出接入.patch",
+      "目标": "web/src/lib/canvas/canvas-export.ts",
+      "职责": "画布分块导出接入",
+      "SHA256": "998633a863ef7ab2344a94fd386b3ea159ef4eece5fce6cf0c678043370fab83",
+      "前态SHA256": "7a8ab9cf02aa7abf588ad1b8de1d23a69cbe1acf3259618a68c45c97cdb9da29",
+      "后态SHA256": "fee7f8a238f1633ec25a432b9f9a178eefda3aa81bb1e4651d4e8d0a249c9f41"
     }
   ]
 }

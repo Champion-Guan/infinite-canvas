@@ -42,6 +42,7 @@ function responseText(response) {
 export function createProviderTextStream({ kind, credential, onProgress = () => {} }) {
   const variants = credentialVariants(credential), mask = incrementalRedactor(variants), decoder = new TextDecoder('utf-8', { fatal: true });
   let buffer = '', lines = [], event = '', rawText = '', visible = '', finalText, total = 0, completed = false, received = false, ended = false;
+  let finishReason;
   const append = text => {
     if (typeof text !== 'string' || completed) invalid();
     total += Buffer.byteLength(text); if (total > MAX_TEXT_BYTES) invalid();
@@ -58,18 +59,26 @@ export function createProviderTextStream({ kind, credential, onProgress = () => 
       if (type === 'response.output_text.delta') append(value.delta);
       else if (type === 'response.completed') {
         if (completed || !value.response || value.response.status && value.response.status !== 'completed') invalid();
-        finalText = responseText(value.response) || rawText; completed = true;
+        finalText = responseText(value.response) || rawText; finishReason = 'completed'; completed = true;
       } else if (['response.failed', 'response.incomplete', 'error'].includes(type)) invalid();
     } else if (kind === 'chat') {
       const choice = value.choices?.find(item => item.index === 0) || value.choices?.[0];
       if (choice?.delta?.content) append(choice.delta.content);
-      if (choice?.finish_reason) { if (!['stop', 'length'].includes(choice.finish_reason)) invalid(); completed = true; }
+      if (choice?.finish_reason) {
+        if (!['stop', 'length'].includes(choice.finish_reason)) invalid();
+        finishReason = choice.finish_reason;
+        completed = true;
+      }
     } else {
       if (value.promptFeedback?.blockReason) invalid();
       const choice = value.candidates?.find(item => item.index === 0) || value.candidates?.[0];
       const text = choice?.content?.parts?.filter(part => !part.thought).map(part => typeof part.text === 'string' ? part.text : '').join('');
       if (text) append(text);
-      if (choice?.finishReason) { if (!['STOP', 'MAX_TOKENS'].includes(choice.finishReason)) invalid(); completed = true; }
+      if (choice?.finishReason) {
+        if (!['STOP', 'MAX_TOKENS'].includes(choice.finishReason)) invalid();
+        finishReason = choice.finishReason;
+        completed = true;
+      }
     }
   }
   function parse(text) {
@@ -94,7 +103,7 @@ export function createProviderTextStream({ kind, credential, onProgress = () => 
       const text = finalText === undefined ? visible + mask('', true) : redactText(finalText, variants);
       if (!text.trim() || Buffer.byteLength(text) > MAX_TEXT_BYTES) invalid();
       if (text !== visible) { visible = text; onProgress(text); }
-      return Buffer.from(JSON.stringify({ output_text: text }));
+      return Buffer.from(JSON.stringify({ output_text: text, finish_reason: finishReason }));
     },
   };
 }

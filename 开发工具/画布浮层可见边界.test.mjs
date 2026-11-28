@@ -156,6 +156,21 @@ test('左右面板紧邻卡片且顶边对齐，不被顶部宽功能栏推远',
         assert.ok(result.left >= obstacle.right || result.left + result.width <= obstacle.left || result.top >= obstacle.bottom || result.top + result.height <= obstacle.top);
 });
 
+test('卡片靠下或侧边功能栏挡住部分空间时，仍可原地打开编辑面板', () => {
+    const safe = { left: 12, top: 160, right: 1428, bottom: 580 };
+    const card = { left: 596, top: 390, right: 777, bottom: 571 };
+    const size = { width: 600, height: 313 };
+    const beside = rules.placeCanvasPanel(card, size, safe);
+    assert.deepEqual(beside, { left: 789, top: 267, width: 600, height: 313, side: 'right' });
+
+    const toolbar = { left: 356, top: 328, right: 1016, bottom: 375 };
+    const clearOfToolbar = rules.placeCanvasPanel(card, size, safe, toolbar);
+    assert.equal(clearOfToolbar.side, 'right');
+    assert.equal(clearOfToolbar.left, toolbar.right + 12);
+    assert.equal(clearOfToolbar.height, size.height);
+    assert.ok(rules.isUsableCanvasPanel(clearOfToolbar, size.height));
+});
+
 test('原长设置面板只改变出现位置，优先卡片两侧且避开卡片和顶部功能栏', () => {
     const safe = { left: 260, top: 160, right: 1428, bottom: 700 };
     const card = { left: 640, top: 300, right: 880, bottom: 470 };

@@ -49,3 +49,13 @@ test('真实卡片条件外保留Presence，关闭不会先卸载面板', () => 
     assert.match(source, /<CardPanelLayer key=\{data.id\}/);
     assert.match(source, /<\/CardPanelLayer>\s*\) : null\}<\/AnimatePresence>/);
 });
+
+test('文本卡片点击画布时先让输入框失焦，使用输入框当前值提交后才退出编辑', () => {
+    const source = readFileSync('.运行/3100源/画布副本/web/src/components/canvas/canvas-node.tsx', 'utf8');
+    const [node, content] = source.split('function TextContent(');
+    assert.doesNotMatch(node, /if \(isEditingContent && textareaRef\.current\?\.contains\(target\)\)/);
+    assert.match(content, /if \(textarea === document\.activeElement\) textarea\.blur\(\);\s*else finishEditing\(textarea\.value\);/);
+    assert.match(content, /onBlur=\{\(event\) => finishEditing\(event\.currentTarget\.value\)\}/);
+    assert.match(content, /if \(value !== content\) onContentChange\(node\.id, value\);\s*onStopEditing\(\);/);
+    assert.match(content, /if \(event\.key === "Escape" && !isImeComposing\(event\)\) onStopEditing\(\);/);
+});

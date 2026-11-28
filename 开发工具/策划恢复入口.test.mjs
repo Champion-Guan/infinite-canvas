@@ -75,7 +75,9 @@ test('真实策划按钮将恢复入口绑定仅恢复意图，普通策划与�
             button.props.onClick();
         }
         await new Promise(done => setImmediate(done));
-        assert.deepEqual(calls.at(-1)[4], { recoverOnly, repairOnly });
+        const { onRepairProgress, ...intent } = calls.at(-1)[4];
+        assert.deepEqual(intent, { recoverOnly, repairOnly });
+        assert.equal(typeof onRepairProgress, 'function');
         assert.equal(calls.at(-1)[0], ctx);
     }
 });

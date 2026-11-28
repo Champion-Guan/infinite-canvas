@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { SQLite安全指纹, 读取SQLite批准 } from './SQLite全面替换批准.mjs';
+import { 当前存储基线包含 } from './SQLite当前存储基线批准.mjs';
 import { 读取节点存储批准 } from './SQLite节点存储批准.mjs';
 import { 读取启动存储批准 } from './SQLite启动存储批准.mjs';
 import { 读取授权入口批准, 核验授权入口自有依赖, 授权入口差异SHA256 } from './SQLite工作台授权入口批准.mjs';
@@ -29,9 +30,12 @@ export function 读取免填码批准() {
 }
 export function 核验免填码自有依赖(root) {
   核验授权入口自有依赖(root);
-  for (const item of 媒体启动器依赖()) if (SQLite安全指纹(root, item.文件) !== item.SHA256) throw Error('免填码启动器自有依赖未知改动：' + item.文件);
+  for (const item of 媒体启动器依赖()) if (SQLite安全指纹(root, item.文件) !== item.SHA256 &&
+    !当前存储基线包含(root, item.文件, SQLite安全指纹)) throw Error('免填码启动器自有依赖未知改动：' + item.文件);
   for (const [source, target] of [['扩展功能/本机存储/自动启动工作台.mjs', boot], ['扩展功能/本机存储/工作台自动入口.mjs', entry]]) {
-    if (SQLite安全指纹(root, source) !== 读取免填码批准().文件.find(item => item.文件 === target).候选SHA256) throw Error('免填码入口自有来源未知改动：' + source);
+    const current = SQLite安全指纹(root, source);
+    if (current !== 读取免填码批准().文件.find(item => item.文件 === target).候选SHA256 &&
+        !当前存储基线包含(root, source, SQLite安全指纹)) throw Error('免填码入口自有来源未知改动：' + source);
   }
 }
 function exactTree(root, directory, files) {

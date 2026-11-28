@@ -49,29 +49,43 @@ export function revealCanvasPanel(view: { x: number; y: number; k: number }, nod
 }
 
 export function placeCanvasPanel(anchor: FloatingRect, size: { width: number; height: number }, bounds: FloatingRect, toolbar?: FloatingRect) {
-    const sideTop = Math.max(bounds.top, anchor.top);
+    const gap = 12;
     const spaces = [
-        { ...bounds, top: Math.max(bounds.top, anchor.bottom + 12), side: "bottom" },
-        { ...bounds, bottom: Math.min(bounds.bottom, anchor.top - 12, toolbar ? toolbar.top - 12 : Infinity), side: "top" },
-        { ...bounds, top: sideTop, left: Math.max(bounds.left, anchor.right + 12), side: "right" },
-        { ...bounds, top: sideTop, right: Math.min(bounds.right, anchor.left - 12), side: "left" },
-    ].map(space => {
-        if (!toolbar || (space.side !== "right" && space.side !== "left")) return space;
-        const overlapsX = toolbar.left < space.right && toolbar.right > space.left;
-        return overlapsX && toolbar.bottom > space.top ? { ...space, top: Math.max(space.top, toolbar.bottom + 12) } : space;
-    }).filter(space => space.right > space.left && space.bottom > space.top);
-    const full = spaces.find(space => space.right - space.left >= size.width && space.bottom - space.top >= size.height);
-    // 缩窄或缩短编辑器也不能跨进卡片及其工具栏；优先保留可阅读的宽度和操作区。
-    const score = (space: typeof spaces[number]) => {
-        const width = Math.min(size.width, space.right - space.left), height = Math.min(size.height, space.bottom - space.top);
-        return width * height * (width >= 280 ? 1 : .15) * (height >= 140 ? 1 : .15);
+        { ...bounds, top: Math.max(bounds.top, anchor.bottom + gap), side: "bottom" },
+        { ...bounds, bottom: Math.min(bounds.bottom, anchor.top - gap), side: "top" },
+        { ...bounds, left: Math.max(bounds.left, anchor.right + gap), side: "right" },
+        { ...bounds, right: Math.min(bounds.right, anchor.left - gap), side: "left" },
+    ];
+    const fit = (space: typeof spaces[number]) => {
+        const width = Math.min(size.width, space.right - space.left);
+        const height = Math.min(size.height, space.bottom - space.top);
+        const x = space.side === "right" ? space.left : space.side === "left" ? space.right - width : (anchor.left + anchor.right - width) / 2;
+        const y = space.side === "top" ? space.bottom - height : space.side === "bottom" ? space.top : anchor.top;
+        return { ...fitFloatingRect({ left: x, top: y, right: x + width, bottom: y + height }, space), side: space.side };
     };
-    const space = full ?? spaces.reduce<(typeof spaces)[number] | undefined>((best, current) => !best || score(current) > score(best) ? current : best, undefined);
-    if (!space) return { left: bounds.right, top: bounds.top, width: 0, height: 0, side: "unavailable" };
-    const width = Math.min(size.width, space.right - space.left), height = Math.min(size.height, space.bottom - space.top);
-    const x = space.side === "right" ? space.left : space.side === "left" ? space.right - width : (anchor.left + anchor.right - width) / 2;
-    const y = space.side === "top" ? space.bottom - height : space.top;
-    return { ...fitFloatingRect({ left: x, top: y, right: x + width, bottom: y + height }, space), side: space.side };
+    const hasRoom = (space: FloatingRect) => space.right > space.left && space.bottom > space.top;
+    const candidates = spaces.filter(hasRoom).flatMap(space => {
+        const panel = fit(space);
+        if (!toolbar || panel.left >= toolbar.right + gap || panel.left + panel.width <= toolbar.left - gap ||
+            panel.top >= toolbar.bottom + gap || panel.top + panel.height <= toolbar.top - gap) return [panel];
+        return [
+            { ...space, top: Math.max(space.top, toolbar.bottom + gap) },
+            { ...space, bottom: Math.min(space.bottom, toolbar.top - gap) },
+            { ...space, left: Math.max(space.left, toolbar.right + gap) },
+            { ...space, right: Math.min(space.right, toolbar.left - gap) },
+        ].filter(hasRoom).map(fit);
+    });
+    const full = candidates.find(panel => panel.width >= size.width && panel.height >= size.height);
+    const score = (panel: ReturnType<typeof fit>) =>
+        panel.width * panel.height * (panel.width >= 280 ? 1 : .15) * (panel.height >= 140 ? 1 : .15);
+    const usable = candidates.filter(panel => isUsableCanvasPanel(panel, size.height));
+    const best = (usable.length ? usable : candidates).reduce<ReturnType<typeof fit> | undefined>(
+        (current, panel) => !current || score(panel) > score(current) ? panel : current, undefined);
+    return full ?? best ?? { left: bounds.right, top: bounds.top, width: 0, height: 0, side: "unavailable" };
+}
+
+export function isUsableCanvasPanel(panel: { width: number; height: number }, contentHeight: number) {
+    return panel.width >= 320 && panel.height >= Math.min(contentHeight, 280);
 }
 
 export function placeCanvasSettings(card: FloatingRect, size: { width: number; height: number }, bounds: FloatingRect, toolbar?: FloatingRect) {

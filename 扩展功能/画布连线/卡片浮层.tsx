@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, useIsPresent, useReducedMotion } from "motion/react";
 import type { CanvasNodeData } from "@/types/canvas";
 import { useProductActive } from "../产品/产品界面边界";
-import { CANVAS_FLOATING_CHANGE, CANVAS_PANEL_REVEAL, placeCanvasPanel, readCanvasFloatingBounds } from "../画布交互/浮层可见区域";
+import { CANVAS_FLOATING_CHANGE, CANVAS_PANEL_REVEAL, isUsableCanvasPanel, placeCanvasPanel, readCanvasFloatingBounds } from "../画布交互/浮层可见区域";
 import { APPLE_POPOVER_TRANSITION } from "../主题/苹果动效";
 
 export function CardPanelLayer({ node, target, children }: { node: CanvasNodeData; target?: HTMLDivElement | null; children: ReactNode }) {
@@ -32,7 +32,7 @@ export function CardPanelLayer({ node, target, children }: { node: CanvasNodeDat
             if (geometry === nextGeometry && element.contains(document.activeElement)) return;
             geometry = nextGeometry;
             const placement = placeCanvasPanel(anchor, { width: 600, height: element.scrollHeight }, bounds, toolbar);
-            if (!positioned && (placement.width < 320 || placement.height < Math.min(element.scrollHeight, 300)) && !revealed) {
+            if (!positioned && !isUsableCanvasPanel(placement, element.scrollHeight) && !revealed) {
                 revealed = true;
                 source.dispatchEvent(new CustomEvent(CANVAS_PANEL_REVEAL, { bubbles: true, detail: {
                     node: { position: { x: node.position.x, y: node.position.y }, width: node.width, height: node.height }, bounds } }));
